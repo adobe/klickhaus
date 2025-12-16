@@ -699,7 +699,12 @@
 
     // Query Helper
     async function query(sql) {
-      const response = await fetch(CLICKHOUSE_URL, {
+      const params = new URLSearchParams({
+        use_query_cache: '1',
+        query_cache_ttl: '60'
+      });
+
+      const response = await fetch(`${CLICKHOUSE_URL}?${params}`, {
         method: 'POST',
         headers: {
           'Authorization': 'Basic ' + btoa(`${state.credentials.user}:${state.credentials.password}`)
