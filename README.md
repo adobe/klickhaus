@@ -46,6 +46,23 @@ S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)
 3. Use the time range selector and host filter to narrow down results
 4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
 
+## User Management
+
+Scripts in `scripts/` manage dashboard access (require admin credentials):
+
+```bash
+# Add a new read-only user
+node scripts/add-user.mjs <admin-user> <admin-password> <new-username> [password]
+
+# Rotate a user's password
+node scripts/roll-user.mjs <admin-user> <admin-password> <username>
+
+# Remove a user
+node scripts/drop-user.mjs <admin-user> <admin-password> <username>
+```
+
+New users receive read-only access (`SELECT` on `cdn_requests_combined`).
+
 ## Local Development
 
 The dashboard is a single HTML file with no build step required. Simply open `dashboard.html` in your browser.
