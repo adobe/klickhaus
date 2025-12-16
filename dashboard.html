@@ -930,9 +930,24 @@
       });
     }, { rootMargin: '50px' });
 
-    // Observe all breakdown cards once DOM is ready
+    // Check if element is in viewport
+    function isInViewport(el) {
+      const rect = el.getBoundingClientRect();
+      return (
+        rect.top < (window.innerHeight || document.documentElement.clientHeight) + 50 &&
+        rect.bottom > -50 &&
+        rect.left < (window.innerWidth || document.documentElement.clientWidth) + 50 &&
+        rect.right > -50
+      );
+    }
+
+    // Observe all breakdown cards and check initial visibility
     document.querySelectorAll('.breakdown-card').forEach(card => {
       facetObserver.observe(card);
+      // Check initial visibility for elements already in viewport
+      if (isInViewport(card)) {
+        visibleFacets.add(card.id);
+      }
     });
 
     function getTimerClass(ms) {
