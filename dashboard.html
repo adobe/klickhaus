@@ -323,6 +323,23 @@
       background: var(--bar-bg);
       border-radius: 4px;
       overflow: hidden;
+      display: flex;
+    }
+
+    .breakdown-table .bar-segment {
+      height: 100%;
+    }
+
+    .breakdown-table .bar-5xx {
+      background: var(--status-server-error);
+    }
+
+    .breakdown-table .bar-4xx {
+      background: var(--status-client-error);
+    }
+
+    .breakdown-table .bar-ok {
+      background: var(--status-ok);
     }
 
     .breakdown-table .bar-fill {
@@ -942,7 +959,12 @@
       const promises = breakdowns.map(async (b) => {
         const extra = b.extraFilter || '';
         const sql = `
-          SELECT ${b.col} as dim, count() as cnt
+          SELECT
+            ${b.col} as dim,
+            count() as cnt,
+            countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
+            countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
+            countIf(\`response.status\` >= 500) as cnt_5xx
           FROM ${DATABASE}.${TABLE}
           WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
           GROUP BY dim
@@ -977,16 +999,29 @@
 
       let html = `<h3>${title}</h3><table class="breakdown-table">`;
       for (const row of data) {
-        const pct = (parseInt(row.cnt) / maxCount) * 100;
+        const cnt = parseInt(row.cnt);
+        const cntOk = parseInt(row.cnt_ok) || 0;
+        const cnt4xx = parseInt(row.cnt_4xx) || 0;
+        const cnt5xx = parseInt(row.cnt_5xx) || 0;
+
+        // Calculate percentages relative to max count (for bar width)
+        const barWidth = (cnt / maxCount) * 100;
+        // Calculate percentages within this row (for stacked segments)
+        const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
+        const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
+        const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
+
         const dim = row.dim || '(empty)';
         const dimEscaped = (row.dim || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
         html += `
           <tr>
             <td class="dim" title="${escapeHtml(dim)}">${escapeHtml(dim)}</td>
-            <td class="count">${formatNumber(parseInt(row.cnt))}</td>
+            <td class="count">${formatNumber(cnt)}</td>
             <td class="bar">
-              <div class="bar-inner">
-                <div class="bar-fill" style="width: ${pct}%"></div>
+              <div class="bar-inner" style="width: ${barWidth}%">
+                <div class="bar-segment bar-5xx" style="width: ${pct5xx}%"></div>
+                <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
+                <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
               </div>
             </td>
             <td class="actions">
