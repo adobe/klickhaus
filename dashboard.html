@@ -339,6 +339,25 @@
       font-size: 14px;
       font-weight: 600;
       margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clear-facet-btn {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-weight: normal;
+    }
+
+    .clear-facet-btn:hover {
+      background: var(--bg);
+      color: var(--text);
     }
 
     .breakdown-table {
@@ -352,6 +371,27 @@
 
     .breakdown-table tr:last-child {
       border-bottom: none;
+    }
+
+    .breakdown-table tr.filter-included {
+      background: var(--filter-tag-bg);
+    }
+
+    .breakdown-table tr.filter-included .dim::before {
+      content: '+ ';
+      color: var(--status-ok);
+      font-weight: bold;
+    }
+
+    .breakdown-table tr.filter-excluded {
+      background: var(--bar-bg);
+      opacity: 0.6;
+    }
+
+    .breakdown-table tr.filter-excluded .dim::before {
+      content: '- ';
+      color: var(--error);
+      font-weight: bold;
     }
 
     .breakdown-table td {
@@ -779,6 +819,26 @@
       }).join(' ');
     }
 
+    function getFacetFiltersExcluding(col) {
+      const filtered = state.filters.filter(f => f.col !== col);
+      if (filtered.length === 0) return '';
+      return filtered.map(f => {
+        const escaped = f.value.replace(/'/g, "\\'");
+        const op = f.exclude ? '!=' : '=';
+        return `AND ${f.col} ${op} '${escaped}'`;
+      }).join(' ');
+    }
+
+    function getFiltersForColumn(col) {
+      return state.filters.filter(f => f.col === col);
+    }
+
+    function clearFiltersForColumn(col) {
+      state.filters = state.filters.filter(f => f.col !== col);
+      renderActiveFilters();
+      loadDashboard();
+    }
+
     function addFilter(col, value, exclude) {
       // Remove existing filter for same col+value
       state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
@@ -1120,10 +1180,10 @@
         { id: 'breakdown-content-types', col: '`response.headers.content_type`' }
       ];
 
-      const facetFilters = getFacetFilters();
-
       const promises = breakdowns.map(async (b) => {
         const extra = b.extraFilter || '';
+        // Get filters excluding this facet's column to show all values for active facets
+        const facetFilters = getFacetFiltersExcluding(b.col);
         const sql = `
           SELECT
             ${b.col} as dim,
@@ -1154,16 +1214,30 @@
       const card = document.getElementById(id);
       const title = card.querySelector('h3').textContent;
 
+      // Get active filters for this column
+      const columnFilters = getFiltersForColumn(col);
+      const hasFilters = columnFilters.length > 0;
+      const colEscaped = col.replace(/'/g, "\\'");
+
       if (data.length === 0) {
-        card.innerHTML = `<h3>${title}</h3><div class="empty">No data</div>`;
+        let html = `<h3>${title}`;
+        if (hasFilters) {
+          html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
+        }
+        html += `</h3><div class="empty">No data</div>`;
+        card.innerHTML = html;
         return;
       }
 
       const maxCount = Math.max(...data.map(d => parseInt(d.cnt)));
       const total = data.reduce((sum, d) => sum + parseInt(d.cnt), 0);
-      const colEscaped = col.replace(/'/g, "\\'");
 
-      let html = `<h3>${title}</h3><table class="breakdown-table">`;
+      let html = `<h3>${title}`;
+      if (hasFilters) {
+        html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
+      }
+      html += `</h3><table class="breakdown-table">`;
+
       for (const row of data) {
         const cnt = parseInt(row.cnt);
         const cntOk = parseInt(row.cnt_ok) || 0;
@@ -1179,8 +1253,15 @@
 
         const dim = row.dim || '(empty)';
         const dimEscaped = (row.dim || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+
+        // Check if this value is currently filtered
+        const activeFilter = columnFilters.find(f => f.value === (row.dim || ''));
+        const isIncluded = activeFilter && !activeFilter.exclude;
+        const isExcluded = activeFilter && activeFilter.exclude;
+        const rowClass = isIncluded ? 'filter-included' : (isExcluded ? 'filter-excluded' : '');
+
         html += `
-          <tr>
+          <tr class="${rowClass}">
             <td class="dim" title="${escapeHtml(dim)}">${escapeHtml(dim)}</td>
             <td class="count">
               <span class="value">${formatNumber(cnt)}</span>
