@@ -564,6 +564,10 @@
           <h3>Errors</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
+        <div class="breakdown-card" id="breakdown-status-range">
+          <h3>Status Range</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
         <div class="breakdown-card" id="breakdown-status">
           <h3>Status Codes</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
@@ -1024,6 +1028,7 @@
         { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
         { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)' },
         { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
+        { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')" },
         { id: 'breakdown-status', col: 'toString(`response.status`)' },
         { id: 'breakdown-content-types', col: '`response.headers.content_type`' }
       ];
