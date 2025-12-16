@@ -1199,12 +1199,12 @@
         { id: 'breakdown-paths', col: '`request.url`' },
         { id: 'breakdown-referers', col: '`request.headers.referer`' },
         { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
-        { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://who.is/whois-ip/ip-address/' },
+        { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=' },
         { id: 'breakdown-request-type', col: '`helix.request_type`', extraFilter: "AND `helix.request_type` != ''" },
         { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
         { id: 'breakdown-methods', col: '`request.method`' },
         { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
-        { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', `client.name`)", extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://who.is/whois-ip/ip-address/AS' }
+        { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', `client.name`)", extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=AS' }
       ];
 
       const promises = breakdowns.map(async (b) => {
