@@ -814,6 +814,77 @@
       showLogs: false,
     };
 
+    // URL State Management
+    function saveStateToURL() {
+      const params = new URLSearchParams();
+
+      if (state.timeRange !== '1h') params.set('t', state.timeRange);
+      if (state.hostFilter) params.set('host', state.hostFilter);
+      if (state.topN !== 5) params.set('n', state.topN);
+      if (state.showLogs) params.set('view', 'logs');
+
+      // Encode filters as JSON array
+      if (state.filters.length > 0) {
+        params.set('filters', JSON.stringify(state.filters));
+      }
+
+      const newURL = params.toString()
+        ? `${window.location.pathname}?${params}`
+        : window.location.pathname;
+      window.history.replaceState({}, '', newURL);
+    }
+
+    function loadStateFromURL() {
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.has('t')) {
+        const t = params.get('t');
+        if (['1h', '12h', '24h', '7d'].includes(t)) {
+          state.timeRange = t;
+        }
+      }
+
+      if (params.has('host')) {
+        state.hostFilter = params.get('host');
+      }
+
+      if (params.has('n')) {
+        const n = parseInt(params.get('n'));
+        if ([5, 10, 20, 50, 100].includes(n)) {
+          state.topN = n;
+        }
+      }
+
+      if (params.has('view') && params.get('view') === 'logs') {
+        state.showLogs = true;
+      }
+
+      if (params.has('filters')) {
+        try {
+          const filters = JSON.parse(params.get('filters'));
+          if (Array.isArray(filters)) {
+            state.filters = filters.filter(f => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean');
+          }
+        } catch (e) {
+          console.error('Failed to parse filters from URL:', e);
+        }
+      }
+    }
+
+    function syncUIFromState() {
+      timeRangeSelect.value = state.timeRange;
+      topNSelect.value = state.topN;
+      hostFilterInput.value = state.hostFilter;
+      renderActiveFilters();
+
+      if (state.showLogs) {
+        logsView.classList.add('visible');
+        dashboardContent.classList.add('hidden');
+        logsBtn.classList.add('active');
+        logsBtn.textContent = 'Dashboard';
+      }
+    }
+
     // DOM Elements
     const loginSection = document.getElementById('login');
     const dashboardSection = document.getElementById('dashboard');
@@ -830,6 +901,9 @@
 
     // Initialize
     async function init() {
+      // Load state from URL first
+      loadStateFromURL();
+
       // Check for stored credentials and validate them
       const stored = localStorage.getItem('clickhouse_credentials');
       if (stored) {
@@ -837,6 +911,7 @@
         try {
           // Validate stored credentials before showing dashboard
           await query('SELECT 1');
+          syncUIFromState();
           showDashboard();
           loadDashboard();
         } catch (err) {
@@ -853,11 +928,13 @@
       refreshBtn.addEventListener('click', () => loadDashboard(true));
       timeRangeSelect.addEventListener('change', (e) => {
         state.timeRange = e.target.value;
+        saveStateToURL();
         loadDashboard();
       });
 
       topNSelect.addEventListener('change', (e) => {
         state.topN = parseInt(e.target.value);
+        saveStateToURL();
         loadAllBreakdowns();
       });
 
@@ -866,6 +943,7 @@
         clearTimeout(filterTimeout);
         filterTimeout = setTimeout(() => {
           state.hostFilter = e.target.value;
+          saveStateToURL();
           loadDashboard();
         }, 500);
       });
@@ -1016,6 +1094,7 @@
     function clearFiltersForColumn(col) {
       state.filters = state.filters.filter(f => f.col !== col);
       renderActiveFilters();
+      saveStateToURL();
       loadDashboard();
     }
 
@@ -1024,12 +1103,14 @@
       state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
       state.filters.push({ col, value, exclude });
       renderActiveFilters();
+      saveStateToURL();
       loadDashboard();
     }
 
     function removeFilter(index) {
       state.filters.splice(index, 1);
       renderActiveFilters();
+      saveStateToURL();
       loadDashboard();
     }
 
@@ -1590,6 +1671,7 @@
         logsBtn.classList.remove('active');
         logsBtn.textContent = 'Logs';
       }
+      saveStateToURL();
     }
 
     async function loadLogs() {
