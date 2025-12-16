@@ -1204,7 +1204,11 @@
 
     function renderBreakdownTable(id, data, col) {
       const card = document.getElementById(id);
-      const title = card.querySelector('h3').textContent;
+      // Store original title in data attribute, or read from h3 if first render
+      if (!card.dataset.title) {
+        card.dataset.title = card.querySelector('h3').textContent;
+      }
+      const title = card.dataset.title;
 
       // Get active filters for this column
       const columnFilters = getFiltersForColumn(col);
