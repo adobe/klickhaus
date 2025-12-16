@@ -200,12 +200,16 @@
       margin-left: 8px;
     }
 
-    .query-timer.running {
+    .query-timer.fast {
+      color: var(--status-ok);
+    }
+
+    .query-timer.medium {
       color: var(--status-client-error);
     }
 
-    .query-timer.done {
-      color: var(--status-ok);
+    .query-timer.slow {
+      color: var(--status-server-error);
     }
 
     header select,
@@ -808,13 +812,19 @@
     let queryStartTime = null;
     const queryTimerEl = document.getElementById('queryTimer');
 
+    function getTimerClass(ms) {
+      if (ms < 1000) return 'query-timer fast';
+      if (ms < 10000) return 'query-timer medium';
+      return 'query-timer slow';
+    }
+
     function startQueryTimer() {
       queryStartTime = performance.now();
       if (queryTimerInterval) clearInterval(queryTimerInterval);
-      queryTimerEl.className = 'query-timer running';
       queryTimerInterval = setInterval(() => {
         const elapsed = performance.now() - queryStartTime;
         queryTimerEl.textContent = formatQueryTime(elapsed);
+        queryTimerEl.className = getTimerClass(elapsed);
       }, 10);
     }
 
@@ -825,7 +835,7 @@
       }
       const elapsed = performance.now() - queryStartTime;
       queryTimerEl.textContent = formatQueryTime(elapsed);
-      queryTimerEl.className = 'query-timer done';
+      queryTimerEl.className = getTimerClass(elapsed);
     }
 
     function formatQueryTime(ms) {
