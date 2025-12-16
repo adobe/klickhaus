@@ -759,7 +759,8 @@
     function getTimeFilter() {
       // Use fixed timestamp instead of now() for deterministic/cacheable queries
       const ts = queryTimestamp || new Date();
-      const isoTimestamp = ts.toISOString().replace('T', ' ').replace('Z', '');
+      // Format as 'YYYY-MM-DD HH:MM:SS' (no milliseconds)
+      const isoTimestamp = ts.toISOString().replace('T', ' ').slice(0, 19);
       return `timestamp > toDateTime('${isoTimestamp}') - ${getInterval()}`;
     }
 
