@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDN Analytics</title>
+  <style>
+    :root {
+      --primary: #eb1000;
+      --primary-dark: #c40d00;
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --text: #1d2939;
+      --text-secondary: #667085;
+      --border: #e4e7ec;
+      --success: #12b76a;
+      --error: #f04438;
+      --chart-line: #eb1000;
+      --bar-bg: #fce4e4;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* Login Form */
+    #login {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    #login.hidden { display: none; }
+
+    .login-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-card h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .login-card p {
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(246, 130, 31, 0.1);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg);
+    }
+
+    .error-message {
+      background: #fef3f2;
+      border: 1px solid #fecdca;
+      color: var(--error);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .error-message.visible { display: block; }
+
+    /* Dashboard */
+    #dashboard {
+      display: none;
+      min-height: 100vh;
+    }
+
+    #dashboard.visible { display: block; }
+
+    /* Header */
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      font-size: 20px;
+      margin-right: auto;
+    }
+
+    header select,
+    header input[type="text"] {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    header input[type="text"] {
+      width: 250px;
+    }
+
+    #activeFilters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #e8f4fd;
+      border: 1px solid #b8daff;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #004085;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .filter-tag.exclude {
+      background: #fce4e4;
+      border-color: #f5c6cb;
+      color: var(--error);
+    }
+
+    .filter-tag button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      color: inherit;
+      opacity: 0.7;
+    }
+
+    .filter-tag button:hover {
+      opacity: 1;
+    }
+
+    /* Main Content */
+    main {
+      padding: 24px;
+    }
+
+    /* Chart Section */
+    .chart-section {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 250px;
+    }
+
+    #chart {
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-section h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* Breakdown Tables */
+    .breakdowns {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 1400px) {
+      .breakdowns {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 1000px) {
+      .breakdowns {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .breakdowns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .breakdown-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .breakdown-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .breakdown-table {
+      width: 100%;
+      font-size: 13px;
+    }
+
+    .breakdown-table tr {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .breakdown-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .breakdown-table td {
+      padding: 8px 0;
+    }
+
+    .breakdown-table .dim {
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .breakdown-table .count {
+      text-align: right;
+      font-weight: 500;
+      white-space: nowrap;
+      padding-left: 8px;
+    }
+
+    .breakdown-table .bar {
+      width: 60px;
+      padding-left: 8px;
+    }
+
+    .breakdown-table .bar-inner {
+      height: 8px;
+      background: var(--bar-bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .breakdown-table .bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    .breakdown-table .actions {
+      display: none;
+      gap: 4px;
+      white-space: nowrap;
+      justify-content: flex-end;
+    }
+
+    .breakdown-table tr:hover .count,
+    .breakdown-table tr:hover .bar {
+      display: none;
+    }
+
+    .breakdown-table tr:hover .actions {
+      display: flex;
+    }
+
+    .breakdown-table td.actions {
+      text-align: right;
+    }
+
+    .breakdown-table .actions button {
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .breakdown-table .actions button:hover {
+      background: var(--bg);
+    }
+
+    .breakdown-table .actions button.exclude {
+      color: var(--error);
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
+    .empty {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Form -->
+  <div id="login">
+    <div class="login-card">
+      <h1>CDN Analytics</h1>
+      <p>Sign in to view your analytics dashboard</p>
+      <div id="loginError" class="error-message"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <header>
+      <h1>CDN Analytics</h1>
+      <select id="timeRange">
+        <option value="1h">Last hour</option>
+        <option value="12h" selected>Last 12 hours</option>
+        <option value="24h">Last 24 hours</option>
+        <option value="7d">Last 7 days</option>
+      </select>
+      <select id="topN">
+        <option value="5" selected>Top 5</option>
+        <option value="10">Top 10</option>
+        <option value="20">Top 20</option>
+        <option value="50">Top 50</option>
+        <option value="100">Top 100</option>
+      </select>
+      <input type="text" id="hostFilter" placeholder="Filter by host...">
+      <div id="activeFilters"></div>
+      <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+    </header>
+
+    <main>
+      <!-- Time Series Chart -->
+      <section class="chart-section">
+        <h2>Requests over time</h2>
+        <div class="chart-container">
+          <canvas id="chart"></canvas>
+        </div>
+      </section>
+
+      <!-- Breakdown Tables -->
+      <section class="breakdowns" id="breakdowns">
+        <div class="breakdown-card" id="breakdown-paths">
+          <h3>Paths</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-referers">
+          <h3>Referers</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-hosts">
+          <h3>Hosts</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-forwarded-hosts">
+          <h3>Forwarded Hosts</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-user-agents">
+          <h3>User Agents</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-ips">
+          <h3>IP Addresses</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-cache">
+          <h3>Cache Status</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-errors">
+          <h3>Errors</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-status">
+          <h3>Status Codes</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-content-types">
+          <h3>Content Types</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Configuration
+    const CLICKHOUSE_URL = 'https://ogadftwx3q.us-east1.gcp.clickhouse.cloud:8443/';
+    const DATABASE = 'helix_logs_production';
+    const TABLE = 'cdn_requests_combined';
+
+    // State
+    const state = {
+      credentials: null,
+      timeRange: '12h',
+      hostFilter: '',
+      topN: 5,
+      filters: [],    // [{col: '`request.url`', value: '/foo', exclude: false}]
+    };
+
+    // DOM Elements
+    const loginSection = document.getElementById('login');
+    const dashboardSection = document.getElementById('dashboard');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const timeRangeSelect = document.getElementById('timeRange');
+    const topNSelect = document.getElementById('topN');
+    const hostFilterInput = document.getElementById('hostFilter');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Initialize
+    function init() {
+      // Check for stored credentials
+      const stored = localStorage.getItem('clickhouse_credentials');
+      if (stored) {
+        state.credentials = JSON.parse(stored);
+        showDashboard();
+        loadDashboard();
+      }
+
+      // Event listeners
+      loginForm.addEventListener('submit', handleLogin);
+      logoutBtn.addEventListener('click', handleLogout);
+      refreshBtn.addEventListener('click', loadDashboard);
+      timeRangeSelect.addEventListener('change', (e) => {
+        state.timeRange = e.target.value;
+        loadDashboard();
+      });
+
+      topNSelect.addEventListener('change', (e) => {
+        state.topN = parseInt(e.target.value);
+        loadBreakdowns();
+      });
+
+      let filterTimeout;
+      hostFilterInput.addEventListener('input', (e) => {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => {
+          state.hostFilter = e.target.value;
+          loadDashboard();
+        }, 500);
+      });
+    }
+
+    // Auth
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      state.credentials = { user: username, password };
+
+      try {
+        // Test connection
+        await query('SELECT 1');
+        localStorage.setItem('clickhouse_credentials', JSON.stringify(state.credentials));
+        loginError.classList.remove('visible');
+        showDashboard();
+        loadDashboard();
+      } catch (err) {
+        state.credentials = null;
+        loginError.textContent = 'Authentication failed. Please check your credentials.';
+        loginError.classList.add('visible');
+      }
+    }
+
+    function handleLogout() {
+      state.credentials = null;
+      localStorage.removeItem('clickhouse_credentials');
+      showLogin();
+    }
+
+    function showLogin() {
+      loginSection.classList.remove('hidden');
+      dashboardSection.classList.remove('visible');
+    }
+
+    function showDashboard() {
+      loginSection.classList.add('hidden');
+      dashboardSection.classList.add('visible');
+    }
+
+    // Query Helper
+    async function query(sql) {
+      const response = await fetch(CLICKHOUSE_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${state.credentials.user}:${state.credentials.password}`)
+        },
+        body: sql + ' FORMAT JSON'
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      return response.json();
+    }
+
+    // Time range helpers
+    function getInterval() {
+      const intervals = {
+        '1h': 'INTERVAL 1 HOUR',
+        '12h': 'INTERVAL 12 HOUR',
+        '24h': 'INTERVAL 24 HOUR',
+        '7d': 'INTERVAL 7 DAY'
+      };
+      return intervals[state.timeRange];
+    }
+
+    function getTimeBucket() {
+      const buckets = {
+        '1h': 'toStartOfFiveMinutes',
+        '12h': 'toStartOfFiveMinutes',
+        '24h': 'toStartOfFifteenMinutes',
+        '7d': 'toStartOfHour'
+      };
+      return buckets[state.timeRange];
+    }
+
+    function getTimeFilter() {
+      return `timestamp > now() - ${getInterval()}`;
+    }
+
+    function getHostFilter() {
+      if (!state.hostFilter) return '';
+      const escaped = state.hostFilter.replace(/'/g, "\\'");
+      return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
+    }
+
+    function getFacetFilters() {
+      if (state.filters.length === 0) return '';
+      return state.filters.map(f => {
+        const escaped = f.value.replace(/'/g, "\\'");
+        const op = f.exclude ? '!=' : '=';
+        return `AND ${f.col} ${op} '${escaped}'`;
+      }).join(' ');
+    }
+
+    function addFilter(col, value, exclude) {
+      // Remove existing filter for same col+value
+      state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
+      state.filters.push({ col, value, exclude });
+      renderActiveFilters();
+      loadDashboard();
+    }
+
+    function removeFilter(index) {
+      state.filters.splice(index, 1);
+      renderActiveFilters();
+      loadDashboard();
+    }
+
+    function renderActiveFilters() {
+      const container = document.getElementById('activeFilters');
+      if (state.filters.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      container.innerHTML = state.filters.map((f, i) => {
+        const label = f.exclude ? `NOT ${f.value}` : f.value;
+        return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}">${escapeHtml(label)}<button onclick="removeFilter(${i})">×</button></span>`;
+      }).join('');
+    }
+
+    // Format helpers
+    function formatNumber(n) {
+      if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+      return n.toString();
+    }
+
+    function formatBytes(bytes) {
+      if (bytes >= 1e12) return (bytes / 1e12).toFixed(2) + ' TB';
+      if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + ' GB';
+      if (bytes >= 1e6) return (bytes / 1e6).toFixed(2) + ' MB';
+      if (bytes >= 1e3) return (bytes / 1e3).toFixed(2) + ' KB';
+      return bytes + ' B';
+    }
+
+    function formatPercent(current, previous) {
+      if (!previous || previous === 0) return { text: '', className: '' };
+      const change = ((current - previous) / previous) * 100;
+      const sign = change >= 0 ? '+' : '';
+      return {
+        text: `${sign}${change.toFixed(1)}%`,
+        className: change >= 0 ? 'positive' : 'negative'
+      };
+    }
+
+    // Load Dashboard Data
+    async function loadDashboard() {
+      await Promise.all([
+        loadTimeSeries(),
+        loadBreakdowns()
+      ]);
+    }
+
+    // Time Series Chart
+    async function loadTimeSeries() {
+      const timeFilter = getTimeFilter();
+      const hostFilter = getHostFilter();
+      const facetFilters = getFacetFilters();
+      const bucket = getTimeBucket();
+
+      const sql = `
+        SELECT
+          ${bucket}(timestamp) as t,
+          count() as cnt
+        FROM ${DATABASE}.${TABLE}
+        WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+        GROUP BY t
+        ORDER BY t
+      `;
+
+      try {
+        const result = await query(sql);
+        renderChart(result.data);
+      } catch (err) {
+        console.error('Chart error:', err);
+      }
+    }
+
+    function renderChart(data) {
+      const canvas = document.getElementById('chart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      // Set canvas size
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+      const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+
+      // Clear
+      ctx.clearRect(0, 0, width, height);
+
+      if (data.length === 0) {
+        ctx.fillStyle = '#667085';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data', width / 2, height / 2);
+        return;
+      }
+
+      // Data bounds
+      const values = data.map(d => parseInt(d.cnt));
+      const maxValue = Math.max(...values);
+      const minValue = 0;
+
+      // Draw axes
+      ctx.strokeStyle = '#e4e7ec';
+      ctx.lineWidth = 1;
+
+      // Y axis
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, height - padding.bottom);
+      ctx.stroke();
+
+      // X axis
+      ctx.beginPath();
+      ctx.moveTo(padding.left, height - padding.bottom);
+      ctx.lineTo(width - padding.right, height - padding.bottom);
+      ctx.stroke();
+
+      // Y axis labels
+      ctx.fillStyle = '#667085';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 4; i++) {
+        const val = minValue + (maxValue - minValue) * (i / 4);
+        const y = height - padding.bottom - (chartHeight * i / 4);
+        ctx.fillText(formatNumber(Math.round(val)), padding.left - 8, y + 4);
+
+        // Grid line
+        ctx.strokeStyle = '#f2f4f7';
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+      }
+
+      // X axis labels
+      ctx.textAlign = 'center';
+      const labelStep = Math.ceil(data.length / 6);
+      for (let i = 0; i < data.length; i += labelStep) {
+        const x = padding.left + (chartWidth * i / (data.length - 1));
+        const time = new Date(data[i].t);
+        const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        ctx.fillText(label, x, height - padding.bottom + 20);
+      }
+
+      // Draw line
+      ctx.strokeStyle = '#eb1000';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+
+      for (let i = 0; i < data.length; i++) {
+        const x = padding.left + (chartWidth * i / (data.length - 1));
+        const y = height - padding.bottom - (chartHeight * (values[i] - minValue) / (maxValue - minValue || 1));
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // Fill area under line
+      ctx.lineTo(padding.left + chartWidth, height - padding.bottom);
+      ctx.lineTo(padding.left, height - padding.bottom);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(235, 16, 0, 0.1)';
+      ctx.fill();
+    }
+
+    // Breakdown Tables
+    async function loadBreakdowns() {
+      const timeFilter = getTimeFilter();
+      const hostFilter = getHostFilter();
+
+      const breakdowns = [
+        { id: 'breakdown-paths', col: '`request.url`' },
+        { id: 'breakdown-referers', col: '`request.headers.referer`' },
+        { id: 'breakdown-hosts', col: '`request.host`' },
+        { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`' },
+        { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
+        { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
+        { id: 'breakdown-cache', col: '`cdn.cache_status`' },
+        { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
+        { id: 'breakdown-status', col: 'toString(`response.status`)' },
+        { id: 'breakdown-content-types', col: '`response.headers.content_type`' }
+      ];
+
+      const facetFilters = getFacetFilters();
+
+      const promises = breakdowns.map(async (b) => {
+        const extra = b.extraFilter || '';
+        const sql = `
+          SELECT ${b.col} as dim, count() as cnt
+          FROM ${DATABASE}.${TABLE}
+          WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
+          GROUP BY dim
+          ORDER BY cnt DESC
+          LIMIT ${state.topN}
+        `;
+
+        try {
+          const result = await query(sql);
+          renderBreakdownTable(b.id, result.data, b.col);
+        } catch (err) {
+          console.error(`Breakdown error (${b.id}):`, err);
+          renderBreakdownError(b.id, err.message);
+        }
+      });
+
+      await Promise.all(promises);
+    }
+
+    function renderBreakdownTable(id, data, col) {
+      const card = document.getElementById(id);
+      const title = card.querySelector('h3').textContent;
+
+      if (data.length === 0) {
+        card.innerHTML = `<h3>${title}</h3><div class="empty">No data</div>`;
+        return;
+      }
+
+      const maxCount = Math.max(...data.map(d => parseInt(d.cnt)));
+      const total = data.reduce((sum, d) => sum + parseInt(d.cnt), 0);
+      const colEscaped = col.replace(/'/g, "\\'");
+
+      let html = `<h3>${title}</h3><table class="breakdown-table">`;
+      for (const row of data) {
+        const pct = (parseInt(row.cnt) / maxCount) * 100;
+        const dim = row.dim || '(empty)';
+        const dimEscaped = (row.dim || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+        html += `
+          <tr>
+            <td class="dim" title="${escapeHtml(dim)}">${escapeHtml(dim)}</td>
+            <td class="count">${formatNumber(parseInt(row.cnt))}</td>
+            <td class="bar">
+              <div class="bar-inner">
+                <div class="bar-fill" style="width: ${pct}%"></div>
+              </div>
+            </td>
+            <td class="actions">
+              <button onclick="addFilter('${colEscaped}', '${dimEscaped}', false)">Filter</button>
+              <button class="exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)">Exclude</button>
+            </td>
+          </tr>
+        `;
+      }
+      html += '</table>';
+      card.innerHTML = html;
+    }
+
+    function renderBreakdownError(id, message) {
+      const card = document.getElementById(id);
+      const title = card.querySelector('h3').textContent;
+      card.innerHTML = `<h3>${title}</h3><div class="empty">Error loading data</div>`;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>
