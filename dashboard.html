@@ -823,6 +823,11 @@
       if (state.topN !== 5) params.set('n', state.topN);
       if (state.showLogs) params.set('view', 'logs');
 
+      // Save query timestamp as ISO string
+      if (queryTimestamp) {
+        params.set('ts', queryTimestamp.toISOString());
+      }
+
       // Encode filters as JSON array
       if (state.filters.length > 0) {
         params.set('filters', JSON.stringify(state.filters));
@@ -857,6 +862,13 @@
 
       if (params.has('view') && params.get('view') === 'logs') {
         state.showLogs = true;
+      }
+
+      if (params.has('ts')) {
+        const ts = new Date(params.get('ts'));
+        if (!isNaN(ts.getTime())) {
+          queryTimestamp = ts;
+        }
       }
 
       if (params.has('filters')) {
@@ -1226,7 +1238,11 @@
 
     async function loadDashboard(refresh = false) {
       forceRefresh = refresh;
-      queryTimestamp = new Date();
+      // Only set new timestamp if not already set from URL or if refreshing
+      if (!queryTimestamp || refresh) {
+        queryTimestamp = new Date();
+      }
+      saveStateToURL();
       startQueryTimer();
 
       // Load time series and visible breakdowns (timed)
