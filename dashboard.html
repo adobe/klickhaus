@@ -715,8 +715,7 @@
 
       const params = new URLSearchParams({
         use_query_cache: '1',
-        query_cache_ttl: cacheTtl.toString(),
-        query_cache_nondeterministic_function_handling: 'save'
+        query_cache_ttl: cacheTtl.toString()
       });
 
       const response = await fetch(`${CLICKHOUSE_URL}?${params}`, {
@@ -757,7 +756,10 @@
     }
 
     function getTimeFilter() {
-      return `timestamp > now() - ${getInterval()}`;
+      // Use fixed timestamp instead of now() for deterministic/cacheable queries
+      const ts = queryTimestamp || new Date();
+      const isoTimestamp = ts.toISOString().replace('T', ' ').replace('Z', '');
+      return `timestamp > toDateTime('${isoTimestamp}') - ${getInterval()}`;
     }
 
     function getHostFilter() {
@@ -865,9 +867,11 @@
 
     // Load Dashboard Data
     let forceRefresh = false;
+    let queryTimestamp = null;
 
     async function loadDashboard(refresh = false) {
       forceRefresh = refresh;
+      queryTimestamp = new Date();
       startQueryTimer();
       await Promise.all([
         loadTimeSeries(),
