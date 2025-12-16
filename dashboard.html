@@ -708,7 +708,7 @@
 
       topNSelect.addEventListener('change', (e) => {
         state.topN = parseInt(e.target.value);
-        loadBreakdowns();
+        loadAllBreakdowns();
       });
 
       let filterTimeout;
@@ -918,6 +918,23 @@
     let queryStartTime = null;
     const queryTimerEl = document.getElementById('queryTimer');
 
+    // Track visible facets with IntersectionObserver
+    const visibleFacets = new Set();
+    const facetObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          visibleFacets.add(entry.target.id);
+        } else {
+          visibleFacets.delete(entry.target.id);
+        }
+      });
+    }, { rootMargin: '50px' });
+
+    // Observe all breakdown cards once DOM is ready
+    document.querySelectorAll('.breakdown-card').forEach(card => {
+      facetObserver.observe(card);
+    });
+
     function getTimerClass(ms) {
       if (ms < 1000) return 'query-timer fast';
       if (ms < 10000) return 'query-timer medium';
@@ -957,11 +974,22 @@
       forceRefresh = refresh;
       queryTimestamp = new Date();
       startQueryTimer();
+
+      // Load time series and visible breakdowns (timed)
+      const timeFilter = getTimeFilter();
+      const hostFilter = getHostFilter();
+      const visibleBreakdowns = allBreakdowns.filter(b => visibleFacets.has(b.id));
+      const hiddenBreakdowns = allBreakdowns.filter(b => !visibleFacets.has(b.id));
+
       await Promise.all([
         loadTimeSeries(),
-        loadBreakdowns()
+        ...visibleBreakdowns.map(b => loadBreakdown(b, timeFilter, hostFilter))
       ]);
       stopQueryTimer();
+
+      // Load hidden facets in background (not timed)
+      hiddenBreakdowns.forEach(b => loadBreakdown(b, timeFilter, hostFilter));
+
       forceRefresh = false;
     }
 
@@ -1184,57 +1212,56 @@
     }
 
     // Breakdown Tables
-    async function loadBreakdowns() {
+    const allBreakdowns = [
+      { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')" },
+      { id: 'breakdown-hosts', col: '`request.host`' },
+      { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`' },
+      { id: 'breakdown-content-types', col: '`response.headers.content_type`' },
+      { id: 'breakdown-status', col: 'toString(`response.status`)' },
+      { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
+      { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)' },
+      { id: 'breakdown-paths', col: '`request.url`' },
+      { id: 'breakdown-referers', col: '`request.headers.referer`' },
+      { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
+      { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=' },
+      { id: 'breakdown-request-type', col: '`helix.request_type`', extraFilter: "AND `helix.request_type` != ''" },
+      { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
+      { id: 'breakdown-methods', col: '`request.method`' },
+      { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
+      { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', `client.name`)", extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
+    ];
+
+    async function loadAllBreakdowns() {
       const timeFilter = getTimeFilter();
       const hostFilter = getHostFilter();
+      await Promise.all(allBreakdowns.map(b => loadBreakdown(b, timeFilter, hostFilter)));
+    }
 
-      const breakdowns = [
-        { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')" },
-        { id: 'breakdown-hosts', col: '`request.host`' },
-        { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`' },
-        { id: 'breakdown-content-types', col: '`response.headers.content_type`' },
-        { id: 'breakdown-status', col: 'toString(`response.status`)' },
-        { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
-        { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)' },
-        { id: 'breakdown-paths', col: '`request.url`' },
-        { id: 'breakdown-referers', col: '`request.headers.referer`' },
-        { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
-        { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=' },
-        { id: 'breakdown-request-type', col: '`helix.request_type`', extraFilter: "AND `helix.request_type` != ''" },
-        { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
-        { id: 'breakdown-methods', col: '`request.method`' },
-        { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
-        { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', `client.name`)", extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
-      ];
+    async function loadBreakdown(b, timeFilter, hostFilter) {
+      const extra = b.extraFilter || '';
+      // Get filters excluding this facet's column to show all values for active facets
+      const facetFilters = getFacetFiltersExcluding(b.col);
+      const sql = `
+        SELECT
+          ${b.col} as dim,
+          count() as cnt,
+          countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
+          countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
+          countIf(\`response.status\` >= 500) as cnt_5xx
+        FROM ${DATABASE}.${TABLE}
+        WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
+        GROUP BY dim
+        ORDER BY cnt DESC
+        LIMIT ${state.topN}
+      `;
 
-      const promises = breakdowns.map(async (b) => {
-        const extra = b.extraFilter || '';
-        // Get filters excluding this facet's column to show all values for active facets
-        const facetFilters = getFacetFiltersExcluding(b.col);
-        const sql = `
-          SELECT
-            ${b.col} as dim,
-            count() as cnt,
-            countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
-            countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
-            countIf(\`response.status\` >= 500) as cnt_5xx
-          FROM ${DATABASE}.${TABLE}
-          WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
-          GROUP BY dim
-          ORDER BY cnt DESC
-          LIMIT ${state.topN}
-        `;
-
-        try {
-          const result = await query(sql);
-          renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix);
-        } catch (err) {
-          console.error(`Breakdown error (${b.id}):`, err);
-          renderBreakdownError(b.id, err.message);
-        }
-      });
-
-      await Promise.all(promises);
+      try {
+        const result = await query(sql);
+        renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix);
+      } catch (err) {
+        console.error(`Breakdown error (${b.id}):`, err);
+        renderBreakdownError(b.id, err.message);
+      }
     }
 
     function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix) {
