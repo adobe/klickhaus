@@ -351,11 +351,33 @@
       font-weight: 500;
       white-space: nowrap;
       padding-left: 8px;
+      position: relative;
+    }
+
+    .breakdown-table .count .value {
+      display: block;
+    }
+
+    .breakdown-table .count .action-btn {
+      display: none;
+      position: absolute;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+    }
+
+    .breakdown-table tr:hover .count .value {
+      display: none;
+    }
+
+    .breakdown-table tr:hover .count .action-btn {
+      display: block;
     }
 
     .breakdown-table .bar {
       width: 60px;
       padding-left: 8px;
+      position: relative;
     }
 
     .breakdown-table .bar-inner {
@@ -364,6 +386,22 @@
       border-radius: 4px;
       overflow: hidden;
       display: flex;
+    }
+
+    .breakdown-table .bar .action-btn {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 8px;
+      transform: translateY(-50%);
+    }
+
+    .breakdown-table tr:hover .bar .bar-inner {
+      display: none;
+    }
+
+    .breakdown-table tr:hover .bar .action-btn {
+      display: block;
     }
 
     .breakdown-table .bar-segment {
@@ -388,27 +426,7 @@
       border-radius: 4px;
     }
 
-    .breakdown-table .actions {
-      display: none;
-      gap: 4px;
-      white-space: nowrap;
-      justify-content: flex-end;
-    }
-
-    .breakdown-table tr:hover .count,
-    .breakdown-table tr:hover .bar {
-      display: none;
-    }
-
-    .breakdown-table tr:hover .actions {
-      display: flex;
-    }
-
-    .breakdown-table td.actions {
-      text-align: right;
-    }
-
-    .breakdown-table .actions button {
+    .breakdown-table .action-btn {
       padding: 2px 8px;
       font-size: 11px;
       border-radius: 4px;
@@ -416,13 +434,14 @@
       background: var(--card-bg);
       cursor: pointer;
       color: var(--text);
+      white-space: nowrap;
     }
 
-    .breakdown-table .actions button:hover {
+    .breakdown-table .action-btn:hover {
       background: var(--bg);
     }
 
-    .breakdown-table .actions button.exclude {
+    .breakdown-table .action-btn.exclude {
       color: var(--error);
     }
 
@@ -1099,17 +1118,17 @@
         html += `
           <tr>
             <td class="dim" title="${escapeHtml(dim)}">${escapeHtml(dim)}</td>
-            <td class="count">${formatNumber(cnt)}</td>
+            <td class="count">
+              <span class="value">${formatNumber(cnt)}</span>
+              <button class="action-btn" onclick="addFilter('${colEscaped}', '${dimEscaped}', false)">Filter</button>
+            </td>
             <td class="bar">
               <div class="bar-inner" style="width: ${barWidth}%">
                 <div class="bar-segment bar-5xx" style="width: ${pct5xx}%"></div>
                 <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
                 <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
               </div>
-            </td>
-            <td class="actions">
-              <button onclick="addFilter('${colEscaped}', '${dimEscaped}', false)">Filter</button>
-              <button class="exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)">Exclude</button>
+              <button class="action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)">Exclude</button>
             </td>
           </tr>
         `;
