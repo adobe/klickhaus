@@ -756,7 +756,7 @@
 
       const width = rect.width;
       const height = rect.height;
-      const padding = { top: 20, right: 120, bottom: 40, left: 60 };
+      const padding = { top: 20, right: 20, bottom: 40, left: 60 };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
 
@@ -837,35 +837,35 @@
       const getY = (value) => height - padding.bottom - (chartHeight * value / (maxValue || 1));
       const getX = (i) => padding.left + (chartWidth * i / (data.length - 1 || 1));
 
-      // Draw stacked areas (bottom to top: ok, client, server)
-      // We need to draw from bottom up, so each layer sits on top of the previous
+      // Draw stacked areas (bottom to top: server, client, ok)
+      // Reversed order: 5xx at bottom, then 4xx, then 1xx-3xx on top
 
-      // Calculate cumulative values for stacking
-      const stackedOk = series.ok.slice();
-      const stackedClient = series.ok.map((v, i) => v + series.client[i]);
-      const stackedServer = series.ok.map((v, i) => v + series.client[i] + series.server[i]);
+      // Calculate cumulative values for stacking (reversed order)
+      const stackedServer = series.server.slice();
+      const stackedClient = series.server.map((v, i) => v + series.client[i]);
+      const stackedOk = series.server.map((v, i) => v + series.client[i] + series.ok[i]);
 
-      // Draw 5xx area (top layer - red)
-      if (series.server.some(v => v > 0)) {
+      // Draw 1xx-3xx area (top layer - green)
+      if (series.ok.some(v => v > 0)) {
         ctx.beginPath();
         ctx.moveTo(getX(0), getY(stackedClient[0]));
         for (let i = 0; i < data.length; i++) {
-          ctx.lineTo(getX(i), getY(stackedServer[i]));
+          ctx.lineTo(getX(i), getY(stackedOk[i]));
         }
         for (let i = data.length - 1; i >= 0; i--) {
           ctx.lineTo(getX(i), getY(stackedClient[i]));
         }
         ctx.closePath();
-        ctx.fillStyle = colors.server.fill;
+        ctx.fillStyle = colors.ok.fill;
         ctx.fill();
 
         // Draw line on top
         ctx.beginPath();
-        ctx.moveTo(getX(0), getY(stackedServer[0]));
+        ctx.moveTo(getX(0), getY(stackedOk[0]));
         for (let i = 1; i < data.length; i++) {
-          ctx.lineTo(getX(i), getY(stackedServer[i]));
+          ctx.lineTo(getX(i), getY(stackedOk[i]));
         }
-        ctx.strokeStyle = colors.server.line;
+        ctx.strokeStyle = colors.ok.line;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -873,12 +873,12 @@
       // Draw 4xx area (middle layer - yellow/orange)
       if (series.client.some(v => v > 0)) {
         ctx.beginPath();
-        ctx.moveTo(getX(0), getY(stackedOk[0]));
+        ctx.moveTo(getX(0), getY(stackedServer[0]));
         for (let i = 0; i < data.length; i++) {
           ctx.lineTo(getX(i), getY(stackedClient[i]));
         }
         for (let i = data.length - 1; i >= 0; i--) {
-          ctx.lineTo(getX(i), getY(stackedOk[i]));
+          ctx.lineTo(getX(i), getY(stackedServer[i]));
         }
         ctx.closePath();
         ctx.fillStyle = colors.client.fill;
@@ -895,49 +895,28 @@
         ctx.stroke();
       }
 
-      // Draw 1xx-3xx area (bottom layer - green)
-      if (series.ok.some(v => v > 0)) {
+      // Draw 5xx area (bottom layer - red)
+      if (series.server.some(v => v > 0)) {
         ctx.beginPath();
         ctx.moveTo(getX(0), getY(0));
         for (let i = 0; i < data.length; i++) {
-          ctx.lineTo(getX(i), getY(stackedOk[i]));
+          ctx.lineTo(getX(i), getY(stackedServer[i]));
         }
         ctx.lineTo(getX(data.length - 1), getY(0));
         ctx.closePath();
-        ctx.fillStyle = colors.ok.fill;
+        ctx.fillStyle = colors.server.fill;
         ctx.fill();
 
         // Draw line on top
         ctx.beginPath();
-        ctx.moveTo(getX(0), getY(stackedOk[0]));
+        ctx.moveTo(getX(0), getY(stackedServer[0]));
         for (let i = 1; i < data.length; i++) {
-          ctx.lineTo(getX(i), getY(stackedOk[i]));
+          ctx.lineTo(getX(i), getY(stackedServer[i]));
         }
-        ctx.strokeStyle = colors.ok.line;
+        ctx.strokeStyle = colors.server.line;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
-
-      // Draw legend
-      const legendX = width - padding.right + 15;
-      const legendY = padding.top + 20;
-      const legendItems = [
-        { label: '1xx-3xx', color: colors.ok.line },
-        { label: '4xx', color: colors.client.line },
-        { label: '5xx', color: colors.server.line }
-      ];
-
-      ctx.font = '11px -apple-system, sans-serif';
-      ctx.textAlign = 'left';
-      legendItems.forEach((item, i) => {
-        const y = legendY + i * 20;
-        // Color box
-        ctx.fillStyle = item.color;
-        ctx.fillRect(legendX, y - 8, 12, 12);
-        // Label
-        ctx.fillStyle = '#667085';
-        ctx.fillText(item.label, legendX + 18, y + 2);
-      });
     }
 
     // Breakdown Tables
