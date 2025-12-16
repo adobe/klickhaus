@@ -646,8 +646,8 @@
 
     function getTimeBucket() {
       const buckets = {
-        '1h': 'toStartOfFiveMinutes',
-        '12h': 'toStartOfFiveMinutes',
+        '1h': 'toStartOfMinute',
+        '12h': 'toStartOfTenMinutes',
         '24h': 'toStartOfFifteenMinutes',
         '7d': 'toStartOfHour'
       };
