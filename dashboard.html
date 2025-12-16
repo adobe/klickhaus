@@ -1226,17 +1226,49 @@
       }
     }
 
+    // Link generation helpers
+    function hostLink(val) {
+      if (!val) return null;
+      return 'https://' + val;
+    }
+
+    function forwardedHostLink(val) {
+      if (!val) return null;
+      // Take first host if comma-separated
+      const firstHost = val.split(',')[0].trim();
+      return 'https://' + firstHost;
+    }
+
+    function refererLink(val) {
+      if (!val) return null;
+      // Referer is already a full URL
+      if (val.startsWith('http://') || val.startsWith('https://')) {
+        return val;
+      }
+      return null;
+    }
+
+    function pathLink(val) {
+      if (!val) return null;
+      // Only link if we have an active host filter
+      const hostFilter = state.filters.find(f => f.col === '`request.host`' && !f.exclude);
+      if (hostFilter) {
+        return 'https://' + hostFilter.value + val;
+      }
+      return null;
+    }
+
     // Breakdown Tables
     const allBreakdowns = [
       { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')" },
-      { id: 'breakdown-hosts', col: '`request.host`' },
-      { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`' },
+      { id: 'breakdown-hosts', col: '`request.host`', linkFn: hostLink },
+      { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`', linkFn: forwardedHostLink },
       { id: 'breakdown-content-types', col: '`response.headers.content_type`' },
       { id: 'breakdown-status', col: 'toString(`response.status`)' },
       { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
       { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)' },
-      { id: 'breakdown-paths', col: '`request.url`' },
-      { id: 'breakdown-referers', col: '`request.headers.referer`' },
+      { id: 'breakdown-paths', col: '`request.url`', linkFn: pathLink },
+      { id: 'breakdown-referers', col: '`request.headers.referer`', linkFn: refererLink },
       { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
       { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=' },
       { id: 'breakdown-request-type', col: '`helix.request_type`', extraFilter: "AND `helix.request_type` != ''" },
@@ -1272,14 +1304,14 @@
 
       try {
         const result = await query(sql);
-        renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix);
+        renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix, b.linkFn);
       } catch (err) {
         console.error(`Breakdown error (${b.id}):`, err);
         renderBreakdownError(b.id, err.message);
       }
     }
 
-    function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix) {
+    function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn) {
       const card = document.getElementById(id);
       // Store original title in data attribute, or read from h3 if first render
       if (!card.dataset.title) {
@@ -1335,10 +1367,15 @@
 
         // Build dimension cell content - with optional link
         let dimContent;
-        if (linkPrefix && row.dim) {
+        let linkUrl = null;
+        if (linkFn && row.dim) {
+          linkUrl = linkFn(row.dim);
+        } else if (linkPrefix && row.dim) {
           // For ASN links, extract just the number (before " - ")
           const linkValue = row.dim.includes(' - ') ? row.dim.split(' - ')[0] : row.dim;
-          const linkUrl = linkPrefix + linkValue + (linkSuffix || '');
+          linkUrl = linkPrefix + linkValue + (linkSuffix || '');
+        }
+        if (linkUrl) {
           dimContent = `<a href="${linkUrl}" target="_blank" rel="noopener">${escapeHtml(dim)}</a>`;
         } else {
           dimContent = escapeHtml(dim);
