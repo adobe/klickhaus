@@ -397,6 +397,16 @@
       white-space: nowrap;
     }
 
+    .breakdown-table .dim a {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .breakdown-table .dim a:hover {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
     .breakdown-table .count {
       text-align: right;
       font-weight: 500;
@@ -625,6 +635,26 @@
         </div>
         <div class="breakdown-card" id="breakdown-ips">
           <h3>IP Addresses</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-request-type">
+          <h3>Request Types</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-backend-type">
+          <h3>Backend Types</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-methods">
+          <h3>HTTP Methods</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-datacenters">
+          <h3>Datacenters</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-asn">
+          <h3>ASN</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
       </section>
@@ -1169,7 +1199,12 @@
         { id: 'breakdown-paths', col: '`request.url`' },
         { id: 'breakdown-referers', col: '`request.headers.referer`' },
         { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
-        { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" }
+        { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://who.is/whois-ip/ip-address/' },
+        { id: 'breakdown-request-type', col: '`helix.request_type`', extraFilter: "AND `helix.request_type` != ''" },
+        { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
+        { id: 'breakdown-methods', col: '`request.method`' },
+        { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
+        { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', `client.name`)", extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://who.is/whois-ip/ip-address/AS' }
       ];
 
       const promises = breakdowns.map(async (b) => {
@@ -1192,7 +1227,7 @@
 
         try {
           const result = await query(sql);
-          renderBreakdownTable(b.id, result.data, b.col);
+          renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix);
         } catch (err) {
           console.error(`Breakdown error (${b.id}):`, err);
           renderBreakdownError(b.id, err.message);
@@ -1202,7 +1237,7 @@
       await Promise.all(promises);
     }
 
-    function renderBreakdownTable(id, data, col) {
+    function renderBreakdownTable(id, data, col, linkPrefix) {
       const card = document.getElementById(id);
       // Store original title in data attribute, or read from h3 if first render
       if (!card.dataset.title) {
@@ -1256,9 +1291,20 @@
         const isExcluded = activeFilter && activeFilter.exclude;
         const rowClass = isIncluded ? 'filter-included' : (isExcluded ? 'filter-excluded' : '');
 
+        // Build dimension cell content - with optional link
+        let dimContent;
+        if (linkPrefix && row.dim) {
+          // For ASN links, extract just the number (before " - ")
+          const linkValue = row.dim.includes(' - ') ? row.dim.split(' - ')[0] : row.dim;
+          const linkUrl = linkPrefix + linkValue;
+          dimContent = `<a href="${linkUrl}" target="_blank" rel="noopener">${escapeHtml(dim)}</a>`;
+        } else {
+          dimContent = escapeHtml(dim);
+        }
+
         html += `
           <tr class="${rowClass}">
-            <td class="dim" title="${escapeHtml(dim)}">${escapeHtml(dim)}</td>
+            <td class="dim" title="${escapeHtml(dim)}">${dimContent}</td>
             <td class="count">
               <span class="value">${formatNumber(cnt)}</span>
               <button class="action-btn" onclick="addFilter('${colEscaped}', '${dimEscaped}', false)">Filter</button>
