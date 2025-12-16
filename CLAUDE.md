@@ -42,6 +42,25 @@ S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)
 
 **TTL**: 2 weeks
 
+#### Secondary Indexes (Skip Indexes)
+
+| Index | Column | Type | Use Case |
+|-------|--------|------|----------|
+| `idx_host_token` | `request.host` | tokenbf_v1 | Token matches (domain parts) |
+| `idx_host_ngram` | `request.host` | ngrambf_v1(3) | Substring searches `LIKE '%pattern%'` |
+| `idx_url_ngram` | `request.url` | ngrambf_v1(3) | Substring searches `LIKE '%pattern%'` |
+| `idx_client_ip` | `client.ip` | bloom_filter | IP lookup (abuse, debugging) |
+| `idx_status` | `response.status` | minmax | Error filtering (`>= 400`) |
+| `idx_cache_status` | `cdn.cache_status` | set(30) | Cache analysis |
+| `idx_content_type` | `response.headers.content_type` | set(100) | Content type filtering |
+| `idx_error` | `response.headers.x_error` | tokenbf_v1 | Error message search |
+| `idx_referer` | `request.headers.referer` | ngrambf_v1(3) | Traffic source analysis |
+| `idx_forwarded_host_ngram` | `request.headers.x_forwarded_host` | ngrambf_v1(3) | Origin hostname substring |
+| `idx_forwarded_host_token` | `request.headers.x_forwarded_host` | tokenbf_v1 | Origin hostname tokens |
+| `idx_forwarded_for` | `request.headers.x_forwarded_for` | bloom_filter | Real client IP lookup |
+
+These skip indexes accelerate queries by excluding granules that definitely don't match. Most requests (~93%) have `x_forwarded_host` and `x_forwarded_for` populated from upstream CDNs.
+
 #### Column Groups
 
 | Group | Columns | Description |
