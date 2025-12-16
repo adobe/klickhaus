@@ -193,6 +193,21 @@
       margin-right: auto;
     }
 
+    .query-timer {
+      font-size: 12px;
+      font-weight: normal;
+      color: var(--text-secondary);
+      margin-left: 8px;
+    }
+
+    .query-timer.running {
+      color: var(--status-client-error);
+    }
+
+    .query-timer.done {
+      color: var(--status-ok);
+    }
+
     header select,
     header input[type="text"] {
       padding: 8px 12px;
@@ -501,7 +516,7 @@
   <!-- Dashboard -->
   <div id="dashboard">
     <header>
-      <h1>CDN Analytics</h1>
+      <h1>CDN Analytics <span id="queryTimer" class="query-timer"></span></h1>
       <select id="timeRange">
         <option value="1h" selected>Last hour</option>
         <option value="12h">Last 12 hours</option>
@@ -788,12 +803,44 @@
       };
     }
 
+    // Query timer
+    let queryTimerInterval = null;
+    let queryStartTime = null;
+    const queryTimerEl = document.getElementById('queryTimer');
+
+    function startQueryTimer() {
+      queryStartTime = performance.now();
+      if (queryTimerInterval) clearInterval(queryTimerInterval);
+      queryTimerEl.className = 'query-timer running';
+      queryTimerInterval = setInterval(() => {
+        const elapsed = performance.now() - queryStartTime;
+        queryTimerEl.textContent = formatQueryTime(elapsed);
+      }, 10);
+    }
+
+    function stopQueryTimer() {
+      if (queryTimerInterval) {
+        clearInterval(queryTimerInterval);
+        queryTimerInterval = null;
+      }
+      const elapsed = performance.now() - queryStartTime;
+      queryTimerEl.textContent = formatQueryTime(elapsed);
+      queryTimerEl.className = 'query-timer done';
+    }
+
+    function formatQueryTime(ms) {
+      if (ms < 1000) return `${Math.round(ms)}ms`;
+      return `${(ms / 1000).toFixed(2)}s`;
+    }
+
     // Load Dashboard Data
     async function loadDashboard() {
+      startQueryTimer();
       await Promise.all([
         loadTimeSeries(),
         loadBreakdowns()
       ]);
+      stopQueryTimer();
     }
 
     // Time Series Chart
