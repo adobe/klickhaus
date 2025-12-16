@@ -456,6 +456,14 @@
         <option value="50">Top 50</option>
         <option value="100">Top 100</option>
       </select>
+      <select id="severityFilter">
+        <option value="" selected>All status</option>
+        <option value="1xx">1xx</option>
+        <option value="2xx">2xx</option>
+        <option value="3xx">3xx</option>
+        <option value="4xx">4xx</option>
+        <option value="5xx">5xx</option>
+      </select>
       <input type="text" id="hostFilter" placeholder="Filter by host...">
       <div id="activeFilters"></div>
       <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
@@ -528,6 +536,7 @@
       credentials: null,
       timeRange: '1h',
       hostFilter: '',
+      severityFilter: '',
       topN: 5,
       filters: [],    // [{col: '`request.url`', value: '/foo', exclude: false}]
     };
@@ -565,6 +574,11 @@
       topNSelect.addEventListener('change', (e) => {
         state.topN = parseInt(e.target.value);
         loadBreakdowns();
+      });
+
+      document.getElementById('severityFilter').addEventListener('change', (e) => {
+        state.severityFilter = e.target.value;
+        loadDashboard();
       });
 
       let filterTimeout;
@@ -664,6 +678,18 @@
       return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
     }
 
+    function getSeverityFilter() {
+      if (!state.severityFilter) return '';
+      const ranges = {
+        '1xx': 'AND `response.status` >= 100 AND `response.status` < 200',
+        '2xx': 'AND `response.status` >= 200 AND `response.status` < 300',
+        '3xx': 'AND `response.status` >= 300 AND `response.status` < 400',
+        '4xx': 'AND `response.status` >= 400 AND `response.status` < 500',
+        '5xx': 'AND `response.status` >= 500'
+      };
+      return ranges[state.severityFilter] || '';
+    }
+
     function getFacetFilters() {
       if (state.filters.length === 0) return '';
       return state.filters.map(f => {
@@ -737,6 +763,7 @@
     async function loadTimeSeries() {
       const timeFilter = getTimeFilter();
       const hostFilter = getHostFilter();
+      const severityFilter = getSeverityFilter();
       const facetFilters = getFacetFilters();
       const bucket = getTimeBucket();
 
@@ -747,7 +774,7 @@
           countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
           countIf(\`response.status\` >= 500) as cnt_5xx
         FROM ${DATABASE}.${TABLE}
-        WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+        WHERE ${timeFilter} ${hostFilter} ${severityFilter} ${facetFilters}
         GROUP BY t
         ORDER BY t
       `;
@@ -940,6 +967,7 @@
     async function loadBreakdowns() {
       const timeFilter = getTimeFilter();
       const hostFilter = getHostFilter();
+      const severityFilter = getSeverityFilter();
 
       const breakdowns = [
         { id: 'breakdown-paths', col: '`request.url`' },
@@ -966,7 +994,7 @@
             countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
             countIf(\`response.status\` >= 500) as cnt_5xx
           FROM ${DATABASE}.${TABLE}
-          WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
+          WHERE ${timeFilter} ${hostFilter} ${severityFilter} ${facetFilters} ${extra}
           GROUP BY dim
           ORDER BY cnt DESC
           LIMIT ${state.topN}
