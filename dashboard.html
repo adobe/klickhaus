@@ -948,7 +948,7 @@
         { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`' },
         { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
         { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
-        { id: 'breakdown-cache', col: '`cdn.cache_status`' },
+        { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)' },
         { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
         { id: 'breakdown-status', col: 'toString(`response.status`)' },
         { id: 'breakdown-content-types', col: '`response.headers.content_type`' }
