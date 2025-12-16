@@ -373,12 +373,16 @@
       border-bottom: none;
     }
 
-    .breakdown-table tr.filter-included {
-      background: var(--filter-tag-bg);
+    .breakdown-table tr.filter-included .dim {
+      text-decoration: underline;
+      text-decoration-color: var(--text);
+      text-underline-offset: 3px;
     }
 
-    .breakdown-table tr.filter-excluded {
-      background: var(--bar-bg);
+    .breakdown-table tr.filter-excluded .dim {
+      text-decoration: underline;
+      text-decoration-color: var(--error);
+      text-underline-offset: 3px;
       opacity: 0.6;
     }
 
