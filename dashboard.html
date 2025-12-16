@@ -536,6 +536,132 @@
       color: var(--text-secondary);
       font-size: 13px;
     }
+
+    /* Logs Button */
+    .logs-btn {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 24px;
+      font-size: 14px;
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 10;
+    }
+
+    .logs-btn:hover {
+      background: var(--bg);
+    }
+
+    .logs-btn.ready {
+      border-color: var(--primary);
+    }
+
+    .logs-btn.active {
+      background: var(--bg);
+    }
+
+    header {
+      position: relative;
+    }
+
+    /* Logs View */
+    #logsView {
+      display: none;
+      padding: 24px;
+    }
+
+    #logsView.visible {
+      display: block;
+    }
+
+    #dashboardContent.hidden {
+      display: none;
+    }
+
+    .logs-table-container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    }
+
+    .logs-table th {
+      background: var(--bg);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+    }
+
+    .logs-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .logs-table tr:hover td {
+      background: var(--bg);
+    }
+
+    .logs-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .logs-table .status-ok {
+      color: var(--status-ok);
+    }
+
+    .logs-table .status-4xx {
+      color: var(--status-client-error);
+    }
+
+    .logs-table .status-5xx {
+      color: var(--status-server-error);
+    }
+
+    .logs-table .timestamp {
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .logs-table .method {
+      font-weight: 600;
+    }
+
+    .logs-table .url {
+      max-width: 400px;
+    }
+
+    .logs-table .host {
+      max-width: 200px;
+    }
+
+    .logs-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      color: var(--text-secondary);
+    }
   </style>
 </head>
 <body>
@@ -563,6 +689,7 @@
   <div id="dashboard">
     <header>
       <h1>CDN Analytics <span id="queryTimer" class="query-timer"></span></h1>
+      <button id="logsBtn" class="logs-btn">Logs</button>
       <select id="timeRange">
         <option value="1h" selected>Last hour</option>
         <option value="12h">Last 12 hours</option>
@@ -582,7 +709,14 @@
       <button id="logoutBtn" class="btn btn-secondary">Logout</button>
     </header>
 
-    <main>
+    <!-- Logs View -->
+    <div id="logsView">
+      <div class="logs-table-container">
+        <div class="logs-loading"><div class="spinner"></div>Loading logs...</div>
+      </div>
+    </div>
+
+    <main id="dashboardContent">
       <!-- Time Series Chart -->
       <section class="chart-section">
         <h2>Requests over time</h2>
@@ -674,6 +808,10 @@
       hostFilter: '',
       topN: 5,
       filters: [],    // [{col: '`request.url`', value: '/foo', exclude: false}]
+      logsData: null,
+      logsLoading: false,
+      logsReady: false,
+      showLogs: false,
     };
 
     // DOM Elements
@@ -686,6 +824,9 @@
     const hostFilterInput = document.getElementById('hostFilter');
     const refreshBtn = document.getElementById('refreshBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+    const logsBtn = document.getElementById('logsBtn');
+    const logsView = document.getElementById('logsView');
+    const dashboardContent = document.getElementById('dashboardContent');
 
     // Initialize
     function init() {
@@ -718,6 +859,14 @@
           state.hostFilter = e.target.value;
           loadDashboard();
         }, 500);
+      });
+
+      // Logs button - click to toggle, hover when ready
+      logsBtn.addEventListener('click', toggleLogsView);
+      logsBtn.addEventListener('mouseenter', () => {
+        if (state.logsReady && !state.showLogs) {
+          toggleLogsView();
+        }
       });
     }
 
@@ -1004,6 +1153,9 @@
 
       // Load hidden facets in background (not timed)
       hiddenBreakdowns.forEach(b => loadBreakdown(b, timeFilter, hostFilter));
+
+      // Load logs in background
+      loadLogs();
 
       forceRefresh = false;
     }
@@ -1413,6 +1565,120 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    // Logs View
+    function toggleLogsView() {
+      state.showLogs = !state.showLogs;
+      if (state.showLogs) {
+        logsView.classList.add('visible');
+        dashboardContent.classList.add('hidden');
+        logsBtn.classList.add('active');
+        logsBtn.textContent = 'Dashboard';
+      } else {
+        logsView.classList.remove('visible');
+        dashboardContent.classList.remove('hidden');
+        logsBtn.classList.remove('active');
+        logsBtn.textContent = 'Logs';
+      }
+    }
+
+    async function loadLogs() {
+      if (state.logsLoading) return;
+      state.logsLoading = true;
+      state.logsReady = false;
+      logsBtn.classList.remove('ready');
+
+      const timeFilter = getTimeFilter();
+      const hostFilter = getHostFilter();
+      const facetFilters = getFacetFilters();
+
+      const sql = `
+        SELECT *
+        FROM ${DATABASE}.${TABLE}
+        WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+        ORDER BY timestamp DESC
+        LIMIT 100
+      `;
+
+      try {
+        const result = await query(sql);
+        state.logsData = result.data;
+        renderLogsTable(result.data);
+        state.logsReady = true;
+        logsBtn.classList.add('ready');
+      } catch (err) {
+        console.error('Logs error:', err);
+        renderLogsError(err.message);
+      } finally {
+        state.logsLoading = false;
+      }
+    }
+
+    function renderLogsTable(data) {
+      const container = logsView.querySelector('.logs-table-container');
+
+      if (data.length === 0) {
+        container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
+        return;
+      }
+
+      // Get all column names from first row
+      const columns = Object.keys(data[0]);
+
+      let html = `
+        <table class="logs-table">
+          <thead>
+            <tr>
+              ${columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      for (const row of data) {
+        html += '<tr>';
+        for (const col of columns) {
+          let value = row[col];
+          let cellClass = '';
+          let displayValue = '';
+
+          // Format specific columns
+          if (col === 'timestamp' && value) {
+            displayValue = new Date(value).toLocaleString();
+            cellClass = 'timestamp';
+          } else if (col === 'response.status' && value) {
+            const status = parseInt(value);
+            displayValue = String(status);
+            if (status >= 500) cellClass = 'status-5xx';
+            else if (status >= 400) cellClass = 'status-4xx';
+            else cellClass = 'status-ok';
+          } else if (col === 'response.body_size' && value) {
+            displayValue = formatBytes(parseInt(value));
+          } else if (col === 'request.method') {
+            displayValue = value || '';
+            cellClass = 'method';
+          } else if (value === null || value === undefined || value === '') {
+            displayValue = '';
+          } else if (typeof value === 'object') {
+            displayValue = JSON.stringify(value);
+          } else {
+            displayValue = String(value);
+          }
+
+          const escaped = escapeHtml(displayValue);
+          html += `<td class="${cellClass}" title="${escaped}">${escaped}</td>`;
+        }
+        html += '</tr>';
+      }
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function renderLogsError(message) {
+      const container = logsView.querySelector('.logs-table-container');
+      container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
     }
 
     // Start
