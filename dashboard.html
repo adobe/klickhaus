@@ -829,13 +829,22 @@
     const dashboardContent = document.getElementById('dashboardContent');
 
     // Initialize
-    function init() {
-      // Check for stored credentials
+    async function init() {
+      // Check for stored credentials and validate them
       const stored = localStorage.getItem('clickhouse_credentials');
       if (stored) {
         state.credentials = JSON.parse(stored);
-        showDashboard();
-        loadDashboard();
+        try {
+          // Validate stored credentials before showing dashboard
+          await query('SELECT 1');
+          showDashboard();
+          loadDashboard();
+        } catch (err) {
+          // Stored credentials are invalid, clear them and show login
+          state.credentials = null;
+          localStorage.removeItem('clickhouse_credentials');
+          console.log('Stored credentials invalid, showing login');
+        }
       }
 
       // Event listeners
