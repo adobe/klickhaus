@@ -17,6 +17,9 @@
       --error: #f04438;
       --chart-line: #eb1000;
       --bar-bg: #fce4e4;
+      --status-ok: #12b76a;
+      --status-client-error: #f79009;
+      --status-server-error: #f04438;
     }
 
     * {
@@ -723,7 +726,9 @@
       const sql = `
         SELECT
           ${bucket}(timestamp) as t,
-          count() as cnt
+          countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
+          countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
+          countIf(\`response.status\` >= 500) as cnt_5xx
         FROM ${DATABASE}.${TABLE}
         WHERE ${timeFilter} ${hostFilter} ${facetFilters}
         GROUP BY t
@@ -751,7 +756,7 @@
 
       const width = rect.width;
       const height = rect.height;
-      const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+      const padding = { top: 20, right: 120, bottom: 40, left: 60 };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
 
@@ -765,10 +770,24 @@
         return;
       }
 
-      // Data bounds
-      const values = data.map(d => parseInt(d.cnt));
-      const maxValue = Math.max(...values);
+      // Parse data into stacked values
+      const series = {
+        ok: data.map(d => parseInt(d.cnt_ok) || 0),
+        client: data.map(d => parseInt(d.cnt_4xx) || 0),
+        server: data.map(d => parseInt(d.cnt_5xx) || 0)
+      };
+
+      // Calculate stacked totals for max value
+      const totals = data.map((_, i) => series.ok[i] + series.client[i] + series.server[i]);
+      const maxValue = Math.max(...totals);
       const minValue = 0;
+
+      // Colors
+      const colors = {
+        ok: { line: '#12b76a', fill: 'rgba(18, 183, 106, 0.3)' },
+        client: { line: '#f79009', fill: 'rgba(247, 144, 9, 0.3)' },
+        server: { line: '#f04438', fill: 'rgba(240, 68, 56, 0.3)' }
+      };
 
       // Draw axes
       ctx.strokeStyle = '#e4e7ec';
@@ -804,6 +823,7 @@
       }
 
       // X axis labels
+      ctx.fillStyle = '#667085';
       ctx.textAlign = 'center';
       const labelStep = Math.ceil(data.length / 6);
       for (let i = 0; i < data.length; i += labelStep) {
@@ -813,30 +833,111 @@
         ctx.fillText(label, x, height - padding.bottom + 20);
       }
 
-      // Draw line
-      ctx.strokeStyle = '#eb1000';
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
+      // Helper function to get Y coordinate
+      const getY = (value) => height - padding.bottom - (chartHeight * value / (maxValue || 1));
+      const getX = (i) => padding.left + (chartWidth * i / (data.length - 1 || 1));
 
-      for (let i = 0; i < data.length; i++) {
-        const x = padding.left + (chartWidth * i / (data.length - 1));
-        const y = height - padding.bottom - (chartHeight * (values[i] - minValue) / (maxValue - minValue || 1));
+      // Draw stacked areas (bottom to top: ok, client, server)
+      // We need to draw from bottom up, so each layer sits on top of the previous
 
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
+      // Calculate cumulative values for stacking
+      const stackedOk = series.ok.slice();
+      const stackedClient = series.ok.map((v, i) => v + series.client[i]);
+      const stackedServer = series.ok.map((v, i) => v + series.client[i] + series.server[i]);
+
+      // Draw 5xx area (top layer - red)
+      if (series.server.some(v => v > 0)) {
+        ctx.beginPath();
+        ctx.moveTo(getX(0), getY(stackedClient[0]));
+        for (let i = 0; i < data.length; i++) {
+          ctx.lineTo(getX(i), getY(stackedServer[i]));
         }
-      }
-      ctx.stroke();
+        for (let i = data.length - 1; i >= 0; i--) {
+          ctx.lineTo(getX(i), getY(stackedClient[i]));
+        }
+        ctx.closePath();
+        ctx.fillStyle = colors.server.fill;
+        ctx.fill();
 
-      // Fill area under line
-      ctx.lineTo(padding.left + chartWidth, height - padding.bottom);
-      ctx.lineTo(padding.left, height - padding.bottom);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(235, 16, 0, 0.1)';
-      ctx.fill();
+        // Draw line on top
+        ctx.beginPath();
+        ctx.moveTo(getX(0), getY(stackedServer[0]));
+        for (let i = 1; i < data.length; i++) {
+          ctx.lineTo(getX(i), getY(stackedServer[i]));
+        }
+        ctx.strokeStyle = colors.server.line;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Draw 4xx area (middle layer - yellow/orange)
+      if (series.client.some(v => v > 0)) {
+        ctx.beginPath();
+        ctx.moveTo(getX(0), getY(stackedOk[0]));
+        for (let i = 0; i < data.length; i++) {
+          ctx.lineTo(getX(i), getY(stackedClient[i]));
+        }
+        for (let i = data.length - 1; i >= 0; i--) {
+          ctx.lineTo(getX(i), getY(stackedOk[i]));
+        }
+        ctx.closePath();
+        ctx.fillStyle = colors.client.fill;
+        ctx.fill();
+
+        // Draw line on top
+        ctx.beginPath();
+        ctx.moveTo(getX(0), getY(stackedClient[0]));
+        for (let i = 1; i < data.length; i++) {
+          ctx.lineTo(getX(i), getY(stackedClient[i]));
+        }
+        ctx.strokeStyle = colors.client.line;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Draw 1xx-3xx area (bottom layer - green)
+      if (series.ok.some(v => v > 0)) {
+        ctx.beginPath();
+        ctx.moveTo(getX(0), getY(0));
+        for (let i = 0; i < data.length; i++) {
+          ctx.lineTo(getX(i), getY(stackedOk[i]));
+        }
+        ctx.lineTo(getX(data.length - 1), getY(0));
+        ctx.closePath();
+        ctx.fillStyle = colors.ok.fill;
+        ctx.fill();
+
+        // Draw line on top
+        ctx.beginPath();
+        ctx.moveTo(getX(0), getY(stackedOk[0]));
+        for (let i = 1; i < data.length; i++) {
+          ctx.lineTo(getX(i), getY(stackedOk[i]));
+        }
+        ctx.strokeStyle = colors.ok.line;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Draw legend
+      const legendX = width - padding.right + 15;
+      const legendY = padding.top + 20;
+      const legendItems = [
+        { label: '1xx-3xx', color: colors.ok.line },
+        { label: '4xx', color: colors.client.line },
+        { label: '5xx', color: colors.server.line }
+      ];
+
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      legendItems.forEach((item, i) => {
+        const y = legendY + i * 20;
+        // Color box
+        ctx.fillStyle = item.color;
+        ctx.fillRect(legendX, y - 8, 12, 12);
+        // Label
+        ctx.fillStyle = '#667085';
+        ctx.fillText(item.label, legendX + 18, y + 2);
+      });
     }
 
     // Breakdown Tables
