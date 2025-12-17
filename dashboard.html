@@ -1108,23 +1108,48 @@
       return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
     }
 
-    function getFacetFilters() {
-      if (state.filters.length === 0) return '';
-      return state.filters.map(f => {
+    function buildFacetFilterSQL(filters) {
+      if (filters.length === 0) return '';
+
+      // Group filters by column
+      const byColumn = {};
+      for (const f of filters) {
+        if (!byColumn[f.col]) byColumn[f.col] = { includes: [], excludes: [] };
         const escaped = f.value.replace(/'/g, "\\'");
-        const op = f.exclude ? '!=' : '=';
-        return `AND ${f.col} ${op} '${escaped}'`;
-      }).join(' ');
+        if (f.exclude) {
+          byColumn[f.col].excludes.push(`${f.col} != '${escaped}'`);
+        } else {
+          byColumn[f.col].includes.push(`${f.col} = '${escaped}'`);
+        }
+      }
+
+      // Build SQL for each column group
+      const columnClauses = [];
+      for (const col of Object.keys(byColumn)) {
+        const { includes, excludes } = byColumn[col];
+        const parts = [];
+        // Include filters: OR together (match any of these values)
+        if (includes.length > 0) {
+          parts.push(includes.length === 1 ? includes[0] : `(${includes.join(' OR ')})`);
+        }
+        // Exclude filters: AND together (exclude all of these values)
+        if (excludes.length > 0) {
+          parts.push(excludes.join(' AND '));
+        }
+        // Combine includes and excludes for this column with AND
+        columnClauses.push(parts.length === 1 ? parts[0] : `(${parts.join(' AND ')})`);
+      }
+
+      // Combine all column clauses with AND
+      return columnClauses.map(c => `AND ${c}`).join(' ');
+    }
+
+    function getFacetFilters() {
+      return buildFacetFilterSQL(state.filters);
     }
 
     function getFacetFiltersExcluding(col) {
-      const filtered = state.filters.filter(f => f.col !== col);
-      if (filtered.length === 0) return '';
-      return filtered.map(f => {
-        const escaped = f.value.replace(/'/g, "\\'");
-        const op = f.exclude ? '!=' : '=';
-        return `AND ${f.col} ${op} '${escaped}'`;
-      }).join(' ');
+      return buildFacetFilterSQL(state.filters.filter(f => f.col !== col));
     }
 
     function getFiltersForColumn(col) {
