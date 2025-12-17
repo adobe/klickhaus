@@ -46,7 +46,8 @@
         <option value="50">Top 50</option>
         <option value="100">Top 100</option>
       </select>
-      <input type="text" id="hostFilter" placeholder="Filter by host...">
+      <input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off">
+      <datalist id="hostSuggestions"></datalist>
       <div id="activeFilters"></div>
       <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
       <button id="logoutBtn" class="btn btn-secondary">Logout</button>
