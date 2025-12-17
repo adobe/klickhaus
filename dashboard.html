@@ -895,7 +895,12 @@
     // Configuration
     const CLICKHOUSE_URL = 'https://ogadftwx3q.us-east1.gcp.clickhouse.cloud:8443/';
     const DATABASE = 'helix_logs_production';
-    const TABLE = 'cdn_requests_v2';
+    // Use partitioned table for recent queries, old table for historical
+    function getTable() {
+      return ['15m', '1h', '12h'].includes(state.timeRange)
+        ? 'cdn_requests_v2'
+        : 'cdn_requests_combined';
+    }
 
     // State
     const state = {
@@ -1489,7 +1494,7 @@
           countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
           countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
           countIf(\`response.status\` >= 500) as cnt_5xx
-        FROM ${DATABASE}.${TABLE}
+        FROM ${DATABASE}.${getTable()}
         WHERE ${timeFilter} ${hostFilter} ${facetFilters}
         GROUP BY t
         ORDER BY t
@@ -1766,7 +1771,7 @@
           countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
           countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
           countIf(\`response.status\` >= 500) as cnt_5xx
-        FROM ${DATABASE}.${TABLE}
+        FROM ${DATABASE}.${getTable()}
         WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
         GROUP BY dim
         ORDER BY cnt DESC
@@ -1946,7 +1951,7 @@
 
       const sql = `
         SELECT *
-        FROM ${DATABASE}.${TABLE}
+        FROM ${DATABASE}.${getTable()}
         WHERE ${timeFilter} ${hostFilter} ${facetFilters}
         ORDER BY timestamp DESC
         LIMIT 100

@@ -8,7 +8,7 @@
 const CLICKHOUSE_HOST = 'ogadftwx3q.us-east1.gcp.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
 const DATABASE = 'helix_logs_production';
-const TABLE = 'cdn_requests_combined';
+const TABLES = ['cdn_requests_combined', 'cdn_requests_v2'];
 
 function generatePassword(length = 16) {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
@@ -54,10 +54,12 @@ async function main() {
     await query(createSql, adminUser, adminPassword);
     console.log(`Created user: ${newUsername}`);
 
-    // Grant read-only access
-    const grantSql = `GRANT SELECT ON ${DATABASE}.${TABLE} TO ${newUsername}`;
-    await query(grantSql, adminUser, adminPassword);
-    console.log(`Granted SELECT on ${DATABASE}.${TABLE}`);
+    // Grant read-only access to all tables
+    for (const table of TABLES) {
+      const grantSql = `GRANT SELECT ON ${DATABASE}.${table} TO ${newUsername}`;
+      await query(grantSql, adminUser, adminPassword);
+      console.log(`Granted SELECT on ${DATABASE}.${table}`);
+    }
 
     console.log('\n--- Credentials ---');
     console.log(`Username: ${newUsername}`);
