@@ -21,6 +21,7 @@ const state = {
   logsReady: false,
   showLogs: false,
   pinnedColumns: JSON.parse(localStorage.getItem('pinnedColumns') || '[]'),
+  hiddenControls: [],  // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
 };
 
 function togglePinnedColumn(col) {
@@ -54,6 +55,9 @@ function saveStateToURL() {
   if (state.filters.length > 0) {
     params.set('filters', JSON.stringify(state.filters));
   }
+
+  // Note: pinned columns are NOT auto-saved to URL
+  // They can be manually added as ?pinned=col1,col2 for temporary override
 
   const newURL = params.toString()
     ? `${window.location.pathname}?${params}`
@@ -110,6 +114,19 @@ function loadStateFromURL() {
       console.error('Failed to parse filters from URL:', e);
     }
   }
+
+  if (params.has('pinned')) {
+    const pinned = params.get('pinned').split(',').filter(c => c);
+    if (pinned.length > 0) {
+      // Override state temporarily without persisting to localStorage
+      state.pinnedColumns = pinned;
+    }
+  }
+
+  // Hide UI controls (comma-separated: timeRange,topN,host,refresh,logout,logs)
+  if (params.has('hide')) {
+    state.hiddenControls = params.get('hide').split(',').filter(c => c);
+  }
 }
 
 function syncUIFromState() {
@@ -123,6 +140,26 @@ function syncUIFromState() {
     dashboardContent.classList.add('hidden');
     logsBtn.classList.add('active');
     logsBtn.textContent = 'Filters';
+  }
+
+  // Apply hidden controls from URL
+  if (state.hiddenControls.includes('timeRange')) {
+    timeRangeSelect.style.display = 'none';
+  }
+  if (state.hiddenControls.includes('topN')) {
+    topNSelect.style.display = 'none';
+  }
+  if (state.hiddenControls.includes('host')) {
+    hostFilterInput.style.display = 'none';
+  }
+  if (state.hiddenControls.includes('refresh')) {
+    refreshBtn.style.display = 'none';
+  }
+  if (state.hiddenControls.includes('logout')) {
+    logoutBtn.style.display = 'none';
+  }
+  if (state.hiddenControls.includes('logs')) {
+    logsBtn.style.display = 'none';
   }
 }
 

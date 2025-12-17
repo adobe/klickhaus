@@ -46,6 +46,47 @@ S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)
 3. Use the time range selector and host filter to narrow down results
 4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
 
+## URL Parameters
+
+The dashboard state can be controlled via URL parameters for bookmarking and sharing:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `t` | Time range: `15m`, `1h`, `12h`, `24h`, `7d` | `?t=24h` |
+| `n` | Top N facet values: `5`, `10`, `20`, `50`, `100` | `?n=20` |
+| `host` | Filter by host (substring match) | `?host=example.com` |
+| `view` | View mode: `logs` for logs table | `?view=logs` |
+| `ts` | Query timestamp (ISO 8601) | `?ts=2025-01-15T12:00:00Z` |
+| `filters` | Facet filters (JSON array) | `?filters=[{"col":"\`request.host\`","value":"example.com","exclude":false}]` |
+| `pinned` | Pinned log columns (comma-separated) | `?pinned=timestamp,response.status,request.url` |
+| `hide` | Hide UI controls (comma-separated) | `?hide=timeRange,topN,logout` |
+
+### Hide Parameter Options
+
+The `hide` parameter accepts these control names:
+- `timeRange` - Time range selector
+- `topN` - Top N selector
+- `host` - Host filter input
+- `refresh` - Refresh button
+- `logout` - Logout button
+- `logs` - Logs/Filters toggle button
+
+### Examples
+
+```
+# Lock to 24h view with hidden controls
+?t=24h&hide=timeRange,logout
+
+# Show logs view with specific columns pinned
+?view=logs&pinned=timestamp,response.status,request.method,request.url
+
+# Pre-filtered view for a specific host
+?host=example.com&t=1h&n=10
+
+# Embed-friendly minimal UI
+?t=1h&hide=timeRange,topN,host,refresh,logout
+```
+
 ## User Management
 
 Scripts in `scripts/` manage dashboard access (require admin credentials):
