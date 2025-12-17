@@ -424,7 +424,104 @@ function renderActiveFilters() {
   }
   container.innerHTML = state.filters.map((f, i) => {
     const label = f.exclude ? `NOT ${f.value}` : f.value;
-    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}">${escapeHtml(label)}<button onclick="removeFilter(${i})">×</button></span>`;
+    // Add color indicator for status-related filters
+    let colorIndicator = '';
+    if (f.col.includes('response.status')) {
+      // Extract numeric part from value (e.g., "404" or "4xx" -> 400)
+      const numMatch = f.value.match(/^(\d)/);
+      if (numMatch) {
+        const statusBase = parseInt(numMatch[1]) * 100;
+        const color = getStatusColor(statusBase);
+        if (color) {
+          colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+        }
+      }
+    }
+    // Add color indicator for host-related filters
+    if (f.col.includes('request.host') || f.col.includes('forwarded_host')) {
+      const color = getHostColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for content type filters
+    if (f.col.includes('content_type')) {
+      const color = getContentTypeColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for cache status filters
+    if (f.col.includes('cache_status')) {
+      const color = getCacheStatusColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for path/URL filters
+    if (f.col.includes('request.url') || f.col.includes('request.path')) {
+      const color = getPathColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for referer filters
+    if (f.col.includes('referer')) {
+      const color = getRefererColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for user agent filters
+    if (f.col.includes('user_agent')) {
+      const color = getUserAgentColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for IP address filters
+    if (f.col.includes('client.ip') || f.col.includes('forwarded_for')) {
+      const color = getIPColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for request type filters
+    if (f.col.includes('request_type')) {
+      const color = getRequestTypeColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for backend type filters
+    if (f.col.includes('backend_type')) {
+      const color = getBackendTypeColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for HTTP method filters
+    if (f.col.includes('request.method')) {
+      const color = getMethodColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for ASN filters
+    if (f.col.includes('client.asn')) {
+      const color = getAsnColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for error filters
+    if (f.col.includes('x_error')) {
+      const color = getErrorColor(f.value);
+      if (color) {
+        colorIndicator = `<span class="filter-color" style="background:${color}"></span>`;
+      }
+    }
+    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}">${colorIndicator}${escapeHtml(label)}<button onclick="removeFilter(${i})">×</button></span>`;
   }).join('');
 }
 
@@ -452,6 +549,198 @@ function formatPercent(current, previous) {
     text: `${sign}${change.toFixed(1)}%`,
     className: change >= 0 ? 'positive' : 'negative'
   };
+}
+
+// Universal color coding functions
+function getStatusColor(status) {
+  const code = parseInt(status);
+  if (isNaN(code)) return '';
+  if (code < 400) return 'var(--status-ok)';
+  if (code < 500) return 'var(--status-client-error)';
+  return 'var(--status-server-error)';
+}
+
+function getHostColor(host) {
+  if (!host) return '';
+  // For comma-separated forwarded hosts, use the first value
+  const firstHost = host.split(',')[0].trim().toLowerCase();
+  // Adobe delivery domains (.live)
+  if (firstHost.endsWith('.live')) {
+    return 'var(--host-delivery)';
+  }
+  // Adobe authoring domains (.page)
+  if (firstHost.endsWith('.page')) {
+    return 'var(--host-authoring)';
+  }
+  // Customer sites
+  return 'var(--host-customer)';
+}
+
+function getContentTypeColor(contentType) {
+  if (!contentType) return '';
+  const ct = contentType.toLowerCase();
+  if (ct.startsWith('text/')) return 'var(--ct-text)';
+  if (ct.startsWith('application/')) return 'var(--ct-application)';
+  if (ct.startsWith('image/')) return 'var(--ct-image)';
+  if (ct.startsWith('video/')) return 'var(--ct-video)';
+  if (ct.startsWith('font/')) return 'var(--ct-font)';
+  if (ct.startsWith('binary/')) return 'var(--ct-binary)';
+  return '';
+}
+
+function getCacheStatusColor(status) {
+  if (!status) return '';
+  const s = status.toUpperCase();
+  if (s.startsWith('HIT')) return 'var(--cache-hit)';
+  if (s.startsWith('MISS')) return 'var(--cache-miss)';
+  if (s === 'PASS') return 'var(--cache-pass)';
+  if (s === 'DYNAMIC') return 'var(--cache-dynamic)';
+  if (s === 'REVALIDATED') return 'var(--cache-revalidated)';
+  if (s === 'EXPIRED') return 'var(--cache-expired)';
+  if (s === 'STALE') return 'var(--cache-stale)';
+  if (s.startsWith('ERROR')) return 'var(--cache-error)';
+  if (s === 'UNKNOWN') return 'var(--cache-unknown)';
+  return '';
+}
+
+function getRequestTypeColor(type) {
+  if (!type) return '';
+  const t = type.toLowerCase();
+  if (t === 'static') return 'var(--rt-static)';
+  if (t === 'pipeline') return 'var(--rt-pipeline)';
+  if (t === 'media') return 'var(--rt-media)';
+  if (t === 'rum') return 'var(--rt-rum)';
+  if (t === 'config') return 'var(--rt-config)';
+  return '';
+}
+
+function getBackendTypeColor(type) {
+  if (!type) return '';
+  const t = type.toLowerCase();
+  if (t === 'aws') return 'var(--bt-aws)';
+  if (t === 'cloudflare') return 'var(--bt-cloudflare)';
+  return '';
+}
+
+function getMethodColor(method) {
+  if (!method) return '';
+  const m = method.toUpperCase();
+  if (m === 'GET') return 'var(--method-get)';
+  if (m === 'POST') return 'var(--method-post)';
+  if (m === 'PUT') return 'var(--method-put)';
+  if (m === 'PATCH') return 'var(--method-patch)';
+  if (m === 'HEAD') return 'var(--method-head)';
+  if (m === 'OPTIONS') return 'var(--method-options)';
+  return '';
+}
+
+function getAsnColor(asn) {
+  if (!asn) return '';
+  const a = asn.toLowerCase();
+  // Adobe
+  if (a.includes('adobe')) return 'var(--asn-adobe)';
+  // Good CDN: fastly, akamai, cloudflare, amazon/aws
+  if (a.includes('fastly') || a.includes('akamai') || a.includes('cloudflare') || a.includes('amazon')) return 'var(--asn-good-cdn)';
+  // Bad CDN: zscaler, incapsula
+  if (a.includes('zscaler') || a.includes('incapsula')) return 'var(--asn-bad-cdn)';
+  // Cloud infra: microsoft, google
+  if (a.includes('microsoft') || a.includes('google')) return 'var(--asn-cloud)';
+  // Other/residential
+  return 'var(--asn-other)';
+}
+
+function getErrorColor(error) {
+  if (!error) return '';
+  const e = error.toLowerCase();
+  // Redirect (informational)
+  if (e === 'moved') return 'var(--err-redirect)';
+  // Security/validation errors
+  if (e.includes('not allowed') || e.includes('access') || e.includes('illegal') || e.includes('unsupported')) return 'var(--err-security)';
+  // Content-bus 404 (missing markdown/config)
+  if (e.includes('content-bus') || e.includes('failed to load')) return 'var(--err-contentbus)';
+  // Storage not found (S3/R2)
+  if (e.includes('s3:') || e.includes('r2:')) return 'var(--err-storage)';
+  // Other
+  return 'var(--err-other)';
+}
+
+function getIPColor(ip) {
+  if (!ip) return '';
+  const trimmed = ip.trim();
+  // Check for comma-separated values
+  const hasComma = trimmed.includes(',');
+  // IPv4 pattern: digits and dots only
+  const isIPv4 = /^[\d.]+$/.test(trimmed.replace(/,\s*/g, ''));
+  // IPv6 pattern: contains colons (and possibly dots for mapped addresses)
+  const isIPv6 = /^[a-fA-F0-9:.,\s]+$/.test(trimmed) && trimmed.includes(':');
+
+  if (hasComma) {
+    if (isIPv6) return 'var(--ip-v6-multi)';
+    if (isIPv4) return 'var(--ip-v4-multi)';
+    return 'var(--ip-bad)';
+  } else {
+    if (isIPv6) return 'var(--ip-v6)';
+    if (isIPv4) return 'var(--ip-v4)';
+    return 'var(--ip-bad)';
+  }
+}
+
+function getUserAgentColor(ua) {
+  if (!ua) return '';
+  const u = ua.toLowerCase();
+  // Good bot (identifies itself with +http)
+  if (u.includes('+http')) return 'var(--ua-good-bot)';
+  // Bad bot (doesn't start with Mozilla)
+  if (!u.startsWith('mozilla')) return 'var(--ua-bad-bot)';
+  // Operating systems (check more specific first)
+  if (u.includes('iphone') || u.includes('ipad')) return 'var(--ua-ios)';
+  if (u.includes('android')) return 'var(--ua-android)';
+  if (u.includes('windows')) return 'var(--ua-windows)';
+  if (u.includes('macintosh') || u.includes('mac os')) return 'var(--ua-mac)';
+  if (u.includes('linux')) return 'var(--ua-linux)';
+  return '';
+}
+
+function getRefererColor(referer) {
+  if (!referer) return '';
+  const r = referer.toLowerCase();
+  // Google search traffic
+  if (r.includes('google.com')) return 'var(--ref-google)';
+  // Adobe domains
+  if (r.includes('adobe.com') || r.includes('adobe.net') || r.includes('adobeaemcloud.com')) return 'var(--ref-adobe)';
+  // AEM/DA delivery and authoring domains
+  if (r.includes('.live') || r.includes('.page')) return 'var(--ref-aem)';
+  // All others
+  return 'var(--ref-other)';
+}
+
+function getPathColor(path) {
+  if (!path) return '';
+  // Remove query string
+  const cleanPath = path.split('?')[0].toLowerCase();
+  // Directory (ends with /)
+  if (cleanPath.endsWith('/')) return 'var(--path-directory)';
+  // Extract extension
+  const lastSegment = cleanPath.split('/').pop();
+  const dotIndex = lastSegment.lastIndexOf('.');
+  if (dotIndex === -1 || dotIndex === 0) {
+    // No extension - clean URL / API endpoint
+    return 'var(--path-clean)';
+  }
+  const ext = lastSegment.slice(dotIndex + 1);
+  // Scripts/Code
+  if (['js', 'mjs', 'json', 'css', 'map'].includes(ext)) return 'var(--path-script)';
+  // Documents
+  if (['html', 'htm', 'pdf', 'txt', 'xml'].includes(ext)) return 'var(--path-document)';
+  // Images
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico'].includes(ext)) return 'var(--path-image)';
+  // Video/Audio
+  if (['mp4', 'webm', 'mov', 'mp3', 'wav', 'ogg'].includes(ext)) return 'var(--path-media)';
+  // Fonts
+  if (['woff', 'woff2', 'ttf', 'otf', 'eot'].includes(ext)) return 'var(--path-font)';
+  // Server-side
+  if (['php', 'asp', 'aspx', 'cgi', 'jsp'].includes(ext)) return 'var(--path-server)';
+  return '';
 }
 
 // Query timer
@@ -1047,10 +1336,106 @@ function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, lin
       linkUrl = linkPrefix + linkValue + (linkSuffix || '');
     }
     const formattedDim = formatDimWithPrefix(dim, dimPrefixes, dimFormatFn);
+    // Add color indicator for status-related columns
+    let colorIndicator = '';
+    if (col.includes('response.status') && row.dim) {
+      const numMatch = row.dim.match(/^(\d)/);
+      if (numMatch) {
+        const statusBase = parseInt(numMatch[1]) * 100;
+        const color = getStatusColor(statusBase);
+        if (color) {
+          colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+        }
+      }
+    }
+    // Add color indicator for host-related columns
+    if ((col.includes('request.host') || col.includes('forwarded_host')) && row.dim) {
+      const color = getHostColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for content type columns
+    if (col.includes('content_type') && row.dim) {
+      const color = getContentTypeColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for cache status columns
+    if (col.includes('cache_status') && row.dim) {
+      const color = getCacheStatusColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for path/URL columns
+    if ((col.includes('request.url') || col.includes('request.path')) && row.dim) {
+      const color = getPathColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for referer columns
+    if (col.includes('referer') && row.dim) {
+      const color = getRefererColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for user agent columns
+    if (col.includes('user_agent') && row.dim) {
+      const color = getUserAgentColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for IP address columns
+    if ((col.includes('client.ip') || col.includes('forwarded_for')) && row.dim) {
+      const color = getIPColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for request type columns
+    if (col.includes('request_type') && row.dim) {
+      const color = getRequestTypeColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for backend type columns
+    if (col.includes('backend_type') && row.dim) {
+      const color = getBackendTypeColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for HTTP method columns
+    if (col.includes('request.method') && row.dim) {
+      const color = getMethodColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for ASN columns
+    if (col.includes('client.asn') && row.dim) {
+      const color = getAsnColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
+    // Add color indicator for error columns
+    if (col.includes('x_error') && row.dim) {
+      const color = getErrorColor(row.dim);
+      if (color) {
+        colorIndicator = `<span class="status-color" style="background:${color}"></span>`;
+      }
+    }
     if (linkUrl) {
-      dimContent = `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`;
+      dimContent = `${colorIndicator}<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`;
     } else {
-      dimContent = formattedDim;
+      dimContent = `${colorIndicator}${formattedDim}`;
     }
 
     // Determine button actions based on current filter state

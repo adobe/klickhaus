@@ -19,6 +19,71 @@
   --filter-tag-color: #004085;
   --grid-line: #f2f4f7;
   --axis-line: #e4e7ec;
+  --host-delivery: #2563eb;
+  --host-authoring: #7c3aed;
+  --host-customer: #ea580c;
+  --ct-text: #059669;
+  --ct-application: #7c3aed;
+  --ct-image: #0891b2;
+  --ct-video: #dc2626;
+  --ct-font: #ca8a04;
+  --ct-binary: #64748b;
+  --cache-hit: #059669;
+  --cache-miss: #dc2626;
+  --cache-pass: #ca8a04;
+  --cache-dynamic: #7c3aed;
+  --cache-revalidated: #0891b2;
+  --cache-expired: #ea580c;
+  --cache-stale: #d97706;
+  --cache-error: #be123c;
+  --cache-unknown: #64748b;
+  --path-directory: #7c3aed;
+  --path-clean: #2563eb;
+  --path-script: #ca8a04;
+  --path-document: #059669;
+  --path-image: #0891b2;
+  --path-media: #dc2626;
+  --path-font: #9333ea;
+  --path-server: #be123c;
+  --ref-google: #34a853;
+  --ref-adobe: #fa0f00;
+  --ref-aem: #2563eb;
+  --ref-other: #64748b;
+  --ua-windows: #0078d4;
+  --ua-mac: #555555;
+  --ua-linux: #e95420;
+  --ua-ios: #147ce5;
+  --ua-android: #3ddc84;
+  --ua-good-bot: #059669;
+  --ua-bad-bot: #dc2626;
+  --ip-v4: #2563eb;
+  --ip-v6: #7c3aed;
+  --ip-v4-multi: #0891b2;
+  --ip-v6-multi: #a855f7;
+  --ip-bad: #dc2626;
+  --rt-static: #2563eb;
+  --rt-pipeline: #7c3aed;
+  --rt-media: #0891b2;
+  --rt-rum: #ca8a04;
+  --rt-config: #64748b;
+  --bt-aws: #22a858;
+  --bt-cloudflare: #f38020;
+  --method-get: #2563eb;
+  --method-post: #059669;
+  --method-put: #ca8a04;
+  --method-patch: #7c3aed;
+  --method-head: #64748b;
+  --method-options: #64748b;
+  --asn-adobe: #fa0f00;
+  --asn-good-cdn: #059669;
+  --asn-bad-cdn: #dc2626;
+  --asn-cloud: #7c3aed;
+  --asn-other: #64748b;
+  --err-redirect: #2563eb;
+  --err-security: #dc2626;
+  --err-contentbus: #ca8a04;
+  --err-storage: #64748b;
+  --err-other: #94a3b8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +108,71 @@
     --filter-tag-color: #79c0ff;
     --grid-line: #21262d;
     --axis-line: #30363d;
+    --host-delivery: #60a5fa;
+    --host-authoring: #a78bfa;
+    --host-customer: #fb923c;
+    --ct-text: #34d399;
+    --ct-application: #a78bfa;
+    --ct-image: #22d3ee;
+    --ct-video: #f87171;
+    --ct-font: #facc15;
+    --ct-binary: #94a3b8;
+    --cache-hit: #34d399;
+    --cache-miss: #f87171;
+    --cache-pass: #facc15;
+    --cache-dynamic: #a78bfa;
+    --cache-revalidated: #22d3ee;
+    --cache-expired: #fb923c;
+    --cache-stale: #fbbf24;
+    --cache-error: #fb7185;
+    --cache-unknown: #94a3b8;
+    --path-directory: #a78bfa;
+    --path-clean: #60a5fa;
+    --path-script: #facc15;
+    --path-document: #34d399;
+    --path-image: #22d3ee;
+    --path-media: #f87171;
+    --path-font: #c084fc;
+    --path-server: #fb7185;
+    --ref-google: #81c995;
+    --ref-adobe: #ff6b6b;
+    --ref-aem: #60a5fa;
+    --ref-other: #94a3b8;
+    --ua-windows: #4cc2ff;
+    --ua-mac: #a1a1a1;
+    --ua-linux: #ff7847;
+    --ua-ios: #5ac8fa;
+    --ua-android: #7cfc9f;
+    --ua-good-bot: #34d399;
+    --ua-bad-bot: #f87171;
+    --ip-v4: #60a5fa;
+    --ip-v6: #a78bfa;
+    --ip-v4-multi: #22d3ee;
+    --ip-v6-multi: #c084fc;
+    --ip-bad: #f87171;
+    --rt-static: #60a5fa;
+    --rt-pipeline: #a78bfa;
+    --rt-media: #22d3ee;
+    --rt-rum: #facc15;
+    --rt-config: #94a3b8;
+    --bt-aws: #4ade80;
+    --bt-cloudflare: #f6a560;
+    --method-get: #60a5fa;
+    --method-post: #34d399;
+    --method-put: #facc15;
+    --method-patch: #a78bfa;
+    --method-head: #94a3b8;
+    --method-options: #94a3b8;
+    --asn-adobe: #ff6b6b;
+    --asn-good-cdn: #34d399;
+    --asn-bad-cdn: #f87171;
+    --asn-cloud: #a78bfa;
+    --asn-other: #94a3b8;
+    --err-redirect: #60a5fa;
+    --err-security: #f87171;
+    --err-contentbus: #facc15;
+    --err-storage: #94a3b8;
+    --err-other: #cbd5e1;
   }
 }
 
@@ -282,6 +412,14 @@ header select option {
   color: var(--error);
 }
 
+.filter-tag .filter-color {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
 .filter-tag button {
   background: none;
   border: none;
@@ -477,6 +615,15 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.breakdown-table .dim .status-color {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 1px;
+  vertical-align: middle;
 }
 
 .breakdown-table .dim a {
