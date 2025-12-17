@@ -351,6 +351,12 @@
       border-radius: 12px;
       padding: 16px;
       border: 1px solid var(--border);
+      transition: filter 0.2s ease-out;
+    }
+
+    .breakdown-card.updating {
+      filter: blur(2px);
+      opacity: 0.7;
     }
 
     .breakdown-card h3 {
@@ -1561,6 +1567,9 @@
     }
 
     async function loadBreakdown(b, timeFilter, hostFilter) {
+      const card = document.getElementById(b.id);
+      card.classList.add('updating');
+
       const extra = b.extraFilter || '';
       // Get filters excluding this facet's column to show all values for active facets
       const facetFilters = getFacetFiltersExcluding(b.col);
@@ -1584,6 +1593,8 @@
       } catch (err) {
         console.error(`Breakdown error (${b.id}):`, err);
         renderBreakdownError(b.id, err.message);
+      } finally {
+        card.classList.remove('updating');
       }
     }
 
