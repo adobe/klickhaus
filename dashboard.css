@@ -562,6 +562,24 @@ main {
   color: var(--error);
 }
 
+.breakdown-table tr.other-row {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.breakdown-table tr.other-row:hover {
+  opacity: 1;
+}
+
+.breakdown-table tr.other-row:hover .bar-inner {
+  display: flex;
+}
+
+.breakdown-table .bar-inner.bar-overflow {
+  -webkit-mask-image: linear-gradient(to right, black 60%, transparent 100%);
+  mask-image: linear-gradient(to right, black 60%, transparent 100%);
+}
+
 /* Loading */
 .loading {
   display: flex;

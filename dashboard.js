@@ -907,7 +907,7 @@ async function loadBreakdown(b, timeFilter, hostFilter) {
       countIf(\`response.status\` >= 500) as cnt_5xx
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
-    GROUP BY dim
+    GROUP BY dim WITH TOTALS
     ORDER BY cnt DESC
     LIMIT ${state.topN}
   `;
@@ -918,7 +918,7 @@ async function loadBreakdown(b, timeFilter, hostFilter) {
     // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result._networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
-    renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn);
+    renderBreakdownTable(b.id, result.data, result.totals, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn);
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);
@@ -949,7 +949,25 @@ function formatAsn(dim) {
   return `<span class="dim-prefix">${escapeHtml(num)}</span>${escapeHtml(name)}`;
 }
 
-function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn) {
+// Get next topN value for "show more" functionality
+function getNextTopN() {
+  const options = [5, 10, 20, 50, 100];
+  const currentIdx = options.indexOf(state.topN);
+  if (currentIdx === -1 || currentIdx >= options.length - 1) return null;
+  return options[currentIdx + 1];
+}
+
+function increaseTopN() {
+  const next = getNextTopN();
+  if (next) {
+    state.topN = next;
+    topNSelect.value = next;
+    saveStateToURL();
+    loadAllBreakdowns();
+  }
+}
+
+function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
   if (!card.dataset.title) {
@@ -976,6 +994,21 @@ function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, ela
     card.innerHTML = html;
     return;
   }
+
+  // Calculate "Other" from totals
+  const topKSum = {
+    cnt: data.reduce((sum, d) => sum + parseInt(d.cnt), 0),
+    cnt_ok: data.reduce((sum, d) => sum + (parseInt(d.cnt_ok) || 0), 0),
+    cnt_4xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_4xx) || 0), 0),
+    cnt_5xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_5xx) || 0), 0)
+  };
+  const otherRow = totals ? {
+    cnt: parseInt(totals.cnt) - topKSum.cnt,
+    cnt_ok: (parseInt(totals.cnt_ok) || 0) - topKSum.cnt_ok,
+    cnt_4xx: (parseInt(totals.cnt_4xx) || 0) - topKSum.cnt_4xx,
+    cnt_5xx: (parseInt(totals.cnt_5xx) || 0) - topKSum.cnt_5xx
+  } : null;
+  const hasOther = otherRow && otherRow.cnt > 0 && getNextTopN();
 
   const maxCount = Math.max(...data.map(d => parseInt(d.cnt)));
   const total = data.reduce((sum, d) => sum + parseInt(d.cnt), 0);
@@ -1051,6 +1084,39 @@ function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, ela
       </tr>
     `;
   }
+
+  // Add "Other" row if there are more values beyond topN
+  if (hasOther) {
+    const cnt = otherRow.cnt;
+    const cntOk = otherRow.cnt_ok;
+    const cnt4xx = otherRow.cnt_4xx;
+    const cnt5xx = otherRow.cnt_5xx;
+    // Cap bar width at 100% (same as top value) to prevent layout explosion
+    const isOverflow = cnt > maxCount;
+    const barWidth = isOverflow ? 100 : (cnt / maxCount) * 100;
+    const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
+    const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
+    const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
+    const nextN = getNextTopN();
+    const overflowClass = isOverflow ? ' bar-overflow' : '';
+
+    html += `
+      <tr class="other-row" onclick="increaseTopN()" title="Click to show top ${nextN}">
+        <td class="dim"><span class="dim-prefix">(other)</span></td>
+        <td class="count">
+          <span class="value">${formatNumber(cnt)}</span>
+        </td>
+        <td class="bar">
+          <div class="bar-inner${overflowClass}" style="width: ${barWidth}%">
+            <div class="bar-segment bar-5xx" style="width: ${pct5xx}%"></div>
+            <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
+            <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
   html += '</table>';
   card.innerHTML = html;
 }
