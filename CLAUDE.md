@@ -6,6 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains ClickHouse queries and tooling for CDN log analytics. It unifies HTTP request logs from Cloudflare and Fastly into a single analytics table for Adobe Experience Manager (AEM) Edge Delivery Services (formerly Helix).
 
+## Development
+
+```bash
+npm install
+npm start
+```
+
+This starts a dev server with auto-reload at http://localhost:8000/dashboard.html.
+
 ## Database Connection
 
 ```bash

@@ -1,0 +1,18 @@
+{
+  "name": "klickhaus",
+  "version": "1.0.0",
+  "description": "ClickHouse CDN Analytics Dashboard",
+  "scripts": {
+    "start": "live-server --port=8000 --open=/dashboard.html"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  },
+  "keywords": [
+    "clickhouse",
+    "cdn",
+    "analytics",
+    "dashboard"
+  ],
+  "license": "Apache-2.0"
+}

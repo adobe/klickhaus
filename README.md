@@ -65,7 +65,12 @@ New users receive read-only access (`SELECT` on `cdn_requests_combined`).
 
 ## Local Development
 
-The dashboard is a single HTML file with no build step required. Simply open `dashboard.html` in your browser.
+```bash
+npm install
+npm start
+```
+
+This starts a development server with auto-reload at http://localhost:8000/dashboard.html.
 
 For ClickHouse CLI access:
 
