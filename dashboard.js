@@ -474,9 +474,10 @@ document.querySelectorAll('.breakdown-card').forEach(card => {
 });
 
 function getTimerClass(ms) {
-  if (ms < 1000) return 'query-timer fast';
-  if (ms < 10000) return 'query-timer medium';
-  return 'query-timer slow';
+  // Aligned with Google's LCP thresholds
+  if (ms < 2500) return 'query-timer fast';    // Good: < 2.5s
+  if (ms < 4000) return 'query-timer medium';  // Needs Improvement: 2.5-4s
+  return 'query-timer slow';                   // Poor: > 4s
 }
 
 function startQueryTimer() {
@@ -927,8 +928,8 @@ function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, ela
   const hasFilters = columnFilters.length > 0;
   const colEscaped = col.replace(/'/g, "\\'");
 
-  // Speed indicator based on elapsed time
-  const speedClass = elapsed < 1000 ? 'fast' : (elapsed < 10000 ? 'medium' : 'slow');
+  // Speed indicator based on elapsed time (aligned with Google LCP thresholds)
+  const speedClass = elapsed < 2500 ? 'fast' : (elapsed < 4000 ? 'medium' : 'slow');
   const speedTitle = formatQueryTime(elapsed);
   const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle}"></span>`;
 
