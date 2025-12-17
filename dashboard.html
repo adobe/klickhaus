@@ -31,7 +31,14 @@
   <div id="dashboard">
     <header>
       <div class="header-left">
-        <h1>CDN Analytics <span id="queryTimer" class="query-timer"></span></h1>
+        <button id="menuBtn" class="menu-btn" title="Quick Links">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <rect y="3" width="20" height="2" rx="1"/>
+            <rect y="9" width="20" height="2" rx="1"/>
+            <rect y="15" width="20" height="2" rx="1"/>
+          </svg>
+        </button>
+        <h1><span id="dashboardTitle">CDN Analytics</span> <span id="queryTimer" class="query-timer"></span></h1>
         <div id="activeFilters"></div>
       </div>
       <div class="header-center">
@@ -144,6 +151,15 @@
       </section>
     </main>
   </div>
+
+  <!-- Quick Links Modal -->
+  <dialog id="quickLinksModal">
+    <div class="modal-header">
+      <h2>Quick Links</h2>
+      <button class="modal-close" onclick="closeQuickLinksModal()">&times;</button>
+    </div>
+    <iframe id="quickLinksFrame" src="index.html"></iframe>
+  </dialog>
 
   <script src="dashboard.js"></script>
 </body>

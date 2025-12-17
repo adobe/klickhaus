@@ -946,3 +946,93 @@ main {
   padding: 60px;
   color: var(--text-secondary);
 }
+
+/* Menu Button */
+.menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.menu-btn:hover {
+  background: var(--bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Quick Links Modal */
+#quickLinksModal {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--card-bg);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  width: 400px;
+  max-width: 90vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  margin-right: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+
+#quickLinksModal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+#quickLinksFrame {
+  width: 100%;
+  height: calc(100vh - 57px);
+  border: none;
+  background: var(--bg);
+}

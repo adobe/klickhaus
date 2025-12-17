@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDN Analytics - Quick Links</title>
+  <style>
+    :root {
+      --primary: #eb1000;
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --text: #1d2939;
+      --text-secondary: #667085;
+      --border: #e4e7ec;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #ff4136;
+        --bg: #0d1117;
+        --card-bg: #161b22;
+        --text: #e6edf3;
+        --text-secondary: #8b949e;
+        --border: #30363d;
+      }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 40px;
+    }
+
+    /* When embedded in modal, adjust for sidebar */
+    body.embedded {
+      padding: 20px;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    body.embedded .container {
+      max-width: none;
+    }
+
+    body.embedded h1 {
+      font-size: 20px;
+      display: none;
+    }
+
+    body.embedded .subtitle {
+      display: none;
+    }
+
+    .home-link {
+      list-style: none;
+      margin-bottom: 24px;
+    }
+
+    .home-link a {
+      border-color: var(--primary);
+      background: var(--bg);
+    }
+
+    .home-link a:hover {
+      background: var(--card-bg);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .section h2 {
+      font-size: 16px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    a {
+      display: block;
+      padding: 12px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    a:hover {
+      border-color: var(--primary);
+      background: var(--bg);
+    }
+
+    a .title {
+      font-weight: 500;
+    }
+
+    a .description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 11px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .badge-error {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .badge-error {
+        background: #3d1a1a;
+        color: #f87171;
+      }
+
+      .badge-warning {
+        background: #3d2e0f;
+        color: #fbbf24;
+      }
+
+      .badge-info {
+        background: #1e3a5f;
+        color: #60a5fa;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CDN Analytics</h1>
+    <p class="subtitle">Quick access to common analytics views</p>
+
+    <ul class="home-link">
+      <li>
+        <a href="dashboard.html">
+          <div class="title">CDN Analytics</div>
+          <div class="description">Default dashboard with no filters</div>
+        </a>
+      </li>
+    </ul>
+
+    <div class="section">
+      <h2>Error Monitoring</h2>
+      <ul>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Server Errors&
+            filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Server Errors (5xx) <span class="badge badge-error">Critical</span></div>
+            <div class="description">Last 15 minutes of 5xx server errors</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Client Errors&
+            filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;4xx&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Client Errors (4xx) <span class="badge badge-warning">Warning</span></div>
+            <div class="description">Last 15 minutes of 4xx client errors</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=All Errors&
+            filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;2xx&quot;,&quot;exclude&quot;:true},{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;3xx&quot;,&quot;exclude&quot;:true}]">
+            <div class="title">All Errors (4xx + 5xx)</div>
+            <div class="description">Last 15 minutes excluding successful responses</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Cache Performance</h2>
+      <ul>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Cache Misses&
+            filters=[{&quot;col&quot;:&quot;upper(`cdn.cache_status`)&quot;,&quot;value&quot;:&quot;MISS&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Cache Misses</div>
+            <div class="description">Requests that missed the CDN cache</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Cache Hits&
+            filters=[{&quot;col&quot;:&quot;upper(`cdn.cache_status`)&quot;,&quot;value&quot;:&quot;HIT&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Cache Hits</div>
+            <div class="description">Requests served from CDN cache</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Bypassed Cache&
+            filters=[{&quot;col&quot;:&quot;upper(`cdn.cache_status`)&quot;,&quot;value&quot;:&quot;PASS&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Cache Bypass (PASS)</div>
+            <div class="description">Requests that bypassed the cache entirely</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Request Types</h2>
+      <ul>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Pipeline Requests&
+            filters=[{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;pipeline&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Pipeline Requests <span class="badge badge-info">Dynamic</span></div>
+            <div class="description">Server-side rendered content (HTML pages)</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Static Assets&
+            filters=[{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;static&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Static Assets</div>
+            <div class="description">JS, CSS, and other static files</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Media Files&
+            filters=[{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;media&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Media Files</div>
+            <div class="description">Images, videos, and other media</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=RUM Beacons&
+            filters=[{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;rum&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">RUM Beacons</div>
+            <div class="description">Real User Monitoring data collection</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Traffic Analysis</h2>
+      <ul>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            n=20&
+            title=Bot Traffic&
+            filters=[{&quot;col&quot;:&quot;`request.headers.user_agent`&quot;,&quot;value&quot;:&quot;Mozilla&quot;,&quot;exclude&quot;:true}]">
+            <div class="title">Bot Traffic</div>
+            <div class="description">Non-browser traffic (bots, scripts, APIs)</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Production Traffic&
+            filters=[{&quot;col&quot;:&quot;`request.host`&quot;,&quot;value&quot;:&quot;.live&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Production (.live)</div>
+            <div class="description">Traffic to production delivery domains</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Preview Traffic&
+            filters=[{&quot;col&quot;:&quot;`request.host`&quot;,&quot;value&quot;:&quot;.page&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">Preview (.page)</div>
+            <div class="description">Traffic to authoring/preview domains</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>HTTP Methods</h2>
+      <ul>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=POST Requests&
+            filters=[{&quot;col&quot;:&quot;`request.method`&quot;,&quot;value&quot;:&quot;POST&quot;,&quot;exclude&quot;:false}]">
+            <div class="title">POST Requests</div>
+            <div class="description">Form submissions and API calls</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            title=Non-GET Requests&
+            filters=[{&quot;col&quot;:&quot;`request.method`&quot;,&quot;value&quot;:&quot;GET&quot;,&quot;exclude&quot;:true},{&quot;col&quot;:&quot;`request.method`&quot;,&quot;value&quot;:&quot;HEAD&quot;,&quot;exclude&quot;:true}]">
+            <div class="title">Non-GET/HEAD Requests</div>
+            <div class="description">POST, PUT, DELETE, OPTIONS, etc.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Views</h2>
+      <ul>
+        <li>
+          <a href="dashboard.html?
+            t=15m&
+            view=logs&
+            title=Recent Logs">
+            <div class="title">Recent Logs</div>
+            <div class="description">Last 15 minutes log entries in table view</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=1h&
+            title=Last Hour Overview">
+            <div class="title">Last Hour Overview</div>
+            <div class="description">Default dashboard view for the last hour</div>
+          </a>
+        </li>
+        <li>
+          <a href="dashboard.html?
+            t=24h&
+            n=20&
+            title=24 Hour Overview">
+            <div class="title">24 Hour Overview</div>
+            <div class="description">Full day overview with top 20 values</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Fix URLs - encode parameter values properly
+    document.querySelectorAll('a[href*="?"]').forEach(link => {
+      const href = link.getAttribute('href');
+      const [path, query] = href.split('?');
+      if (!query) return;
+
+      // Parse parameters (split on & but handle multi-line)
+      const params = query.split('&').map(p => p.trim()).filter(p => p);
+      const encoded = params.map(param => {
+        const eqIdx = param.indexOf('=');
+        if (eqIdx === -1) return param;
+        const key = param.slice(0, eqIdx);
+        const value = param.slice(eqIdx + 1);
+        return key + '=' + encodeURIComponent(value);
+      });
+
+      link.setAttribute('href', path + '?' + encoded.join('&'));
+    });
+
+    // When loaded in an iframe/modal, add embedded class and handle link clicks
+    if (window.parent !== window) {
+      document.body.classList.add('embedded');
+
+      // Intercept link clicks to navigate parent window
+      document.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const href = link.getAttribute('href');
+          // Tell parent to navigate
+          window.parent.postMessage({ type: 'navigate', url: href }, '*');
+        });
+      });
+    }
+  </script>
+</body>
+</html>

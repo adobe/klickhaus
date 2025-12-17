@@ -22,6 +22,7 @@ const state = {
   showLogs: false,
   pinnedColumns: JSON.parse(localStorage.getItem('pinnedColumns') || '[]'),
   hiddenControls: [],  // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
+  title: '',  // Custom title from URL
 };
 
 function togglePinnedColumn(col) {
@@ -45,6 +46,7 @@ function saveStateToURL() {
   if (state.hostFilter) params.set('host', state.hostFilter);
   if (state.topN !== 5) params.set('n', state.topN);
   if (state.showLogs) params.set('view', 'logs');
+  if (state.title) params.set('title', state.title);
 
   // Save query timestamp as ISO string
   if (queryTimestamp) {
@@ -127,6 +129,11 @@ function loadStateFromURL() {
   if (params.has('hide')) {
     state.hiddenControls = params.get('hide').split(',').filter(c => c);
   }
+
+  // Custom title from URL
+  if (params.has('title')) {
+    state.title = params.get('title');
+  }
 }
 
 function syncUIFromState() {
@@ -134,6 +141,16 @@ function syncUIFromState() {
   topNSelect.value = state.topN;
   hostFilterInput.value = state.hostFilter;
   renderActiveFilters();
+
+  // Update title if custom title is set
+  const titleEl = document.getElementById('dashboardTitle');
+  if (state.title) {
+    titleEl.textContent = state.title;
+    document.title = state.title + ' - CDN Analytics';
+  } else {
+    titleEl.textContent = 'CDN Analytics';
+    document.title = 'CDN Analytics';
+  }
 
   if (state.showLogs) {
     logsView.classList.add('visible');
@@ -1783,6 +1800,43 @@ function renderLogsError(message) {
   const container = logsView.querySelector('.logs-table-container');
   container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
 }
+
+// Quick Links Modal
+const quickLinksModal = document.getElementById('quickLinksModal');
+const menuBtn = document.getElementById('menuBtn');
+
+function openQuickLinksModal() {
+  quickLinksModal.showModal();
+}
+
+function closeQuickLinksModal() {
+  quickLinksModal.close();
+}
+
+// Handle messages from the iframe
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'navigate') {
+    closeQuickLinksModal();
+    // Navigate to the new URL
+    window.location.href = e.data.url;
+  }
+});
+
+// Close modal when clicking backdrop
+quickLinksModal.addEventListener('click', (e) => {
+  if (e.target === quickLinksModal) {
+    closeQuickLinksModal();
+  }
+});
+
+// Close modal on Escape key
+quickLinksModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeQuickLinksModal();
+  }
+});
+
+menuBtn.addEventListener('click', openQuickLinksModal);
 
 // Host Autocomplete
 const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
