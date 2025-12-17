@@ -27,17 +27,32 @@ Database: `helix_logs_production`
 ## Data Pipeline Architecture
 
 ```
-Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)
-                              │
-                    cloudflare_http_ingestion (MV)
-                              │
-                              ▼
-                     cdn_requests_combined (2-week TTL)
-                              ▲
-                    fastly_ingestion (MV)
-                              │
-S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)
+                              ┌─► cloudflare_http_ingestion_v2 (MV) ─┐
+Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)          │
+                              └─► cloudflare_http_ingestion (MV) ────┼─► cdn_requests_combined (2-week TTL)
+                                                                     │
+                              ┌─► fastly_ingestion_v2 (MV) ──────────┼─► cdn_requests_v2 (2-week TTL)
+S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)              │   [partitioned, with sampling]
+                              └─► fastly_ingestion (MV) ─────────────┘
 ```
+
+### Table Migration (December 2025)
+
+The system is migrating from `cdn_requests_combined` to `cdn_requests_v2`:
+
+| Feature | `cdn_requests_combined` (legacy) | `cdn_requests_v2` (new) |
+|---------|----------------------------------|-------------------------|
+| Partitioning | None | Daily (`toDate(timestamp)`) |
+| Sampling | Not supported | `SAMPLE BY sample_hash` |
+| Projections | 16 (slow to materialize) | 16 (built-in from start) |
+| Status | Receiving data, deprecating | Receiving data, primary |
+
+**Migration steps:**
+1. ✅ New table `cdn_requests_v2` created with partitioning + sampling
+2. ✅ New MVs `cloudflare_http_ingestion_v2` and `fastly_ingestion_v2` active
+3. ⏳ Wait 24h for v2 to accumulate data
+4. 🔜 Update dashboard queries to use `cdn_requests_v2`
+5. 🔜 Drop old MVs and `cdn_requests_combined`
 
 ### Ingestion Sources
 - **Cloudflare**: Direct Logpush to ClickHouse (zones: aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
