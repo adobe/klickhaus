@@ -1573,14 +1573,43 @@ function renderLogsTable(data) {
   // Get all column names from first row
   const allColumns = Object.keys(data[0]);
 
-  // Sort columns: pinned first (in pinned order), then unpinned (in original order)
+  // Columns that have color coding (in preferred display order)
+  const colorCodedColumns = [
+    'timestamp',
+    'response.status',
+    'request.method',
+    'request.host',
+    'request.url',
+    'cdn.cache_status',
+    'response.headers.content_type',
+    'helix.request_type',
+    'helix.backend_type',
+    'request.headers.x_forwarded_host',
+    'request.headers.referer',
+    'request.headers.user_agent',
+    'client.ip',
+    'request.headers.x_forwarded_for',
+    'response.headers.x_error',
+  ];
+
+  // Sort columns: pinned first, then color-coded, then the rest
   const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
-  const unpinned = allColumns.filter(col => !state.pinnedColumns.includes(col));
-  const columns = [...pinned, ...unpinned];
+  const colorCoded = colorCodedColumns.filter(col => allColumns.includes(col) && !pinned.includes(col));
+  const rest = allColumns.filter(col => !pinned.includes(col) && !colorCodedColumns.includes(col));
+  const columns = [...pinned, ...colorCoded, ...rest];
 
   // Calculate left offsets for sticky pinned columns
   // We'll measure after render, but estimate ~120px per column for now
   const COL_WIDTH = 120;
+
+  // Short names for columns to save space
+  const shortNames = {
+    'response.status': 'status',
+    'request.method': 'method',
+    'cdn.cache_status': 'cache',
+    'helix.request_type': 'type',
+    'helix.backend_type': 'backend',
+  };
 
   let html = `
     <table class="logs-table">
@@ -1591,7 +1620,9 @@ function renderLogsTable(data) {
             const pinnedClass = isPinned ? 'pinned' : '';
             const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
             const colEscaped = col.replace(/'/g, "\\'");
-            return `<th class="${pinnedClass}" style="${leftOffset}" onclick="togglePinnedColumn('${colEscaped}')">${escapeHtml(col)}</th>`;
+            const displayName = shortNames[col] || col;
+            const titleAttr = shortNames[col] ? ` title="${escapeHtml(col)}"` : '';
+            return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr} onclick="togglePinnedColumn('${colEscaped}')">${escapeHtml(displayName)}</th>`;
           }).join('')}
         </tr>
       </thead>
@@ -1604,6 +1635,7 @@ function renderLogsTable(data) {
       let value = row[col];
       let cellClass = '';
       let displayValue = '';
+      let colorIndicator = '';
 
       // Format specific columns
       if (col === 'timestamp' && value) {
@@ -1615,11 +1647,15 @@ function renderLogsTable(data) {
         if (status >= 500) cellClass = 'status-5xx';
         else if (status >= 400) cellClass = 'status-4xx';
         else cellClass = 'status-ok';
+        const color = getStatusColor(status);
+        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
       } else if (col === 'response.body_size' && value) {
         displayValue = formatBytes(parseInt(value));
       } else if (col === 'request.method') {
         displayValue = value || '';
         cellClass = 'method';
+        const color = getMethodColor(value);
+        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
       } else if (value === null || value === undefined || value === '') {
         displayValue = '';
       } else if (typeof value === 'object') {
@@ -1628,12 +1664,42 @@ function renderLogsTable(data) {
         displayValue = String(value);
       }
 
+      // Apply color coding based on column type
+      if (!colorIndicator && value) {
+        let color = '';
+        if (col === 'request.host' || col === 'request.headers.x_forwarded_host') {
+          color = getHostColor(value);
+        } else if (col === 'response.headers.content_type') {
+          color = getContentTypeColor(value);
+        } else if (col === 'cdn.cache_status') {
+          color = getCacheStatusColor(value);
+        } else if (col === 'request.url') {
+          color = getPathColor(value);
+        } else if (col === 'request.headers.referer') {
+          color = getRefererColor(value);
+        } else if (col === 'request.headers.user_agent') {
+          color = getUserAgentColor(value);
+        } else if (col === 'client.ip' || col === 'request.headers.x_forwarded_for') {
+          color = getIPColor(value);
+        } else if (col === 'helix.request_type') {
+          color = getRequestTypeColor(value);
+        } else if (col === 'helix.backend_type') {
+          color = getBackendTypeColor(value);
+        } else if (col === 'client.asn') {
+          // For logs table, we only have the ASN number, not the name
+          // Skip color coding here since we can't categorize by number alone
+        } else if (col === 'response.headers.x_error') {
+          color = getErrorColor(value);
+        }
+        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
+      }
+
       const isPinned = pinned.includes(col);
       if (isPinned) cellClass += ' pinned';
       const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
 
       const escaped = escapeHtml(displayValue);
-      html += `<td class="${cellClass.trim()}" style="${leftOffset}" title="${escaped}">${escaped}</td>`;
+      html += `<td class="${cellClass.trim()}" style="${leftOffset}" title="${escaped}">${colorIndicator}${escaped}</td>`;
     }
     html += '</tr>';
   }
