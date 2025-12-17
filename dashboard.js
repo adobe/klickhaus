@@ -880,7 +880,7 @@ const allBreakdowns = [
   { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
   { id: 'breakdown-methods', col: '`request.method`' },
   { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
-  { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' - ')[0]), extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
+  { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' ')[0]), dimFormatFn: formatAsn, extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
 ];
 
 async function loadAllBreakdowns() {
@@ -916,7 +916,7 @@ async function loadBreakdown(b, timeFilter, hostFilter) {
     // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result._networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
-    renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes);
+    renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn);
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);
@@ -926,7 +926,9 @@ async function loadBreakdown(b, timeFilter, hostFilter) {
 }
 
 // Format dimension value with dimmed prefix if applicable
-function formatDimWithPrefix(dim, dimPrefixes) {
+function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
+  // Use custom format function if provided
+  if (dimFormatFn) return dimFormatFn(dim);
   if (!dimPrefixes || dimPrefixes.length === 0) return escapeHtml(dim);
   for (const prefix of dimPrefixes) {
     if (dim.startsWith(prefix)) {
@@ -936,7 +938,16 @@ function formatDimWithPrefix(dim, dimPrefixes) {
   return escapeHtml(dim);
 }
 
-function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes) {
+// Format ASN as "15169 google llc" with number dimmed
+function formatAsn(dim) {
+  const spaceIdx = dim.indexOf(' ');
+  if (spaceIdx === -1) return escapeHtml(dim);
+  const num = dim.slice(0, spaceIdx + 1); // include space
+  const name = dim.slice(spaceIdx + 1);
+  return `<span class="dim-prefix">${escapeHtml(num)}</span>${escapeHtml(name)}`;
+}
+
+function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
   if (!card.dataset.title) {
@@ -1001,11 +1012,11 @@ function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, ela
     if (linkFn && row.dim) {
       linkUrl = linkFn(row.dim);
     } else if (linkPrefix && row.dim) {
-      // For ASN links, extract just the number (before " - ")
-      const linkValue = row.dim.includes(' - ') ? row.dim.split(' - ')[0] : row.dim;
+      // For ASN links, extract just the number (before first space)
+      const linkValue = row.dim.split(' ')[0];
       linkUrl = linkPrefix + linkValue + (linkSuffix || '');
     }
-    const formattedDim = formatDimWithPrefix(dim, dimPrefixes);
+    const formattedDim = formatDimWithPrefix(dim, dimPrefixes, dimFormatFn);
     if (linkUrl) {
       dimContent = `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`;
     } else {
