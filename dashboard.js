@@ -296,11 +296,11 @@ function getInterval() {
 
 function getTimeBucket() {
   const buckets = {
-    '15m': 'toStartOfMinute',
-    '1h': 'toStartOfMinute',
-    '12h': 'toStartOfTenMinutes',
-    '24h': 'toStartOfFifteenMinutes',
-    '7d': 'toStartOfHour'
+    '15m': 'toStartOfInterval(timestamp, INTERVAL 30 SECOND)',
+    '1h': 'toStartOfMinute(timestamp)',
+    '12h': 'toStartOfTenMinutes(timestamp)',
+    '24h': 'toStartOfFifteenMinutes(timestamp)',
+    '7d': 'toStartOfHour(timestamp)'
   };
   return buckets[state.timeRange];
 }
@@ -600,7 +600,7 @@ async function loadTimeSeries() {
 
   const sql = `
     SELECT
-      ${bucket}(timestamp) as t,
+      ${bucket} as t,
       countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
       countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
       countIf(\`response.status\` >= 500) as cnt_5xx
