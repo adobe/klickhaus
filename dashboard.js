@@ -122,7 +122,7 @@ function syncUIFromState() {
     logsView.classList.add('visible');
     dashboardContent.classList.add('hidden');
     logsBtn.classList.add('active');
-    logsBtn.textContent = 'Dashboard';
+    logsBtn.textContent = 'Filters';
   }
 }
 
@@ -191,13 +191,7 @@ async function init() {
     }, 500);
   });
 
-  // Logs button - click to toggle, hover when ready
   logsBtn.addEventListener('click', toggleLogsView);
-  logsBtn.addEventListener('mouseenter', () => {
-    if (state.logsReady && !state.showLogs) {
-      toggleLogsView();
-    }
-  });
 }
 
 // Auth
@@ -1141,7 +1135,7 @@ function toggleLogsView() {
     logsView.classList.add('visible');
     dashboardContent.classList.add('hidden');
     logsBtn.classList.add('active');
-    logsBtn.textContent = 'Dashboard';
+    logsBtn.textContent = 'Filters';
   } else {
     logsView.classList.remove('visible');
     dashboardContent.classList.remove('hidden');
