@@ -466,6 +466,10 @@
       text-decoration: underline;
     }
 
+    .breakdown-table .dim .dim-prefix {
+      opacity: 0.4;
+    }
+
     .breakdown-table .count {
       text-align: right;
       font-weight: 500;
@@ -1675,15 +1679,15 @@
     // Breakdown Tables
     const allBreakdowns = [
       { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')" },
-      { id: 'breakdown-hosts', col: '`request.host`', linkFn: hostLink },
+      { id: 'breakdown-hosts', col: '`request.host`', linkFn: hostLink, dimPrefixes: ['main--'] },
       { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`', linkFn: forwardedHostLink },
       { id: 'breakdown-content-types', col: '`response.headers.content_type`' },
       { id: 'breakdown-status', col: 'toString(`response.status`)' },
       { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
       { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)' },
       { id: 'breakdown-paths', col: '`request.url`', linkFn: pathLink },
-      { id: 'breakdown-referers', col: '`request.headers.referer`', linkFn: refererLink },
-      { id: 'breakdown-user-agents', col: '`request.headers.user_agent`' },
+      { id: 'breakdown-referers', col: '`request.headers.referer`', linkFn: refererLink, dimPrefixes: ['https://', 'http://'] },
+      { id: 'breakdown-user-agents', col: '`request.headers.user_agent`', dimPrefixes: ['Mozilla/5.0 '] },
       { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=' },
       { id: 'breakdown-request-type', col: '`helix.request_type`', extraFilter: "AND `helix.request_type` != ''" },
       { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
@@ -1725,7 +1729,7 @@
         // Prefer actual network time from Resource Timing API, fallback to wall clock
         const elapsed = result._networkTime ?? (performance.now() - startTime);
         facetTimings[b.id] = elapsed; // Track timing for slowest detection
-        renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed);
+        renderBreakdownTable(b.id, result.data, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes);
       } catch (err) {
         console.error(`Breakdown error (${b.id}):`, err);
         renderBreakdownError(b.id, err.message);
@@ -1734,7 +1738,18 @@
       }
     }
 
-    function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, elapsed) {
+    // Format dimension value with dimmed prefix if applicable
+    function formatDimWithPrefix(dim, dimPrefixes) {
+      if (!dimPrefixes || dimPrefixes.length === 0) return escapeHtml(dim);
+      for (const prefix of dimPrefixes) {
+        if (dim.startsWith(prefix)) {
+          return `<span class="dim-prefix">${escapeHtml(prefix)}</span>${escapeHtml(dim.slice(prefix.length))}`;
+        }
+      }
+      return escapeHtml(dim);
+    }
+
+    function renderBreakdownTable(id, data, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes) {
       const card = document.getElementById(id);
       // Store original title in data attribute, or read from h3 if first render
       if (!card.dataset.title) {
@@ -1793,7 +1808,7 @@
         const isExcluded = activeFilter && activeFilter.exclude;
         const rowClass = isIncluded ? 'filter-included' : (isExcluded ? 'filter-excluded' : '');
 
-        // Build dimension cell content - with optional link
+        // Build dimension cell content - with optional link and dimmed prefix
         let dimContent;
         let linkUrl = null;
         if (linkFn && row.dim) {
@@ -1803,10 +1818,11 @@
           const linkValue = row.dim.includes(' - ') ? row.dim.split(' - ')[0] : row.dim;
           linkUrl = linkPrefix + linkValue + (linkSuffix || '');
         }
+        const formattedDim = formatDimWithPrefix(dim, dimPrefixes);
         if (linkUrl) {
-          dimContent = `<a href="${linkUrl}" target="_blank" rel="noopener">${escapeHtml(dim)}</a>`;
+          dimContent = `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`;
         } else {
-          dimContent = escapeHtml(dim);
+          dimContent = formattedDim;
         }
 
         // Determine button actions based on current filter state
