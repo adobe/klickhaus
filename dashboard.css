@@ -178,17 +178,45 @@ header {
   display: flex;
   align-items: center;
   gap: 16px;
-  flex-wrap: wrap;
+}
+
+.header-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+
+.header-center {
+  flex-shrink: 0;
+}
+
+.header-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to left, black 90%, transparent 100%);
+  mask-image: linear-gradient(to left, black 90%, transparent 100%);
 }
 
 header h1 {
   font-size: 20px;
-  margin-right: auto;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .query-timer {
   font-size: 12px;
   font-weight: normal;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   color: var(--text-secondary);
   margin-left: 8px;
 }
@@ -227,7 +255,8 @@ header select option {
 #activeFilters {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .filter-tag {
@@ -244,6 +273,7 @@ header select option {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-tag.exclude {
@@ -613,9 +643,6 @@ main {
 
 /* Logs Button */
 .logs-btn {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   padding: 8px 24px;
   font-size: 14px;
   background: var(--card-bg);
@@ -624,7 +651,6 @@ main {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  z-index: 10;
 }
 
 .logs-btn:hover {
@@ -637,10 +663,6 @@ main {
 
 .logs-btn.active {
   background: var(--bg);
-}
-
-header {
-  position: relative;
 }
 
 /* Logs View */

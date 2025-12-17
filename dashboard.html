@@ -30,27 +30,33 @@
   <!-- Dashboard -->
   <div id="dashboard">
     <header>
-      <h1>CDN Analytics <span id="queryTimer" class="query-timer"></span></h1>
-      <button id="logsBtn" class="logs-btn">Logs</button>
-      <select id="timeRange">
-        <option value="15m">Last 15 minutes</option>
-        <option value="1h" selected>Last hour</option>
-        <option value="12h">Last 12 hours</option>
-        <option value="24h">Last 24 hours</option>
-        <option value="7d">Last 7 days</option>
-      </select>
-      <select id="topN">
-        <option value="5" selected>Top 5</option>
-        <option value="10">Top 10</option>
-        <option value="20">Top 20</option>
-        <option value="50">Top 50</option>
-        <option value="100">Top 100</option>
-      </select>
-      <input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off">
-      <datalist id="hostSuggestions"></datalist>
-      <div id="activeFilters"></div>
-      <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
-      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+      <div class="header-left">
+        <h1>CDN Analytics <span id="queryTimer" class="query-timer"></span></h1>
+        <div id="activeFilters"></div>
+      </div>
+      <div class="header-center">
+        <button id="logsBtn" class="logs-btn">Logs</button>
+      </div>
+      <div class="header-right">
+        <select id="timeRange">
+          <option value="15m">Last 15 minutes</option>
+          <option value="1h" selected>Last hour</option>
+          <option value="12h">Last 12 hours</option>
+          <option value="24h">Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+        </select>
+        <select id="topN">
+          <option value="5" selected>Top 5</option>
+          <option value="10">Top 10</option>
+          <option value="20">Top 20</option>
+          <option value="50">Top 50</option>
+          <option value="100">Top 100</option>
+        </select>
+        <input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off">
+        <datalist id="hostSuggestions"></datalist>
+        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+        <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+      </div>
     </header>
 
     <!-- Logs View -->

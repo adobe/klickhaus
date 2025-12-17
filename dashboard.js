@@ -213,6 +213,7 @@ async function handleLogin(e) {
     await query('SELECT 1');
     localStorage.setItem('clickhouse_credentials', JSON.stringify(state.credentials));
     loginError.classList.remove('visible');
+    syncUIFromState();
     showDashboard();
     loadDashboard();
   } catch (err) {
