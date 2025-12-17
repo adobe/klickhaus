@@ -199,21 +199,23 @@ async function init() {
   // Load state from URL first
   loadStateFromURL();
 
-  // Check for stored credentials and validate them
+  // Check for stored credentials - show dashboard immediately if they exist
   const stored = localStorage.getItem('clickhouse_credentials');
   if (stored) {
-    state.credentials = JSON.parse(stored);
     try {
-      // Validate stored credentials before showing dashboard
-      await query('SELECT 1', { skipCache: true });
-      syncUIFromState();
-      showDashboard();
-      loadDashboard();
+      const creds = JSON.parse(stored);
+      // Basic validation: must have user and password
+      if (creds && creds.user && creds.password) {
+        state.credentials = creds;
+        syncUIFromState();
+        showDashboard();
+        // Start loading dashboard - auth errors will be handled by query()
+        loadDashboard();
+      }
     } catch (err) {
-      // Stored credentials are invalid, clear them and show login
-      state.credentials = null;
+      // Invalid JSON in localStorage, clear it
       localStorage.removeItem('clickhouse_credentials');
-      console.log('Stored credentials invalid, showing login');
+      console.log('Invalid credentials in localStorage');
     }
   }
 
@@ -277,6 +279,14 @@ function handleLogout() {
   showLogin();
 }
 
+function handleAuthError() {
+  state.credentials = null;
+  localStorage.removeItem('clickhouse_credentials');
+  loginError.textContent = 'Session expired. Please sign in again.';
+  loginError.classList.add('visible');
+  showLogin();
+}
+
 function showLogin() {
   loginSection.classList.remove('hidden');
   dashboardSection.classList.remove('visible');
@@ -331,6 +341,10 @@ async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
 
   if (!response.ok) {
     const text = await response.text();
+    // Check for authentication errors (401 or auth-related message)
+    if (response.status === 401 || text.includes('Authentication failed') || text.includes('REQUIRED_PASSWORD')) {
+      handleAuthError();
+    }
     throw new Error(text);
   }
 
