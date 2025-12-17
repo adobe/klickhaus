@@ -1412,7 +1412,7 @@
       for (let i = 0; i < data.length; i += labelStep) {
         const x = padding.left + (chartWidth * i / (data.length - 1));
         const time = new Date(data[i].t);
-        const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
         ctx.fillText(label, x, height - padding.bottom + 20);
       }
 
