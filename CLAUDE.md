@@ -119,7 +119,8 @@ The table has projections for all dashboard facets, enabling sub-second GROUP BY
 | `proj_facet_client_ip` | `if(x_forwarded_for != '', x_forwarded_for, client.ip)` | Client IPs |
 | `proj_facet_status_range` | `concat(intDiv(response.status, 100), 'xx')` | Status ranges (2xx, 4xx) |
 | `proj_facet_status` | `toString(response.status)` | HTTP status codes |
-| `proj_facet_asn` | `concat(client.asn, ' - ', client.name)` | ASN breakdown |
+| `proj_facet_asn` | `concat(client.asn, ' - ', client.name)` | ASN breakdown (legacy) |
+| `proj_facet_asn_num` | `client.asn` | ASN breakdown (v2, integer-based) |
 
 Projections are automatically used by ClickHouse when the query matches the projection's GROUP BY. Dashboard facet queries that previously took 8-15s now complete in <1s.
 
@@ -171,6 +172,43 @@ MATERIALIZE PROJECTION proj_facet_example;
 | `cloudflare_tail_incoming` | 1 day | Raw Cloudflare Tail Worker logs (legacy) |
 | `fastly_logs_incoming2` | 1 day | Raw Fastly logs (Coralogix format via S3 ClickPipes) |
 | `fastly_logs_incoming2_clickpipes_error` | 7 days | ClickPipes ingestion errors |
+| `asn_mapping` | None | ASN number to organization name mapping |
+
+### ASN Mapping Infrastructure
+
+Cloudflare provides only ASN numbers, while Fastly provides both ASN number and organization name. To ensure consistent ASN display across both CDN sources, we use a dictionary-based lookup:
+
+```
+fastly_logs_incoming2 ──► asn_mapping_mv ──► asn_mapping (ReplacingMergeTree)
+                                                    │
+                                             asn_dict (Dictionary, 24h TTL)
+                                                    │
+Dashboard query ◄─────── dictGet() ────────────────┘
+```
+
+**Components:**
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| `asn_mapping` | ReplacingMergeTree | Stores ASN→name mappings from Fastly data |
+| `asn_mapping_mv` | Materialized View | Populates mapping from incoming Fastly logs |
+| `asn_dict` | Dictionary (HASHED) | Fast O(1) lookups, refreshed every 24h |
+
+**Dashboard Query Pattern:**
+```sql
+SELECT
+  concat(toString(`client.asn`), ' - ',
+         dictGet('helix_logs_production.asn_dict', 'name', `client.asn`)) as dim,
+  count() as cnt
+FROM cdn_requests_v2
+WHERE `client.asn` != 0
+GROUP BY `client.asn`  -- Filter on integer, not string
+```
+
+**Benefits:**
+- Cloudflare requests now show ASN names (resolved via dictionary)
+- Filtering uses integer comparison (`client.asn = 13335`) instead of string matching
+- Projection `proj_facet_asn_num` pre-aggregates by integer ASN for faster queries
 
 ### Raw Table Schemas
 

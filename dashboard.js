@@ -4,7 +4,7 @@ const DATABASE = 'helix_logs_production';
 // Use partitioned table for recent queries, old table for historical
 // TODO: expand to ['15m', '1h', '12h'] once v2 has 12h of data
 function getTable() {
-  return ['15m'].includes(state.timeRange)
+  return ['15m', '1h'].includes(state.timeRange)
     ? 'cdn_requests_v2'
     : 'cdn_requests_combined';
 }
@@ -97,7 +97,14 @@ function loadStateFromURL() {
     try {
       const filters = JSON.parse(params.get('filters'));
       if (Array.isArray(filters)) {
-        state.filters = filters.filter(f => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean');
+        // Preserve filterCol and filterValue if present (for ASN integer filtering)
+        state.filters = filters.filter(f => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
+          .map(f => {
+            const filter = { col: f.col, value: f.value, exclude: f.exclude };
+            if (f.filterCol) filter.filterCol = f.filterCol;
+            if (f.filterValue !== undefined) filter.filterValue = f.filterValue;
+            return filter;
+          });
       }
     } catch (e) {
       console.error('Failed to parse filters from URL:', e);
@@ -323,15 +330,20 @@ function getHostFilter() {
 function buildFacetFilterSQL(filters) {
   if (filters.length === 0) return '';
 
-  // Group filters by column
+  // Group filters by column (use filterCol for SQL if present)
   const byColumn = {};
   for (const f of filters) {
-    if (!byColumn[f.col]) byColumn[f.col] = { includes: [], excludes: [] };
-    const escaped = f.value.replace(/'/g, "\\'");
+    const sqlCol = f.filterCol || f.col;
+    const sqlValue = f.filterValue ?? f.value;
+    if (!byColumn[f.col]) byColumn[f.col] = { sqlCol, includes: [], excludes: [] };
+    // Use numeric comparison for integer filter values, string otherwise
+    const isNumeric = typeof sqlValue === 'number';
+    const escaped = isNumeric ? sqlValue : sqlValue.replace(/'/g, "\\'");
+    const comparison = isNumeric ? escaped : `'${escaped}'`;
     if (f.exclude) {
-      byColumn[f.col].excludes.push(`${f.col} != '${escaped}'`);
+      byColumn[f.col].excludes.push(`${sqlCol} != ${comparison}`);
     } else {
-      byColumn[f.col].includes.push(`${f.col} = '${escaped}'`);
+      byColumn[f.col].includes.push(`${sqlCol} = ${comparison}`);
     }
   }
 
@@ -378,7 +390,16 @@ function clearFiltersForColumn(col) {
 function addFilter(col, value, exclude) {
   // Remove existing filter for same col+value
   state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
-  state.filters.push({ col, value, exclude });
+
+  // Look up breakdown to get filterCol and filterValueFn if defined
+  const breakdown = allBreakdowns.find(b => b.col === col);
+  const filter = { col, value, exclude };
+  if (breakdown?.filterCol) {
+    filter.filterCol = breakdown.filterCol;
+    filter.filterValue = breakdown.filterValueFn ? breakdown.filterValueFn(value) : value;
+  }
+
+  state.filters.push(filter);
   renderActiveFilters();
   saveStateToURL();
   loadDashboard();
@@ -859,7 +880,7 @@ const allBreakdowns = [
   { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
   { id: 'breakdown-methods', col: '`request.method`' },
   { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
-  { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', `client.name`)", extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
+  { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' - ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' - ')[0]), extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
 ];
 
 async function loadAllBreakdowns() {

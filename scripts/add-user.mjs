@@ -9,6 +9,7 @@ const CLICKHOUSE_HOST = 'ogadftwx3q.us-east1.gcp.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
 const DATABASE = 'helix_logs_production';
 const TABLES = ['cdn_requests_combined', 'cdn_requests_v2'];
+const DICTIONARIES = ['asn_dict'];
 
 function generatePassword(length = 16) {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
@@ -59,6 +60,13 @@ async function main() {
       const grantSql = `GRANT SELECT ON ${DATABASE}.${table} TO ${newUsername}`;
       await query(grantSql, adminUser, adminPassword);
       console.log(`Granted SELECT on ${DATABASE}.${table}`);
+    }
+
+    // Grant dictGet access for ASN lookups
+    for (const dict of DICTIONARIES) {
+      const grantSql = `GRANT dictGet ON ${DATABASE}.${dict} TO ${newUsername}`;
+      await query(grantSql, adminUser, adminPassword);
+      console.log(`Granted dictGet on ${DATABASE}.${dict}`);
     }
 
     console.log('\n--- Credentials ---');
