@@ -786,6 +786,7 @@
       <h1>CDN Analytics <span id="queryTimer" class="query-timer"></span></h1>
       <button id="logsBtn" class="logs-btn">Logs</button>
       <select id="timeRange">
+        <option value="15m">Last 15 minutes</option>
         <option value="1h" selected>Last hour</option>
         <option value="12h">Last 12 hours</option>
         <option value="24h">Last 24 hours</option>
@@ -894,7 +895,7 @@
     // Configuration
     const CLICKHOUSE_URL = 'https://ogadftwx3q.us-east1.gcp.clickhouse.cloud:8443/';
     const DATABASE = 'helix_logs_production';
-    const TABLE = 'cdn_requests_combined';
+    const TABLE = 'cdn_requests_v2';
 
     // State
     const state = {
@@ -953,7 +954,7 @@
 
       if (params.has('t')) {
         const t = params.get('t');
-        if (['1h', '12h', '24h', '7d'].includes(t)) {
+        if (['15m', '1h', '12h', '24h', '7d'].includes(t)) {
           state.timeRange = t;
         }
       }
@@ -1129,6 +1130,7 @@
           // Longer TTLs since we use fixed timestamps for deterministic queries
           // Cache is effectively invalidated by timestamp change on refresh/page load
           const ttls = {
+            '15m': 60,     // 1 minute for last 15 minutes
             '1h': 300,     // 5 minutes for last hour
             '12h': 600,    // 10 minutes for last 12 hours
             '24h': 900,    // 15 minutes for last 24 hours
@@ -1169,6 +1171,7 @@
     // Time range helpers
     function getInterval() {
       const intervals = {
+        '15m': 'INTERVAL 15 MINUTE',
         '1h': 'INTERVAL 1 HOUR',
         '12h': 'INTERVAL 12 HOUR',
         '24h': 'INTERVAL 24 HOUR',
@@ -1179,6 +1182,7 @@
 
     function getTimeBucket() {
       const buckets = {
+        '15m': 'toStartOfMinute',
         '1h': 'toStartOfMinute',
         '12h': 'toStartOfTenMinutes',
         '24h': 'toStartOfFifteenMinutes',
