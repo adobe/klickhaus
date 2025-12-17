@@ -669,6 +669,38 @@
       position: sticky;
       top: 0;
       white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .logs-table th:hover {
+      background: var(--border);
+    }
+
+    .logs-table th.pinned,
+    .logs-table td.pinned {
+      position: sticky;
+      background: var(--card-bg);
+      z-index: 1;
+    }
+
+    .logs-table th.pinned {
+      z-index: 2;
+      background: var(--bg);
+    }
+
+    .logs-table th.pinned::before {
+      content: '📌 ';
+      font-size: 10px;
+    }
+
+    .logs-table td.pinned {
+      border-right: 2px solid var(--border);
+    }
+
+    .logs-table th.pinned:last-of-type,
+    .logs-table td.pinned:last-of-type {
+      border-right: 2px solid var(--primary);
     }
 
     .logs-table td {
@@ -875,7 +907,21 @@
       logsLoading: false,
       logsReady: false,
       showLogs: false,
+      pinnedColumns: JSON.parse(localStorage.getItem('pinnedColumns') || '[]'),
     };
+
+    function togglePinnedColumn(col) {
+      const idx = state.pinnedColumns.indexOf(col);
+      if (idx === -1) {
+        state.pinnedColumns.push(col);
+      } else {
+        state.pinnedColumns.splice(idx, 1);
+      }
+      localStorage.setItem('pinnedColumns', JSON.stringify(state.pinnedColumns));
+      if (state.logsData) {
+        renderLogsTable(state.logsData);
+      }
+    }
 
     // URL State Management
     function saveStateToURL() {
@@ -1925,13 +1971,28 @@
       }
 
       // Get all column names from first row
-      const columns = Object.keys(data[0]);
+      const allColumns = Object.keys(data[0]);
+
+      // Sort columns: pinned first (in pinned order), then unpinned (in original order)
+      const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
+      const unpinned = allColumns.filter(col => !state.pinnedColumns.includes(col));
+      const columns = [...pinned, ...unpinned];
+
+      // Calculate left offsets for sticky pinned columns
+      // We'll measure after render, but estimate ~120px per column for now
+      const COL_WIDTH = 120;
 
       let html = `
         <table class="logs-table">
           <thead>
             <tr>
-              ${columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}
+              ${columns.map((col, idx) => {
+                const isPinned = pinned.includes(col);
+                const pinnedClass = isPinned ? 'pinned' : '';
+                const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
+                const colEscaped = col.replace(/'/g, "\\'");
+                return `<th class="${pinnedClass}" style="${leftOffset}" onclick="togglePinnedColumn('${colEscaped}')">${escapeHtml(col)}</th>`;
+              }).join('')}
             </tr>
           </thead>
           <tbody>
@@ -1967,14 +2028,52 @@
             displayValue = String(value);
           }
 
+          const isPinned = pinned.includes(col);
+          if (isPinned) cellClass += ' pinned';
+          const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
+
           const escaped = escapeHtml(displayValue);
-          html += `<td class="${cellClass}" title="${escaped}">${escaped}</td>`;
+          html += `<td class="${cellClass.trim()}" style="${leftOffset}" title="${escaped}">${escaped}</td>`;
         }
         html += '</tr>';
       }
 
       html += '</tbody></table>';
       container.innerHTML = html;
+
+      // After render, measure actual column widths and update left offsets
+      if (pinned.length > 0) {
+        requestAnimationFrame(() => {
+          const table = container.querySelector('.logs-table');
+          if (!table) return;
+          const headerCells = table.querySelectorAll('thead th');
+          const pinnedWidths = [];
+          let cumLeft = 0;
+
+          // Calculate cumulative widths for pinned columns
+          for (let i = 0; i < pinned.length; i++) {
+            pinnedWidths.push(cumLeft);
+            cumLeft += headerCells[i].offsetWidth;
+          }
+
+          // Update all pinned cells with correct left values
+          headerCells.forEach((th, idx) => {
+            if (idx < pinned.length) {
+              th.style.left = pinnedWidths[idx] + 'px';
+            }
+          });
+
+          const rows = table.querySelectorAll('tbody tr');
+          rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            cells.forEach((td, idx) => {
+              if (idx < pinned.length) {
+                td.style.left = pinnedWidths[idx] + 'px';
+              }
+            });
+          });
+        });
+      }
     }
 
     function renderLogsError(message) {
