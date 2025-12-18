@@ -176,6 +176,83 @@
       border-style: dashed;
     }
 
+    /* Search box */
+    .search-container {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      padding: 12px 0 16px;
+      margin-bottom: 16px;
+      z-index: 100;
+    }
+
+    body.embedded .search-container {
+      top: 0;
+      padding-top: 0;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .search-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: none;
+    }
+
+    body.embedded .search-hint {
+      display: block;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+      display: none;
+    }
+
+    .no-results.visible {
+      display: block;
+    }
+
+    /* Hide filtered elements */
+    .section.hidden,
+    li.hidden {
+      display: none;
+    }
+
+    /* Highlight matching text */
+    mark {
+      background: #fef08a;
+      color: inherit;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      mark {
+        background: #854d0e;
+      }
+    }
+
     @media (prefers-color-scheme: dark) {
       .badge-legacy {
         background: #374151;
@@ -202,6 +279,15 @@
   <div class="container">
     <h1>CDN Analytics</h1>
     <p class="subtitle">Quick access to common analytics views</p>
+
+    <div class="search-container">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search views..." autofocus>
+      <div class="search-hint">Type to filter views. Press Enter to select first result.</div>
+    </div>
+
+    <div class="no-results" id="noResults">
+      No views match your search.
+    </div>
 
     <ul class="home-link">
       <li>
@@ -1080,6 +1166,145 @@
           window.parent.postMessage({ type: 'navigate', url: href }, '*');
         });
       });
+    }
+
+    // Type-ahead search functionality
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const sections = document.querySelectorAll('.section');
+    const homeLink = document.querySelector('.home-link');
+
+    // Store original HTML for restoration
+    const originalContent = new Map();
+    document.querySelectorAll('li').forEach(li => {
+      originalContent.set(li, {
+        title: li.querySelector('.title')?.innerHTML || '',
+        description: li.querySelector('.description')?.innerHTML || ''
+      });
+    });
+
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightText(text, query) {
+      if (!query) return text;
+      const escaped = escapeRegex(query);
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    function filterViews(query) {
+      const searchTerms = query.toLowerCase().trim();
+      let hasVisibleItems = false;
+
+      // Reset all content first
+      originalContent.forEach((content, li) => {
+        const titleEl = li.querySelector('.title');
+        const descEl = li.querySelector('.description');
+        if (titleEl) titleEl.innerHTML = content.title;
+        if (descEl) descEl.innerHTML = content.description;
+      });
+
+      if (!searchTerms) {
+        // Show everything when search is empty
+        sections.forEach(section => section.classList.remove('hidden'));
+        document.querySelectorAll('li').forEach(li => li.classList.remove('hidden'));
+        homeLink?.classList.remove('hidden');
+        noResults.classList.remove('visible');
+        return;
+      }
+
+      // Hide home link during search
+      homeLink?.classList.add('hidden');
+
+      sections.forEach(section => {
+        const sectionTitle = section.querySelector('h2')?.textContent.toLowerCase() || '';
+        const items = section.querySelectorAll('li');
+        let sectionHasVisibleItems = false;
+
+        items.forEach(li => {
+          const original = originalContent.get(li);
+          if (!original) return;
+
+          const title = original.title.replace(/<[^>]*>/g, '').toLowerCase();
+          const description = original.description.replace(/<[^>]*>/g, '').toLowerCase();
+          const matches = title.includes(searchTerms) ||
+                         description.includes(searchTerms) ||
+                         sectionTitle.includes(searchTerms);
+
+          if (matches) {
+            li.classList.remove('hidden');
+            sectionHasVisibleItems = true;
+            hasVisibleItems = true;
+
+            // Highlight matching text
+            const titleEl = li.querySelector('.title');
+            const descEl = li.querySelector('.description');
+            if (titleEl) titleEl.innerHTML = highlightText(original.title, searchTerms);
+            if (descEl) descEl.innerHTML = highlightText(original.description, searchTerms);
+          } else {
+            li.classList.add('hidden');
+          }
+        });
+
+        section.classList.toggle('hidden', !sectionHasVisibleItems);
+      });
+
+      noResults.classList.toggle('visible', !hasVisibleItems);
+    }
+
+    function getFirstVisibleLink() {
+      // Find first visible non-legacy link
+      for (const section of sections) {
+        if (section.classList.contains('hidden')) continue;
+        const items = section.querySelectorAll('li:not(.hidden):not(.legacy-view)');
+        if (items.length > 0) {
+          return items[0].querySelector('a');
+        }
+      }
+      // Fall back to home link if visible
+      if (!homeLink?.classList.contains('hidden')) {
+        return homeLink.querySelector('a');
+      }
+      return null;
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      filterViews(e.target.value);
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const firstLink = getFirstVisibleLink();
+        if (firstLink) {
+          firstLink.click();
+        }
+      } else if (e.key === 'Escape') {
+        searchInput.value = '';
+        filterViews('');
+        searchInput.blur();
+      }
+    });
+
+    // Focus search on any keypress when not in an input
+    document.addEventListener('keydown', (e) => {
+      // Skip if already in an input or if modifier keys are pressed
+      if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Skip for navigation keys
+      if (['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+
+      // Focus search and let the character be typed
+      if (e.key.length === 1) {
+        searchInput.focus();
+      }
+    });
+
+    // Auto-focus search when embedded (dialog mode)
+    if (window.parent !== window) {
+      setTimeout(() => searchInput.focus(), 100);
     }
   </script>
 </body>
