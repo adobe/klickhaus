@@ -27,5 +27,13 @@ export const allBreakdowns = [
   { id: 'breakdown-backend-type', col: '`helix.backend_type`', extraFilter: "AND `helix.backend_type` != ''" },
   { id: 'breakdown-methods', col: '`request.method`', summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning' },
   { id: 'breakdown-datacenters', col: '`cdn.datacenter`' },
-  { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' ')[0]), dimFormatFn: formatAsn, extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' }
+  { id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' ')[0]), dimFormatFn: formatAsn, extraFilter: "AND `client.asn` != 0", linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage' },
+  { id: 'breakdown-accept', col: '`request.headers.accept`', extraFilter: "AND `request.headers.accept` != ''" },
+  { id: 'breakdown-accept-encoding', col: '`request.headers.accept_encoding`', extraFilter: "AND `request.headers.accept_encoding` != ''" },
+  { id: 'breakdown-req-cache-control', col: '`request.headers.cache_control`', extraFilter: "AND `request.headers.cache_control` != ''" },
+  { id: 'breakdown-byo-cdn', col: '`request.headers.x_byo_cdn_type`', extraFilter: "AND `request.headers.x_byo_cdn_type` != ''" },
+  { id: 'breakdown-push-invalidation', col: '`request.headers.x_push_invalidation`', extraFilter: "AND `request.headers.x_push_invalidation` != ''" },
+  { id: 'breakdown-content-length', col: "multiIf(`response.headers.content_length` = 0, '0 (empty)', `response.headers.content_length` < 1024, '< 1 KB', `response.headers.content_length` < 10240, '1-10 KB', `response.headers.content_length` < 102400, '10-100 KB', `response.headers.content_length` < 1048576, '100 KB - 1 MB', `response.headers.content_length` < 10485760, '1-10 MB', '> 10 MB')", orderBy: "min(`response.headers.content_length`)" },
+  { id: 'breakdown-location', col: '`response.headers.location`', extraFilter: "AND `response.headers.location` != ''" },
+  { id: 'breakdown-time-elapsed', col: "multiIf(`cdn.time_elapsed_msec` < 5, '< 5ms', `cdn.time_elapsed_msec` < 10, '5-10ms', `cdn.time_elapsed_msec` < 20, '10-20ms', `cdn.time_elapsed_msec` < 35, '20-35ms', `cdn.time_elapsed_msec` < 50, '35-50ms', `cdn.time_elapsed_msec` < 100, '50-100ms', `cdn.time_elapsed_msec` < 250, '100-250ms', `cdn.time_elapsed_msec` < 500, '250-500ms', `cdn.time_elapsed_msec` < 1000, '500ms - 1s', '≥ 1s')", orderBy: "min(`cdn.time_elapsed_msec`)", summaryCountIf: "`cdn.time_elapsed_msec` >= 1000", summaryLabel: 'slow (≥1s)', summaryColor: 'warning' }
 ];

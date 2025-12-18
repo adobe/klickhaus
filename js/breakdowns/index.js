@@ -78,6 +78,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   const facetFilters = getFacetFiltersExcluding(b.col);
   // Add summary countIf if defined for this breakdown
   const summaryCol = b.summaryCountIf ? `,\n      countIf(${b.summaryCountIf}) as summary_cnt` : '';
+  // Custom orderBy or default to count descending
+  const orderBy = b.orderBy || 'cnt DESC';
   const sql = `
     SELECT
       ${b.col} as dim,
@@ -88,7 +90,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
     GROUP BY dim WITH TOTALS
-    ORDER BY cnt DESC
+    ORDER BY ${orderBy}
     LIMIT ${state.topN}
   `;
 
