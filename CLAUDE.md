@@ -24,6 +24,23 @@ clickhouse client --host ogadftwx3q.us-east1.gcp.clickhouse.cloud \
 
 Database: `helix_logs_production`
 
+## User Management
+
+Scripts in `scripts/` manage read-only ClickHouse users:
+
+```bash
+# Add a new read-only user (generates password if not provided)
+node scripts/add-user.mjs <admin-user> <admin-password> <new-username> [password]
+
+# Rotate a user's password
+node scripts/roll-user.mjs <admin-user> <admin-password> <username>
+
+# Remove a user
+node scripts/drop-user.mjs <admin-user> <admin-password> <username>
+```
+
+New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, and dictGet access to `asn_dict`.
+
 ## Data Pipeline Architecture
 
 ```
