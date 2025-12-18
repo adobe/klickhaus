@@ -526,15 +526,24 @@ export function copyLogRow(rowIdx) {
   const row = state.logsData[rowIdx];
   if (!row) return;
 
-  // Filter out empty values for cleaner JSON
-  const filtered = {};
+  // Convert flat dot notation to nested object
+  const nested = {};
   for (const [key, value] of Object.entries(row)) {
-    if (value !== null && value !== undefined && value !== '') {
-      filtered[key] = value;
+    // Skip empty values
+    if (value === null || value === undefined || value === '') continue;
+
+    const parts = key.split('.');
+    let current = nested;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!current[parts[i]]) {
+        current[parts[i]] = {};
+      }
+      current = current[parts[i]];
     }
+    current[parts[parts.length - 1]] = value;
   }
 
-  const json = JSON.stringify(filtered, null, 2);
+  const json = JSON.stringify(nested, null, 2);
   navigator.clipboard.writeText(json).then(() => {
     // Brief visual feedback
     showCopyFeedback();
