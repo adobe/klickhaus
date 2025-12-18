@@ -1,0 +1,81 @@
+// Host autocomplete
+import { query } from './api.js';
+import { DATABASE } from './config.js';
+import { getTable } from './time.js';
+import { escapeHtml } from './utils.js';
+
+const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
+const HOST_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
+export async function loadHostAutocomplete() {
+  // Check cache first
+  const cached = localStorage.getItem(HOST_CACHE_KEY);
+  if (cached) {
+    try {
+      const { hosts, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < HOST_CACHE_TTL) {
+        populateHostDatalist(hosts);
+        return;
+      }
+    } catch (e) {
+      // Cache invalid, continue to fetch
+    }
+  }
+
+  // Fetch hosts and forwarded hosts in parallel (lower priority, background task)
+  try {
+    const [hostsResult, forwardedHostsResult] = await Promise.all([
+      query(`
+        SELECT \`request.host\` as host, count() as cnt
+        FROM ${DATABASE}.${getTable()}
+        WHERE timestamp > now() - INTERVAL 1 DAY
+        GROUP BY host
+        ORDER BY cnt DESC
+        LIMIT 100
+      `),
+      query(`
+        SELECT \`request.headers.x_forwarded_host\` as host, count() as cnt
+        FROM ${DATABASE}.${getTable()}
+        WHERE timestamp > now() - INTERVAL 1 DAY
+          AND \`request.headers.x_forwarded_host\` != ''
+        GROUP BY host
+        ORDER BY cnt DESC
+        LIMIT 100
+      `)
+    ]);
+
+    // Collect all hosts
+    const hostSet = new Set();
+
+    // Add request.host values
+    for (const row of hostsResult.data) {
+      if (row.host) hostSet.add(row.host);
+    }
+
+    // Add forwarded hosts (split comma-separated values)
+    for (const row of forwardedHostsResult.data) {
+      if (row.host) {
+        const hosts = row.host.split(',').map(h => h.trim()).filter(h => h);
+        hosts.forEach(h => hostSet.add(h));
+      }
+    }
+
+    // Convert to sorted array, limit to 200
+    const hosts = Array.from(hostSet).sort().slice(0, 200);
+
+    // Cache in localStorage
+    localStorage.setItem(HOST_CACHE_KEY, JSON.stringify({
+      hosts,
+      timestamp: Date.now()
+    }));
+
+    populateHostDatalist(hosts);
+  } catch (err) {
+    console.error('Failed to load host autocomplete:', err);
+  }
+}
+
+function populateHostDatalist(hosts) {
+  const datalist = document.getElementById('hostSuggestions');
+  datalist.innerHTML = hosts.map(h => `<option value="${escapeHtml(h)}">`).join('');
+}

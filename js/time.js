@@ -1,0 +1,54 @@
+// Time range helpers
+import { state } from './state.js';
+import { DATABASE } from './config.js';
+
+// Query timestamp for deterministic/cacheable queries
+export let queryTimestamp = null;
+
+export function setQueryTimestamp(ts) {
+  queryTimestamp = ts;
+}
+
+export function getTable() {
+  // Use partitioned table for recent queries, old table for historical
+  return ['15m', '1h', '12h'].includes(state.timeRange)
+    ? 'cdn_requests_v2'
+    : 'cdn_requests_combined';
+}
+
+export function getInterval() {
+  const intervals = {
+    '15m': 'INTERVAL 15 MINUTE',
+    '1h': 'INTERVAL 1 HOUR',
+    '12h': 'INTERVAL 12 HOUR',
+    '24h': 'INTERVAL 24 HOUR',
+    '7d': 'INTERVAL 7 DAY'
+  };
+  return intervals[state.timeRange];
+}
+
+export function getTimeBucket() {
+  const buckets = {
+    '15m': 'toStartOfInterval(timestamp, INTERVAL 30 SECOND)',
+    '1h': 'toStartOfMinute(timestamp)',
+    '12h': 'toStartOfTenMinutes(timestamp)',
+    '24h': 'toStartOfFifteenMinutes(timestamp)',
+    '7d': 'toStartOfHour(timestamp)'
+  };
+  return buckets[state.timeRange];
+}
+
+export function getTimeFilter() {
+  // Use fixed timestamp instead of now() for deterministic/cacheable queries
+  const ts = queryTimestamp || new Date();
+  // Format as 'YYYY-MM-DD HH:MM:SS' (no milliseconds)
+  const isoTimestamp = ts.toISOString().replace('T', ' ').slice(0, 19);
+  // Use BETWEEN to bound both start and end of the time window
+  return `timestamp BETWEEN toDateTime('${isoTimestamp}') - ${getInterval()} AND toDateTime('${isoTimestamp}')`;
+}
+
+export function getHostFilter() {
+  if (!state.hostFilter) return '';
+  const escaped = state.hostFilter.replace(/'/g, "\\'");
+  return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
+}
