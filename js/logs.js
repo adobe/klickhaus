@@ -9,7 +9,9 @@ import { formatBytes } from './format.js';
 import {
   getStatusColor, getMethodColor, getHostColor, getContentTypeColor,
   getCacheStatusColor, getPathColor, getRefererColor, getUserAgentColor,
-  getIPColor, getRequestTypeColor, getBackendTypeColor, getErrorColor
+  getIPColor, getRequestTypeColor, getBackendTypeColor, getErrorColor,
+  getAcceptColor, getAcceptEncodingColor, getCacheControlColor,
+  getByoCdnColor, getLocationColor
 } from './colors/index.js';
 
 // Map log columns to facet column expressions and value transformations
@@ -189,6 +191,11 @@ export function renderLogsTable(data) {
     'client.ip',
     'request.headers.x_forwarded_for',
     'response.headers.x_error',
+    'request.headers.accept',
+    'request.headers.accept_encoding',
+    'request.headers.cache_control',
+    'request.headers.x_byo_cdn_type',
+    'response.headers.location',
   ];
 
   // Sort columns: pinned first, then color-coded, then the rest
@@ -285,6 +292,16 @@ export function renderLogsTable(data) {
           color = getBackendTypeColor(value);
         } else if (col === 'response.headers.x_error') {
           color = getErrorColor(value);
+        } else if (col === 'request.headers.accept') {
+          color = getAcceptColor(value);
+        } else if (col === 'request.headers.accept_encoding') {
+          color = getAcceptEncodingColor(value);
+        } else if (col === 'request.headers.cache_control') {
+          color = getCacheControlColor(value);
+        } else if (col === 'request.headers.x_byo_cdn_type') {
+          color = getByoCdnColor(value);
+        } else if (col === 'response.headers.location') {
+          color = getLocationColor(value);
         }
         if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
       }
@@ -430,6 +447,16 @@ function appendLogsRows(data) {
           color = getBackendTypeColor(value);
         } else if (col === 'response.headers.x_error') {
           color = getErrorColor(value);
+        } else if (col === 'request.headers.accept') {
+          color = getAcceptColor(value);
+        } else if (col === 'request.headers.accept_encoding') {
+          color = getAcceptEncodingColor(value);
+        } else if (col === 'request.headers.cache_control') {
+          color = getCacheControlColor(value);
+        } else if (col === 'request.headers.x_byo_cdn_type') {
+          color = getByoCdnColor(value);
+        } else if (col === 'response.headers.location') {
+          color = getLocationColor(value);
         }
         if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
       }
