@@ -987,8 +987,14 @@ main {
 }
 
 .logs-table th.pinned::before {
-  content: '📌 ';
-  font-size: 10px;
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
 .logs-table td.pinned {
