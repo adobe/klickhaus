@@ -850,6 +850,95 @@ main {
   color: var(--error);
 }
 
+/* Mobile touch support - show action buttons on tap */
+.breakdown-table tr.touch-active .count .value {
+  display: none;
+}
+
+.breakdown-table tr.touch-active .count .action-btn {
+  display: block;
+}
+
+.breakdown-table tr.touch-active .bar .bar-inner {
+  display: none;
+}
+
+.breakdown-table tr.touch-active .bar .action-btn {
+  display: block;
+}
+
+/* On touch screens, show compact action icons inline */
+@media (hover: none), (pointer: coarse) {
+  .breakdown-table .count .value,
+  .breakdown-table .bar .bar-inner {
+    display: block !important;
+  }
+
+  .breakdown-table .count .action-btn,
+  .breakdown-table .bar .action-btn {
+    display: none !important;
+  }
+
+  /* Show mobile action buttons container */
+  .breakdown-table .mobile-actions {
+    display: flex !important;
+    gap: 4px;
+    padding-left: 8px;
+  }
+
+  .breakdown-table .mobile-action-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    cursor: pointer;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .breakdown-table .mobile-action-btn:active {
+    background: var(--bg);
+  }
+
+  .breakdown-table .mobile-action-btn.exclude {
+    color: var(--error);
+  }
+
+  .breakdown-table .mobile-action-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .breakdown-table .mobile-action-btn.active.exclude {
+    background: var(--error);
+    border-color: var(--error);
+  }
+}
+
+/* On very small screens, hide bar and adjust dim width */
+@media (max-width: 400px) and (hover: none), (max-width: 400px) and (pointer: coarse) {
+  .breakdown-table .bar {
+    display: none;
+  }
+
+  .breakdown-table .dim {
+    max-width: 100px;
+  }
+}
+
+/* Hide mobile actions on desktop */
+.breakdown-table .mobile-actions {
+  display: none;
+}
+
 .breakdown-table tr.other-row {
   cursor: pointer;
   opacity: 0.7;
