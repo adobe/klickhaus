@@ -76,13 +76,15 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   const extra = b.extraFilter || '';
   // Get filters excluding this facet's column to show all values for active facets
   const facetFilters = getFacetFiltersExcluding(b.col);
+  // Add summary countIf if defined for this breakdown
+  const summaryCol = b.summaryCountIf ? `,\n      countIf(${b.summaryCountIf}) as summary_cnt` : '';
   const sql = `
     SELECT
       ${b.col} as dim,
       count() as cnt,
       countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
       countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
-      countIf(\`response.status\` >= 500) as cnt_5xx
+      countIf(\`response.status\` >= 500) as cnt_5xx${summaryCol}
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
     GROUP BY dim WITH TOTALS
@@ -96,7 +98,11 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
     // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result._networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
-    renderBreakdownTable(b.id, result.data, result.totals, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn);
+    // Calculate summary ratio from totals if summaryCountIf is defined
+    const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
+      ? parseInt(result.totals.summary_cnt) / parseInt(result.totals.cnt)
+      : null;
+    renderBreakdownTable(b.id, result.data, result.totals, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor);
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);

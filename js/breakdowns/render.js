@@ -30,7 +30,7 @@ function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
   return escapeHtml(dim);
 }
 
-export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn) {
+export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn, summaryRatio, summaryLabel, summaryColor) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
   if (!card.dataset.title) {
@@ -48,8 +48,14 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   const speedTitle = formatQueryTime(elapsed);
   const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle}"></span>`;
 
+  // Summary metric display (e.g., "87% efficiency")
+  const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
+  const summaryHtml = (summaryRatio !== null && summaryLabel)
+    ? `<span class="summary-metric${summaryColorClass}" title="${(summaryRatio * 100).toFixed(1)}% ${summaryLabel}">${Math.round(summaryRatio * 100)}%</span>`
+    : '';
+
   if (data.length === 0) {
-    let html = `<h3>${speedIndicator}${title}`;
+    let html = `<h3>${speedIndicator}${title}${summaryHtml}`;
     if (hasFilters) {
       html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
     }
@@ -75,7 +81,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
 
   const maxCount = Math.max(...data.map(d => parseInt(d.cnt)));
 
-  let html = `<h3>${speedIndicator}${title}`;
+  let html = `<h3>${speedIndicator}${title}${summaryHtml}`;
   if (hasFilters) {
     html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
   }

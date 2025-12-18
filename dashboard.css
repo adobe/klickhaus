@@ -530,6 +530,38 @@ main {
   gap: 8px;
 }
 
+.summary-metric {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--status-ok);
+  background: rgba(18, 183, 106, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.summary-metric.summary-error {
+  color: var(--status-server-error);
+  background: rgba(240, 68, 56, 0.1);
+}
+
+.summary-metric.summary-warning {
+  color: var(--status-client-error);
+  background: rgba(247, 144, 9, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .summary-metric {
+    background: rgba(63, 185, 80, 0.15);
+  }
+  .summary-metric.summary-error {
+    background: rgba(248, 81, 73, 0.15);
+  }
+  .summary-metric.summary-warning {
+    background: rgba(210, 153, 34, 0.15);
+  }
+}
+
 .speed-indicator {
   width: 8px;
   height: 8px;
