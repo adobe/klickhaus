@@ -420,7 +420,7 @@
           </a>
         </li>
         <li data-view-id="83895">
-          <a href="dashboard.html?t=1h&title=aem.(live|page) Errors&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`response.headers.x_error`,`request.host`,`request.url`,`request.method`&view=logs">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Errors&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
             <div class="title">aem.(live|page) errors</div>
             <div class="description">Server errors (5xx) from aem.live/page delivery. Excludes 500 errors with 72-byte body size.</div>
           </a>
@@ -432,7 +432,7 @@
           </a>
         </li>
         <li data-view-id="84163">
-          <a href="dashboard.html?t=1h&title=aem.(live|page) Rate-Limited&filters=[{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;429&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.host`,`request.url`,`request.headers.x_forwarded_host`">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Rate-Limited&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;429&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
             <div class="title">aem.(live|page) (rate-limited)</div>
             <div class="description">Requests returning 429 status on aem.live/page. Shows rate-limited traffic.</div>
           </a>
@@ -444,13 +444,13 @@
           </a>
         </li>
         <li data-view-id="82074">
-          <a href="dashboard.html?t=1h&title=aem.(live|page) Cloudflare Origins&filters=[{&quot;col&quot;:&quot;`helix.backend_type`&quot;,&quot;value&quot;:&quot;cloudflare&quot;,&quot;exclude&quot;:false}]&pinned=`helix.backend_type`,`request.host`,`request.url`,`response.status`">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Cloudflare Origins&filters=[{&quot;col&quot;:&quot;`helix.backend_type`&quot;,&quot;value&quot;:&quot;cloudflare&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&pinned=`request.method`,`response.status`,`cdn.url`,`response.headers.x_error`,`cdn.time_elapsed_msec`&view=logs">
             <div class="title">aem.(live|page) (Cloudflare origins)</div>
             <div class="description">Delivery requests routed to Cloudflare backend. Filters: backend_type=cloudflare.</div>
           </a>
         </li>
         <li data-view-id="84178">
-          <a href="dashboard.html?t=1h&title=aem.(live|page) Leaked Preflights&filters=[{&quot;col&quot;:&quot;`response.headers.content_type`&quot;,&quot;value&quot;:&quot;application/json&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`request.restarts`)&quot;,&quot;value&quot;:&quot;0&quot;,&quot;exclude&quot;:false}]&pinned=`response.headers.content_type`,`request.restarts`,`request.host`,`request.url`,`response.status`">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Leaked Preflights&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`request.restarts`)&quot;,&quot;value&quot;:&quot;0&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
             <div class="title">aem.(live|page) (leaked preflights)</div>
             <div class="description">JSON responses with no restarts - potential preflight request leaks. Content-type: application/json.</div>
           </a>
@@ -462,13 +462,13 @@
           </a>
         </li>
         <li data-view-id="29302">
-          <a href="dashboard.html?t=1h&title=hlx.live&host=hlx.live&pinned=`response.status`,`request.host`,`request.url`,`cdn.cache_status`">
+          <a href="dashboard.html?t=1h&title=hlx.live&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
             <div class="title">hlx.live</div>
             <div class="description">Legacy hlx.live delivery logs from Fastly. Edge requests only.</div>
           </a>
         </li>
         <li data-view-id="60190">
-          <a href="dashboard.html?t=1h&title=hlx.live Errors to Prod CDN&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;&quot;,&quot;exclude&quot;:true}]&host=hlx.live&pinned=`response.status`,`response.headers.x_error`,`request.headers.x_byo_cdn_type`,`request.host`,`request.url`&view=logs">
+          <a href="dashboard.html?t=1h&title=hlx.live Errors to Prod CDN&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;akamai&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;cloudflare&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;cloudfront&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;fastly&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
             <div class="title">hlx.live (errors delivered to prod cdn)</div>
             <div class="description">5xx errors on hlx.live from BYOCDN traffic (Akamai, Cloudflare, CloudFront, Fastly).</div>
           </a>
@@ -480,25 +480,25 @@
           </a>
         </li>
         <li data-view-id="57704">
-          <a href="dashboard.html?t=1h&title=hlx.live Slow Requests (%3E5s)&host=hlx.live&pinned=`cdn.time_elapsed_msec`,`response.status`,`request.host`,`request.url`,`request.method`&view=logs">
+          <a href="dashboard.html?t=1h&title=hlx.live Slow Requests (%3E5s)&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`cdn.time_elapsed_msec`&view=logs">
             <div class="title">hlx.live (long running requests: >5s)</div>
             <div class="description">Slow requests (>5s) on hlx.live for performance analysis.</div>
           </a>
         </li>
         <li data-view-id="82951">
-          <a href="dashboard.html?t=1h&title=hlx.live Redirects&filters=[{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;301&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`response.headers.location`,`request.host`,`request.url`&view=logs">
+          <a href="dashboard.html?t=1h&title=hlx.live Redirects&filters=[{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;301&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;302&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.host`,`request.url`,`response.headers.location`&view=logs">
             <div class="title">hlx.live redirects</div>
             <div class="description">301/302 redirect responses on hlx.live. Shows redirect patterns.</div>
           </a>
         </li>
         <li data-view-id="29297">
-          <a href="dashboard.html?t=1h&title=hlx.page&host=hlx.page&pinned=`response.status`,`request.host`,`request.url`,`cdn.cache_status`">
+          <a href="dashboard.html?t=1h&title=hlx.page&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
             <div class="title">hlx.page</div>
             <div class="description">Legacy hlx.page (preview) delivery logs from Fastly. Edge requests only.</div>
           </a>
         </li>
         <li data-view-id="8928">
-          <a href="dashboard.html?t=1h&title=hlx.page Errors&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`response.headers.x_error`,`request.host`,`request.url`,`cdn.time_elapsed_msec`&view=logs">
+          <a href="dashboard.html?t=1h&title=hlx.page Errors&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`cdn.time_elapsed_msec`,`response.headers.x_error`,`request.host`,`request.url`,`request.headers.user_agent`&view=logs">
             <div class="title">hlx.page errors</div>
             <div class="description">Server errors (5xx) on hlx.page preview environment.</div>
           </a>
@@ -522,7 +522,7 @@
           </a>
         </li>
         <li data-view-id="83274">
-          <a href="dashboard.html?t=1h&title=hlx.page Rate-Limited&filters=[{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;429&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.host`,`request.url`,`helix.request_type`">
+          <a href="dashboard.html?t=1h&title=hlx.page Rate-Limited&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;429&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;html&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;json&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
             <div class="title">hlx.page (rate-limited)</div>
             <div class="description">Rate-limited (429) requests on hlx.page for html/json request types.</div>
           </a>
@@ -534,7 +534,7 @@
           </a>
         </li>
         <li data-view-id="90850">
-          <a href="dashboard.html?t=1h&title=www.aem.live&host=www.aem.live&pinned=`response.status`,`request.host`,`request.url`,`cdn.cache_status`,`request.headers.user_agent`">
+          <a href="dashboard.html?t=1h&title=www.aem.live&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=www.aem.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
             <div class="title">www.aem.live</div>
             <div class="description">AEM documentation site logs from Fastly. Edge requests only.</div>
           </a>
@@ -672,7 +672,7 @@
           </a>
         </li>
         <li data-view-id="91892">
-          <a href="dashboard.html?t=1h&title=api.aem.live&host=api.aem.live&pinned=`response.status`,`request.method`,`request.url`,`cdn.time_elapsed_msec`,`response.headers.x_error`">
+          <a href="dashboard.html?t=1h&title=api.aem.live&host=api.aem.live&pinned=`request.method`,`response.status`,`cdn.time_elapsed_msec`,`response.headers.x_error`,`request.url`&view=logs">
             <div class="title">api.aem.live</div>
             <div class="description">API service logs from Fastly. Shows method, status, response time.</div>
           </a>
@@ -683,10 +683,10 @@
             <div class="description">Combined publishing logs from admin.hlx.page and api.aem.live across subsystems.</div>
           </a>
         </li>
-        <li data-view-id="60184">
-          <a href="dashboard.html?t=1h&title=Publishing Error Rate&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`response.headers.x_error`,`request.backend`,`request.method`,`request.url`&view=logs">
+        <li class="legacy-view" data-view-id="60184">
+          <a href="#">
             <div class="title">publishing-error-rate</div>
-            <div class="description">Publishing errors to backend workers (Lambda, R2, S3). Severity 5.</div>
+            <div class="description">Publishing errors to backend workers (Lambda, R2, S3). Requires request.backend column.</div>
           </a>
         </li>
       </ul>
@@ -731,10 +731,10 @@
             <div class="description">Forms handler activity excluding empty queue messages.</div>
           </a>
         </li>
-        <li data-view-id="62524">
-          <a href="dashboard.html?t=1h&title=Valid Form POST Requests&filters=[{&quot;col&quot;:&quot;`request.method`&quot;,&quot;value&quot;:&quot;POST&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;201&quot;,&quot;exclude&quot;:false}]&pinned=`request.method`,`response.status`,`request.backend`,`request.host`,`request.url`&view=logs">
+        <li class="legacy-view" data-view-id="62524">
+          <a href="#">
             <div class="title">Valid Form POST Requests</div>
-            <div class="description">Successful form submissions (201 status) to backend workers.</div>
+            <div class="description">Successful form submissions (201 status) to backend workers. Requires request.backend column.</div>
           </a>
         </li>
       </ul>
@@ -930,7 +930,7 @@
       <h2>Legacy Views - Miscellaneous</h2>
       <ul>
         <li data-view-id="60393">
-          <a href="dashboard.html?t=24h&title=Leaking /package.json on hlx.page&filters=[{&quot;col&quot;:&quot;`request.url`&quot;,&quot;value&quot;:&quot;/package.json&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;200&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`request.url`,`response.status`,`request.host`,`request.headers.x_forwarded_host`&view=logs">
+          <a href="dashboard.html?t=24h&title=Leaking /package.json on hlx.page&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.url`&quot;,&quot;value&quot;:&quot;/package.json&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;200&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.method`,`request.url`&view=logs">
             <div class="title">Leaking /package.json on hlx.page</div>
             <div class="description">Security: package.json exposed with 200 status on hlx.page.</div>
           </a>
@@ -984,7 +984,7 @@
           </a>
         </li>
         <li data-view-id="59702">
-          <a href="dashboard.html?t=1h&title=hlx.live without X-Forwarded-Host&filters=[{&quot;col&quot;:&quot;`request.headers.x_forwarded_host`&quot;,&quot;value&quot;:&quot;&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`request.headers.x_forwarded_host`,`response.status`,`request.host`,`request.url`">
+          <a href="dashboard.html?t=1h&title=hlx.live without X-Forwarded-Host&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
             <div class="title">hlx.live w/o xfh</div>
             <div class="description">hlx.live requests without x-forwarded-host header.</div>
           </a>
