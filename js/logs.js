@@ -50,6 +50,9 @@ export function setLogsElements(view, btn, content) {
 
   // Set up scroll listener for infinite scroll on window
   window.addEventListener('scroll', handleLogsScroll);
+
+  // Set up click handler for copying row data
+  setupLogRowClickHandler();
 }
 
 function handleLogsScroll() {
@@ -234,8 +237,9 @@ export function renderLogsTable(data) {
       <tbody>
   `;
 
-  for (const row of data) {
-    html += '<tr>';
+  for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
+    const row = data[rowIdx];
+    html += `<tr data-row-idx="${rowIdx}">`;
     for (const col of columns) {
       let value = row[col];
       let cellClass = '';
@@ -388,9 +392,14 @@ function appendLogsRows(data) {
   const fullColumns = columns.map(col => shortToFull[col] || col);
   const pinned = state.pinnedColumns.filter(col => fullColumns.includes(col));
 
+  // Get starting index from existing rows
+  const existingRows = tbody.querySelectorAll('tr').length;
+
   let html = '';
-  for (const row of data) {
-    html += '<tr>';
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const rowIdx = existingRows + i;
+    html += `<tr data-row-idx="${rowIdx}">`;
     for (const col of fullColumns) {
       let value = row[col];
       let cellClass = '';
@@ -510,4 +519,77 @@ function appendLogsRows(data) {
 function renderLogsError(message) {
   const container = logsView.querySelector('.logs-table-container');
   container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
+}
+
+// Copy row data as JSON when clicking on row background
+export function copyLogRow(rowIdx) {
+  const row = state.logsData[rowIdx];
+  if (!row) return;
+
+  // Filter out empty values for cleaner JSON
+  const filtered = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== null && value !== undefined && value !== '') {
+      filtered[key] = value;
+    }
+  }
+
+  const json = JSON.stringify(filtered, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    // Brief visual feedback
+    showCopyFeedback();
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
+}
+
+// Show brief "Copied!" feedback
+function showCopyFeedback() {
+  let feedback = document.getElementById('copy-feedback');
+  if (!feedback) {
+    feedback = document.createElement('div');
+    feedback.id = 'copy-feedback';
+    feedback.textContent = 'Copied to clipboard';
+    feedback.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: var(--bg);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.2s;
+    `;
+    document.body.appendChild(feedback);
+  }
+  feedback.style.opacity = '1';
+  setTimeout(() => {
+    feedback.style.opacity = '0';
+  }, 1500);
+}
+
+// Set up click handler for row background clicks
+export function setupLogRowClickHandler() {
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+
+  container.addEventListener('click', (e) => {
+    // Only handle clicks directly on td or tr (not on links, buttons, or spans)
+    const target = e.target;
+    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
+
+    // Don't copy if clicking on a clickable cell (filter action)
+    if (target.classList.contains('clickable')) return;
+
+    // Find the row
+    const row = target.closest('tr');
+    if (!row || !row.dataset.rowIdx) return;
+
+    const rowIdx = parseInt(row.dataset.rowIdx);
+    copyLogRow(rowIdx);
+  });
 }

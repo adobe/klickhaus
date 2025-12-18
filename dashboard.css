@@ -1024,6 +1024,10 @@ main {
   text-decoration: underline;
 }
 
+.logs-table tbody tr {
+  cursor: copy;
+}
+
 .logs-table tr:hover td {
   background: var(--bg);
 }
