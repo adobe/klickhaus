@@ -66,6 +66,6 @@ export function renderActiveFilters() {
     const label = f.exclude ? `NOT ${f.value}` : f.value;
     // Get color indicator using unified color system
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
-    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}">${colorIndicator}${escapeHtml(label)}<button onclick="removeFilter(${i})">×</button></span>`;
+    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" onclick="removeFilter(${i})">${colorIndicator}${escapeHtml(label)}</span>`;
   }).join('');
 }
