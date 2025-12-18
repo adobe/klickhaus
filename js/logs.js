@@ -73,6 +73,13 @@ function handleLogsScroll() {
 // Register callback for pinned column changes
 setOnPinnedColumnsChange(renderLogsTable);
 
+// Callback for redrawing chart when switching views
+let onShowFiltersView = null;
+
+export function setOnShowFiltersView(callback) {
+  onShowFiltersView = callback;
+}
+
 export function toggleLogsView(saveStateToURL) {
   state.showLogs = !state.showLogs;
   if (state.showLogs) {
@@ -85,6 +92,10 @@ export function toggleLogsView(saveStateToURL) {
     dashboardContent.classList.remove('hidden');
     logsBtn.classList.remove('active');
     logsBtn.textContent = 'Logs';
+    // Redraw chart after view becomes visible
+    if (onShowFiltersView) {
+      requestAnimationFrame(() => onShowFiltersView());
+    }
   }
   saveStateToURL();
 }
