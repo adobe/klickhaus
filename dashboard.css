@@ -852,6 +852,12 @@ main {
   border-radius: 12px;
   border: 1px solid var(--border);
   overflow-x: auto;
+  transition: filter 0.2s ease-out;
+}
+
+.logs-table-container.updating {
+  filter: blur(2px);
+  opacity: 0.7;
 }
 
 .logs-table {
@@ -912,6 +918,14 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.logs-table td.clickable {
+  cursor: pointer;
+}
+
+.logs-table td.clickable:hover {
+  text-decoration: underline;
 }
 
 .logs-table tr:hover td {

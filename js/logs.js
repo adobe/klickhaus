@@ -12,6 +12,24 @@ import {
   getIPColor, getRequestTypeColor, getBackendTypeColor, getErrorColor
 } from './colors/index.js';
 
+// Map log columns to facet column expressions and value transformations
+const logColumnToFacet = {
+  'response.status': { col: 'toString(`response.status`)', transform: (v) => String(v) },
+  'request.method': { col: '`request.method`' },
+  'request.host': { col: '`request.host`' },
+  'request.url': { col: '`request.url`' },
+  'cdn.cache_status': { col: 'upper(`cdn.cache_status`)', transform: (v) => String(v).toUpperCase() },
+  'response.headers.content_type': { col: '`response.headers.content_type`' },
+  'helix.request_type': { col: '`helix.request_type`' },
+  'helix.backend_type': { col: '`helix.backend_type`' },
+  'request.headers.x_forwarded_host': { col: '`request.headers.x_forwarded_host`' },
+  'request.headers.referer': { col: '`request.headers.referer`' },
+  'request.headers.user_agent': { col: '`request.headers.user_agent`' },
+  'response.headers.x_error': { col: '`response.headers.x_error`' },
+  'client.ip': { col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
+  'request.headers.x_forwarded_for': { col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
+};
+
 // DOM elements (set by main.js)
 let logsView = null;
 let logsBtn = null;
@@ -48,6 +66,10 @@ export async function loadLogs() {
   state.logsReady = false;
   logsBtn.classList.remove('ready');
 
+  // Apply blur effect while loading
+  const container = logsView.querySelector('.logs-table-container');
+  container.classList.add('updating');
+
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
@@ -71,6 +93,7 @@ export async function loadLogs() {
     renderLogsError(err.message);
   } finally {
     state.logsLoading = false;
+    container.classList.remove('updating');
   }
 }
 
@@ -207,7 +230,19 @@ export function renderLogsTable(data) {
       const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
 
       const escaped = escapeHtml(displayValue);
-      html += `<td class="${cellClass.trim()}" style="${leftOffset}" title="${escaped}">${colorIndicator}${escaped}</td>`;
+
+      // Add click handler for filterable columns with color indicators
+      let clickHandler = '';
+      const facetMapping = logColumnToFacet[col];
+      if (colorIndicator && facetMapping && value) {
+        const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
+        const colEscaped = facetMapping.col.replace(/'/g, "\\'");
+        const valEscaped = filterValue.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        clickHandler = ` onclick="addFilter('${colEscaped}', '${valEscaped}', false)"`;
+        cellClass += ' clickable';
+      }
+
+      html += `<td class="${cellClass.trim()}" style="${leftOffset}" title="${escaped}"${clickHandler}>${colorIndicator}${escaped}</td>`;
     }
     html += '</tr>';
   }

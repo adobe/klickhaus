@@ -52,6 +52,22 @@ async function loadDashboard(refresh = false) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
 
+  // Prioritize based on which view is active
+  if (state.showLogs) {
+    // Logs view is active - load logs first, then dashboard
+    await loadLogs();
+    loadDashboardQueries(timeFilter, hostFilter);
+  } else {
+    // Dashboard view is active - load dashboard first, then logs
+    await loadDashboardQueries(timeFilter, hostFilter);
+    loadLogs();
+  }
+
+  setForceRefresh(false);
+}
+
+// Load dashboard queries (chart and facets)
+async function loadDashboardQueries(timeFilter, hostFilter) {
   // Start loading time series
   const timeSeriesPromise = loadTimeSeries();
 
@@ -77,11 +93,6 @@ async function loadDashboard(refresh = false) {
   if (!hasVisibleUpdatingFacets()) {
     stopQueryTimer();
   }
-
-  // Load logs in background
-  loadLogs();
-
-  setForceRefresh(false);
 }
 
 // Increase topN and reload breakdowns
