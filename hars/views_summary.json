@@ -1,0 +1,4118 @@
+{
+  "views": [
+    {
+      "harFile": "delivery.har",
+      "viewId": 83273,
+      "viewName": " hlx.page (rate-limited, dry run)",
+      "luceneQuery": "_exists_:response.headers.x_rate_limited_rate",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "cdn.originating_ip",
+        "helix.request_type",
+        "response.headers.x_rate_limited_rate"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "helix.request_type",
+          "values": [
+            "html",
+            "json"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.cdn.originating_ip",
+        "textObject.response.headers.x_rate_limited_rate",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 92296,
+      "viewName": "*Publishing Service (all subsystems) (copy)",
+      "luceneQuery": "request.host:\"admin.hlx.page\" OR request.host:\"api.aem.live\" OR (cdn.is_edge:true AND ((coralogix.metadata.subsystemName:\"in8sinyz3uqgjyg0gpzm42\" AND helix.contentbus_prefix:\"preview\") OR coralogix.metadata.subsystemName:\"7tvulgs0xnls4q3r8tawdg\" OR coralogix.metadata.subsystemName:\"00qrluuasvnvskgnwyvcbb\" OR (coralogix.metadata.applicationName:\"cloudflare-normalized\" AND coralogix.metadata.subsystemName:\"aem.page\")))",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90496,
+      "viewName": ",aem.(live|page) (long running requests: >5s)",
+      "luceneQuery": "cdn.time_elapsed_msec.numeric:[5000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 91240,
+      "viewName": ",media.aem.page (long running requests: >5s))",
+      "luceneQuery": "cdn.time_elapsed_msec.numeric:[5000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "atg7eq66bh88lhbnq7fqq2"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "cdn.version",
+        "request.host",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "cdn.datacenter",
+        "cdn.region_code",
+        "response.headers.fastly_stats",
+        "response.headers.fastly_io_info",
+        "response.headers.fastly_io_error",
+        "response.headers.faatly_io_warning",
+        "request.qs",
+        "helix.contentbus_id",
+        "helix.blob_id"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90856,
+      "viewName": "-config.aem.page (long running requests: >5s))",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.response.body_size",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90495,
+      "viewName": "/pipeline.aem.page (long running requests: >5s))",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "chpjil1wnru9sfyl1ebsj3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "cdn.version",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "request.headers.accept_encoding",
+        "response.headers.vary",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "helix.request_type",
+        "helix.site",
+        "helix.org",
+        "cdn.originating_ip",
+        "cdn.datacenter",
+        "cdn.region_code",
+        "helix.path"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 90522,
+      "viewName": "0config.aem-cloudflare.page (large response: >1m)",
+      "luceneQuery": "response.body_size.numeric:[1000000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare-normalized"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "response.status",
+        "response.headers.x_error",
+        "request.method",
+        "cdn.zone_name",
+        "request.url",
+        "request.headers.x_forwarded_host",
+        "cdn.request_source",
+        "request.headers.user_agent",
+        "response.headers.cache_tag",
+        "response.body_size"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.host",
+          "values": [
+            "config.aem-cloudflare.page"
+          ]
+        },
+        {
+          "key": "cdn.zone_name",
+          "values": [
+            "aem-cloudflare.page",
+            "aem-cloudflare.live",
+            "aem.live",
+            "aem.page"
+          ]
+        },
+        {
+          "key": "cdn.request_source",
+          "values": [
+            "edgeworkerfetch",
+            "eyeball"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.request.host",
+        "textObject.response.body_size",
+        "textObject.cdn.time.elapsed",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 83288,
+      "viewName": "1hlx.page (rate-limited, dry run) (max per ip rps)",
+      "luceneQuery": "source logs between @'2024-10-22T07:55:34.208' and @'2024-10-29T07:55:34.208'\n| filter $d.response.headers.x_rate_limited_rate !=  null \n| top 10 $d.cdn.originating_ip by max($d.response.headers.x_rate_limited_rate:num) as max_rps",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "cdn.originating_ip",
+        "helix.request_type",
+        "response.headers.x_rate_limited_rate"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "helix.request_type",
+          "values": [
+            "html",
+            "json"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.cdn.originating_ip",
+        "textObject.response.headers.x_rate_limited_rate",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 84172,
+      "viewName": ":aem.(live|page) (rate-limited, dry run) (max per host rps)",
+      "luceneQuery": "_exists_:response.headers.x_rate_limited_rate",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 6194,
+      "viewName": "CWV Log",
+      "luceneQuery": "request.host:\"www.aem.live\" AND request.url:\"llms.txt\"",
+      "metadataFilters": {
+        "applicationName": [
+          "helix-rum-collector"
+        ],
+        "subsystemName": [],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "coralogix.metadata.subsystemName",
+        "textObject.rum.FID",
+        "textObject.rum.LCP",
+        "textObject.rum.CLS",
+        "textObject.cdn.url"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 66985,
+      "viewName": "Cloudflare worker logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare"
+        ],
+        "subsystemName": [
+          "workers-logpush"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "ScriptName",
+        "Event.Response.Status"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.ScriptName",
+        "textObject.Event.Request.Method",
+        "textObject.Event.Request.URL",
+        "textObject.Event.Response.Status",
+        "textObject.Exceptions",
+        "virtual_content",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 10019,
+      "viewName": "Cloudflare zone logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare-normalized"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "response.status",
+        "response.headers.x_error",
+        "request.method",
+        "cdn.zone_name",
+        "request.url",
+        "request.headers.x_forwarded_host",
+        "cdn.request_source",
+        "request.headers.user_agent",
+        "cdn.originating_ip",
+        "client.number",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.x_byo_cdn_type",
+        "request.headers.x_push_invalidation",
+        "client.country_name",
+        "cdn.originating_ip_geoip.city_name"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "cdn.zone_name",
+          "values": [
+            "hlx.live",
+            "hlx-cloudflare.page",
+            "hlx.page",
+            "hlx-cloudflare.live",
+            "aem-cloudflare.page",
+            "aem-cloudflare.live",
+            "aem.live",
+            "aem.page"
+          ]
+        },
+        {
+          "key": "cdn.request_source",
+          "values": [
+            "eyeball"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.url",
+        "textObject.request.host",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 11180,
+      "viewName": "Cloudflare zone logs (native)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare"
+        ],
+        "subsystemName": [],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "ZoneName",
+        "RequestHeaders.x-forwarded-host",
+        "EdgeResponseStatus",
+        "ClientRequestSource",
+        "ClientRequestHost",
+        "ClientRequestURI",
+        "ClientDeviceType",
+        "ClientRequestMethod",
+        "WorkerSubrequest",
+        "ResponseHeaders.x-error",
+        "RequestHeaders.user-agent",
+        "CacheCacheStatus"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "ClientRequestSource",
+          "values": [
+            "eyeball"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.ClientRequestMethod",
+        "textObject.EdgeResponseStatus",
+        "textObject.ClientRequestURI",
+        "textObject.ClientRequestHost",
+        "textObject.ResponseHeaders.x-error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 90343,
+      "viewName": "Code Jobs 30days",
+      "luceneQuery": "source logs between @'now' - 30d and @'now' |\nfilter $d.admin.route == 'live' |\ncreate owner_repo from concat($d.admin.org, '/', $d.admin.site) \n| countby owner_repo into count \n| orderby count:num desc\n",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 92288,
+      "viewName": "Delivery Service (all subsystems)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 57855,
+      "viewName": "Fastly C@E",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly-c@e"
+        ],
+        "subsystemName": [],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "response.status",
+        "request.method",
+        "cdn.version",
+        "request.headers.user-agent",
+        "response.headers.x-error"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "response.status",
+          "values": [
+            "404"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "coralogix.metadata.severity",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 2884,
+      "viewName": "Fonts",
+      "luceneQuery": "source logs between @'now' - 30d and @'now' |\nfilter $d.admin.route == 'live' |\ncreate owner_repo from concat($d.admin.org, '/', $d.admin.site) \n| countby owner_repo into count \n| orderby count:num desc\n",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "index",
+        "coralogix.timestamp",
+        "coralogix.metadata.severity",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName",
+        "textObject.cdn.url",
+        "textObject.cdn.response.status"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "forms.har",
+      "viewId": 60359,
+      "viewName": "Forms service errors",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/forms-service/v2"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.inv.invocationId",
+        "textObject.message",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "forms.har",
+      "viewId": 10768,
+      "viewName": "Forms-Handler not empty",
+      "luceneQuery": "NOT message:\"queue 'formsink' is empty\"",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": [
+          "3",
+          "4"
+        ]
+      },
+      "jsonFilters": [
+        "message",
+        "inv.functionName",
+        "ow.actionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "ow.actionName",
+          "values": [
+            "/helix-clients/ccgrowth/forms-handler@1.0.67"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.metadata.severity",
+        "coralogix.timestamp",
+        "textObject.message"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 91769,
+      "viewName": "Google discovery",
+      "luceneQuery": "_exists_:discover AND NOT discover.count:0",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "llm.har",
+      "viewId": 90153,
+      "viewName": "LLM on aem.(live|page)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "llm.har",
+      "viewId": 90154,
+      "viewName": "LLM on www.aem.live",
+      "luceneQuery": "request.host:\"www.aem.live\" AND request.headers.user_agent:/(chatgpt|openai|perplexity|claude)/",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [
+          "00qrluuasvnvskgnwyvcbb"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 60393,
+      "viewName": "Leaking /package..json on hlx.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": [
+          "3"
+        ]
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.status"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "request.url",
+          "values": [
+            "/package.json"
+          ]
+        },
+        {
+          "key": "response.status",
+          "values": [
+            "200"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 58734,
+      "viewName": "OneDrive Operations",
+      "luceneQuery": "_exists_:\"onedrive.project\"",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "onedrive.project",
+        "onedrive.operation",
+        "onedrive.tenant"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "textObject.inv.invocationId"
+      ],
+      "graphAggField": "project"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 66599,
+      "viewName": "Pipeline (Lambda)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-319304356856"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/pipeline-service/v10",
+            "/helix3/pipeline-service/v9"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 79940,
+      "viewName": "RUM Logs Fastly AND Cloudflare",
+      "luceneQuery": "_exists_:rum.checkpoint",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare",
+          "helix-rum-collector"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "ScriptName",
+        "rum.target",
+        "rum.checkpoint",
+        "rum.source",
+        "rum.weight"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 10739,
+      "viewName": "S3 to R2 sync (cron) log",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": [
+          "4"
+        ]
+      },
+      "jsonFilters": [
+        "inv.functionName",
+        "inv.invocationId"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/s3r2-sync/v1"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 91471,
+      "viewName": "S3/R2 diffs",
+      "luceneQuery": "inv.functionName:\"/helix3/s3r2-sync/v1\"",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": [
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "sidekick.har",
+      "viewId": 90445,
+      "viewName": "Sidekick v6",
+      "luceneQuery": "request.headers.user_agent:\"AEMSidekick/6\" AND request.host:\"admin.hlx.page\" ",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.originating_ip_geoip.ip",
+        "request.headers.user_agent",
+        "request.method",
+        "helix.route",
+        "helix.owner",
+        "helix.repo"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "helix.route",
+          "values": [
+            "sidekick"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "sidekick.har",
+      "viewId": 95418,
+      "viewName": "Sidekick v6 (Safari)",
+      "luceneQuery": "request.headers.user_agent:\"AEMSidekick/6\" AND request.host:\"admin.hlx.page\" ",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.originating_ip_geoip.ip",
+        "request.headers.user_agent",
+        "request.method",
+        "helix.route",
+        "helix.owner",
+        "helix.repo",
+        "cdn.originating_ip_geoip.city_name"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "sidekick.har",
+      "viewId": 90446,
+      "viewName": "Sidekick v7",
+      "luceneQuery": "request.host:\"admin.hlx.page\" AND request.headers.user_agent:\"mozilla\" AND NOT request.headers.user_agent:\"chrome\"",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.originating_ip_geoip.ip",
+        "request.headers.user_agent",
+        "request.method",
+        "helix.owner",
+        "helix.repo",
+        "response.status",
+        "helix.route",
+        "request.url"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "helix.route",
+          "values": [
+            "sidekick"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": -1,
+      "viewName": "Unknown (-1)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "helix-rum-collector"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "forms.har",
+      "viewId": 62524,
+      "viewName": "Valid Form POST Requests",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.method",
+        "response.status",
+        "request.host",
+        "request.backend"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.method",
+          "values": [
+            "post"
+          ]
+        },
+        {
+          "key": "response.status",
+          "values": [
+            "201"
+          ]
+        },
+        {
+          "key": "request.backend",
+          "values": [
+            "cloudflareworker",
+            "awslambda"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 10497,
+      "viewName": "admin (lambda) errors",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "inv.functionName",
+        "message",
+        "inv.invocationId"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/admin/v12"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.inv.invocationId",
+        "textObject.logStream",
+        "textObject.message"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 9592,
+      "viewName": "admin (lambda) log (condensed)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149",
+          "lqmig3v5eb"
+        ],
+        "subsystemName": [],
+        "severity": [
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "message",
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/admin/v12",
+            "/helix3/admin/v11"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.metadata.severity",
+        "coralogix.timestamp",
+        "textObject.message",
+        "textObject.inv.invocationId"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 57731,
+      "viewName": "admin (lambda) purge errors",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "inv.functionName",
+        "message"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/admin/v12"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.inv.invocationId",
+        "textObject.logStream",
+        "textObject.message"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 59449,
+      "viewName": "admin (lambda) request log",
+      "luceneQuery": "message:purge",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "inv.functionName",
+        "admin.method",
+        "admin.org",
+        "admin.site",
+        "admin.route",
+        "admin.path"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/admin/v12"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "text",
+        "textObject.inv.invocationId"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 60169,
+      "viewName": "admin github rate limit",
+      "luceneQuery": "\"rate limit error from github\"",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": [
+          "4",
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "inv.functionName",
+        "message",
+        "inv.invocationId"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/admin/v11",
+            "/helix3/admin/v12"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.inv.invocationId",
+        "textObject.logStream",
+        "textObject.message"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 59714,
+      "viewName": "admin-code-sync-jobs",
+      "luceneQuery": "\"run /job/\" AND \"/code/\"",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": [
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "message",
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/admin/v12"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.metadata.severity",
+        "coralogix.timestamp",
+        "textObject.message",
+        "textObject.inv.invocationId"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 60721,
+      "viewName": "admin.hlx.page (errors)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [
+          "6a6o21m8woiivg5cliw7bw"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.response.headers.x_invocation_id",
+        "textObject.request.headers.x_admin_version",
+        "textObject.cdn.time_elapsed_msec"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 83190,
+      "viewName": "admin.hlx.page (rate-limited)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "6a6o21m8woiivg5cliw7bw"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "response.headers.x_error",
+        "request.method",
+        "request.url",
+        "request.headers.user_agent",
+        "response.status",
+        "cdn.version",
+        "helix.route",
+        "helix.owner",
+        "helix.ref",
+        "helix.repo",
+        "response.headers.x_ratelimit_rate",
+        "response.headers.x_ratelimit_limit",
+        "response.headers.x_retry_after",
+        "cdn.originating_ip",
+        "cdn.region_code",
+        "cdn.datacenter"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "response.status",
+          "values": [
+            "429"
+          ]
+        },
+        {
+          "key": "response.headers.x_ratelimit_limit",
+          "values": [
+            "10"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.helix.route",
+        "textObject.helix.owner",
+        "textObject.helix.repo",
+        "textObject.request.url"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 59715,
+      "viewName": "aem.(live|page)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 82074,
+      "viewName": "aem.(live|page) (Cloudflare origins)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.headers.x_forwarded_host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "request.headers.user_agent",
+        "request.method",
+        "helix.backend_type",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "cdn.version",
+        "cdn.datacenter",
+        "cdn.is_edge"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "helix.backend_type",
+          "values": [
+            "cloudflare"
+          ]
+        },
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.cdn.url",
+        "textObject.response.headers.x_error",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 84178,
+      "viewName": "aem.(live|page) (leaked preflights)",
+      "luceneQuery": "response.headers.content_type:\"application/json\"",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "request.restarts",
+          "values": [
+            "0"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90710,
+      "viewName": "aem.(live|page) (new relic traffic)",
+      "luceneQuery": "cdn.time_elapsed_msec.numeric:[5000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 84163,
+      "viewName": "aem.(live|page) (rate-limited)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "response.status",
+          "values": [
+            "429"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 84162,
+      "viewName": "aem.(live|page) (rate-limited, dry run)",
+      "luceneQuery": "_exists_:response.headers.x_rate_limited_rate",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 84405,
+      "viewName": "aem.(live|page) audit",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.cdn_loop",
+        "response.headers.x_audit"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 83895,
+      "viewName": "aem.(live|page) errors",
+      "luceneQuery": "NOT (response.status.numeric:500 AND response.body_size.numeric:72)",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "in8sinyz3uqgjyg0gpzm42"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "helix.contentbus_prefix",
+        "helix.request_type",
+        "helix.backend_type",
+        "cdn.originating_ip",
+        "request.restarts"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 91674,
+      "viewName": "aem.network (native)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare"
+        ],
+        "subsystemName": [
+          "aem.network"
+        ],
+        "severity": [
+          "debug",
+          "verbose",
+          "info",
+          "warning",
+          "error",
+          "critical"
+        ]
+      },
+      "jsonFilters": [
+        "ZoneName",
+        "RequestHeaders.x-forwarded-host",
+        "EdgeResponseStatus",
+        "ClientRequestSource",
+        "ClientRequestHost",
+        "ClientRequestURI",
+        "ClientDeviceType",
+        "ClientRequestMethod",
+        "WorkerSubrequest",
+        "ResponseHeaders.x-error",
+        "RequestHeaders.user-agent",
+        "CacheCacheStatus"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "ClientRequestSource",
+          "values": [
+            "eyeball"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.ClientRequestMethod",
+        "textObject.EdgeResponseStatus",
+        "textObject.ClientRequestURI",
+        "textObject.ClientRequestHost",
+        "textObject.ResponseHeaders.x-error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "indexer.har",
+      "viewId": 10972,
+      "viewName": "all",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [],
+        "severity": [
+          "4",
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/indexer/v6"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.metadata.severity",
+        "coralogix.timestamp",
+        "textObject.inv.invocationId",
+        "textObject.message",
+        "textObject.logStream"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 91892,
+      "viewName": "api.aem.live",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "s2dvksbusvekaayf13wih6"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "response.headers.x_error",
+        "request.method",
+        "request.url",
+        "response.status",
+        "response.headers.x_invocation_id"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.cdn.time_elapsed_msec",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.response.headers.x_invocation_id",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 89072,
+      "viewName": "config.aem-cloudflare.page",
+      "luceneQuery": "response.body_size.numeric:[1000000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "cloudflare-normalized"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "response.status",
+        "response.headers.x_error",
+        "request.method",
+        "cdn.zone_name",
+        "request.url",
+        "request.headers.x_forwarded_host",
+        "cdn.request_source",
+        "request.headers.user_agent",
+        "response.headers.cache_tag"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.host",
+          "values": [
+            "config.aem-cloudflare.page"
+          ]
+        },
+        {
+          "key": "cdn.zone_name",
+          "values": [
+            "aem-cloudflare.page"
+          ]
+        },
+        {
+          "key": "cdn.request_source",
+          "values": [
+            "edgeworkerfetch",
+            "eyeball"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.request.host",
+        "textObject.response.body_size",
+        "textObject.cdn.time.elapsed",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 60597,
+      "viewName": "config.aem.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "sidup3hxleugbdr3gi8t24"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "request.headers.user_agent",
+        "cdn.version",
+        "helix.scope",
+        "helix.rso",
+        "request.host",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "response.headers.vary"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.response.body_size",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90521,
+      "viewName": "config.aem.page (large response: >1m)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "sidup3hxleugbdr3gi8t24"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "request.headers.user_agent",
+        "cdn.version",
+        "helix.scope",
+        "helix.rso",
+        "request.host",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "response.headers.vary",
+        "response.body_size"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.response.body_size",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90732,
+      "viewName": "config.aem.page (response size by RSO)",
+      "luceneQuery": "source logs between @'2025-06-30T14:05:32.791' and @'2025-07-07T14:05:32.791'\n| filter $d ~~ 'main'\n| top 100 $d.helix.rso by max($d.response.body_size:num) as body_size",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "sidup3hxleugbdr3gi8t24"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "request.headers.user_agent",
+        "cdn.version",
+        "helix.scope",
+        "helix.rso",
+        "request.host",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "response.headers.vary",
+        "response.body_size"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.response.body_size",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cron.har",
+      "viewId": 91761,
+      "viewName": "failed preview",
+      "luceneQuery": "admin.route:\"preview\" AND admin.path:\"crontab\" AND NOT admin.status:200",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 90057,
+      "viewName": "form.aem.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "udbdj4zfyndzepzapuqhl3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.response.status",
+        "cdn.request.url",
+        "cdn.request.method",
+        "cdn.version",
+        "cdn.originating_ip",
+        "cdn.request.headers.referer",
+        "cdn.datacenter",
+        "cdn.request.backend"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.cdn.request.method",
+        "textObject.cdn.response.status",
+        "textObject.cdn.request.url",
+        "textObject.cdn.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 5530,
+      "viewName": "function-logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "message",
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.metadata.severity",
+        "coralogix.timestamp",
+        "textObject.inv.functionName",
+        "textObject.inv.invocationId",
+        "textObject.message"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "bots.har",
+      "viewId": 1861,
+      "viewName": "helix-bot log",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/bot/v3"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "coralogix.metadata.severity",
+        "textObject.message",
+        "textObject.inv.invocationId"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "bots.har",
+      "viewId": 62542,
+      "viewName": "helix-bot log (new)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/bot/v3"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "coralogix.metadata.severity",
+        "textObject.message",
+        "textObject.inv.invocationId"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 29302,
+      "viewName": "hlx.live",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "request.url",
+        "cdn.datacenter",
+        "cdn.originating_ip",
+        "response.headers.x_auth_warning",
+        "response.headers.x_audit",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 84155,
+      "viewName": "hlx.live (401s delivered to prod cdn)",
+      "luceneQuery": "_exists_:response.headers.x_auth_error",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "response.headers.x_auth_error"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.headers.x_byo_cdn_type",
+          "values": [
+            "cloudfront",
+            "cloudflare",
+            "fastly",
+            "akamai"
+          ]
+        },
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "response.status",
+          "values": [
+            "401"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 60190,
+      "viewName": "hlx.live (errors delivered to prod cdn)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.headers.x_byo_cdn_type",
+          "values": [
+            "akamai",
+            "cloudflare",
+            "cloudfront",
+            "fastly"
+          ]
+        },
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 57704,
+      "viewName": "hlx.live (long running requests: >5s)",
+      "luceneQuery": "cdn.time_elapsed_msec.numeric:[5000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "request.url"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 90711,
+      "viewName": "hlx.live (new relic traffic)",
+      "luceneQuery": "cdn.time_elapsed_msec.numeric:[5000 TO *]",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version",
+        "request.url",
+        "cdn.datacenter",
+        "cdn.originating_ip",
+        "response.headers.x_auth_warning",
+        "response.headers.x_audit",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 82951,
+      "viewName": "hlx.live redirects",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "response.status",
+        "cdn.is_edge",
+        "request.headers.x_forwarded_host",
+        "request.host",
+        "request.headers.x_byo_cdn_type",
+        "request.url"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "response.status",
+          "values": [
+            "301",
+            "302"
+          ]
+        },
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.location"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 59702,
+      "viewName": "hlx.live w/o xfh",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "1pluoud9jqp1prq8phd85n"
+        ],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "request.host",
+        "request.headers.x_push_invalidation",
+        "request.headers.x_byo_cdn_type",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.x_forwarded_host",
+        "request.headers.referer",
+        "cdn.version"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 29297,
+      "viewName": "hlx.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "cdn.originating_ip",
+        "helix.request_type",
+        "response.headers.x_rate_limited_rate",
+        "response.headers.x_warning",
+        "cdn.originating_ip_geoip.asn.organization",
+        "response.headers.x_auth_warning",
+        "response.headers.x_audit",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cloudflare.har",
+      "viewId": 58904,
+      "viewName": "hlx.page (Cloudflare origins)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "helix.request-type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "request.headers.x_backend_type",
+          "values": [
+            "cloudflare"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 58846,
+      "viewName": "hlx.page (leaked preflights)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "helix.request-type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "response.headers.content_type",
+        "request.url",
+        "response.headers.surrogate_key"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "helix.request-type",
+          "values": [
+            "code",
+            "html",
+            "auth",
+            "content",
+            "md",
+            "media"
+          ]
+        },
+        {
+          "key": "request.restarts",
+          "values": [
+            "0"
+          ]
+        },
+        {
+          "key": "response.headers.content_type",
+          "values": [
+            "application/json"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 57703,
+      "viewName": "hlx.page (long running requests: >5s)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "request.url",
+        "helix.request_type",
+        "cdn.datacenter",
+        "cdn.region_code",
+        "response.headers.content_type"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 83274,
+      "viewName": "hlx.page (rate-limited)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "cdn.originating_ip",
+        "helix.request_type"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        },
+        {
+          "key": "response.status",
+          "values": [
+            "429"
+          ]
+        },
+        {
+          "key": "helix.request_type",
+          "values": [
+            "html",
+            "json"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 84181,
+      "viewName": "hlx.page (with project creation date)",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.host",
+        "request.method",
+        "response.status",
+        "response.headers.x_error",
+        "request.backend",
+        "request.headers.x_forwarded_host",
+        "request.headers.user_agent",
+        "request.headers.x_backend_type",
+        "request.headers.referer",
+        "request.restarts",
+        "cdn.version",
+        "cdn.originating_ip",
+        "helix.request_type",
+        "response.headers.x_rate_limited_rate",
+        "response.headers.x_warning",
+        "cdn.originating_ip_geoip.asn.organization",
+        "response.headers.x_created_date"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery.har",
+      "viewId": 8928,
+      "viewName": "hlx.page errors",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "7tvulgs0xnls4q3r8tawdg"
+        ],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "request.headers.user_agent",
+        "response.status",
+        "request.host",
+        "response.headers.x_error",
+        "response.headers.fastly_io_error",
+        "request.headers.x_byo_cdn_type",
+        "request.headers.x_forwarded_host",
+        "cdn.is_edge",
+        "request.method",
+        "request.headers.x_backend_type",
+        "request.restarts",
+        "cdn.version",
+        "cdn.datacenter",
+        "cdn.originating_ip",
+        "request.backend",
+        "cdn.region_code",
+        "helix.request_type",
+        "cdn.originating_ip_geoip.asn.organization"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.cdn.time_elapsed_msec",
+        "textObject.response.headers.x_error",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.request.headers.user_agent",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "indexer.har",
+      "viewId": 94268,
+      "viewName": "indexer latency",
+      "luceneQuery": "_exists_:indexer",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.indexer.latency",
+        "textObject.indexer.org",
+        "textObject.indexer.site",
+        "textObject.indexer.results.changeCount",
+        "textObject.indexer.results.unmodified",
+        "textObject.indexer.results.errorCount"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "cron.har",
+      "viewId": 91762,
+      "viewName": "job executions",
+      "luceneQuery": "admin.route:\"preview\" AND admin.path:\"crontab\" AND NOT admin.status:200",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.failed_reason",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 90006,
+      "viewName": "last 30d codesync",
+      "luceneQuery": "source logs between @'now' - 30d and @'now' |\nfilter $d.admin.route == 'code' |\ncreate org_site from concat($d.admin.org, '/', $d.admin.site) |\ncountby org_site into count |\norderby count:num desc",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "llm.har",
+      "viewId": 89922,
+      "viewName": "llms.txt requests on www.aem.live",
+      "luceneQuery": "request.host:\"www.aem.live\" AND request.headers.user_agent:/(chatgpt|openai|perplexity|claude)/",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [
+          "00qrluuasvnvskgnwyvcbb"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.originating_ip_geoip.ip",
+        "request.headers.user_agent"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 91227,
+      "viewName": "media.aem.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "atg7eq66bh88lhbnq7fqq2"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "cdn.version",
+        "request.host",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "cdn.datacenter",
+        "cdn.region_code",
+        "response.headers.fastly_stats",
+        "response.headers.fastly_io_info",
+        "response.headers.fastly_io_error",
+        "response.headers.faatly_io_warning",
+        "request.qs",
+        "helix.contentbus_id",
+        "helix.blob_id"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 89987,
+      "viewName": "pipeline.aem.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "chpjil1wnru9sfyl1ebsj3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.is_edge",
+        "request.url",
+        "response.headers.x_error",
+        "cdn.version",
+        "response.status",
+        "helix.backend_type",
+        "client.country_name",
+        "client.name",
+        "request.headers.accept_encoding",
+        "response.headers.vary",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.content_encoding",
+        "helix.request_type",
+        "helix.site",
+        "helix.org",
+        "cdn.originating_ip",
+        "cdn.datacenter",
+        "cdn.region_code",
+        "helix.path"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.request.method",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.url",
+        "textObject.cdn.time_elapsed_msec",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "admin-publish.har",
+      "viewId": 60184,
+      "viewName": "publishing-error-rate",
+      "luceneQuery": "request.headers.x_byo_cdn_type.keyword:\"\"",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": [
+          "5"
+        ]
+      },
+      "jsonFilters": [
+        "request.backend",
+        "request.host",
+        "request.headers.x_byo_cdn_type",
+        "request.method"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.backend",
+          "values": [
+            "cloudflareworker",
+            "cloudflarer2",
+            "awslambda",
+            "_ref____repo____owner__hlx_fastly_page",
+            "awss3"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.response.headers.x_error",
+        "textObject.request.method",
+        "textObject.request.url",
+        "textObject.request.host",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 6145,
+      "viewName": "rofe.default",
+      "luceneQuery": "_exists_:rum.checkpoint",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "jsonFilters": [
+        "cdn.origin.host",
+        "cdn.response.status",
+        "cdn.client.ip",
+        "cdn.request.user_agent"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "coralogix.metadata.severity",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 59488,
+      "viewName": "rum data",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "helix-rum-collector"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.domain",
+        "rum.checkpoint",
+        "cdn.url"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 74398,
+      "viewName": "rum data - Alex",
+      "luceneQuery": "_exists_:rum.checkpoint",
+      "metadataFilters": {
+        "applicationName": [],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "cdn.domain",
+        "rum.checkpoint",
+        "cdn.url"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "textObject.rum.checkpoint",
+        "textObject.rum.source",
+        "textObject.rum.target",
+        "textObject.rum.LCP",
+        "textObject.cdn.url",
+        "textObject.request.user_agent",
+        "textObject.request.id",
+        "textObject.rum.user_agent",
+        "textObject.rum.CLS",
+        "textObject.rum.INP",
+        "textObject.rum.FID",
+        "textObject.rum.url",
+        "textObject.rum.host",
+        "textObject.cdn.domain"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 68412,
+      "viewName": "rum-bundler aws logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.url",
+        "request.domain",
+        "request.host",
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/rum-bundler/v1"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 65710,
+      "viewName": "rum-bundler fastly logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.url",
+        "request.domain",
+        "request.host"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.host",
+          "values": [
+            "rum.fastly-aem.page",
+            "bundles.aem.page"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 71244,
+      "viewName": "rum-bundler perf logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "inv.functionName",
+        "task"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/rum-bundler/v1"
+          ]
+        },
+        {
+          "key": "task",
+          "values": [
+            "bundle-rum"
+          ]
+        }
+      ],
+      "columns": [
+        "sideMenu",
+        "coralogix.timestamp",
+        "textObject.loop",
+        "textObject.stats.totalEvents",
+        "textObject.stats.newDomains",
+        "textObject.measures.total",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "rum.har",
+      "viewId": 80253,
+      "viewName": "rum-bundler truncated cf events",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [
+          "helix3"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.url",
+        "request.domain",
+        "request.host",
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix3/rum-bundler/v1"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "virtual_content",
+        "text",
+        "coralogix.metadata.applicationName",
+        "coralogix.metadata.subsystemName"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 57548,
+      "viewName": "sidekick library",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [],
+        "severity": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      },
+      "jsonFilters": [
+        "request.headers.referer",
+        "request.host",
+        "response.status",
+        "request.method",
+        "cdn.version",
+        "request.headers.user-agent",
+        "response.headers.x-error",
+        "request.url"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "request.host",
+          "values": [
+            "www.aem.live",
+            "www.hlx.live"
+          ]
+        },
+        {
+          "key": "request.url",
+          "values": [
+            "/tools/sidekick/library/index.js"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "bots.har",
+      "viewId": 55563,
+      "viewName": "slack-bot-logs",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "aws-118435662149"
+        ],
+        "subsystemName": [],
+        "severity": []
+      },
+      "jsonFilters": [
+        "message",
+        "inv.functionName"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "inv.functionName",
+          "values": [
+            "/helix-services/slack-bot/v4"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.metadata.severity",
+        "coralogix.timestamp",
+        "textObject.inv.functionName",
+        "textObject.inv.invocationId",
+        "textObject.message"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "delivery-new.har",
+      "viewId": 83530,
+      "viewName": "static.aem.page",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "itvemju5q2pje3ejseo0w6"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.backend",
+        "response.headers.x_error",
+        "response.status",
+        "request.restarts",
+        "helix.site",
+        "helix.org",
+        "helix.path",
+        "cdn.version",
+        "helix.request_type",
+        "request.headers.fastly_orig_accept_encoding",
+        "request.headers.accept_encoding",
+        "response.headers.content_encoding",
+        "response.headers.vary",
+        "helix.backend_type"
+      ],
+      "activeJsonFilters": [],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    },
+    {
+      "harFile": "misc.har",
+      "viewId": 90850,
+      "viewName": "www.aem.live",
+      "luceneQuery": "",
+      "metadataFilters": {
+        "applicationName": [
+          "fastly"
+        ],
+        "subsystemName": [
+          "00qrluuasvnvskgnwyvcbb"
+        ],
+        "severity": []
+      },
+      "jsonFilters": [
+        "request.host",
+        "cdn.is_edge",
+        "response.headers.x_error",
+        "response.status",
+        "request.method",
+        "request.headers.user_agent",
+        "request.headers.referer",
+        "cdn.version",
+        "client.name",
+        "cdn.cache_status",
+        "cdn.datacenter",
+        "request.url",
+        "cdn.originating_ip",
+        "request.restarts",
+        "cdn.originating_ip_geoip.asn.organization",
+        "request.headers.accept_encoding",
+        "request.headers.fastly_orig_accept_encoding",
+        "response.headers.vary",
+        "response.headers.content_encoding",
+        "request.headers.x_forwarded_host",
+        "request.headers.x_abuse_info"
+      ],
+      "activeJsonFilters": [
+        {
+          "key": "cdn.is_edge",
+          "values": [
+            "true"
+          ]
+        }
+      ],
+      "columns": [
+        "coralogix.timestamp",
+        "textObject.response.status",
+        "textObject.request.method",
+        "textObject.request.host",
+        "textObject.request.url",
+        "textObject.response.headers.x_error",
+        "text"
+      ],
+      "graphAggField": "coralogix.metadata.severity"
+    }
+  ]
+}
