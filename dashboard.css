@@ -445,7 +445,7 @@ main {
 /* Chart Section */
 .chart-section {
   background: var(--chart-bg);
-  padding: 20px 24px;
+  padding: 20px 0;
   margin: 0 -24px 24px -24px;
 }
 
@@ -462,6 +462,7 @@ main {
 .chart-section h2 {
   font-size: 16px;
   margin-bottom: 16px;
+  padding: 0 24px;
 }
 
 /* Breakdown Tables */

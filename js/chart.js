@@ -44,7 +44,8 @@ export function renderChart(data) {
 
   const width = rect.width;
   const height = rect.height;
-  const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+  const padding = { top: 20, right: 0, bottom: 40, left: 0 };
+  const labelInset = 24; // Match main element padding for alignment with breakdowns
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
@@ -96,26 +97,19 @@ export function renderChart(data) {
   ctx.strokeStyle = cssVar('--axis-line');
   ctx.lineWidth = 1;
 
-  // Y axis
-  ctx.beginPath();
-  ctx.moveTo(padding.left, padding.top);
-  ctx.lineTo(padding.left, height - padding.bottom);
-  ctx.stroke();
-
   // X axis
   ctx.beginPath();
   ctx.moveTo(padding.left, height - padding.bottom);
   ctx.lineTo(width - padding.right, height - padding.bottom);
   ctx.stroke();
 
-  // Y axis labels
+  // Y axis labels (inside chart, above grid lines, skip zero)
   ctx.fillStyle = cssVar('--text-secondary');
   ctx.font = '11px -apple-system, sans-serif';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
+  ctx.textAlign = 'left';
+  for (let i = 1; i <= 4; i++) {
     const val = minValue + (maxValue - minValue) * (i / 4);
     const y = height - padding.bottom - (chartHeight * i / 4);
-    ctx.fillText(formatNumber(Math.round(val)), padding.left - 8, y + 4);
 
     // Grid line
     ctx.strokeStyle = cssVar('--grid-line');
@@ -123,16 +117,29 @@ export function renderChart(data) {
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
+
+    // Label inside chart, above grid line
+    ctx.fillStyle = cssVar('--text-secondary');
+    ctx.fillText(formatNumber(Math.round(val)), padding.left + labelInset, y - 4);
   }
 
   // X axis labels
   ctx.fillStyle = cssVar('--text-secondary');
-  ctx.textAlign = 'center';
   const labelStep = Math.ceil(data.length / 6);
   for (let i = 0; i < data.length; i += labelStep) {
-    const x = padding.left + (chartWidth * i / (data.length - 1));
+    let x = padding.left + (chartWidth * i / (data.length - 1));
     const time = new Date(data[i].t);
     const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    // Align first label left, last label right, others center
+    if (i === 0) {
+      ctx.textAlign = 'left';
+      x += labelInset;
+    } else if (i + labelStep >= data.length) {
+      ctx.textAlign = 'right';
+      x -= labelInset;
+    } else {
+      ctx.textAlign = 'center';
+    }
     ctx.fillText(label, x, height - padding.bottom + 20);
   }
 
