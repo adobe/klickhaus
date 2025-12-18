@@ -2,9 +2,9 @@
 const CLICKHOUSE_URL = 'https://ogadftwx3q.us-east1.gcp.clickhouse.cloud:8443/';
 const DATABASE = 'helix_logs_production';
 // Use partitioned table for recent queries, old table for historical
-// TODO: expand to ['15m', '1h', '12h'] once v2 has 12h of data
+// TODO: expand to ['24h', '7d'] once v2 has enough data
 function getTable() {
-  return ['15m', '1h'].includes(state.timeRange)
+  return ['15m', '1h', '12h'].includes(state.timeRange)
     ? 'cdn_requests_v2'
     : 'cdn_requests_combined';
 }
