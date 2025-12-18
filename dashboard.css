@@ -453,6 +453,58 @@ main {
   display: none;
 }
 
+/* Chart navigation overlay */
+.chart-nav-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+}
+
+.chart-nav-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chart-nav-zone:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-nav-zone:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.chart-nav-left {
+  flex: 0 0 33%;
+}
+
+.chart-nav-right {
+  flex: 0 0 33%;
+  margin-left: auto;
+}
+
+.chart-nav-arrow {
+  font-size: 48px;
+  color: var(--text-secondary);
+  opacity: 0.3;
+}
+
+.chart-container {
+  position: relative;
+}
+
 /* Breakdown Tables */
 .breakdowns {
   display: grid;

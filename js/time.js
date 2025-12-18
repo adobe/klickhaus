@@ -52,3 +52,15 @@ export function getHostFilter() {
   const escaped = state.hostFilter.replace(/'/g, "\\'");
   return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
 }
+
+// Get period duration in milliseconds
+export function getPeriodMs() {
+  const periods = {
+    '15m': 15 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+    '12h': 12 * 60 * 60 * 1000,
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000
+  };
+  return periods[state.timeRange];
+}

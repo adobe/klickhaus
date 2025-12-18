@@ -5,7 +5,7 @@ import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from
 import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements } from './url-state.js';
 import { queryTimestamp, setQueryTimestamp } from './time.js';
 import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
-import { loadTimeSeries } from './chart.js';
+import { loadTimeSeries, setupChartNavigation } from './chart.js';
 import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import { addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks } from './filters.js';
@@ -116,6 +116,9 @@ async function init() {
 
   // Initialize modal
   initModal();
+
+  // Set up chart navigation
+  setupChartNavigation(() => loadDashboard());
 
   // Check for stored credentials - show dashboard immediately if they exist
   const stored = localStorage.getItem('clickhouse_credentials');

@@ -1,9 +1,49 @@
 // Time series chart rendering
 import { DATABASE } from './config.js';
 import { query } from './api.js';
-import { getTimeFilter, getHostFilter, getTimeBucket, getTable } from './time.js';
+import { getTimeFilter, getHostFilter, getTimeBucket, getTable, getPeriodMs, queryTimestamp, setQueryTimestamp } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { formatNumber } from './format.js';
+
+// Navigation state
+let onNavigate = null;
+let navOverlay = null;
+
+export function setupChartNavigation(callback) {
+  onNavigate = callback;
+  const canvas = document.getElementById('chart');
+  const container = canvas.parentElement;
+
+  // Create navigation overlay element
+  navOverlay = document.createElement('div');
+  navOverlay.className = 'chart-nav-overlay';
+  navOverlay.innerHTML = `
+    <div class="chart-nav-zone chart-nav-left"><span class="chart-nav-arrow">\u25C0</span></div>
+    <div class="chart-nav-zone chart-nav-right"><span class="chart-nav-arrow">\u25B6</span></div>
+  `;
+  container.appendChild(navOverlay);
+
+  // Click handlers
+  navOverlay.querySelector('.chart-nav-left').addEventListener('click', () => navigateTime(-2/3));
+  navOverlay.querySelector('.chart-nav-right').addEventListener('click', () => navigateTime(2/3));
+}
+
+function navigateTime(fraction) {
+  const periodMs = getPeriodMs();
+  const shiftMs = periodMs * fraction;
+  const currentTs = queryTimestamp || new Date();
+  const newTs = new Date(currentTs.getTime() + shiftMs);
+
+  // Don't go into the future
+  const now = new Date();
+  if (newTs > now) {
+    setQueryTimestamp(now);
+  } else {
+    setQueryTimestamp(newTs);
+  }
+
+  if (onNavigate) onNavigate();
+}
 
 export async function loadTimeSeries() {
   const timeFilter = getTimeFilter();
