@@ -195,5 +195,72 @@ export const colorRules = {
       if (['php', 'asp', 'aspx', 'cgi', 'jsp'].includes(ext)) return 'var(--path-server)';
       return '';
     }
+  },
+
+  accept: {
+    patterns: ['request.headers.accept'],
+    getColor: (value) => {
+      if (!value) return '';
+      const ct = value.toLowerCase();
+      // Use same colors as content-type
+      if (ct.startsWith('text/')) return 'var(--ct-text)';
+      if (ct.startsWith('application/')) return 'var(--ct-application)';
+      if (ct.startsWith('image/')) return 'var(--ct-image)';
+      if (ct.startsWith('video/')) return 'var(--ct-video)';
+      if (ct.startsWith('font/')) return 'var(--ct-font)';
+      if (ct === '*/*') return 'var(--ct-binary)';
+      return '';
+    }
+  },
+
+  acceptEncoding: {
+    patterns: ['accept_encoding'],
+    getColor: (value) => {
+      if (!value) return '';
+      const enc = value.toLowerCase();
+      if (enc.includes('br')) return 'var(--enc-br)';
+      if (enc.includes('zstd')) return 'var(--enc-zstd)';
+      if (enc.includes('gzip')) return 'var(--enc-gzip)';
+      if (enc.includes('deflate')) return 'var(--enc-deflate)';
+      if (enc === 'identity' || enc === '*') return 'var(--enc-identity)';
+      return '';
+    }
+  },
+
+  cacheControl: {
+    patterns: ['cache_control'],
+    getColor: (value) => {
+      if (!value) return '';
+      const cc = value.toLowerCase();
+      if (cc.includes('no-store')) return 'var(--cc-no-store)';
+      if (cc.includes('no-cache') || cc.includes('max-age=0')) return 'var(--cc-no-cache)';
+      if (cc.includes('max-age')) return 'var(--cc-max-age)';
+      return 'var(--cc-other)';
+    }
+  },
+
+  byoCdn: {
+    patterns: ['x_byo_cdn_type'],
+    getColor: (value) => {
+      if (!value) return '';
+      const cdn = value.toLowerCase();
+      if (cdn.includes('fastly')) return 'var(--cdn-fastly)';
+      if (cdn.includes('akamai')) return 'var(--cdn-akamai)';
+      if (cdn.includes('cloudfront')) return 'var(--cdn-cloudfront)';
+      return 'var(--cdn-other)';
+    }
+  },
+
+  location: {
+    patterns: ['response.headers.location'],
+    getColor: (value) => {
+      if (!value) return '';
+      // Absolute URLs start with http:// or https://
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        return 'var(--loc-absolute)';
+      }
+      // Relative URLs (start with / or don't have protocol)
+      return 'var(--loc-relative)';
+    }
   }
 };

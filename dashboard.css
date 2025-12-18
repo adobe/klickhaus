@@ -85,6 +85,25 @@
   --err-contentbus: #ca8a04;
   --err-storage: #64748b;
   --err-other: #94a3b8;
+  /* Accept-Encoding */
+  --enc-gzip: #059669;
+  --enc-br: #2563eb;
+  --enc-deflate: #ca8a04;
+  --enc-identity: #64748b;
+  --enc-zstd: #7c3aed;
+  /* Cache-Control (request) */
+  --cc-no-cache: #dc2626;
+  --cc-no-store: #be123c;
+  --cc-max-age: #059669;
+  --cc-other: #64748b;
+  /* BYO CDN */
+  --cdn-fastly: #ff282d;
+  --cdn-akamai: #0096d6;
+  --cdn-cloudfront: #ff9900;
+  --cdn-other: #64748b;
+  /* Redirect Location */
+  --loc-relative: #059669;
+  --loc-absolute: #2563eb;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -175,6 +194,25 @@
     --err-contentbus: #facc15;
     --err-storage: #94a3b8;
     --err-other: #cbd5e1;
+    /* Accept-Encoding */
+    --enc-gzip: #34d399;
+    --enc-br: #60a5fa;
+    --enc-deflate: #facc15;
+    --enc-identity: #94a3b8;
+    --enc-zstd: #a78bfa;
+    /* Cache-Control (request) */
+    --cc-no-cache: #f87171;
+    --cc-no-store: #fb7185;
+    --cc-max-age: #34d399;
+    --cc-other: #94a3b8;
+    /* BYO CDN */
+    --cdn-fastly: #ff6b6b;
+    --cdn-akamai: #4cc2ff;
+    --cdn-cloudfront: #ffb347;
+    --cdn-other: #94a3b8;
+    /* Redirect Location */
+    --loc-relative: #34d399;
+    --loc-absolute: #60a5fa;
   }
 }
 
