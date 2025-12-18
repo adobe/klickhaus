@@ -450,9 +450,7 @@ main {
 }
 
 .chart-section h2 {
-  font-size: 16px;
-  margin-bottom: 16px;
-  padding: 0 24px;
+  display: none;
 }
 
 /* Breakdown Tables */

@@ -107,8 +107,26 @@ export function renderChart(data) {
   ctx.fillStyle = cssVar('--text-secondary');
   ctx.font = '11px -apple-system, sans-serif';
   ctx.textAlign = 'left';
+
+  // Round intermediate values to nice numbers, keep top value exact
+  const roundToNice = (val) => {
+    if (val === 0) return 0;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(val)));
+    const normalized = val / magnitude;
+    // Round to nearest 1, 2, 2.5, or 5
+    let nice;
+    if (normalized <= 1.5) nice = 1;
+    else if (normalized <= 2.25) nice = 2;
+    else if (normalized <= 3.5) nice = 2.5;
+    else if (normalized <= 7.5) nice = 5;
+    else nice = 10;
+    return nice * magnitude;
+  };
+
   for (let i = 1; i <= 4; i++) {
-    const val = minValue + (maxValue - minValue) * (i / 4);
+    const rawVal = minValue + (maxValue - minValue) * (i / 4);
+    // Keep top value exact, round others to nice numbers
+    const val = (i === 4) ? Math.round(rawVal) : roundToNice(rawVal);
     const y = height - padding.bottom - (chartHeight * i / 4);
 
     // Grid line
@@ -120,7 +138,7 @@ export function renderChart(data) {
 
     // Label inside chart, above grid line
     ctx.fillStyle = cssVar('--text-secondary');
-    ctx.fillText(formatNumber(Math.round(val)), padding.left + labelInset, y - 4);
+    ctx.fillText(formatNumber(val), padding.left + labelInset, y - 4);
   }
 
   // X axis labels
