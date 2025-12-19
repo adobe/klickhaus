@@ -41,7 +41,7 @@ S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)
 
 ## Usage
 
-1. Open `dashboard.html` in a browser (or visit [trieloff.github.io/klickhaus](https://trieloff.github.io/klickhaus/dashboard.html))
+1. Open `dashboard.html` in a browser (or visit [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/dashboard.html), fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/dashboard.html))
 2. Log in with your ClickHouse credentials
 3. Use the time range selector and host filter to narrow down results
 4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
