@@ -730,7 +730,7 @@ main {
 
 .breakdown-table {
   width: 100%;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .breakdown-table tr {
@@ -755,7 +755,7 @@ main {
 }
 
 .breakdown-table td {
-  padding: 8px 0;
+  padding: 2px 0;
 }
 
 .breakdown-table .dim {
@@ -887,57 +887,66 @@ main {
   color: var(--error);
 }
 
-/* Mobile touch support - show action buttons on tap */
-.breakdown-table tr.touch-active .count .value {
+/* Mobile touch support - tap to reveal action buttons */
+/* Hide mobile actions by default everywhere */
+.breakdown-table .mobile-actions {
   display: none;
 }
 
-.breakdown-table tr.touch-active .count .action-btn {
-  display: block;
-}
-
-.breakdown-table tr.touch-active .bar .bar-inner {
-  display: none;
-}
-
-.breakdown-table tr.touch-active .bar .action-btn {
-  display: block;
-}
-
-/* On touch screens, show compact action icons inline */
+/* On touch screens, use tap-to-reveal pattern */
 @media (hover: none), (pointer: coarse) {
-  .breakdown-table .count .value,
-  .breakdown-table .bar .bar-inner {
-    display: block !important;
+  /* Disable desktop hover behavior */
+  .breakdown-table tr:hover .count .value,
+  .breakdown-table tr:hover .bar .bar-inner {
+    display: block;
   }
 
-  .breakdown-table .count .action-btn,
-  .breakdown-table .bar .action-btn {
-    display: none !important;
+  .breakdown-table tr:hover .count .action-btn,
+  .breakdown-table tr:hover .bar .action-btn {
+    display: none;
   }
 
-  /* Show mobile action buttons container */
-  .breakdown-table .mobile-actions {
-    display: flex !important;
-    gap: 4px;
-    padding-left: 8px;
+  /* When row is tapped (touch-active), show mobile actions and hide bar */
+  .breakdown-table tr.touch-active .bar {
+    display: none;
+  }
+
+  .breakdown-table tr.touch-active .mobile-actions {
+    display: table-cell;
+    text-align: right;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   .breakdown-table .mobile-action-btn {
-    display: inline-flex !important;
+    position: relative;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 18px;
+    height: 18px;
     padding: 0;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 3px;
     border: 1px solid var(--border);
     background: var(--card-bg);
     cursor: pointer;
     color: var(--text);
-    flex-shrink: 0;
+    box-sizing: border-box;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* Expanded touch target */
+  .breakdown-table .mobile-action-btn::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
   }
 
   .breakdown-table .mobile-action-btn:active {
@@ -958,22 +967,6 @@ main {
     background: var(--error);
     border-color: var(--error);
   }
-}
-
-/* On very small screens, hide bar and adjust dim width */
-@media (max-width: 400px) and (hover: none), (max-width: 400px) and (pointer: coarse) {
-  .breakdown-table .bar {
-    display: none;
-  }
-
-  .breakdown-table .dim {
-    max-width: 100px;
-  }
-}
-
-/* Hide mobile actions on desktop */
-.breakdown-table .mobile-actions {
-  display: none;
 }
 
 .breakdown-table tr.other-row {

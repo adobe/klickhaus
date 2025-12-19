@@ -183,10 +183,15 @@ export function renderChart(data) {
     ctx.fillText(formatNumber(val), padding.left + labelInset, y - 4);
   }
 
-  // X axis labels
+  // X axis labels - fewer on mobile (first, middle, last)
   ctx.fillStyle = cssVar('--text-secondary');
-  const labelStep = Math.ceil(data.length / 6);
-  for (let i = 0; i < data.length; i += labelStep) {
+  const isMobile = width < 500;
+  const tickIndices = isMobile
+    ? [0, Math.floor((data.length - 1) / 2), data.length - 1]
+    : Array.from({ length: 6 }, (_, i) => Math.round(i * (data.length - 1) / 5));
+
+  for (const i of tickIndices) {
+    if (i >= data.length) continue;
     let x = padding.left + (chartWidth * i / (data.length - 1));
     const time = new Date(data[i].t);
     const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
@@ -194,7 +199,7 @@ export function renderChart(data) {
     if (i === 0) {
       ctx.textAlign = 'left';
       x += labelInset;
-    } else if (i + labelStep >= data.length) {
+    } else if (i === data.length - 1) {
       ctx.textAlign = 'right';
       x -= labelInset;
     } else {

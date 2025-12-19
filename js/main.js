@@ -200,5 +200,46 @@ window.addEventListener('dashboard-shown', () => {
   setTimeout(loadHostAutocomplete, 100);
 });
 
+// Mobile touch support for breakdown rows
+function initMobileTouchSupport() {
+  // Only on touch devices
+  if (!('ontouchstart' in window)) return;
+
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest('.breakdown-table tr:not(.other-row)');
+    const isActionBtn = e.target.closest('.mobile-action-btn');
+
+    // If clicking an action button, clear touch-active after action fires
+    if (isActionBtn) {
+      setTimeout(() => {
+        document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+          r.classList.remove('touch-active');
+        });
+      }, 100);
+      return;
+    }
+
+    // If clicking a row, toggle touch-active on it
+    if (row) {
+      const wasActive = row.classList.contains('touch-active');
+      // Clear all other touch-active states
+      document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+        r.classList.remove('touch-active');
+      });
+      // Toggle on clicked row
+      if (!wasActive) {
+        row.classList.add('touch-active');
+      }
+      return;
+    }
+
+    // Clicking outside - clear all touch-active
+    document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+      r.classList.remove('touch-active');
+    });
+  });
+}
+
 // Start
 init();
+initMobileTouchSupport();
