@@ -6,6 +6,7 @@
     "start": "live-server --port=8000 --open=/dashboard.html"
   },
   "devDependencies": {
+    "canvas": "3.2.0",
     "live-server": "^1.2.2"
   },
   "keywords": [
