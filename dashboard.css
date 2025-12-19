@@ -222,11 +222,47 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow: hidden;
+  height: 100%;
+}
+
 body {
   font-family: 'Adobe Clean', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Pull to refresh indicator */
+.pull-to-refresh {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  background: var(--bg);
+  transition: height 0.2s;
+}
+
+.pull-to-refresh.visible {
+  height: 50px;
+}
+
+.pull-to-refresh.refreshing .pull-arrow {
+  animation: spin 0.8s linear infinite;
+}
+
+.pull-arrow {
+  margin-right: 8px;
+  font-size: 16px;
 }
 
 /* Login Form */
@@ -390,6 +426,102 @@ header h1 {
   margin: 0;
 }
 
+.btn-icon {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  header h1 {
+    display: none;
+  }
+
+  .btn-text {
+    display: none;
+  }
+
+  .btn-icon {
+    display: inline;
+    font-size: 16px;
+  }
+
+  #refreshBtn {
+    display: none;
+  }
+
+  /* Flatten header on mobile: menu | hostFilter | timeRange | Logs | logout */
+  .header-left,
+  .header-center,
+  .header-right {
+    display: contents;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+  }
+
+  #menuBtn { order: 1; }
+  #hostFilter { order: 2; flex: 1; min-width: 0; width: auto; }
+  #logsBtn { order: 3; }
+  #timeRange { order: 4; flex: 1; min-width: 0; width: auto; }
+  #logoutBtn { order: 5; }
+
+  /* Hide these on mobile */
+  #topN,
+  #hostSuggestions {
+    display: none;
+  }
+
+  /* Position active filters over chart area */
+  #activeFilters {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    flex-direction: row-reverse;
+    flex-wrap: wrap-reverse;
+    justify-content: flex-end;
+    z-index: 10;
+    max-width: 70%;
+    gap: 4px;
+  }
+
+  #activeFilters .filter-tag {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  /* Consistent button height in header */
+  header .btn,
+  header .logs-btn {
+    height: 36px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* First button (menu) touches left edge */
+  header .menu-btn {
+    margin-left: -12px;
+    padding-left: 12px;
+    padding-right: 10px;
+    width: auto;
+    border-left: none;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  /* Last button (logout) touches right edge */
+  header #logoutBtn {
+    margin-right: -12px;
+    padding-right: 12px;
+    padding-left: 10px;
+    border-right: none;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
 .query-timer {
   font-size: 12px;
   font-weight: normal;
@@ -493,6 +625,7 @@ main {
 @media (max-width: 600px) {
   .chart-section {
     margin: 0 -12px 16px -12px;
+    position: relative;
   }
 }
 
@@ -610,6 +743,15 @@ main {
 
   .breakdown-card h3 {
     margin-bottom: 8px;
+  }
+
+  /* Smaller text on mobile */
+  .breakdown-table {
+    font-size: 12px;
+  }
+
+  .breakdown-table .count {
+    font-size: 11px;
   }
 }
 
@@ -794,6 +936,8 @@ main {
   white-space: nowrap;
   padding-left: 8px;
   position: relative;
+  font-family: 'Source Sans', 'Source Sans Pro', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
 }
 
 .breakdown-table .count .value {
@@ -1064,6 +1208,17 @@ main {
   transition: filter 0.2s ease-out;
 }
 
+@media (max-width: 600px) {
+  #logsView {
+    padding: 0;
+  }
+
+  .logs-table-container {
+    border: none;
+    border-radius: 0;
+  }
+}
+
 .logs-table-container.updating {
   filter: blur(2px);
   opacity: 0.7;
@@ -1241,6 +1396,13 @@ main {
   top: 0;
   left: 0;
   bottom: 0;
+}
+
+@media (max-width: 600px) {
+  #quickLinksModal {
+    width: 100vw;
+    max-width: 100vw;
+  }
 }
 
 #quickLinksModal::backdrop {

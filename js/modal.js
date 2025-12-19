@@ -22,6 +22,11 @@ export function initModal() {
     }
   });
 
+  // Close modal when clicking header bar (easier toggle on mobile)
+  const modalHeader = quickLinksModal.querySelector('.modal-header');
+  modalHeader.addEventListener('click', closeQuickLinksModal);
+  modalHeader.style.cursor = 'pointer';
+
   // Close modal on Escape key
   quickLinksModal.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {

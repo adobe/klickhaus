@@ -14,6 +14,16 @@ import {
   getByoCdnColor, getLocationColor
 } from './colors/index.js';
 
+// Format timestamp - short format on mobile
+function formatTimestamp(value) {
+  const date = new Date(value);
+  const isMobile = window.innerWidth < 600;
+  if (isMobile) {
+    return date.toLocaleTimeString();
+  }
+  return date.toLocaleString();
+}
+
 // Map log columns to facet column expressions and value transformations
 const logColumnToFacet = {
   'response.status': { col: 'toString(`response.status`)', transform: (v) => String(v) },
@@ -259,7 +269,7 @@ export function renderLogsTable(data) {
 
       // Format specific columns
       if (col === 'timestamp' && value) {
-        displayValue = new Date(value).toLocaleString();
+        displayValue = formatTimestamp(value);
         cellClass = 'timestamp';
       } else if (col === 'response.status' && value) {
         const status = parseInt(value);
@@ -419,7 +429,7 @@ function appendLogsRows(data) {
 
       // Format specific columns (same logic as renderLogsTable)
       if (col === 'timestamp' && value) {
-        displayValue = new Date(value).toLocaleString();
+        displayValue = formatTimestamp(value);
         cellClass = 'timestamp';
       } else if (col === 'response.status' && value) {
         const status = parseInt(value);

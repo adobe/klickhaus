@@ -139,10 +139,10 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       : `<button class="action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)">Exclude</button>`;
 
     // Mobile action buttons (shown on tap) - using Unicode symbols
-    // + for filter, × for exclude, ✓ for clear
+    // ▼ for filter, × for exclude, ✓ for clear
     const mobileFilterBtn = isIncluded
       ? `<button class="mobile-action-btn active" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')" title="Remove filter">✓</button>`
-      : `<button class="mobile-action-btn" onclick="addFilter('${colEscaped}', '${dimEscaped}', false)" title="Filter to this value">+</button>`;
+      : `<button class="mobile-action-btn" onclick="addFilter('${colEscaped}', '${dimEscaped}', false)" title="Filter to this value">▼</button>`;
     const mobileExcludeBtn = isExcluded
       ? `<button class="mobile-action-btn exclude active" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')" title="Remove exclusion">✓</button>`
       : `<button class="mobile-action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)" title="Exclude this value">×</button>`;

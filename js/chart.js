@@ -27,6 +27,42 @@ export function setupChartNavigation(callback) {
   // Click handlers
   navOverlay.querySelector('.chart-nav-left').addEventListener('click', () => navigateTime(-2/3));
   navOverlay.querySelector('.chart-nav-right').addEventListener('click', () => navigateTime(2/3));
+
+  // Touch swipe support
+  let touchStartX = null;
+  const minSwipeDistance = 50;
+
+  container.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+
+  container.addEventListener('touchend', (e) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX;
+    touchStartX = null;
+
+    if (Math.abs(deltaX) >= minSwipeDistance) {
+      // Swipe right = go back in time, swipe left = go forward
+      navigateTime(deltaX > 0 ? -2/3 : 2/3);
+    }
+  }, { passive: true });
+
+  // Double-tap to toggle logs
+  let lastTap = 0;
+  container.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTap;
+    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      // Double tap detected
+      if (typeof window.toggleLogsViewMobile === 'function') {
+        window.toggleLogsViewMobile();
+      }
+      lastTap = 0;
+    } else {
+      lastTap = now;
+    }
+  }, { passive: true });
 }
 
 function navigateTime(fraction) {

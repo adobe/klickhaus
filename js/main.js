@@ -194,11 +194,31 @@ window.clearFiltersForColumn = clearFiltersForColumn;
 window.togglePinnedColumn = togglePinnedColumn;
 window.increaseTopN = increaseTopN;
 window.closeQuickLinksModal = closeQuickLinksModal;
+window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
 
 // Load host autocomplete when dashboard is shown
 window.addEventListener('dashboard-shown', () => {
   setTimeout(loadHostAutocomplete, 100);
 });
+
+// Double-tap to clear host filter on mobile
+function initHostFilterDoubleTap() {
+  if (!('ontouchstart' in window)) return;
+
+  const hostFilter = document.getElementById('hostFilter');
+  let lastTap = 0;
+
+  hostFilter.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 300 && now - lastTap > 0) {
+      hostFilter.value = '';
+      hostFilter.dispatchEvent(new Event('input'));
+      lastTap = 0;
+    } else {
+      lastTap = now;
+    }
+  });
+}
 
 // Mobile touch support for breakdown rows
 function initMobileTouchSupport() {
@@ -240,6 +260,117 @@ function initMobileTouchSupport() {
   });
 }
 
+// Pull to refresh
+function initPullToRefresh() {
+  if (!('ontouchstart' in window)) return;
+
+  // Create indicator element - insert before breakdowns
+  const indicator = document.createElement('div');
+  indicator.className = 'pull-to-refresh';
+  indicator.innerHTML = '<span class="pull-arrow">↻</span><span class="pull-text">Pull to refresh</span>';
+  const breakdowns = document.querySelector('.breakdowns');
+  if (breakdowns) {
+    breakdowns.parentNode.insertBefore(indicator, breakdowns);
+  }
+
+  let touchStartY = 0;
+  let isPulling = false;
+  const threshold = 80;
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.scrollY === 0) {
+      touchStartY = e.touches[0].clientY;
+      isPulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isPulling) return;
+    const touchY = e.touches[0].clientY;
+    const pullDistance = touchY - touchStartY;
+
+    if (pullDistance > 0 && window.scrollY === 0) {
+      indicator.classList.add('visible');
+      indicator.querySelector('.pull-text').textContent =
+        pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
+    } else {
+      indicator.classList.remove('visible');
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!isPulling) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const pullDistance = touchEndY - touchStartY;
+
+    if (pullDistance > threshold && window.scrollY === 0) {
+      indicator.classList.add('refreshing');
+      indicator.querySelector('.pull-text').textContent = 'Refreshing...';
+      loadDashboard(true).then(() => {
+        indicator.classList.remove('visible', 'refreshing');
+      });
+    } else {
+      indicator.classList.remove('visible');
+    }
+
+    isPulling = false;
+    touchStartY = 0;
+  }, { passive: true });
+}
+
+// Move active filters to chart area on mobile
+function initMobileFiltersPosition() {
+  const activeFilters = document.getElementById('activeFilters');
+  const chartSection = document.querySelector('.chart-section');
+  const headerLeft = document.querySelector('.header-left');
+
+  function updatePosition() {
+    const isMobile = window.innerWidth < 600;
+    if (isMobile && activeFilters.parentElement !== chartSection) {
+      chartSection.appendChild(activeFilters);
+    } else if (!isMobile && activeFilters.parentElement !== headerLeft) {
+      headerLeft.appendChild(activeFilters);
+    }
+  }
+
+  updatePosition();
+  window.addEventListener('resize', updatePosition);
+}
+
+// Responsive time range labels
+function initResponsiveLabels() {
+  const timeRange = document.getElementById('timeRange');
+  const fullLabels = {
+    '15m': 'Last 15 minutes',
+    '1h': 'Last hour',
+    '12h': 'Last 12 hours',
+    '24h': 'Last 24 hours',
+    '7d': 'Last 7 days'
+  };
+  const shortLabels = {
+    '15m': '15m',
+    '1h': '1h',
+    '12h': '12h',
+    '24h': '24h',
+    '7d': '7d'
+  };
+
+  function updateLabels() {
+    const isMobile = window.innerWidth < 600;
+    const labels = isMobile ? shortLabels : fullLabels;
+    Array.from(timeRange.options).forEach(opt => {
+      opt.textContent = labels[opt.value] || opt.value;
+    });
+  }
+
+  updateLabels();
+  window.addEventListener('resize', updateLabels);
+}
+
 // Start
 init();
+initHostFilterDoubleTap();
 initMobileTouchSupport();
+initPullToRefresh();
+initResponsiveLabels();
+initMobileFiltersPosition();
