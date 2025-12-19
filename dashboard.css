@@ -569,6 +569,14 @@ main {
   gap: 16px;
 }
 
+.breakdown-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  transition: filter 0.2s ease-out;
+}
+
 @media (max-width: 1400px) {
   .breakdowns {
     grid-template-columns: repeat(3, 1fr);
@@ -621,14 +629,6 @@ main {
   .breakdowns {
     grid-template-columns: repeat(7, 1fr);
   }
-}
-
-.breakdown-card {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  transition: filter 0.2s ease-out;
 }
 
 .breakdown-card.updating {
