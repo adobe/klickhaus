@@ -1,5 +1,6 @@
 // Time series chart rendering
 import { DATABASE } from './config.js';
+import { state } from './state.js';
 import { query } from './api.js';
 import { getTimeFilter, getHostFilter, getTimeBucket, getTable, getPeriodMs, queryTimestamp, setQueryTimestamp } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
@@ -65,6 +66,7 @@ export async function loadTimeSeries() {
 
   try {
     const result = await query(sql);
+    state.chartData = result.data;
     renderChart(result.data);
   } catch (err) {
     console.error('Chart error:', err);

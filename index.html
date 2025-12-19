@@ -160,7 +160,104 @@
       color: #2563eb;
     }
 
+    .badge-legacy {
+      background: #e5e7eb;
+      color: #6b7280;
+    }
+
+    .legacy-view {
+      opacity: 0.5;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    .legacy-view a {
+      background: var(--bg);
+      border-style: dashed;
+    }
+
+    /* Search box */
+    .search-container {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      padding: 12px 0 16px;
+      margin-bottom: 16px;
+      z-index: 100;
+    }
+
+    body.embedded .search-container {
+      top: 0;
+      padding-top: 0;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .search-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: none;
+    }
+
+    body.embedded .search-hint {
+      display: block;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+      display: none;
+    }
+
+    .no-results.visible {
+      display: block;
+    }
+
+    /* Hide filtered elements */
+    .section.hidden,
+    li.hidden {
+      display: none;
+    }
+
+    /* Highlight matching text */
+    mark {
+      background: #fef08a;
+      color: inherit;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
     @media (prefers-color-scheme: dark) {
+      mark {
+        background: #854d0e;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .badge-legacy {
+        background: #374151;
+        color: #9ca3af;
+      }
       .badge-error {
         background: #3d1a1a;
         color: #f87171;
@@ -182,6 +279,15 @@
   <div class="container">
     <h1>CDN Analytics</h1>
     <p class="subtitle">Quick access to common analytics views</p>
+
+    <div class="search-container">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search views..." autofocus>
+      <div class="search-hint">Type to filter views. Press Enter to select first result.</div>
+    </div>
+
+    <div class="no-results" id="noResults">
+      No views match your search.
+    </div>
 
     <ul class="home-link">
       <li>
@@ -389,6 +495,642 @@
         </li>
       </ul>
     </div>
+
+    <div class="section">
+      <h2>Legacy Views (Migration from Coralogix) - CDN Delivery</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="59715">
+          <a href="#">
+            <div class="title">aem.(live|page) </div>
+            <div class="description">Main delivery logs from Fastly for aem.live and aem.page domains. Filters: edge requests only.</div>
+          </a>
+        </li>
+        <li data-view-id="83895">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Errors&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
+            <div class="title">aem.(live|page) errors</div>
+            <div class="description">Server errors (5xx) from aem.live/page delivery. Excludes 500 errors with 72-byte body size.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90496">
+          <a href="#">
+            <div class="title">aem.(live|page) (long running requests: >5s)</div>
+            <div class="description">Requests taking longer than 5 seconds on aem.live/page. Useful for performance debugging.</div>
+          </a>
+        </li>
+        <li data-view-id="84163">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Rate-Limited&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;429&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
+            <div class="title">aem.(live|page) (rate-limited)</div>
+            <div class="description">Requests returning 429 status on aem.live/page. Shows rate-limited traffic.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="84162">
+          <a href="#">
+            <div class="title">aem.(live|page) (rate-limited, dry run)</div>
+            <div class="description">Requests with x_rate_limited_rate header. Shows what would be rate-limited.</div>
+          </a>
+        </li>
+        <li data-view-id="82074">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Cloudflare Origins&filters=[{&quot;col&quot;:&quot;`helix.backend_type`&quot;,&quot;value&quot;:&quot;cloudflare&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&pinned=`request.method`,`response.status`,`cdn.url`,`response.headers.x_error`,`cdn.time_elapsed_msec`&view=logs">
+            <div class="title">aem.(live|page) (Cloudflare origins)</div>
+            <div class="description">Delivery requests routed to Cloudflare backend. Filters: backend_type=cloudflare.</div>
+          </a>
+        </li>
+        <li data-view-id="84178">
+          <a href="dashboard.html?t=1h&title=aem.(live|page) Leaked Preflights&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`request.restarts`)&quot;,&quot;value&quot;:&quot;0&quot;,&quot;exclude&quot;:false}]&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
+            <div class="title">aem.(live|page) (leaked preflights)</div>
+            <div class="description">JSON responses with no restarts - potential preflight request leaks. Content-type: application/json.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="84405">
+          <a href="#">
+            <div class="title">aem.(live|page) audit</div>
+            <div class="description">Delivery logs with x_audit response header for audit tracking.</div>
+          </a>
+        </li>
+        <li data-view-id="29302">
+          <a href="dashboard.html?t=1h&title=hlx.live&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
+            <div class="title">hlx.live</div>
+            <div class="description">Legacy hlx.live delivery logs from Fastly. Edge requests only.</div>
+          </a>
+        </li>
+        <li data-view-id="60190">
+          <a href="dashboard.html?t=1h&title=hlx.live Errors to Prod CDN&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;akamai&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;cloudflare&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;cloudfront&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.headers.x_byo_cdn_type`&quot;,&quot;value&quot;:&quot;fastly&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
+            <div class="title">hlx.live (errors delivered to prod cdn)</div>
+            <div class="description">5xx errors on hlx.live from BYOCDN traffic (Akamai, Cloudflare, CloudFront, Fastly).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="84155">
+          <a href="#">
+            <div class="title">hlx.live (401s delivered to prod cdn)</div>
+            <div class="description">Authentication errors (401) on hlx.live with x_auth_error header.</div>
+          </a>
+        </li>
+        <li data-view-id="57704">
+          <a href="dashboard.html?t=1h&title=hlx.live Slow Requests (%3E5s)&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`cdn.time_elapsed_msec`&view=logs">
+            <div class="title">hlx.live (long running requests: >5s)</div>
+            <div class="description">Slow requests (>5s) on hlx.live for performance analysis.</div>
+          </a>
+        </li>
+        <li data-view-id="82951">
+          <a href="dashboard.html?t=1h&title=hlx.live Redirects&filters=[{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;301&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;302&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.host`,`request.url`,`response.headers.location`&view=logs">
+            <div class="title">hlx.live redirects</div>
+            <div class="description">301/302 redirect responses on hlx.live. Shows redirect patterns.</div>
+          </a>
+        </li>
+        <li data-view-id="29297">
+          <a href="dashboard.html?t=1h&title=hlx.page&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
+            <div class="title">hlx.page</div>
+            <div class="description">Legacy hlx.page (preview) delivery logs from Fastly. Edge requests only.</div>
+          </a>
+        </li>
+        <li data-view-id="8928">
+          <a href="dashboard.html?t=1h&title=hlx.page Errors&filters=[{&quot;col&quot;:&quot;concat(toString(intDiv(`response.status`, 100)), 'xx')&quot;,&quot;value&quot;:&quot;5xx&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`cdn.time_elapsed_msec`,`response.headers.x_error`,`request.host`,`request.url`,`request.headers.user_agent`&view=logs">
+            <div class="title">hlx.page errors</div>
+            <div class="description">Server errors (5xx) on hlx.page preview environment.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="58904">
+          <a href="#">
+            <div class="title">hlx.page (Cloudflare origins)</div>
+            <div class="description">hlx.page requests using Cloudflare backend (x_backend_type=cloudflare).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="58846">
+          <a href="#">
+            <div class="title">hlx.page (leaked preflights)</div>
+            <div class="description">Potential preflight leaks on hlx.page - JSON responses with no restarts.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="57703">
+          <a href="#">
+            <div class="title">hlx.page (long running requests: >5s)</div>
+            <div class="description">Slow requests on hlx.page for performance debugging.</div>
+          </a>
+        </li>
+        <li data-view-id="83274">
+          <a href="dashboard.html?t=1h&title=hlx.page Rate-Limited&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;429&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;html&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`helix.request_type`&quot;,&quot;value&quot;:&quot;json&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
+            <div class="title">hlx.page (rate-limited)</div>
+            <div class="description">Rate-limited (429) requests on hlx.page for html/json request types.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="92288">
+          <a href="#">
+            <div class="title">Delivery Service (all subsystems)</div>
+            <div class="description">Combined delivery logs across all Fastly subsystems. Edge requests only.</div>
+          </a>
+        </li>
+        <li data-view-id="90850">
+          <a href="dashboard.html?t=1h&title=www.aem.live&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=www.aem.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`,`response.headers.x_error`&view=logs">
+            <div class="title">www.aem.live</div>
+            <div class="description">AEM documentation site logs from Fastly. Edge requests only.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Specialized Services</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="60597">
+          <a href="#">
+            <div class="title">config.aem.page </div>
+            <div class="description">Configuration service logs from Fastly. Shows config fetches.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90521">
+          <a href="#">
+            <div class="title">config.aem.page (large response: >1m)</div>
+            <div class="description">Config responses larger than 1MB. Useful for identifying oversized configs.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="89072">
+          <a href="#">
+            <div class="title">config.aem-cloudflare.page</div>
+            <div class="description">Cloudflare config service logs. Large responses (>1MB) filter available.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="89987">
+          <a href="#">
+            <div class="title">pipeline.aem.page</div>
+            <div class="description">Pipeline service (HTML rendering) logs from Fastly. Shows SSR requests.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="91227">
+          <a href="#">
+            <div class="title">media.aem.page</div>
+            <div class="description">Media delivery service logs. Shows image/video serving with Fastly IO info.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="83530">
+          <a href="#">
+            <div class="title">static.aem.page</div>
+            <div class="description">Static asset delivery (JS, CSS) logs from Fastly.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90057">
+          <a href="#">
+            <div class="title">form.aem.page</div>
+            <div class="description">Form submission service logs from Fastly.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Cloudflare</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="10019">
+          <a href="#">
+            <div class="title">Cloudflare zone logs </div>
+            <div class="description">Normalized Cloudflare HTTP logs. Filters: eyeball requests, AEM zones.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="11180">
+          <a href="#">
+            <div class="title">Cloudflare zone logs (native)</div>
+            <div class="description">Raw Cloudflare log format. Filters: eyeball (non-worker) requests.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="66985">
+          <a href="#">
+            <div class="title">Cloudflare worker logs</div>
+            <div class="description">Cloudflare Workers logpush. Shows worker execution logs and exceptions.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="91674">
+          <a href="#">
+            <div class="title">aem.network (native)</div>
+            <div class="description">Cloudflare logs for aem.network zone. Filters: eyeball requests.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Admin &amp; Publishing</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="60721">
+          <a href="#">
+            <div class="title">admin.hlx.page (errors) </div>
+            <div class="description">Admin service errors (5xx severity). Shows x_error and invocation IDs.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="83190">
+          <a href="#">
+            <div class="title">admin.hlx.page (rate-limited)</div>
+            <div class="description">Rate-limited (429) admin requests. Filters: rate limit of 10.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="10497">
+          <a href="#">
+            <div class="title">admin (lambda) errors</div>
+            <div class="description">Admin Lambda function errors. Filters: admin/v12 function, severity 5.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="9592">
+          <a href="#">
+            <div class="title">admin (lambda) log (condensed)</div>
+            <div class="description">Condensed admin Lambda logs. Severity 3-5, admin/v11-v12.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="57731">
+          <a href="#">
+            <div class="title">admin (lambda) purge errors</div>
+            <div class="description">Cache purge errors from admin Lambda. Severity 5.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="59449">
+          <a href="#">
+            <div class="title">admin (lambda) request log</div>
+            <div class="description">Admin Lambda request logs. Search: purge operations.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="60169">
+          <a href="#">
+            <div class="title">admin github rate limit</div>
+            <div class="description">GitHub API rate limit errors from admin service.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="59714">
+          <a href="#">
+            <div class="title">admin-code-sync-jobs</div>
+            <div class="description">Code sync job executions. Search: /job/ and /code/ operations.</div>
+          </a>
+        </li>
+        <li data-view-id="91892">
+          <a href="dashboard.html?t=1h&title=api.aem.live&host=api.aem.live&pinned=`request.method`,`response.status`,`cdn.time_elapsed_msec`,`response.headers.x_error`,`request.url`&view=logs">
+            <div class="title">api.aem.live</div>
+            <div class="description">API service logs from Fastly. Shows method, status, response time.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="92296">
+          <a href="#">
+            <div class="title">Publishing Service (all subsystems)</div>
+            <div class="description">Combined publishing logs from admin.hlx.page and api.aem.live across subsystems.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="60184">
+          <a href="#">
+            <div class="title">publishing-error-rate</div>
+            <div class="description">Publishing errors to backend workers (Lambda, R2, S3). Requires request.backend column.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Storage &amp; Sync</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="58734">
+          <a href="#">
+            <div class="title">OneDrive Operations </div>
+            <div class="description">OneDrive API operations. Groups by project, operation, tenant.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="10739">
+          <a href="#">
+            <div class="title">S3 to R2 sync (cron) log</div>
+            <div class="description">S3 to R2 synchronization cron job logs. Severity 4 (info).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="91471">
+          <a href="#">
+            <div class="title">S3/R2 diffs</div>
+            <div class="description">Storage diff logs between S3 and R2. Severity 4-6.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Forms</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="60359">
+          <a href="#">
+            <div class="title">Forms service errors </div>
+            <div class="description">Forms service errors from helix3 subsystem. Severity 5.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="10768">
+          <a href="#">
+            <div class="title">Forms-Handler not empty</div>
+            <div class="description">Forms handler activity excluding empty queue messages.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="62524">
+          <a href="#">
+            <div class="title">Valid Form POST Requests</div>
+            <div class="description">Successful form submissions (201 status) to backend workers. Requires request.backend column.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - RUM (Real User Monitoring)</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="59488">
+          <a href="#">
+            <div class="title">rum data </div>
+            <div class="description">Real User Monitoring data from helix-rum-collector. Shows checkpoints, domains, URLs.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="79940">
+          <a href="#">
+            <div class="title">RUM Logs Fastly AND Cloudflare</div>
+            <div class="description">Combined RUM logs from both CDNs. Filters: checkpoint exists.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="6194">
+          <a href="#">
+            <div class="title">CWV Log</div>
+            <div class="description">Core Web Vitals (FID, LCP, CLS) from RUM collector.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="68412">
+          <a href="#">
+            <div class="title">rum-bundler aws logs</div>
+            <div class="description">RUM bundler Lambda function logs.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="65710">
+          <a href="#">
+            <div class="title">rum-bundler fastly logs</div>
+            <div class="description">RUM bundler Fastly logs for rum.fastly-aem.page and bundles.aem.page.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="71244">
+          <a href="#">
+            <div class="title">rum-bundler perf logs</div>
+            <div class="description">RUM bundler performance logs. Shows loop stats, total events, new domains.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - LLM &amp; AI Traffic</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="90153">
+          <a href="#">
+            <div class="title">LLM on aem.(live|page) </div>
+            <div class="description">LLM/AI bot traffic to AEM delivery. Edge requests only.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90154">
+          <a href="#">
+            <div class="title">LLM on www.aem.live</div>
+            <div class="description">AI crawler traffic (ChatGPT, OpenAI, Perplexity, Claude) to www.aem.live.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="89922">
+          <a href="#">
+            <div class="title">llms.txt requests on www.aem.live</div>
+            <div class="description">Requests for llms.txt from AI user agents.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Sidekick</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="90445">
+          <a href="#">
+            <div class="title">Sidekick v6 </div>
+            <div class="description">AEM Sidekick v6 requests to admin.hlx.page. Route: sidekick.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="95418">
+          <a href="#">
+            <div class="title">Sidekick v6 (Safari)</div>
+            <div class="description">Sidekick v6 Safari browser requests with city geolocation.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90446">
+          <a href="#">
+            <div class="title">Sidekick v7</div>
+            <div class="description">Sidekick v7 requests (Mozilla UA, non-Chrome). Route: sidekick.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="57548">
+          <a href="#">
+            <div class="title">sidekick library</div>
+            <div class="description">Sidekick library JS requests on www.aem.live and www.hlx.live.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Indexer</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="10972">
+          <a href="#">
+            <div class="title">all (indexer) </div>
+            <div class="description">Indexer Lambda logs. Severity 4-5, function: indexer/v6.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="94268">
+          <a href="#">
+            <div class="title">indexer latency</div>
+            <div class="description">Indexer performance metrics: latency, change count, errors.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Lambda Functions</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="66599">
+          <a href="#">
+            <div class="title">Pipeline (Lambda) </div>
+            <div class="description">Pipeline service Lambda logs. Functions: pipeline-service/v9-v10.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="5530">
+          <a href="#">
+            <div class="title">function-logs</div>
+            <div class="description">Generic AWS Lambda function logs from AWS account.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Bots</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="1861">
+          <a href="#">
+            <div class="title">helix-bot log </div>
+            <div class="description">Helix bot Lambda logs. Function: bot/v3.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="62542">
+          <a href="#">
+            <div class="title">helix-bot log (new)</div>
+            <div class="description">Updated helix bot Lambda logs. Function: bot/v3.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="55563">
+          <a href="#">
+            <div class="title">slack-bot-logs</div>
+            <div class="description">Slack bot integration logs. Function: slack-bot/v4.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Cron Jobs</h2>
+      <ul>
+        <li class="legacy-view" data-view-id="91762">
+          <a href="#">
+            <div class="title">job executions </div>
+            <div class="description">Cron job executions. Filters: preview route, crontab path, non-200 status.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="91761">
+          <a href="#">
+            <div class="title">failed preview</div>
+            <div class="description">Failed preview cron jobs (non-200 status).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90343">
+          <a href="#">
+            <div class="title">Code Jobs 30days</div>
+            <div class="description">Code sync jobs in last 30 days grouped by owner/repo.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90006">
+          <a href="#">
+            <div class="title">last 30d codesync</div>
+            <div class="description">Code sync operations in last 30 days by org/site.</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Legacy Views - Miscellaneous</h2>
+      <ul>
+        <li data-view-id="60393">
+          <a href="dashboard.html?t=24h&title=Leaking /package.json on hlx.page&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;`request.url`&quot;,&quot;value&quot;:&quot;/package.json&quot;,&quot;exclude&quot;:false},{&quot;col&quot;:&quot;toString(`response.status`)&quot;,&quot;value&quot;:&quot;200&quot;,&quot;exclude&quot;:false}]&host=hlx.page&pinned=`response.status`,`request.method`,`request.url`&view=logs">
+            <div class="title">Leaking /package.json on hlx.page</div>
+            <div class="description">Security: package.json exposed with 200 status on hlx.page.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="91769">
+          <a href="#">
+            <div class="title">Google discovery</div>
+            <div class="description">Google discovery events with non-zero count.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="57855">
+          <a href="#">
+            <div class="title">Fastly C@E</div>
+            <div class="description">Fastly Compute@Edge logs. Filters: 404 status.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="84181">
+          <a href="#">
+            <div class="title">hlx.page (with project creation date)</div>
+            <div class="description">hlx.page logs with x_created_date header for project age analysis.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="83273">
+          <a href="#">
+            <div class="title">hlx.page (rate-limited, dry run)</div>
+            <div class="description">Rate-limit dry run on hlx.page. Shows x_rate_limited_rate for html/json.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="83288">
+          <a href="#">
+            <div class="title">hlx.page (rate-limited, dry run) (max per ip rps)</div>
+            <div class="description">Top 10 IPs by max rate-limited rate. Aggregation query.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="84172">
+          <a href="#">
+            <div class="title">aem.(live|page) (rate-limited, dry run) (max per host rps)</div>
+            <div class="description">Rate-limit dry run analysis by host on aem.live/page.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90710">
+          <a href="#">
+            <div class="title">aem.(live|page) (new relic traffic)</div>
+            <div class="description">Long-running requests (>5s) potentially from New Relic monitoring.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90711">
+          <a href="#">
+            <div class="title">hlx.live (new relic traffic)</div>
+            <div class="description">Long-running requests (>5s) on hlx.live from monitoring traffic.</div>
+          </a>
+        </li>
+        <li data-view-id="59702">
+          <a href="dashboard.html?t=1h&title=hlx.live without X-Forwarded-Host&filters=[{&quot;col&quot;:&quot;`cdn.is_edge`&quot;,&quot;value&quot;:&quot;true&quot;,&quot;exclude&quot;:false}]&host=hlx.live&pinned=`response.status`,`request.method`,`request.host`,`request.url`&view=logs">
+            <div class="title">hlx.live w/o xfh</div>
+            <div class="description">hlx.live requests without x-forwarded-host header.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90522">
+          <a href="#">
+            <div class="title">config.aem-cloudflare.page (large response: >1m)</div>
+            <div class="description">Cloudflare config responses larger than 1MB.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90732">
+          <a href="#">
+            <div class="title">config.aem.page (response size by RSO)</div>
+            <div class="description">Config response sizes aggregated by RSO (repo/site/org).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="74398">
+          <a href="#">
+            <div class="title">rum data - Alex</div>
+            <div class="description">RUM data view with extended checkpoint and CWV fields.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="80253">
+          <a href="#">
+            <div class="title">rum-bundler truncated cf events</div>
+            <div class="description">RUM bundler logs for truncated CloudFront events.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="6145">
+          <a href="#">
+            <div class="title">rofe.default</div>
+            <div class="description">Default RUM checkpoint view with CDN origin data.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="2884">
+          <a href="#">
+            <div class="title">Fonts</div>
+            <div class="description">Font delivery logs with CDN URL and response status.</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90856">
+          <a href="#">
+            <div class="title">config.aem.page (long running requests: >5s)</div>
+            <div class="description">Slow config service requests (>5s).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="90495">
+          <a href="#">
+            <div class="title">pipeline.aem.page (long running requests: >5s)</div>
+            <div class="description">Slow pipeline/SSR requests (>5s).</div>
+          </a>
+        </li>
+        <li class="legacy-view" data-view-id="91240">
+          <a href="#">
+            <div class="title">media.aem.page (long running requests: >5s)</div>
+            <div class="description">Slow media delivery requests (>5s).</div>
+          </a>
+        </li>
+      </ul>
+    </div>
   </div>
 
   <script>
@@ -424,6 +1166,145 @@
           window.parent.postMessage({ type: 'navigate', url: href }, '*');
         });
       });
+    }
+
+    // Type-ahead search functionality
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const sections = document.querySelectorAll('.section');
+    const homeLink = document.querySelector('.home-link');
+
+    // Store original HTML for restoration
+    const originalContent = new Map();
+    document.querySelectorAll('li').forEach(li => {
+      originalContent.set(li, {
+        title: li.querySelector('.title')?.innerHTML || '',
+        description: li.querySelector('.description')?.innerHTML || ''
+      });
+    });
+
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightText(text, query) {
+      if (!query) return text;
+      const escaped = escapeRegex(query);
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    function filterViews(query) {
+      const searchTerms = query.toLowerCase().trim();
+      let hasVisibleItems = false;
+
+      // Reset all content first
+      originalContent.forEach((content, li) => {
+        const titleEl = li.querySelector('.title');
+        const descEl = li.querySelector('.description');
+        if (titleEl) titleEl.innerHTML = content.title;
+        if (descEl) descEl.innerHTML = content.description;
+      });
+
+      if (!searchTerms) {
+        // Show everything when search is empty
+        sections.forEach(section => section.classList.remove('hidden'));
+        document.querySelectorAll('li').forEach(li => li.classList.remove('hidden'));
+        homeLink?.classList.remove('hidden');
+        noResults.classList.remove('visible');
+        return;
+      }
+
+      // Hide home link during search
+      homeLink?.classList.add('hidden');
+
+      sections.forEach(section => {
+        const sectionTitle = section.querySelector('h2')?.textContent.toLowerCase() || '';
+        const items = section.querySelectorAll('li');
+        let sectionHasVisibleItems = false;
+
+        items.forEach(li => {
+          const original = originalContent.get(li);
+          if (!original) return;
+
+          const title = original.title.replace(/<[^>]*>/g, '').toLowerCase();
+          const description = original.description.replace(/<[^>]*>/g, '').toLowerCase();
+          const matches = title.includes(searchTerms) ||
+                         description.includes(searchTerms) ||
+                         sectionTitle.includes(searchTerms);
+
+          if (matches) {
+            li.classList.remove('hidden');
+            sectionHasVisibleItems = true;
+            hasVisibleItems = true;
+
+            // Highlight matching text
+            const titleEl = li.querySelector('.title');
+            const descEl = li.querySelector('.description');
+            if (titleEl) titleEl.innerHTML = highlightText(original.title, searchTerms);
+            if (descEl) descEl.innerHTML = highlightText(original.description, searchTerms);
+          } else {
+            li.classList.add('hidden');
+          }
+        });
+
+        section.classList.toggle('hidden', !sectionHasVisibleItems);
+      });
+
+      noResults.classList.toggle('visible', !hasVisibleItems);
+    }
+
+    function getFirstVisibleLink() {
+      // Find first visible non-legacy link
+      for (const section of sections) {
+        if (section.classList.contains('hidden')) continue;
+        const items = section.querySelectorAll('li:not(.hidden):not(.legacy-view)');
+        if (items.length > 0) {
+          return items[0].querySelector('a');
+        }
+      }
+      // Fall back to home link if visible
+      if (!homeLink?.classList.contains('hidden')) {
+        return homeLink.querySelector('a');
+      }
+      return null;
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      filterViews(e.target.value);
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const firstLink = getFirstVisibleLink();
+        if (firstLink) {
+          firstLink.click();
+        }
+      } else if (e.key === 'Escape') {
+        searchInput.value = '';
+        filterViews('');
+        searchInput.blur();
+      }
+    });
+
+    // Focus search on any keypress when not in an input
+    document.addEventListener('keydown', (e) => {
+      // Skip if already in an input or if modifier keys are pressed
+      if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Skip for navigation keys
+      if (['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+
+      // Focus search and let the character be typed
+      if (e.key.length === 1) {
+        searchInput.focus();
+      }
+    });
+
+    // Auto-focus search when embedded (dialog mode)
+    if (window.parent !== window) {
+      setTimeout(() => searchInput.focus(), 100);
     }
   </script>
 </body>

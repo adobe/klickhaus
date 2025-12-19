@@ -9,7 +9,9 @@ import { formatBytes } from './format.js';
 import {
   getStatusColor, getMethodColor, getHostColor, getContentTypeColor,
   getCacheStatusColor, getPathColor, getRefererColor, getUserAgentColor,
-  getIPColor, getRequestTypeColor, getBackendTypeColor, getErrorColor
+  getIPColor, getRequestTypeColor, getBackendTypeColor, getErrorColor,
+  getAcceptColor, getAcceptEncodingColor, getCacheControlColor,
+  getByoCdnColor, getLocationColor
 } from './colors/index.js';
 
 // Map log columns to facet column expressions and value transformations
@@ -48,6 +50,9 @@ export function setLogsElements(view, btn, content) {
 
   // Set up scroll listener for infinite scroll on window
   window.addEventListener('scroll', handleLogsScroll);
+
+  // Set up click handler for copying row data
+  setupLogRowClickHandler();
 }
 
 function handleLogsScroll() {
@@ -68,6 +73,13 @@ function handleLogsScroll() {
 // Register callback for pinned column changes
 setOnPinnedColumnsChange(renderLogsTable);
 
+// Callback for redrawing chart when switching views
+let onShowFiltersView = null;
+
+export function setOnShowFiltersView(callback) {
+  onShowFiltersView = callback;
+}
+
 export function toggleLogsView(saveStateToURL) {
   state.showLogs = !state.showLogs;
   if (state.showLogs) {
@@ -80,6 +92,10 @@ export function toggleLogsView(saveStateToURL) {
     dashboardContent.classList.remove('hidden');
     logsBtn.classList.remove('active');
     logsBtn.textContent = 'Logs';
+    // Redraw chart after view becomes visible
+    if (onShowFiltersView) {
+      requestAnimationFrame(() => onShowFiltersView());
+    }
   }
   saveStateToURL();
 }
@@ -189,6 +205,11 @@ export function renderLogsTable(data) {
     'client.ip',
     'request.headers.x_forwarded_for',
     'response.headers.x_error',
+    'request.headers.accept',
+    'request.headers.accept_encoding',
+    'request.headers.cache_control',
+    'request.headers.x_byo_cdn_type',
+    'response.headers.location',
   ];
 
   // Sort columns: pinned first, then color-coded, then the rest
@@ -227,8 +248,9 @@ export function renderLogsTable(data) {
       <tbody>
   `;
 
-  for (const row of data) {
-    html += '<tr>';
+  for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
+    const row = data[rowIdx];
+    html += `<tr data-row-idx="${rowIdx}">`;
     for (const col of columns) {
       let value = row[col];
       let cellClass = '';
@@ -285,6 +307,16 @@ export function renderLogsTable(data) {
           color = getBackendTypeColor(value);
         } else if (col === 'response.headers.x_error') {
           color = getErrorColor(value);
+        } else if (col === 'request.headers.accept') {
+          color = getAcceptColor(value);
+        } else if (col === 'request.headers.accept_encoding') {
+          color = getAcceptEncodingColor(value);
+        } else if (col === 'request.headers.cache_control') {
+          color = getCacheControlColor(value);
+        } else if (col === 'request.headers.x_byo_cdn_type') {
+          color = getByoCdnColor(value);
+        } else if (col === 'response.headers.location') {
+          color = getLocationColor(value);
         }
         if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
       }
@@ -371,9 +403,14 @@ function appendLogsRows(data) {
   const fullColumns = columns.map(col => shortToFull[col] || col);
   const pinned = state.pinnedColumns.filter(col => fullColumns.includes(col));
 
+  // Get starting index from existing rows
+  const existingRows = tbody.querySelectorAll('tr').length;
+
   let html = '';
-  for (const row of data) {
-    html += '<tr>';
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const rowIdx = existingRows + i;
+    html += `<tr data-row-idx="${rowIdx}">`;
     for (const col of fullColumns) {
       let value = row[col];
       let cellClass = '';
@@ -430,6 +467,16 @@ function appendLogsRows(data) {
           color = getBackendTypeColor(value);
         } else if (col === 'response.headers.x_error') {
           color = getErrorColor(value);
+        } else if (col === 'request.headers.accept') {
+          color = getAcceptColor(value);
+        } else if (col === 'request.headers.accept_encoding') {
+          color = getAcceptEncodingColor(value);
+        } else if (col === 'request.headers.cache_control') {
+          color = getCacheControlColor(value);
+        } else if (col === 'request.headers.x_byo_cdn_type') {
+          color = getByoCdnColor(value);
+        } else if (col === 'response.headers.location') {
+          color = getLocationColor(value);
         }
         if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
       }
@@ -483,4 +530,86 @@ function appendLogsRows(data) {
 function renderLogsError(message) {
   const container = logsView.querySelector('.logs-table-container');
   container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
+}
+
+// Copy row data as JSON when clicking on row background
+export function copyLogRow(rowIdx) {
+  const row = state.logsData[rowIdx];
+  if (!row) return;
+
+  // Convert flat dot notation to nested object
+  const nested = {};
+  for (const [key, value] of Object.entries(row)) {
+    // Skip empty values
+    if (value === null || value === undefined || value === '') continue;
+
+    const parts = key.split('.');
+    let current = nested;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!current[parts[i]]) {
+        current[parts[i]] = {};
+      }
+      current = current[parts[i]];
+    }
+    current[parts[parts.length - 1]] = value;
+  }
+
+  const json = JSON.stringify(nested, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    // Brief visual feedback
+    showCopyFeedback();
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
+}
+
+// Show brief "Copied!" feedback
+function showCopyFeedback() {
+  let feedback = document.getElementById('copy-feedback');
+  if (!feedback) {
+    feedback = document.createElement('div');
+    feedback.id = 'copy-feedback';
+    feedback.textContent = 'Copied to clipboard';
+    feedback.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: var(--bg);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.2s;
+    `;
+    document.body.appendChild(feedback);
+  }
+  feedback.style.opacity = '1';
+  setTimeout(() => {
+    feedback.style.opacity = '0';
+  }, 1500);
+}
+
+// Set up click handler for row background clicks
+export function setupLogRowClickHandler() {
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+
+  container.addEventListener('click', (e) => {
+    // Only handle clicks directly on td or tr (not on links, buttons, or spans)
+    const target = e.target;
+    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
+
+    // Don't copy if clicking on a clickable cell (filter action)
+    if (target.classList.contains('clickable')) return;
+
+    // Find the row
+    const row = target.closest('tr');
+    if (!row || !row.dataset.rowIdx) return;
+
+    const rowIdx = parseInt(row.dataset.rowIdx);
+    copyLogRow(rowIdx);
+  });
 }

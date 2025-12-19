@@ -9,7 +9,8 @@ import { loadTimeSeries, setupChartNavigation } from './chart.js';
 import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import { addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks } from './filters.js';
-import { loadLogs, toggleLogsView, setLogsElements } from './logs.js';
+import { loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView } from './logs.js';
+import { renderChart } from './chart.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import { getTimeFilter, getHostFilter } from './time.js';
@@ -34,6 +35,13 @@ const elements = {
 setElements(elements);
 setUrlStateElements(elements);
 setLogsElements(elements.logsView, elements.logsBtn, elements.dashboardContent);
+
+// Set up callback to redraw chart when switching from logs to filters view
+setOnShowFiltersView(() => {
+  if (state.chartData) {
+    renderChart(state.chartData);
+  }
+});
 
 // Set up filter callbacks to avoid circular dependencies
 setFilterCallbacks(saveStateToURL, loadDashboard);

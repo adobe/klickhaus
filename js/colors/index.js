@@ -95,3 +95,23 @@ export function getRefererColor(referer) {
 export function getPathColor(path) {
   return colorRules.path.getColor(path);
 }
+
+export function getAcceptColor(accept) {
+  return colorRules.accept.getColor(accept);
+}
+
+export function getAcceptEncodingColor(encoding) {
+  return colorRules.acceptEncoding.getColor(encoding);
+}
+
+export function getCacheControlColor(cacheControl) {
+  return colorRules.cacheControl.getColor(cacheControl);
+}
+
+export function getByoCdnColor(cdn) {
+  return colorRules.byoCdn.getColor(cdn);
+}
+
+export function getLocationColor(location) {
+  return colorRules.location.getColor(location);
+}
