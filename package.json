@@ -1,9 +1,19 @@
 {
-  "name": "klickhaus",
+  "name": "@adobe/klickhaus",
   "version": "1.0.0",
-  "description": "ClickHouse CDN Analytics Dashboard",
+  "description": "ClickHouse CDN Analytics Dashboard - Web and Terminal UI",
+  "type": "module",
+  "main": "tui/index.js",
+  "bin": {
+    "klickhaus": "./bin/klickhaus.js"
+  },
   "scripts": {
-    "start": "live-server --port=8000 --open=/dashboard.html"
+    "start": "live-server --port=8000 --open=/dashboard.html",
+    "tui": "node bin/klickhaus.js"
+  },
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0"
   },
   "devDependencies": {
     "canvas": "3.2.0",
@@ -13,7 +23,21 @@
     "clickhouse",
     "cdn",
     "analytics",
-    "dashboard"
+    "dashboard",
+    "tui",
+    "terminal"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "tui/",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adobe/klickhaus.git"
+  },
   "license": "Apache-2.0"
 }
