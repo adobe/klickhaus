@@ -190,7 +190,7 @@ function getStatusBarContent() {
 
   let help;
   if (currentView === 'logs') {
-    help = ' | {gray-fg}n/p{/gray-fg}:page {gray-fg}l{/gray-fg}:dashboard {gray-fg}Enter{/gray-fg}:detail {gray-fg}q{/gray-fg}:quit';
+    help = ' | {gray-fg}j/k{/gray-fg}:page {gray-fg}l{/gray-fg}:dashboard {gray-fg}Enter{/gray-fg}:detail {gray-fg}q{/gray-fg}:quit';
   } else {
     help = ' | {gray-fg}q{/gray-fg}:quit {gray-fg}r{/gray-fg}:refresh {gray-fg}1-5{/gray-fg}:time {gray-fg}l{/gray-fg}:logs {gray-fg}f{/gray-fg}:filter {gray-fg}?{/gray-fg}:help';
   }
@@ -317,8 +317,8 @@ function setupKeyBindings() {
     }
   });
 
-  // Logs pagination - 'n' for next page, 'p' for previous
-  screen.key(['n'], async () => {
+  // Logs pagination - 'j' for next page, 'k' for previous (vim-style)
+  screen.key(['j'], async () => {
     if (state.get('currentView') === 'logs') {
       const offset = state.get('logsOffset');
       const limit = state.get('logsLimit');
@@ -330,7 +330,7 @@ function setupKeyBindings() {
     }
   });
 
-  screen.key(['p'], async () => {
+  screen.key(['k'], async () => {
     if (state.get('currentView') === 'logs') {
       const offset = state.get('logsOffset');
       const limit = state.get('logsLimit');
