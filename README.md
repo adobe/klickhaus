@@ -133,6 +133,47 @@ The primary table `cdn_requests_combined` includes:
 | Response | `response.status`, `response.body_size`, `response.headers.*` |
 | Helix | `helix.request_type`, `helix.backend_type` |
 
+## Runbook
+
+### No data in dashboard (Cloudflare Logpush disabled)
+
+**Symptoms:**
+- Dashboard shows no data or stale data
+- `cloudflare_http_requests` table is empty (1-day TTL expires old data)
+- `cdn_requests_combined` and `cdn_requests_v2` have no recent rows
+
+**Cause:**
+Cloudflare Logpush jobs auto-disable after repeated delivery failures (e.g., ClickHouse instance was stopped, ran out of credits, or network issues).
+
+**Diagnosis:**
+```bash
+# Check if source tables have recent data
+clickhouse client ... --query "
+  SELECT count(), max(EdgeStartTimestamp)
+  FROM helix_logs_production.cloudflare_http_requests"
+
+# Check Logpush job status via Cloudflare API
+curl -s "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs" \
+  -H "Authorization: Bearer <api_token>" | jq '.result[] | {id, name, enabled, last_complete, last_error, error_message}'
+```
+
+Look for `"enabled": false` and `error_message` containing delivery errors.
+
+**Resolution:**
+1. Ensure ClickHouse instance is running and accessible
+2. Re-enable each Logpush job:
+```bash
+curl -X PUT "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs/<job_id>" \
+  -H "Authorization: Bearer <api_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+```
+3. Repeat for all zones (aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
+4. Verify data flow: check `last_complete` updates and rows appear in ClickHouse
+
+**API Token Requirements:**
+Create a Cloudflare API token with **Zone → Logs → Edit** permission for all relevant zones.
+
 ## License
 
 MIT
