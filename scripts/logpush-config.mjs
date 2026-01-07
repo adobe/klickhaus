@@ -221,6 +221,8 @@ export function buildDestinationUrl() {
   const destinationUrl = new URL(`https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`);
   destinationUrl.searchParams.set('query', query);
   destinationUrl.searchParams.set('enable_http_compression', '1');
+  destinationUrl.searchParams.set('async_insert', '1');
+  destinationUrl.searchParams.set('wait_for_async_insert', '0');
   destinationUrl.searchParams.set('header_X-ClickHouse-User', CLICKHOUSE_USER);
   destinationUrl.searchParams.set('header_X-ClickHouse-Key', CLICKHOUSE_PASSWORD);
   return destinationUrl.toString();

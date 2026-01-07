@@ -49,9 +49,11 @@ Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)          │
                               └─► cloudflare_http_ingestion (MV) ────┼─► cdn_requests_combined (2-week TTL)
                                                                      │
                               ┌─► fastly_ingestion_v2 (MV) ──────────┼─► cdn_requests_v2 (2-week TTL)
-S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)              │   [partitioned, with sampling]
+Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)             │   [partitioned, with sampling]
                               └─► fastly_ingestion (MV) ─────────────┘
 ```
+
+Both CDN sources use direct HTTP logging to ClickHouse with async inserts (`async_insert=1&wait_for_async_insert=0`) for high-throughput ingestion.
 
 ### Table Migration (December 2025)
 
@@ -73,7 +75,7 @@ The system is migrating from `cdn_requests_combined` to `cdn_requests_v2`:
 
 ### Ingestion Sources
 - **Cloudflare**: Direct Logpush to ClickHouse (zones: aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
-- **Fastly**: S3 ClickPipes ingestion with nested JSON structure
+- **Fastly**: Direct HTTP logging to ClickHouse with nested JSON structure (service: helix5 - *.aem.page, *.aem.live)
 
 ### Ingestion Filtering
 
@@ -187,8 +189,7 @@ MATERIALIZE PROJECTION proj_facet_example;
 | `cdn_requests_combined` | 2 weeks | Unified CDN logs (primary analytics table) |
 | `cloudflare_http_requests` | 1 day | Raw Cloudflare Logpush data |
 | `cloudflare_tail_incoming` | 1 day | Raw Cloudflare Tail Worker logs (legacy) |
-| `fastly_logs_incoming2` | 1 day | Raw Fastly logs (Coralogix format via S3 ClickPipes) |
-| `fastly_logs_incoming2_clickpipes_error` | 7 days | ClickPipes ingestion errors |
+| `fastly_logs_incoming2` | 1 day | Raw Fastly logs (Coralogix format via HTTP logging) |
 | `asn_mapping` | None | ASN number to organization name mapping |
 
 ### ASN Mapping Infrastructure

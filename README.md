@@ -36,8 +36,10 @@ Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)
                               ▲
                     fastly_ingestion (MV)
                               │
-S3 ClickPipes ──────► fastly_logs_incoming2 (1-day TTL)
+Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)
 ```
+
+Both CDN sources use direct HTTP logging to ClickHouse with async inserts for high-throughput ingestion.
 
 ## Usage
 
