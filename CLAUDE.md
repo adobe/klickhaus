@@ -43,6 +43,8 @@ New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, and d
 
 ## Data Pipeline Architecture
 
+### Main CDN Logs (helix5 service)
+
 ```
                               ┌─► cloudflare_http_ingestion_v2 (MV) ─┐
 Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)          │
@@ -52,6 +54,28 @@ Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)          │
 Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)             │   [partitioned, with sampling]
                               └─► fastly_ingestion (MV) ─────────────┘
 ```
+
+### Fastly Backend Services (per-service logging)
+
+```
+Fastly VCL Snippet ──► fastly_logs_incoming_<service_id> (1-day TTL)
+     │
+     └── Each service has its own table with service-specific schema
+```
+
+| Service | Service ID | Table | Domains |
+|---------|------------|-------|---------|
+| helix5 (main) | In8SInYz3UQGjyG0GPZM42 | fastly_logs_incoming2 | *.aem.page, *.aem.live |
+| config | SIDuP3HxleUgBDR3Gi8T24 | fastly_logs_incoming_SIDuP3HxleUgBDR3Gi8T24 | config.aem.page |
+| admin | 6a6O21m8WoIIVg5cliw7BW | fastly_logs_incoming_6a6O21m8WoIIVg5cliw7BW | admin.aem.page |
+| www | 00QRLuuAsVNvsKgNWYVCbb | fastly_logs_incoming_00QRLuuAsVNvsKgNWYVCbb | www.aem.live |
+| API | s2dVksBUsvEKaaYF13wIh6 | fastly_logs_incoming_s2dVksBUsvEKaaYF13wIh6 | api.aem.live |
+| form | UDBDj4zfyNdZEpZApUqhL3 | fastly_logs_incoming_UDBDj4zfyNdZEpZApUqhL3 | form.aem.page |
+| pipeline | cHpjIl1WNRu9SFyL1eBSj3 | fastly_logs_incoming_cHpjIl1WNRu9SFyL1eBSj3 | pipeline.aem-fastly.page |
+| static | ItVEMJu5q2pJE3ejseo0W6 | fastly_logs_incoming_ItVEMJu5q2pJE3ejseo0W6 | static.aem.page |
+| media | atG7Eq66bH88LhbNq7Fqq2 | fastly_logs_incoming_atG7Eq66bH88LhbNq7Fqq2 | media.aem-fastly.page |
+
+Each backend service uses a VCL snippet (`log 100 - Log to Clickhouse`) that sends logs via HTTPS POST to ClickHouse with `Placement: none` (VCL controls format, not the endpoint).
 
 Both CDN sources use direct HTTP logging to ClickHouse with async inserts (`async_insert=1&wait_for_async_insert=0`) for high-throughput ingestion.
 
@@ -187,9 +211,11 @@ MATERIALIZE PROJECTION proj_facet_example;
 | Table | TTL | Purpose |
 |-------|-----|---------|
 | `cdn_requests_combined` | 2 weeks | Unified CDN logs (primary analytics table) |
+| `cdn_requests_v2` | 2 weeks | Unified CDN logs (new, partitioned) |
 | `cloudflare_http_requests` | 1 day | Raw Cloudflare Logpush data |
 | `cloudflare_tail_incoming` | 1 day | Raw Cloudflare Tail Worker logs (legacy) |
-| `fastly_logs_incoming2` | 1 day | Raw Fastly logs (Coralogix format via HTTP logging) |
+| `fastly_logs_incoming2` | 1 day | Raw Fastly logs - helix5 main service |
+| `fastly_logs_incoming_<service_id>` | 1 day | Raw Fastly logs - backend services (see table above) |
 | `asn_mapping` | None | ASN number to organization name mapping |
 
 ### ASN Mapping Infrastructure
