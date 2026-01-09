@@ -39,28 +39,27 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, and dictGet access to `asn_dict`.
+New users get SELECT access to `cdn_requests_v2` and dictGet access to `asn_dict`.
 
 ## Data Pipeline Architecture
 
 ### Main CDN Logs (helix5 service)
 
 ```
-                              ┌─► cloudflare_http_ingestion_v2 (MV) ─┐
-Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)          │
-                              └─► cloudflare_http_ingestion (MV) ────┼─► cdn_requests_combined (2-week TTL)
-                                                                     │
-                              ┌─► fastly_ingestion_v2 (MV) ──────────┼─► cdn_requests_v2 (2-week TTL)
-Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)             │   [partitioned, with sampling]
-                              └─► fastly_ingestion (MV) ─────────────┘
+Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL) ──► cloudflare_http_ingestion_v2 (MV) ─┐
+                                                                                                   │
+Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL) ──► fastly_ingestion_v2 (MV) ─────────────┼─► cdn_requests_v2
+                                                                                                   │   (2-week TTL)
+                                                                                                   │   [partitioned, with sampling]
+Fastly Backend Services ─► fastly_logs_incoming_<service_id> ──► fastly_ingestion_*_v2 (MVs) ──────┘
 ```
 
 ### Fastly Backend Services (per-service logging)
 
+Each backend service has its own incoming table and materialized view:
+
 ```
-Fastly VCL Snippet ──► fastly_logs_incoming_<service_id> (1-day TTL)
-     │
-     └── Each service has its own table with service-specific schema
+fastly_logs_incoming_<service_id> (1-day TTL) ──► fastly_ingestion_<service>_v2 (MV) ──► cdn_requests_v2
 ```
 
 | Service | Service ID | Table | Domains |
@@ -79,31 +78,13 @@ Each backend service uses a VCL snippet (`log 100 - Log to Clickhouse`) that sen
 
 Both CDN sources use direct HTTP logging to ClickHouse with async inserts (`async_insert=1&wait_for_async_insert=0`) for high-throughput ingestion.
 
-### Table Migration (December 2025)
-
-The system is migrating from `cdn_requests_combined` to `cdn_requests_v2`:
-
-| Feature | `cdn_requests_combined` (legacy) | `cdn_requests_v2` (new) |
-|---------|----------------------------------|-------------------------|
-| Partitioning | None | Daily (`toDate(timestamp)`) |
-| Sampling | Not supported | `SAMPLE BY sample_hash` |
-| Projections | 16 (slow to materialize) | 16 (built-in from start) |
-| Status | Receiving data, deprecating | Receiving data, primary |
-
-**Migration steps:**
-1. ✅ New table `cdn_requests_v2` created with partitioning + sampling
-2. ✅ New MVs `cloudflare_http_ingestion_v2` and `fastly_ingestion_v2` active
-3. ⏳ Wait 24h for v2 to accumulate data
-4. 🔜 Update dashboard queries to use `cdn_requests_v2`
-5. 🔜 Drop old MVs and `cdn_requests_combined`
-
 ### Ingestion Sources
 - **Cloudflare**: Direct Logpush to ClickHouse (zones: aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
 - **Fastly**: Direct HTTP logging to ClickHouse with nested JSON structure (service: helix5 - *.aem.page, *.aem.live)
 
 ### Ingestion Filtering
 
-The `cloudflare_http_ingestion` materialized view filters out Cloudflare Worker subrequests to logging backends. These are tail worker `fetch()` calls that get logged by Logpush, creating noise in analytics:
+The `cloudflare_http_ingestion_v2` materialized view filters out Cloudflare Worker subrequests to logging backends. These are tail worker `fetch()` calls that get logged by Logpush, creating noise in analytics:
 
 ```sql
 WHERE ClientRequestHost NOT IN (
@@ -116,9 +97,13 @@ If you add new tail workers that make outbound requests to external services, ad
 
 ## Schema Reference
 
-### Primary Table: `cdn_requests_combined`
+### Primary Table: `cdn_requests_v2`
 
 **Ordering**: `(timestamp, request.host)` — queries should filter on these columns first for best performance.
+
+**Partitioning**: Daily (`toDate(timestamp)`) for efficient data management and faster queries.
+
+**Sampling**: `SAMPLE BY sample_hash` for approximate queries on large datasets.
 
 **TTL**: 2 weeks
 
@@ -169,7 +154,7 @@ Projections are automatically used by ClickHouse when the query matches the proj
 
 To add a new projection:
 ```sql
-ALTER TABLE helix_logs_production.cdn_requests_combined
+ALTER TABLE helix_logs_production.cdn_requests_v2
 ADD PROJECTION proj_facet_example (
     SELECT
         toStartOfHour(timestamp) as hour,
@@ -181,7 +166,7 @@ ADD PROJECTION proj_facet_example (
     GROUP BY hour, `column.name`
 );
 -- Materialize for existing data (runs in background)
-ALTER TABLE helix_logs_production.cdn_requests_combined
+ALTER TABLE helix_logs_production.cdn_requests_v2
 MATERIALIZE PROJECTION proj_facet_example;
 ```
 
@@ -210,8 +195,7 @@ MATERIALIZE PROJECTION proj_facet_example;
 
 | Table | TTL | Purpose |
 |-------|-----|---------|
-| `cdn_requests_combined` | 2 weeks | Unified CDN logs (primary analytics table) |
-| `cdn_requests_v2` | 2 weeks | Unified CDN logs (new, partitioned) |
+| `cdn_requests_v2` | 2 weeks | Unified CDN logs (primary analytics table, partitioned) |
 | `cloudflare_http_requests` | 1 day | Raw Cloudflare Logpush data |
 | `cloudflare_tail_incoming` | 1 day | Raw Cloudflare Tail Worker logs (legacy) |
 | `fastly_logs_incoming2` | 1 day | Raw Fastly logs - helix5 main service |
@@ -266,7 +250,7 @@ GROUP BY `client.asn`  -- Filter on integer, not string
 ```sql
 -- Always quote dotted column names with backticks
 SELECT `request.host`, count()
-FROM helix_logs_production.cdn_requests_combined
+FROM helix_logs_production.cdn_requests_v2
 WHERE timestamp > now() - INTERVAL 1 HOUR
 GROUP BY `request.host`
 ORDER BY count() DESC
@@ -276,13 +260,13 @@ LIMIT 10;
 SELECT
     source,
     countIf(`cdn.cache_status` IN ('hit', 'HIT', 'HIT-CLUSTER')) / count() AS hit_rate
-FROM helix_logs_production.cdn_requests_combined
+FROM helix_logs_production.cdn_requests_v2
 WHERE timestamp > now() - INTERVAL 1 DAY
 GROUP BY source;
 
 -- Error analysis
 SELECT `response.status`, count()
-FROM helix_logs_production.cdn_requests_combined
+FROM helix_logs_production.cdn_requests_v2
 WHERE timestamp > now() - INTERVAL 1 HOUR
   AND `response.status` >= 400
 GROUP BY `response.status`
@@ -295,7 +279,7 @@ When running queries from shell, use heredocs for complex queries with backticks
 ```bash
 clickhouse client --host ... --secure <<'QUERY'
 SELECT `request.host`, count()
-FROM helix_logs_production.cdn_requests_combined
+FROM helix_logs_production.cdn_requests_v2
 WHERE `helix.request_type` != ''
 LIMIT 10
 QUERY

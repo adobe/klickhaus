@@ -10,10 +10,7 @@ export function setQueryTimestamp(ts) {
 }
 
 export function getTable() {
-  // Use partitioned table for recent queries, old table for historical
-  return ['15m', '1h', '12h'].includes(state.timeRange)
-    ? 'cdn_requests_v2'
-    : 'cdn_requests_combined';
+  return 'cdn_requests_v2';
 }
 
 export function getInterval() {
