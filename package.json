@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "ClickHouse CDN Analytics Dashboard",
   "scripts": {
-    "start": "live-server --port=8000 --open=/dashboard.html"
+    "start": "live-server --port=5391 --open=/ --ignore=scripts,.github,.claude,hars,node_modules --ignorePattern=\"\\\\.md$|package.*\\\\.json$|screenshot\\\\.png$\""
   },
   "devDependencies": {
     "canvas": "3.2.0",

@@ -13,7 +13,7 @@ npm install
 npm start
 ```
 
-This starts a dev server with auto-reload at http://localhost:8000/dashboard.html.
+This starts a dev server with auto-reload at http://localhost:5391/dashboard.html.
 
 ## Database Connection
 
