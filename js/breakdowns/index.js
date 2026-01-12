@@ -126,7 +126,22 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
     const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
       ? parseInt(result.totals.summary_cnt) / parseInt(result.totals.cnt)
       : null;
-    renderBreakdownTable(b.id, result.data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor, b.modeToggle);
+
+    // Fill in missing buckets for continuous range facets (e.g., content-length, time-elapsed)
+    let data = result.data;
+    if (b.getExpectedLabels) {
+      const expectedLabels = b.getExpectedLabels(state.topN);
+      const existingByLabel = new Map(data.map(row => [row.dim, row]));
+      data = expectedLabels.map(label => {
+        if (existingByLabel.has(label)) {
+          return existingByLabel.get(label);
+        }
+        // Create empty bucket row
+        return { dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0 };
+      });
+    }
+
+    renderBreakdownTable(b.id, data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor, b.modeToggle, !!b.getExpectedLabels);
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);

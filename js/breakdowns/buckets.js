@@ -94,6 +94,31 @@ const TIME_ELAPSED_SEQUENCE = [
 ];
 
 /**
+ * Get content length bucket labels for a given topN
+ * @param {number} topN - Number of buckets
+ * @returns {string[]} Array of bucket labels in order
+ */
+export function getContentLengthLabels(topN) {
+  const numBoundaries = Math.max(1, topN - 2);
+  const boundaries = selectBoundaries(CONTENT_LENGTH_SEQUENCE, numBoundaries);
+
+  const labels = ['0 (empty)'];
+
+  if (boundaries.length > 0) {
+    labels.push(`1 B-${formatBytes(boundaries[0])}`);
+
+    for (let i = 1; i < boundaries.length; i++) {
+      labels.push(`${formatBytes(boundaries[i - 1])}-${formatBytes(boundaries[i])}`);
+    }
+  }
+
+  const lastBoundary = boundaries[boundaries.length - 1] || 10;
+  labels.push(`≥ ${formatBytes(lastBoundary)}`);
+
+  return labels;
+}
+
+/**
  * Generate multiIf SQL expression for content length buckets
  * Produces exactly topN buckets
  * @param {number} topN - Number of buckets
@@ -101,36 +126,48 @@ const TIME_ELAPSED_SEQUENCE = [
  */
 export function contentLengthBuckets(topN) {
   const col = '`response.headers.content_length`';
-
-  // For topN buckets:
-  // - 1 bucket for "0 (empty)"
-  // - topN-1 range buckets
-  // For topN-1 range buckets, we need topN-2 internal boundaries
   const numBoundaries = Math.max(1, topN - 2);
   const boundaries = selectBoundaries(CONTENT_LENGTH_SEQUENCE, numBoundaries);
+  const labels = getContentLengthLabels(topN);
 
   const conditions = [];
 
   // First bucket: empty (0 bytes)
-  conditions.push(`${col} = 0, '0 (empty)'`);
+  conditions.push(`${col} = 0, '${labels[0]}'`);
 
   // Build range buckets
-  // First range: 1 B to first boundary
   if (boundaries.length > 0) {
-    conditions.push(`${col} < ${boundaries[0]}, '1 B-${formatBytes(boundaries[0])}'`);
+    conditions.push(`${col} < ${boundaries[0]}, '${labels[1]}'`);
 
-    // Middle ranges
     for (let i = 1; i < boundaries.length; i++) {
-      const label = `${formatBytes(boundaries[i - 1])}-${formatBytes(boundaries[i])}`;
-      conditions.push(`${col} < ${boundaries[i]}, '${label}'`);
+      conditions.push(`${col} < ${boundaries[i]}, '${labels[i + 1]}'`);
     }
   }
 
   // Last bucket: >= last boundary
-  const lastBoundary = boundaries[boundaries.length - 1] || 10;
-  conditions.push(`'≥ ${formatBytes(lastBoundary)}'`);
+  conditions.push(`'${labels[labels.length - 1]}'`);
 
   return `multiIf(${conditions.join(', ')})`;
+}
+
+/**
+ * Get time elapsed bucket labels for a given topN
+ * @param {number} topN - Number of buckets
+ * @returns {string[]} Array of bucket labels in order
+ */
+export function getTimeElapsedLabels(topN) {
+  const numBoundaries = Math.max(1, topN - 1);
+  const boundaries = selectBoundaries(TIME_ELAPSED_SEQUENCE, numBoundaries);
+
+  const labels = [`< ${formatMs(boundaries[0])}`];
+
+  for (let i = 1; i < boundaries.length; i++) {
+    labels.push(`${formatMs(boundaries[i - 1])}-${formatMs(boundaries[i])}`);
+  }
+
+  labels.push(`≥ ${formatMs(boundaries[boundaries.length - 1])}`);
+
+  return labels;
 }
 
 /**
@@ -141,24 +178,22 @@ export function contentLengthBuckets(topN) {
  */
 export function timeElapsedBuckets(topN) {
   const col = '`cdn.time_elapsed_msec`';
-
-  // For topN buckets, we need topN-1 internal boundaries
   const numBoundaries = Math.max(1, topN - 1);
   const boundaries = selectBoundaries(TIME_ELAPSED_SEQUENCE, numBoundaries);
+  const labels = getTimeElapsedLabels(topN);
 
   const conditions = [];
 
   // First bucket: < first boundary
-  conditions.push(`${col} < ${boundaries[0]}, '< ${formatMs(boundaries[0])}'`);
+  conditions.push(`${col} < ${boundaries[0]}, '${labels[0]}'`);
 
   // Middle ranges
   for (let i = 1; i < boundaries.length; i++) {
-    const label = `${formatMs(boundaries[i - 1])}-${formatMs(boundaries[i])}`;
-    conditions.push(`${col} < ${boundaries[i]}, '${label}'`);
+    conditions.push(`${col} < ${boundaries[i]}, '${labels[i]}'`);
   }
 
   // Last bucket: >= last boundary
-  conditions.push(`'≥ ${formatMs(boundaries[boundaries.length - 1])}'`);
+  conditions.push(`'${labels[labels.length - 1]}'`);
 
   return `multiIf(${conditions.join(', ')})`;
 }

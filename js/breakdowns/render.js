@@ -30,7 +30,7 @@ function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
   return escapeHtml(dim);
 }
 
-export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn, summaryRatio, summaryLabel, summaryColor, modeToggle) {
+export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn, summaryRatio, summaryLabel, summaryColor, modeToggle, isContinuous) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
   if (!card.dataset.title) {
@@ -195,8 +195,20 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     rowIndex++;
   }
 
-  // Add "Other" row if there are more values beyond topN
-  if (hasOther) {
+  // Add "Other" row if there are more values beyond topN (for non-continuous facets)
+  // Or add "More" row for continuous facets (always shown if next topN is available)
+  const nextN = getNextTopN();
+  if (isContinuous && nextN) {
+    // Continuous facets: show "(more)" to get finer-grained buckets
+    html += `
+      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" onclick="increaseTopN()" title="Click to show ${nextN} buckets with finer granularity">
+        <td class="dim"><span class="dim-prefix">(more)</span></td>
+        <td class="count"></td>
+        <td class="bar"></td>
+        <td class="mobile-actions"></td>
+      </tr>
+    `;
+  } else if (hasOther) {
     const cnt = otherRow.cnt;
     const cntOk = otherRow.cnt_ok;
     const cnt4xx = otherRow.cnt_4xx;
@@ -207,7 +219,6 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
     const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
     const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
-    const nextN = getNextTopN();
     const overflowClass = isOverflow ? ' bar-overflow' : '';
 
     html += `

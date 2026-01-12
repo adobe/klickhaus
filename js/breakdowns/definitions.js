@@ -1,7 +1,7 @@
 // Breakdown table definitions
 import { hostLink, forwardedHostLink, refererLink, pathLink } from './links.js';
 import { escapeHtml } from '../utils.js';
-import { contentLengthBuckets, timeElapsedBuckets } from './buckets.js';
+import { contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels } from './buckets.js';
 
 // Format ASN as "15169 google llc" with number dimmed
 export function formatAsn(dim) {
@@ -43,7 +43,7 @@ export const allBreakdowns = [
   { id: 'breakdown-req-cache-control', col: '`request.headers.cache_control`', extraFilter: "AND `request.headers.cache_control` != ''", modeToggle: 'contentTypeMode' },
   { id: 'breakdown-byo-cdn', col: '`request.headers.x_byo_cdn_type`', extraFilter: "AND `request.headers.x_byo_cdn_type` != ''", modeToggle: 'contentTypeMode' },
   { id: 'breakdown-push-invalidation', col: '`request.headers.x_push_invalidation`', extraFilter: "AND `request.headers.x_push_invalidation` != ''" },
-  { id: 'breakdown-content-length', col: contentLengthBuckets, orderBy: "min(`response.headers.content_length`)", modeToggle: 'contentTypeMode' },
+  { id: 'breakdown-content-length', col: contentLengthBuckets, orderBy: "min(`response.headers.content_length`)", modeToggle: 'contentTypeMode', getExpectedLabels: getContentLengthLabels },
   { id: 'breakdown-location', col: '`response.headers.location`', extraFilter: "AND `response.headers.location` != ''" },
-  { id: 'breakdown-time-elapsed', col: timeElapsedBuckets, orderBy: "min(`cdn.time_elapsed_msec`)", summaryCountIf: "`cdn.time_elapsed_msec` >= 1000", summaryLabel: 'slow (≥1s)', summaryColor: 'warning' }
+  { id: 'breakdown-time-elapsed', col: timeElapsedBuckets, orderBy: "min(`cdn.time_elapsed_msec`)", summaryCountIf: "`cdn.time_elapsed_msec` >= 1000", summaryLabel: 'slow (≥1s)', summaryColor: 'warning', getExpectedLabels: getTimeElapsedLabels }
 ];
