@@ -212,6 +212,18 @@ async function init() {
     }, 500);
   });
 
+  // In keyboard mode, Enter applies filter immediately and unfocuses
+  elements.hostFilterInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.body.classList.contains('keyboard-mode')) {
+      e.preventDefault();
+      clearTimeout(filterTimeout);
+      state.hostFilter = e.target.value;
+      saveStateToURL();
+      loadDashboard();
+      e.target.blur();
+    }
+  });
+
   elements.logsBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
 
   // Listen for login success event from auth.js
