@@ -1581,7 +1581,11 @@ body.keyboard-mode .kbd-hint {
   gap: 4px;
 }
 
+/* Toolbar kbd hints: use opacity to avoid layout shift */
 .kbd-control > kbd.kbd-hint {
+  display: inline;
+  opacity: 0;
+  transition: opacity 0.15s ease;
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 10px;
   padding: 1px 4px;
@@ -1593,6 +1597,10 @@ body.keyboard-mode .kbd-hint {
   color: var(--text-secondary);
   white-space: nowrap;
   z-index: 1;
+}
+
+body.keyboard-mode .kbd-control > kbd.kbd-hint {
+  opacity: 1;
 }
 
 /* Focused facet card gets a blue glow */
@@ -1777,9 +1785,12 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 
 /* Hide keyboard mode on mobile/touch devices */
 @media (hover: none), (pointer: coarse) {
-  body.keyboard-mode .kbd-hint,
-  body.keyboard-mode .kbd-control > kbd.kbd-hint {
+  body.keyboard-mode .kbd-hint {
     display: none !important;
+  }
+
+  body.keyboard-mode .kbd-control > kbd.kbd-hint {
+    opacity: 0 !important;
   }
 
   body.keyboard-mode .breakdown-card.kbd-focused {
