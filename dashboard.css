@@ -1834,6 +1834,7 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
   display: flex;
   align-items: center;
   gap: 8px;
+  border-left: 3px solid transparent;
 }
 
 .palette-item:hover {
@@ -1841,18 +1842,22 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 }
 
 .palette-item.selected {
-  background: var(--primary);
-  color: white;
+  background: rgba(0, 0, 0, 0.06);
 }
 
-.palette-item.selected .palette-hidden-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.9);
+@media (prefers-color-scheme: dark) {
+  .palette-item.selected {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .palette-item-title {
   flex: 1;
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .palette-hidden-badge {
@@ -1862,6 +1867,15 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
   background: var(--bg);
   color: var(--text-secondary);
 }
+
+.palette-facet-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-secondary);
+}
+
 
 /* Jump highlight animation */
 @keyframes palette-jump-flash {

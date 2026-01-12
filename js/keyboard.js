@@ -365,12 +365,30 @@ export function restoreKeyboardFocus() {
 }
 
 // Set focused facet by element ID (used by facet palette)
-export function setFocusedFacet(facetId) {
+// Optionally pass a value to pre-select a specific row
+export function setFocusedFacet(facetId, targetValue = null) {
   const facets = getFacets();
   const index = facets.findIndex(f => f.id === facetId);
   if (index >= 0) {
     kbd.facetIndex = index;
     kbd.valueIndex = 0;
+
+    // If a target value is provided, find the row with that value
+    if (targetValue) {
+      const facet = facets[index];
+      const values = getValues(facet);
+      for (let i = 0; i < values.length; i++) {
+        const dimCell = values[i].querySelector('td.dim');
+        if (dimCell) {
+          const rowValue = dimCell.textContent.trim().toLowerCase();
+          if (rowValue === targetValue.toLowerCase()) {
+            kbd.valueIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
     if (!kbd.active) {
       activateKeyboardMode();
     } else {
