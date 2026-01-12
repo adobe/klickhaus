@@ -230,7 +230,7 @@ export function renderChart(data) {
     if (i >= data.length) continue;
     let x = padding.left + (chartWidth * i / (data.length - 1));
     const time = new Date(data[i].t);
-    const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    let label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
     // Align first label left, last label right, others center
     if (i === 0) {
       ctx.textAlign = 'left';
@@ -238,6 +238,7 @@ export function renderChart(data) {
     } else if (i === data.length - 1) {
       ctx.textAlign = 'right';
       x -= labelInset;
+      label += ' (UTC)';
     } else {
       ctx.textAlign = 'center';
     }

@@ -219,7 +219,7 @@ export function initKeyboardNavigation() {
 
     // Navigation and action keys activate keyboard mode
     const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', '1', '2', '3', '4', '5'];
+    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', '1', '2', '3', '4', '5'];
 
     if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
       if (!kbd.active) {
@@ -290,6 +290,13 @@ export function initKeyboardNavigation() {
       case '5':
         e.preventDefault();
         selectTimeRange(e.key);
+        break;
+      case 'b':
+      case '#':
+        e.preventDefault();
+        if (window.toggleFacetMode) {
+          window.toggleFacetMode('contentTypeMode');
+        }
         break;
       case 'Escape':
         e.preventDefault();
