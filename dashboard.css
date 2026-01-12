@@ -62,10 +62,31 @@
   --ip-v4-multi: #0891b2;
   --ip-v6-multi: #a855f7;
   --ip-bad: #dc2626;
-  --rt-static: #2563eb;
-  --rt-pipeline: #7c3aed;
-  --rt-media: #0891b2;
-  --rt-rum: #ca8a04;
+  /* Request Types - Delivery category (blue, matches --host-delivery for .live) */
+  --rt-pipeline: #2563eb;
+  --rt-static: #3b82f6;
+  --rt-media: #0ea5e9;
+  --rt-rum: #06b6d4;
+  /* Request Types - Pipeline service category (violet, matches --host-authoring for .page) */
+  --rt-html: #7c3aed;
+  --rt-json: #8b5cf6;
+  --rt-md: #a855f7;
+  --rt-robots: #c084fc;
+  /* Request Types - Static service category (teal) */
+  --rt-content: #14b8a6;
+  --rt-code: #0d9488;
+  /* Request Types - Admin service category (orange/amber, 8 types need good range) */
+  --rt-job: #ea580c;
+  --rt-discover: #f97316;
+  --rt-preview: #fb923c;
+  --rt-status: #f59e0b;
+  --rt-sidekick: #d97706;
+  --rt-github-bot: #b45309;
+  --rt-live: #92400e;
+  --rt-auth: #78350f;
+  /* Request Types - Config service category (green) */
+  --rt-admin: #059669;
+  --rt-delivery: #10b981;
   --rt-config: #64748b;
   --bt-aws: #22a858;
   --bt-cloudflare: #f38020;
@@ -171,10 +192,31 @@
     --ip-v4-multi: #22d3ee;
     --ip-v6-multi: #c084fc;
     --ip-bad: #f87171;
-    --rt-static: #60a5fa;
-    --rt-pipeline: #a78bfa;
-    --rt-media: #22d3ee;
-    --rt-rum: #facc15;
+    /* Request Types - Delivery category (blue) */
+    --rt-pipeline: #60a5fa;
+    --rt-static: #93c5fd;
+    --rt-media: #38bdf8;
+    --rt-rum: #22d3ee;
+    /* Request Types - Pipeline service category (violet) */
+    --rt-html: #a78bfa;
+    --rt-json: #c4b5fd;
+    --rt-md: #d8b4fe;
+    --rt-robots: #e9d5ff;
+    /* Request Types - Static service category (teal) */
+    --rt-content: #2dd4bf;
+    --rt-code: #5eead4;
+    /* Request Types - Admin service category (orange/amber) */
+    --rt-job: #fb923c;
+    --rt-discover: #fdba74;
+    --rt-preview: #fed7aa;
+    --rt-status: #fcd34d;
+    --rt-sidekick: #fbbf24;
+    --rt-github-bot: #f59e0b;
+    --rt-live: #d97706;
+    --rt-auth: #b45309;
+    /* Request Types - Config service category (green) */
+    --rt-admin: #34d399;
+    --rt-delivery: #6ee7b7;
     --rt-config: #94a3b8;
     --bt-aws: #4ade80;
     --bt-cloudflare: #f6a560;
@@ -1113,12 +1155,17 @@ main {
   }
 }
 
-.breakdown-table tr.other-row {
-  cursor: pointer;
+.breakdown-table tr.other-row,
+.breakdown-table tr.synthetic-row {
   opacity: 0.7;
 }
 
-.breakdown-table tr.other-row:hover {
+.breakdown-table tr.other-row {
+  cursor: pointer;
+}
+
+.breakdown-table tr.other-row:hover,
+.breakdown-table tr.synthetic-row:hover {
   opacity: 1;
 }
 

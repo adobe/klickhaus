@@ -67,10 +67,31 @@ export const colorRules = {
     getColor: (value) => {
       if (!value) return '';
       const t = value.toLowerCase();
-      if (t === 'static') return 'var(--rt-static)';
+      // Delivery category (blue) - main edge on *.aem.live
       if (t === 'pipeline') return 'var(--rt-pipeline)';
+      if (t === 'static') return 'var(--rt-static)';
       if (t === 'media') return 'var(--rt-media)';
       if (t === 'rum') return 'var(--rt-rum)';
+      // Pipeline service category (violet) - pipeline.aem-fastly.page
+      if (t === 'html') return 'var(--rt-html)';
+      if (t === 'json') return 'var(--rt-json)';
+      if (t === 'md') return 'var(--rt-md)';
+      if (t === 'robots') return 'var(--rt-robots)';
+      // Static service category (teal) - static.aem-fastly.page
+      if (t === 'content') return 'var(--rt-content)';
+      if (t === 'code') return 'var(--rt-code)';
+      // Admin service category (orange/amber) - admin.hlx.page
+      if (t === 'job') return 'var(--rt-job)';
+      if (t === 'discover') return 'var(--rt-discover)';
+      if (t === 'preview') return 'var(--rt-preview)';
+      if (t === 'status') return 'var(--rt-status)';
+      if (t === 'sidekick') return 'var(--rt-sidekick)';
+      if (t === 'github-bot') return 'var(--rt-github-bot)';
+      if (t === 'live') return 'var(--rt-live)';
+      if (t === 'auth') return 'var(--rt-auth)';
+      // Config service category (green) - config.aem.page
+      if (t === 'admin') return 'var(--rt-admin)';
+      if (t === 'delivery') return 'var(--rt-delivery)';
       if (t === 'config') return 'var(--rt-config)';
       return '';
     }
