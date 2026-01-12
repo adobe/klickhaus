@@ -1,6 +1,6 @@
 // Breakdown table rendering
 import { escapeHtml, isSyntheticBucket } from '../utils.js';
-import { formatNumber, formatQueryTime } from '../format.js';
+import { formatNumber, formatQueryTime, formatBytes } from '../format.js';
 import { getColorIndicatorHtml } from '../colors/index.js';
 import { state } from '../state.js';
 
@@ -30,7 +30,7 @@ function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
   return escapeHtml(dim);
 }
 
-export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn, summaryRatio, summaryLabel, summaryColor) {
+export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn, summaryRatio, summaryLabel, summaryColor, modeToggle) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
   if (!card.dataset.title) {
@@ -43,10 +43,20 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   const hasFilters = columnFilters.length > 0;
   const colEscaped = col.replace(/'/g, "\\'");
 
+  // Check mode for this facet (count vs bytes)
+  const mode = modeToggle ? state[modeToggle] : 'count';
+  const isBytes = mode === 'bytes';
+  const valueFormatter = isBytes ? formatBytes : formatNumber;
+
   // Speed indicator based on elapsed time (aligned with Google LCP thresholds)
   const speedClass = elapsed < 2500 ? 'fast' : (elapsed < 4000 ? 'medium' : 'slow');
   const speedTitle = formatQueryTime(elapsed);
   const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle}"></span>`;
+
+  // Mode toggle for facets that support it (e.g., content-types: count vs bytes)
+  const modeToggleHtml = modeToggle
+    ? `<button class="mode-toggle${isBytes ? ' active' : ''}" onclick="toggleFacetMode('${modeToggle}')" title="Toggle between request count and bytes transferred">${isBytes ? 'Bytes' : 'Count'}</button>`
+    : '';
 
   // Summary metric display (e.g., "87% efficiency")
   const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
@@ -55,7 +65,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     : '';
 
   if (data.length === 0) {
-    let html = `<h3>${speedIndicator}${title}${summaryHtml}`;
+    let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
     if (hasFilters) {
       html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
     }
@@ -84,7 +94,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   const realData = data.filter(d => !isSyntheticBucket(d.dim));
   const maxCount = realData.length > 0 ? Math.max(...realData.map(d => parseInt(d.cnt))) : 1;
 
-  let html = `<h3>${speedIndicator}${title}${summaryHtml}`;
+  let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
   if (hasFilters) {
     html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
   }
@@ -166,7 +176,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       <tr class="${rowClass}">
         <td class="dim" title="${escapeHtml(dim)}">${dimContent}</td>
         <td class="count">
-          <span class="value">${formatNumber(cnt)}</span>
+          <span class="value">${valueFormatter(cnt)}</span>
           ${filterBtn}
         </td>
         <td class="bar">
@@ -201,7 +211,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       <tr class="other-row" onclick="increaseTopN()" title="Click to show top ${nextN}">
         <td class="dim"><span class="dim-prefix">(other)</span></td>
         <td class="count">
-          <span class="value">${formatNumber(cnt)}</span>
+          <span class="value">${valueFormatter(cnt)}</span>
         </td>
         <td class="bar">
           <div class="bar-inner${overflowClass}" style="width: ${barWidth}%">

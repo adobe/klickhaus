@@ -14,6 +14,7 @@ export const state = {
   hiddenControls: [],  // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
   title: '',  // Custom title from URL
   chartData: null,  // Store chart data for redrawing when view changes
+  contentTypeMode: 'count',  // 'count' or 'bytes' for content-types facet
 };
 
 // Callback for re-rendering logs table when pinned columns change

@@ -81,15 +81,32 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   const facetFilters = getFacetFiltersExcluding(col);
   // Add summary countIf if defined for this breakdown
   const summaryCol = b.summaryCountIf ? `,\n      countIf(${b.summaryCountIf}) as summary_cnt` : '';
+
+  // Check for mode toggle (e.g., count vs bytes for content-types)
+  const mode = b.modeToggle ? state[b.modeToggle] : 'count';
+  const isBytes = mode === 'bytes';
+
+  // Aggregation functions depend on mode
+  const aggTotal = isBytes ? 'sum(`response.headers.content_length`)' : 'count()';
+  const aggOk = isBytes
+    ? 'sumIf(`response.headers.content_length`, `response.status` >= 100 AND `response.status` < 400)'
+    : 'countIf(`response.status` >= 100 AND `response.status` < 400)';
+  const agg4xx = isBytes
+    ? 'sumIf(`response.headers.content_length`, `response.status` >= 400 AND `response.status` < 500)'
+    : 'countIf(`response.status` >= 400 AND `response.status` < 500)';
+  const agg5xx = isBytes
+    ? 'sumIf(`response.headers.content_length`, `response.status` >= 500)'
+    : 'countIf(`response.status` >= 500)';
+
   // Custom orderBy or default to count descending
   const orderBy = b.orderBy || 'cnt DESC';
   const sql = `
     SELECT
       ${col} as dim,
-      count() as cnt,
-      countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
-      countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
-      countIf(\`response.status\` >= 500) as cnt_5xx${summaryCol}
+      ${aggTotal} as cnt,
+      ${aggOk} as cnt_ok,
+      ${agg4xx} as cnt_4xx,
+      ${agg5xx} as cnt_5xx${summaryCol}
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
     GROUP BY dim WITH TOTALS
@@ -107,7 +124,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
     const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
       ? parseInt(result.totals.summary_cnt) / parseInt(result.totals.cnt)
       : null;
-    renderBreakdownTable(b.id, result.data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor);
+    renderBreakdownTable(b.id, result.data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor, b.modeToggle);
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);

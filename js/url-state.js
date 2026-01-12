@@ -18,6 +18,7 @@ export function saveStateToURL() {
   if (state.topN !== 5) params.set('n', state.topN);
   if (state.showLogs) params.set('view', 'logs');
   if (state.title) params.set('title', state.title);
+  if (state.contentTypeMode !== 'count') params.set('ctm', state.contentTypeMode);
 
   // Save query timestamp as ISO string
   if (queryTimestamp) {
@@ -104,6 +105,14 @@ export function loadStateFromURL() {
   // Custom title from URL
   if (params.has('title')) {
     state.title = params.get('title');
+  }
+
+  // Content-type facet mode (count or bytes)
+  if (params.has('ctm')) {
+    const ctm = params.get('ctm');
+    if (['count', 'bytes'].includes(ctm)) {
+      state.contentTypeMode = ctm;
+    }
   }
 }
 

@@ -861,6 +861,37 @@ main {
   }
 }
 
+/* Mode toggle button (e.g., Count/Bytes for content-types) */
+.mode-toggle {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-toggle:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--text-secondary);
+}
+
+.mode-toggle.active {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .mode-toggle.active {
+    background: rgba(129, 140, 248, 0.15);
+  }
+}
+
 .speed-indicator {
   width: 8px;
   height: 8px;

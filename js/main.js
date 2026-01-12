@@ -114,6 +114,21 @@ function increaseTopN() {
   }
 }
 
+// Toggle facet aggregation mode (e.g., count vs bytes for content-types)
+function toggleFacetMode(stateKey) {
+  // Toggle between 'count' and 'bytes'
+  state[stateKey] = state[stateKey] === 'count' ? 'bytes' : 'count';
+  saveStateToURL();
+
+  // Find and reload the breakdown that uses this mode toggle
+  const timeFilter = getTimeFilter();
+  const hostFilter = getHostFilter();
+  const breakdown = allBreakdowns.find(b => b.modeToggle === stateKey);
+  if (breakdown) {
+    loadBreakdown(breakdown, timeFilter, hostFilter);
+  }
+}
+
 // Initialize
 async function init() {
   // Load state from URL first
@@ -195,6 +210,7 @@ window.togglePinnedColumn = togglePinnedColumn;
 window.increaseTopN = increaseTopN;
 window.closeQuickLinksModal = closeQuickLinksModal;
 window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
+window.toggleFacetMode = toggleFacetMode;
 
 // Load host autocomplete when dashboard is shown
 window.addEventListener('dashboard-shown', () => {
