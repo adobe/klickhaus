@@ -364,6 +364,16 @@ export function restoreKeyboardFocus() {
   }
 }
 
+// Get the currently focused facet ID (for targeted restore)
+export function getFocusedFacetId() {
+  if (!kbd.active) return null;
+  const facets = getFacets();
+  if (kbd.facetIndex >= 0 && kbd.facetIndex < facets.length) {
+    return facets[kbd.facetIndex].id;
+  }
+  return null;
+}
+
 // Set focused facet by element ID (used by facet palette)
 // Optionally pass a value to pre-select a specific row
 export function setFocusedFacet(facetId, targetValue = null) {
@@ -408,6 +418,11 @@ function updateFragment() {
     const facet = facets[kbd.facetIndex];
     const facetId = facet?.id?.replace('breakdown-', '') || '';
     if (facetId) params.set('f', facetId);
+
+    // Also save value index if not 0 (to keep URLs cleaner)
+    if (kbd.valueIndex > 0) {
+      params.set('v', kbd.valueIndex.toString());
+    }
   }
   // If facetIndex is -1 (chart), don't set 'f' parameter
 
@@ -465,6 +480,7 @@ function restoreFromFragment() {
 
   const params = new URLSearchParams(hash);
   const facetId = params.get('f');
+  const valueIndex = parseInt(params.get('v')) || 0;
   const kbdMode = params.get('kbd') === '1';
 
   if (facetId) {
@@ -472,7 +488,7 @@ function restoreFromFragment() {
     const index = facets.findIndex(f => f.id === `breakdown-${facetId}`);
     if (index >= 0) {
       kbd.facetIndex = index;
-      kbd.valueIndex = 0;
+      kbd.valueIndex = valueIndex;
 
       // Scroll to the facet
       const facet = facets[index];

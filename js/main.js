@@ -14,7 +14,7 @@ import { renderChart } from './chart.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import { getTimeFilter, getHostFilter } from './time.js';
-import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking } from './keyboard.js';
+import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
 
 // DOM Elements
@@ -81,12 +81,19 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   // Start loading time series
   const timeSeriesPromise = loadTimeSeries();
 
+  // Capture focused facet before loading starts
+  const focusedFacetId = getFocusedFacetId();
+
   // Start loading all facets in parallel (they manage their own blur state)
   const facetPromises = allBreakdowns.map(b =>
     loadBreakdown(b, timeFilter, hostFilter).then(() => {
       // After each facet completes, check if timer should stop
       if (!hasVisibleUpdatingFacets()) {
         stopQueryTimer();
+      }
+      // Restore keyboard focus immediately when the focused facet finishes
+      if (focusedFacetId === b.id) {
+        restoreKeyboardFocus();
       }
     })
   );
