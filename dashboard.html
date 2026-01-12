@@ -64,16 +64,16 @@
         <div id="activeFilters"></div>
       </div>
       <div class="header-center">
-        <button id="logsBtn" class="logs-btn">Logs</button>
+        <span class="kbd-control"><kbd class="kbd-hint">t</kbd><button id="logsBtn" class="logs-btn">Logs</button></span>
       </div>
       <div class="header-right">
-        <select id="timeRange">
+        <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange">
           <option value="15m">Last 15 minutes</option>
           <option value="1h" selected>Last hour</option>
           <option value="12h">Last 12 hours</option>
           <option value="24h">Last 24 hours</option>
           <option value="7d">Last 7 days</option>
-        </select>
+        </select></span>
         <select id="topN">
           <option value="5" selected>Top 5</option>
           <option value="10">Top 10</option>
@@ -81,9 +81,9 @@
           <option value="50">Top 50</option>
           <option value="100">Top 100</option>
         </select>
-        <input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off">
+        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off"></span>
         <datalist id="hostSuggestions"></datalist>
-        <button id="refreshBtn" class="btn btn-secondary"><span class="btn-icon">↻</span><span class="btn-text">Refresh</span></button>
+        <span class="kbd-control"><kbd class="kbd-hint">r</kbd><button id="refreshBtn" class="btn btn-secondary"><span class="btn-icon">↻</span><span class="btn-text">Refresh</span></button></span>
         <button id="logoutBtn" class="btn btn-secondary"><span class="btn-icon">⏻</span><span class="btn-text">Logout</span></button>
       </div>
     </header>
@@ -213,6 +213,53 @@
       <button class="modal-close" onclick="closeQuickLinksModal()">&times;</button>
     </div>
     <iframe id="quickLinksFrame" src="index.html"></iframe>
+  </dialog>
+
+  <!-- Keyboard Help Dialog -->
+  <dialog id="keyboardHelp" role="dialog" aria-labelledby="keyboardHelpTitle">
+    <div class="keyboard-help-content">
+      <h2 id="keyboardHelpTitle">Keyboard Shortcuts <button onclick="this.closest('dialog').close()" aria-label="Close">&times;</button></h2>
+      <div class="keyboard-help-grid">
+        <div class="key-group"><kbd>j</kbd> <kbd>k</kbd></div>
+        <div class="key-desc">Navigate between facets</div>
+
+        <div class="key-group"><kbd>h</kbd> <kbd>l</kbd></div>
+        <div class="key-desc">Navigate between values</div>
+
+        <div class="key-group"><kbd>Tab</kbd></div>
+        <div class="key-desc">Next value (wraps to next facet)</div>
+
+        <div class="key-group"><kbd>i</kbd> <kbd>c</kbd> <kbd>Space</kbd></div>
+        <div class="key-desc">Toggle filter on value</div>
+
+        <div class="key-group"><kbd>e</kbd> <kbd>x</kbd></div>
+        <div class="key-desc">Toggle exclude on value</div>
+
+        <div class="key-group"><kbd>c</kbd><kbd>c</kbd></div>
+        <div class="key-desc">Clear all filters</div>
+
+        <div class="key-group"><kbd>.</kbd></div>
+        <div class="key-desc">Expand (other) / show more</div>
+
+        <div class="key-group"><kbd>r</kbd></div>
+        <div class="key-desc">Refresh data</div>
+
+        <div class="key-group"><kbd>f</kbd></div>
+        <div class="key-desc">Focus host filter</div>
+
+        <div class="key-group"><kbd>t</kbd></div>
+        <div class="key-desc">Toggle logs view</div>
+
+        <div class="key-group"><kbd>1</kbd>-<kbd>5</kbd></div>
+        <div class="key-desc">Select time range</div>
+
+        <div class="key-group"><kbd>?</kbd></div>
+        <div class="key-desc">Show this help</div>
+
+        <div class="key-group"><kbd>Esc</kbd></div>
+        <div class="key-desc">Exit keyboard mode</div>
+      </div>
+    </div>
   </dialog>
 
   <script type="module" src="js/main.js"></script>

@@ -98,8 +98,9 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   if (hasFilters) {
     html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
   }
-  html += `</h3><table class="breakdown-table">`;
+  html += `</h3><table class="breakdown-table" role="listbox" aria-label="${title} values">`;
 
+  let rowIndex = 0;
   for (const row of data) {
     const cnt = parseInt(row.cnt);
     const cntOk = parseInt(row.cnt_ok) || 0;
@@ -172,8 +173,9 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       ? `<button class="mobile-action-btn exclude active" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')" title="Remove exclusion">✓</button>`
       : `<button class="mobile-action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)" title="Exclude this value">×</button>`;
 
+    const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
     html += `
-      <tr class="${rowClass}">
+      <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}">
         <td class="dim" title="${escapeHtml(dim)}">${dimContent}</td>
         <td class="count">
           <span class="value">${valueFormatter(cnt)}</span>
@@ -190,6 +192,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
         <td class="mobile-actions">${mobileFilterBtn}${mobileExcludeBtn}</td>
       </tr>
     `;
+    rowIndex++;
   }
 
   // Add "Other" row if there are more values beyond topN
@@ -208,7 +211,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     const overflowClass = isOverflow ? ' bar-overflow' : '';
 
     html += `
-      <tr class="other-row" onclick="increaseTopN()" title="Click to show top ${nextN}">
+      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" onclick="increaseTopN()" title="Click to show top ${nextN}">
         <td class="dim"><span class="dim-prefix">(other)</span></td>
         <td class="count">
           <span class="value">${valueFormatter(cnt)}</span>

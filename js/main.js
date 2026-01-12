@@ -14,6 +14,7 @@ import { renderChart } from './chart.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import { getTimeFilter, getHostFilter } from './time.js';
+import { initKeyboardNavigation, restoreKeyboardFocus } from './keyboard.js';
 
 // DOM Elements
 const elements = {
@@ -103,6 +104,17 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   }
 }
 
+// Update keyboard hint for time range to show next option number
+function updateTimeRangeHint() {
+  const hint = document.getElementById('timeRangeHint');
+  const select = document.getElementById('timeRange');
+  if (!hint || !select) return;
+
+  // Show next option number (wraps to 1 if at last option)
+  const nextIndex = (select.selectedIndex + 1) % select.options.length;
+  hint.textContent = nextIndex + 1;
+}
+
 // Increase topN and reload breakdowns
 function increaseTopN() {
   const next = getNextTopN();
@@ -140,6 +152,9 @@ async function init() {
   // Initialize modal
   initModal();
 
+  // Initialize keyboard navigation
+  initKeyboardNavigation();
+
   // Set up chart navigation
   setupChartNavigation(() => loadDashboard());
 
@@ -153,6 +168,7 @@ async function init() {
         state.credentials = creds;
         syncUIFromState();
         showDashboard();
+        updateTimeRangeHint();
         // Start loading dashboard - auth errors will be handled by query()
         loadDashboard();
       }
@@ -173,7 +189,11 @@ async function init() {
     setQueryTimestamp(new Date());
     saveStateToURL();
     loadDashboard();
+    updateTimeRangeHint();
   });
+
+  // Update time range keyboard hint to show next option
+  updateTimeRangeHint();
 
   elements.topNSelect.addEventListener('change', (e) => {
     state.topN = parseInt(e.target.value);

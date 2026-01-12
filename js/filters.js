@@ -24,6 +24,14 @@ export function clearFiltersForColumn(col) {
   if (loadDashboard) loadDashboard();
 }
 
+export function clearAllFilters() {
+  if (state.filters.length === 0) return;
+  state.filters = [];
+  renderActiveFilters();
+  if (saveStateToURL) saveStateToURL();
+  if (loadDashboard) loadDashboard();
+}
+
 export function addFilter(col, value, exclude) {
   // Remove existing filter for same col+value
   state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
