@@ -304,18 +304,25 @@ describe('CDN operational requirements', () => {
 
   it('sustained anomaly beats brief spike (duration weighting)', () => {
     // Brief large spike vs sustained smaller deviation
+    // Need enough data points so baselines are stable (margin=2 on each side)
     const data = [
-      [0, 70000, 10000, 300],
-      [1, 72000, 10200, 310],
+      [0, 70000, 10000, 300],   // ignored (margin)
+      [1, 72000, 10200, 310],   // ignored (margin)
       [2, 71000, 10100, 290],
-      [3, 140000, 10000, 320],  // Brief 2x green spike (1 bucket)
-      [4, 70000, 10150, 305],   // Returns to normal
-      [5, 70000, 15000, 300],   // Sustained error spike starts
-      [6, 70000, 16000, 310],   // continues (50% above baseline)
-      [7, 70000, 15500, 295],   // continues
-      [8, 70000, 15000, 300],   // continues (4 buckets total)
-      [9, 70000, 10000, 305],
-      [10, 71000, 10200, 290]
+      [3, 70000, 10000, 300],
+      [4, 72000, 10200, 310],
+      [5, 140000, 10000, 320],  // Brief 2x green spike (1 bucket)
+      [6, 70000, 10150, 305],   // Returns to normal
+      [7, 71000, 10000, 300],
+      [8, 70000, 15000, 300],   // Sustained error spike starts
+      [9, 70000, 16000, 310],   // continues (~50% above baseline)
+      [10, 70000, 15500, 295],  // continues
+      [11, 70000, 15000, 300],  // continues (4 buckets total)
+      [12, 70000, 10000, 305],  // back to normal
+      [13, 71000, 10200, 290],
+      [14, 70000, 10000, 300],
+      [15, 72000, 10100, 310],  // ignored (margin)
+      [16, 71000, 10200, 290]   // ignored (margin)
     ];
     const series = toSeries(data);
     const result = detectStep(series);
