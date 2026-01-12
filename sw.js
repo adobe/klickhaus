@@ -94,6 +94,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // In development (localhost), use network-first to see changes immediately
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Update cache in background
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   // For same-origin requests, use cache-first strategy
   event.respondWith(
     caches.match(event.request)
