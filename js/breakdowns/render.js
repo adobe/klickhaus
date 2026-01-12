@@ -55,7 +55,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
 
   // Mode toggle for facets that support it (e.g., content-types: count vs bytes)
   const modeToggleHtml = modeToggle
-    ? `<button class="mode-toggle${isBytes ? ' active' : ''}" onclick="toggleFacetMode('${modeToggle}')" title="Toggle between request count and bytes transferred">${isBytes ? 'Bytes' : 'Count'}</button>`
+    ? `<button class="mode-toggle${isBytes ? ' active' : ''}" onclick="toggleFacetMode('${modeToggle}')" title="Toggle between request count and bytes transferred">${isBytes ? 'B' : '#'}</button>`
     : '';
 
   // Summary metric display (e.g., "87% efficiency")
