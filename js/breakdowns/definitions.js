@@ -1,6 +1,7 @@
 // Breakdown table definitions
 import { hostLink, forwardedHostLink, refererLink, pathLink } from './links.js';
 import { escapeHtml } from '../utils.js';
+import { contentLengthBuckets, timeElapsedBuckets } from './buckets.js';
 
 // Format ASN as "15169 google llc" with number dimmed
 export function formatAsn(dim) {
@@ -42,7 +43,7 @@ export const allBreakdowns = [
   { id: 'breakdown-req-cache-control', col: '`request.headers.cache_control`', extraFilter: "AND `request.headers.cache_control` != ''" },
   { id: 'breakdown-byo-cdn', col: '`request.headers.x_byo_cdn_type`', extraFilter: "AND `request.headers.x_byo_cdn_type` != ''" },
   { id: 'breakdown-push-invalidation', col: '`request.headers.x_push_invalidation`', extraFilter: "AND `request.headers.x_push_invalidation` != ''" },
-  { id: 'breakdown-content-length', col: "multiIf(`response.headers.content_length` = 0, '0 (empty)', `response.headers.content_length` < 100, '1-100 B', `response.headers.content_length` < 500, '100-500 B', `response.headers.content_length` < 1024, '500 B - 1 KB', `response.headers.content_length` < 5120, '1-5 KB', `response.headers.content_length` < 10240, '5-10 KB', `response.headers.content_length` < 51200, '10-50 KB', `response.headers.content_length` < 102400, '50-100 KB', `response.headers.content_length` < 512000, '100-500 KB', `response.headers.content_length` < 1048576, '500 KB - 1 MB', `response.headers.content_length` < 10485760, '1-10 MB', '> 10 MB')", orderBy: "min(`response.headers.content_length`)" },
+  { id: 'breakdown-content-length', col: contentLengthBuckets, orderBy: "min(`response.headers.content_length`)" },
   { id: 'breakdown-location', col: '`response.headers.location`', extraFilter: "AND `response.headers.location` != ''" },
-  { id: 'breakdown-time-elapsed', col: "multiIf(`cdn.time_elapsed_msec` < 5, '< 5ms', `cdn.time_elapsed_msec` < 10, '5-10ms', `cdn.time_elapsed_msec` < 20, '10-20ms', `cdn.time_elapsed_msec` < 35, '20-35ms', `cdn.time_elapsed_msec` < 50, '35-50ms', `cdn.time_elapsed_msec` < 100, '50-100ms', `cdn.time_elapsed_msec` < 250, '100-250ms', `cdn.time_elapsed_msec` < 500, '250-500ms', `cdn.time_elapsed_msec` < 1000, '500ms - 1s', '≥ 1s')", orderBy: "min(`cdn.time_elapsed_msec`)", summaryCountIf: "`cdn.time_elapsed_msec` >= 1000", summaryLabel: 'slow (≥1s)', summaryColor: 'warning' }
+  { id: 'breakdown-time-elapsed', col: timeElapsedBuckets, orderBy: "min(`cdn.time_elapsed_msec`)", summaryCountIf: "`cdn.time_elapsed_msec` >= 1000", summaryLabel: 'slow (≥1s)', summaryColor: 'warning' }
 ];

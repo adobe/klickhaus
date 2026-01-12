@@ -73,16 +73,19 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   const card = document.getElementById(b.id);
   card.classList.add('updating');
 
+  // Support dynamic col expressions that depend on topN
+  const col = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
   const extra = b.extraFilter || '';
   // Get filters excluding this facet's column to show all values for active facets
-  const facetFilters = getFacetFiltersExcluding(b.col);
+  const facetFilters = getFacetFiltersExcluding(col);
   // Add summary countIf if defined for this breakdown
   const summaryCol = b.summaryCountIf ? `,\n      countIf(${b.summaryCountIf}) as summary_cnt` : '';
   // Custom orderBy or default to count descending
   const orderBy = b.orderBy || 'cnt DESC';
   const sql = `
     SELECT
-      ${b.col} as dim,
+      ${col} as dim,
       count() as cnt,
       countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
       countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
@@ -104,7 +107,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
     const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
       ? parseInt(result.totals.summary_cnt) / parseInt(result.totals.cnt)
       : null;
-    renderBreakdownTable(b.id, result.data, result.totals, b.col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor);
+    renderBreakdownTable(b.id, result.data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor);
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);
