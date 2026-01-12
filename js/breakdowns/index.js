@@ -87,10 +87,12 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   const isBytes = mode === 'bytes';
 
   // Aggregation functions depend on mode
+  // Note: Using `< 400` instead of `>= 100 AND < 400` to match projection definitions
+  // (HTTP status codes are always >= 100, so the >= 100 check is redundant)
   const aggTotal = isBytes ? 'sum(`response.headers.content_length`)' : 'count()';
   const aggOk = isBytes
-    ? 'sumIf(`response.headers.content_length`, `response.status` >= 100 AND `response.status` < 400)'
-    : 'countIf(`response.status` >= 100 AND `response.status` < 400)';
+    ? 'sumIf(`response.headers.content_length`, `response.status` < 400)'
+    : 'countIf(`response.status` < 400)';
   const agg4xx = isBytes
     ? 'sumIf(`response.headers.content_length`, `response.status` >= 400 AND `response.status` < 500)'
     : 'countIf(`response.status` >= 400 AND `response.status` < 500)';

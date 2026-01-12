@@ -279,6 +279,8 @@ body {
   overflow-x: hidden;
   overscroll-behavior-x: none;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 70px;
 }
 
 /* Pull to refresh indicator */
@@ -662,6 +664,8 @@ main {
   background: var(--chart-bg);
   padding: 20px 0;
   margin: 0 -24px 24px -24px;
+  scroll-snap-align: start;
+  scroll-margin-top: 0;
 }
 
 @media (max-width: 600px) {
@@ -750,6 +754,8 @@ main {
   padding: 16px;
   border: 1px solid var(--border);
   transition: filter 0.2s ease-out;
+  scroll-margin-top: 16px;
+  scroll-snap-align: start;
 }
 
 @media (max-width: 1400px) {

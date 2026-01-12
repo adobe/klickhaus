@@ -91,7 +91,7 @@ export async function loadTimeSeries() {
   const sql = `
     SELECT
       ${bucket} as t,
-      countIf(\`response.status\` >= 100 AND \`response.status\` < 400) as cnt_ok,
+      countIf(\`response.status\` < 400) as cnt_ok,
       countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
       countIf(\`response.status\` >= 500) as cnt_5xx
     FROM ${DATABASE}.${getTable()}

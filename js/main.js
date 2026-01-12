@@ -14,7 +14,7 @@ import { renderChart } from './chart.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import { getTimeFilter, getHostFilter } from './time.js';
-import { initKeyboardNavigation, restoreKeyboardFocus } from './keyboard.js';
+import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking } from './keyboard.js';
 
 // DOM Elements
 const elements = {
@@ -152,8 +152,9 @@ async function init() {
   // Initialize modal
   initModal();
 
-  // Initialize keyboard navigation
+  // Initialize keyboard navigation and scroll tracking
   initKeyboardNavigation();
+  initScrollTracking();
 
   // Set up chart navigation
   setupChartNavigation(() => loadDashboard());

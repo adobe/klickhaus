@@ -40,8 +40,9 @@ export function getTimeFilter() {
   const ts = queryTimestamp || new Date();
   // Format as 'YYYY-MM-DD HH:MM:SS' (no milliseconds)
   const isoTimestamp = ts.toISOString().replace('T', ' ').slice(0, 19);
-  // Use BETWEEN to bound both start and end of the time window
-  return `timestamp BETWEEN toDateTime('${isoTimestamp}') - ${getInterval()} AND toDateTime('${isoTimestamp}')`;
+  // Use minute-aligned filtering to enable projection usage
+  // This gives up to 1 minute of imprecision but enables 10-100x faster queries
+  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${isoTimestamp}') - ${getInterval()}) AND toStartOfMinute(toDateTime('${isoTimestamp}'))`;
 }
 
 export function getHostFilter() {
