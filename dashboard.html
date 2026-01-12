@@ -241,6 +241,9 @@
         <div class="key-group"><kbd>.</kbd></div>
         <div class="key-desc">Expand (other) / show more</div>
 
+        <div class="key-group"><kbd>g</kbd></div>
+        <div class="key-desc">Go to facet (quick navigation)</div>
+
         <div class="key-group"><kbd>r</kbd></div>
         <div class="key-desc">Refresh data</div>
 
@@ -263,6 +266,14 @@
         <div class="key-desc">Exit keyboard mode</div>
       </div>
     </div>
+  </dialog>
+
+  <!-- Facet Command Palette (VS Code-style goto) -->
+  <dialog id="facetPalette" role="dialog" aria-labelledby="facetPaletteTitle">
+    <div class="palette-header">
+      <input type="text" id="facetPaletteInput" placeholder="Go to facet..." aria-label="Search facets">
+    </div>
+    <div id="facetPaletteList" role="listbox" aria-label="Facet list"></div>
   </dialog>
 
   <script type="module" src="js/main.js"></script>

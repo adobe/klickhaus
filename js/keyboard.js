@@ -1,6 +1,7 @@
 // Keyboard navigation mode for vim-style navigation
 import { state } from './state.js';
 import { clearAllFilters, updateHeaderFixed } from './filters.js';
+import { openFacetPalette, isPaletteOpen } from './facet-palette.js';
 
 // Keyboard navigation state
 const kbd = {
@@ -197,7 +198,9 @@ export function initKeyboardNavigation() {
   document.addEventListener('keydown', (e) => {
     // Ignore if in input field or dialog is open
     if (e.target.matches('input, textarea, select')) return;
-    if (document.querySelector('dialog[open]:not(#keyboardHelp)')) return;
+    if (document.querySelector('dialog[open]:not(#keyboardHelp):not(#facetPalette)')) return;
+    // Don't handle keys while facet palette is open (it handles its own keys)
+    if (isPaletteOpen()) return;
 
     // ? and / toggle help overlay
     if (e.key === '?' || e.key === '/') {
@@ -221,7 +224,7 @@ export function initKeyboardNavigation() {
 
     // Navigation and action keys activate keyboard mode
     const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', '1', '2', '3', '4', '5'];
+    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', '1', '2', '3', '4', '5'];
 
     if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
       if (!kbd.active) {
@@ -271,6 +274,10 @@ export function initKeyboardNavigation() {
       case '.':
         e.preventDefault();
         handleDot();
+        break;
+      case 'g':
+        e.preventDefault();
+        openFacetPalette();
         break;
       case 'r':
         e.preventDefault();
@@ -354,6 +361,21 @@ export function restoreKeyboardFocus() {
     requestAnimationFrame(() => {
       updateFocus();
     });
+  }
+}
+
+// Set focused facet by element ID (used by facet palette)
+export function setFocusedFacet(facetId) {
+  const facets = getFacets();
+  const index = facets.findIndex(f => f.id === facetId);
+  if (index >= 0) {
+    kbd.facetIndex = index;
+    kbd.valueIndex = 0;
+    if (!kbd.active) {
+      activateKeyboardMode();
+    } else {
+      updateFocus();
+    }
   }
 }
 
