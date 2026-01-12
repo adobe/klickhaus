@@ -119,6 +119,7 @@ export const colorRules = {
       if (m === 'PATCH') return 'var(--method-patch)';
       if (m === 'HEAD') return 'var(--method-head)';
       if (m === 'OPTIONS') return 'var(--method-options)';
+      if (m === 'DELETE') return 'var(--method-delete)';
       return '';
     }
   },
