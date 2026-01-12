@@ -11,10 +11,19 @@ export function formatAsn(dim) {
   return `<span class="dim-prefix">${escapeHtml(num)}</span>${escapeHtml(name)}`;
 }
 
+// Format forwarded host as "customer.com, aem-host" with ", aem-host" dimmed
+export function formatForwardedHost(dim) {
+  const commaIdx = dim.indexOf(', ');
+  if (commaIdx === -1) return escapeHtml(dim);
+  const customerHost = dim.slice(0, commaIdx);
+  const aemHost = dim.slice(commaIdx); // includes ", "
+  return `${escapeHtml(customerHost)}<span class="dim-prefix">${escapeHtml(aemHost)}</span>`;
+}
+
 export const allBreakdowns = [
   { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", summaryCountIf: "`response.status` >= 500", summaryLabel: 'error rate', summaryColor: 'error' },
   { id: 'breakdown-hosts', col: '`request.host`', linkFn: hostLink, dimPrefixes: ['main--'] },
-  { id: 'breakdown-forwarded-hosts', col: "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)", linkFn: forwardedHostLink },
+  { id: 'breakdown-forwarded-hosts', col: "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)", linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost },
   { id: 'breakdown-content-types', col: '`response.headers.content_type`' },
   { id: 'breakdown-status', col: 'toString(`response.status`)' },
   { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
