@@ -182,6 +182,18 @@ function handleDot() {
   }
 }
 
+// Open link in current value (if exists)
+function openCurrentLink() {
+  const row = document.querySelector('.breakdown-table tr.kbd-focused');
+  if (!row) return;
+
+  // Find the link in the dim cell
+  const link = row.querySelector('td.dim a[href]');
+  if (link) {
+    window.open(link.href, '_blank', 'noopener');
+  }
+}
+
 // Select time range by number key (1-5)
 function selectTimeRange(num) {
   const select = document.getElementById('timeRange');
@@ -224,7 +236,7 @@ export function initKeyboardNavigation() {
 
     // Navigation and action keys activate keyboard mode
     const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', '1', '2', '3', '4', '5'];
+    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', '1', '2', '3', '4', '5'];
 
     if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
       if (!kbd.active) {
@@ -278,6 +290,10 @@ export function initKeyboardNavigation() {
       case 'g':
         e.preventDefault();
         openFacetPalette();
+        break;
+      case 'o':
+        e.preventDefault();
+        openCurrentLink();
         break;
       case 'r':
         e.preventDefault();
