@@ -221,14 +221,26 @@ async function init() {
     }, 500);
   });
 
-  // In keyboard mode, Enter applies filter immediately and unfocuses
+  // Track original value for ESC reset
+  let hostFilterOriginalValue = '';
+  elements.hostFilterInput.addEventListener('focus', () => {
+    hostFilterOriginalValue = elements.hostFilterInput.value;
+  });
+
+  // Enter applies filter and unfocuses, ESC resets and unfocuses
   elements.hostFilterInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && document.body.classList.contains('keyboard-mode')) {
+    if (e.key === 'Enter') {
       e.preventDefault();
       clearTimeout(filterTimeout);
       state.hostFilter = e.target.value;
       saveStateToURL();
       loadDashboard();
+      e.target.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      clearTimeout(filterTimeout);
+      e.target.value = hostFilterOriginalValue;
+      state.hostFilter = hostFilterOriginalValue;
       e.target.blur();
     }
   });

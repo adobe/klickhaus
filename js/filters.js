@@ -64,6 +64,24 @@ export function removeFilterByValue(col, value) {
   if (loadDashboard) loadDashboard();
 }
 
+// Get facet title from breakdown column
+function getFacetTitle(col) {
+  const breakdown = allBreakdowns.find(b => b.col === col);
+  if (!breakdown) return null;
+  const card = document.getElementById(breakdown.id);
+  if (!card) return null;
+  const h3 = card.querySelector('h3');
+  if (!h3) return null;
+  // Get only direct text nodes (ignore badges/buttons)
+  let title = '';
+  for (const node of h3.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      title += node.textContent;
+    }
+  }
+  return title.trim() || null;
+}
+
 export function renderActiveFilters() {
   const container = document.getElementById('activeFilters');
   if (state.filters.length === 0) {
@@ -72,7 +90,14 @@ export function renderActiveFilters() {
     return;
   }
   container.innerHTML = state.filters.map((f, i) => {
-    const label = f.exclude ? `NOT ${f.value}` : f.value;
+    let label;
+    if (f.value === '') {
+      // Empty value - show facet name with ! prefix
+      const facetTitle = getFacetTitle(f.col) || 'Empty';
+      label = f.exclude ? `NOT !${facetTitle}` : `!${facetTitle}`;
+    } else {
+      label = f.exclude ? `NOT ${f.value}` : f.value;
+    }
     // Get color indicator using unified color system
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
     return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" onclick="removeFilter(${i})">${colorIndicator}${escapeHtml(label)}</span>`;
