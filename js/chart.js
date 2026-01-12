@@ -5,6 +5,7 @@ import { query } from './api.js';
 import { getTimeFilter, getHostFilter, getTimeBucket, getTable, getPeriodMs, queryTimestamp, setQueryTimestamp } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { formatNumber } from './format.js';
+import { detectStep } from './step-detection.js';
 
 // Navigation state
 let onNavigate = null;
@@ -325,5 +326,92 @@ export function renderChart(data) {
     ctx.strokeStyle = colors.server.line;
     ctx.lineWidth = 2;
     ctx.stroke();
+  }
+
+  // Detect and highlight the most significant step region (spike or dip)
+  const step = detectStep(series);
+  if (step) {
+    const startX = getX(step.startIndex);
+    const endX = getX(step.endIndex);
+    // Wider minimum band for better visibility
+    const minBandWidth = Math.max(chartWidth / data.length * 2, 16);
+
+    // Calculate band edges with padding on both sides
+    const bandPadding = minBandWidth / 2;
+    const bandLeft = startX - bandPadding;
+    const bandRight = step.startIndex === step.endIndex
+      ? startX + bandPadding
+      : endX + bandPadding;
+    const bandWidth = bandRight - bandLeft;
+
+    // Color coding matches the traffic category colors from CSS:
+    // - Error spike (4xx/5xx): orange/red (matches --status-client-error / --status-server-error)
+    // - Success drop: uses green but inverted meaning (traffic loss)
+    // - Success spike: green (matches --status-ok)
+    let highlightFill, highlightStroke, labelColor;
+
+    if (step.category === 'error') {
+      // Orange/amber for error spikes (matches 4xx color)
+      highlightFill = 'rgba(247, 144, 9, 0.15)';
+      highlightStroke = 'rgba(247, 144, 9, 0.6)';
+      labelColor = 'rgba(247, 144, 9, 1)';
+    } else if (step.type === 'dip') {
+      // Red for traffic drops (bad - lost traffic)
+      highlightFill = 'rgba(240, 68, 56, 0.15)';
+      highlightStroke = 'rgba(240, 68, 56, 0.6)';
+      labelColor = 'rgba(240, 68, 56, 1)';
+    } else {
+      // Green for success spikes (matches 2xx color)
+      highlightFill = 'rgba(18, 183, 106, 0.15)';
+      highlightStroke = 'rgba(18, 183, 106, 0.6)';
+      labelColor = 'rgba(18, 183, 106, 1)';
+    }
+
+    ctx.fillStyle = highlightFill;
+    ctx.fillRect(bandLeft, padding.top, bandWidth, chartHeight);
+
+    // Draw dashed vertical lines at band edges
+    ctx.strokeStyle = highlightStroke;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+
+    // Left edge line
+    ctx.beginPath();
+    ctx.moveTo(bandLeft, padding.top);
+    ctx.lineTo(bandLeft, height - padding.bottom);
+    ctx.stroke();
+
+    // Right edge line
+    ctx.beginPath();
+    ctx.moveTo(bandRight, padding.top);
+    ctx.lineTo(bandRight, height - padding.bottom);
+    ctx.stroke();
+
+    ctx.setLineDash([]); // Reset dash
+
+    // Draw indicator label at top center of the region
+    const centerX = (bandLeft + bandRight) / 2;
+    const arrowY = padding.top + 12;
+    const arrow = step.type === 'spike' ? '▲' : '▼';
+
+    // Format magnitude: use multiplier (2x, 3.5x) instead of percentage for large values
+    // magnitude is the deviation ratio: 1.0 = 100% above baseline = "2x"
+    let magnitudeLabel;
+    if (step.magnitude >= 1) {
+      // 100%+ deviation = show as multiplier
+      // magnitude 1.0 = doubled = 2x, magnitude 2.0 = tripled = 3x
+      const multiplier = step.magnitude;
+      magnitudeLabel = multiplier >= 10
+        ? `${Math.round(multiplier)}x`
+        : `${multiplier.toFixed(1).replace(/\.0$/, '')}x`;
+    } else {
+      // Under 100% = show as percentage
+      magnitudeLabel = `${Math.round(step.magnitude * 100)}%`;
+    }
+
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = labelColor;
+    ctx.fillText(`${arrow} ${magnitudeLabel}`, centerX, arrowY);
   }
 }
