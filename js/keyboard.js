@@ -1,6 +1,6 @@
 // Keyboard navigation mode for vim-style navigation
 import { state } from './state.js';
-import { clearAllFilters } from './filters.js';
+import { clearAllFilters, updateHeaderFixed } from './filters.js';
 
 // Keyboard navigation state
 const kbd = {
@@ -26,6 +26,7 @@ function activateKeyboardMode() {
   if (kbd.active) return;
   kbd.active = true;
   document.body.classList.add('keyboard-mode');
+  updateHeaderFixed();
 
   // Focus first facet if no focus yet
   const facets = getFacets();
@@ -40,6 +41,7 @@ function activateKeyboardMode() {
 function deactivateKeyboardMode() {
   kbd.active = false;
   document.body.classList.remove('keyboard-mode');
+  updateHeaderFixed();
   clearFocusClasses();
   updateFragment();
 }

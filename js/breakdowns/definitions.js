@@ -29,7 +29,7 @@ export const allBreakdowns = [
   { id: 'breakdown-status', col: 'toString(`response.status`)' },
   { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },
   { id: 'breakdown-cache', col: 'upper(`cdn.cache_status`)', summaryCountIf: "upper(`cdn.cache_status`) LIKE 'HIT%'", summaryLabel: 'cache efficiency' },
-  { id: 'breakdown-paths', col: '`request.url`', linkFn: pathLink },
+  { id: 'breakdown-paths', col: '`request.url`', linkFn: pathLink, modeToggle: 'contentTypeMode' },
   { id: 'breakdown-referers', col: '`request.headers.referer`', linkFn: refererLink, dimPrefixes: ['https://', 'http://'] },
   { id: 'breakdown-user-agents', col: '`request.headers.user_agent`', dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning' },
   { id: 'breakdown-ips', col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)", linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%'", summaryLabel: 'IPv6' },

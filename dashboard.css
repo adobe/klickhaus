@@ -430,6 +430,20 @@ header {
   gap: 16px;
 }
 
+/* Fixed header in keyboard mode or with multiple filters */
+body.header-fixed header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+body.header-fixed main,
+body.header-fixed #logsView {
+  padding-top: 70px;
+}
+
 @media (max-width: 600px) {
   header {
     padding: 12px;

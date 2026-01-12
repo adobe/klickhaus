@@ -26,11 +26,11 @@ export function getInterval() {
 
 export function getTimeBucket() {
   const buckets = {
-    '15m': 'toStartOfInterval(timestamp, INTERVAL 30 SECOND)',
-    '1h': 'toStartOfMinute(timestamp)',
-    '12h': 'toStartOfTenMinutes(timestamp)',
-    '24h': 'toStartOfFifteenMinutes(timestamp)',
-    '7d': 'toStartOfHour(timestamp)'
+    '15m': 'toStartOfInterval(timestamp, INTERVAL 5 SECOND)',
+    '1h': 'toStartOfInterval(timestamp, INTERVAL 10 SECOND)',
+    '12h': 'toStartOfMinute(timestamp)',
+    '24h': 'toStartOfFiveMinutes(timestamp)',
+    '7d': 'toStartOfTenMinutes(timestamp)'
   };
   return buckets[state.timeRange];
 }

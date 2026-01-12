@@ -132,11 +132,11 @@ function toggleFacetMode(stateKey) {
   state[stateKey] = state[stateKey] === 'count' ? 'bytes' : 'count';
   saveStateToURL();
 
-  // Find and reload the breakdown that uses this mode toggle
+  // Find and reload all breakdowns that use this mode toggle
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  const breakdown = allBreakdowns.find(b => b.modeToggle === stateKey);
-  if (breakdown) {
+  const breakdowns = allBreakdowns.filter(b => b.modeToggle === stateKey);
+  for (const breakdown of breakdowns) {
     loadBreakdown(breakdown, timeFilter, hostFilter);
   }
 }

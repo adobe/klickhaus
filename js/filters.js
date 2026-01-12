@@ -68,6 +68,7 @@ export function renderActiveFilters() {
   const container = document.getElementById('activeFilters');
   if (state.filters.length === 0) {
     container.innerHTML = '';
+    updateHeaderFixed();
     return;
   }
   container.innerHTML = state.filters.map((f, i) => {
@@ -76,4 +77,11 @@ export function renderActiveFilters() {
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
     return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" onclick="removeFilter(${i})">${colorIndicator}${escapeHtml(label)}</span>`;
   }).join('');
+  updateHeaderFixed();
+}
+
+// Fix header position when in keyboard mode or with 2+ filters
+export function updateHeaderFixed() {
+  const shouldFix = document.body.classList.contains('keyboard-mode') || state.filters.length >= 2;
+  document.body.classList.toggle('header-fixed', shouldFix);
 }
