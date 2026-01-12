@@ -314,25 +314,35 @@ export function initKeyboardNavigation() {
     }
   });
 
-  // Sync state when Tab focuses a row
+  // Track mouse activity to distinguish Tab focus from click focus
+  let recentMouseDown = false;
+  document.addEventListener('mousedown', () => {
+    recentMouseDown = true;
+    setTimeout(() => { recentMouseDown = false; }, 100);
+  }, true);
+
+  // Sync state when Tab focuses a row (not click)
   document.addEventListener('focusin', (e) => {
     const row = e.target.closest('.breakdown-table tr[tabindex]');
     if (!row) return;
 
-    // Activate keyboard mode
-    if (!kbd.active) {
+    // Only activate keyboard mode for Tab navigation, not mouse clicks
+    if (!recentMouseDown && !kbd.active) {
       kbd.active = true;
       document.body.classList.add('keyboard-mode');
+      updateHeaderFixed();
     }
 
-    // Find which facet/value is now focused
-    const facet = row.closest('.breakdown-card');
-    const facets = getFacets();
-    const facetIdx = facets.indexOf(facet);
-    if (facetIdx >= 0) {
-      kbd.facetIndex = facetIdx;
-      kbd.valueIndex = parseInt(row.dataset.valueIndex) || 0;
-      updateFocus();
+    // Find which facet/value is now focused (even for clicks, to sync state)
+    if (kbd.active) {
+      const facet = row.closest('.breakdown-card');
+      const facets = getFacets();
+      const facetIdx = facets.indexOf(facet);
+      if (facetIdx >= 0) {
+        kbd.facetIndex = facetIdx;
+        kbd.valueIndex = parseInt(row.dataset.valueIndex) || 0;
+        updateFocus();
+      }
     }
   });
 }
