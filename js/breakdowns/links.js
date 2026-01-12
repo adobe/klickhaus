@@ -24,10 +24,18 @@ export function refererLink(val) {
 
 export function pathLink(val) {
   if (!val) return null;
-  // Only link if we have an active host filter
+  // Only link if we have a single active host or forwarded host filter
   const hostFilter = state.filters.find(f => f.col === '`request.host`' && !f.exclude);
   if (hostFilter) {
     return 'https://' + hostFilter.value + val;
+  }
+  // Check for forwarded host filter (take first host if comma-separated)
+  const fwdHostFilter = state.filters.find(f =>
+    f.col === "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)" && !f.exclude
+  );
+  if (fwdHostFilter && fwdHostFilter.value !== '(same)') {
+    const firstHost = fwdHostFilter.value.split(',')[0].trim();
+    return 'https://' + firstHost + val;
   }
   return null;
 }
