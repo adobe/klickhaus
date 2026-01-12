@@ -14,7 +14,7 @@ export function formatAsn(dim) {
 export const allBreakdowns = [
   { id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", summaryCountIf: "`response.status` >= 500", summaryLabel: 'error rate', summaryColor: 'error' },
   { id: 'breakdown-hosts', col: '`request.host`', linkFn: hostLink, dimPrefixes: ['main--'] },
-  { id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`', linkFn: forwardedHostLink },
+  { id: 'breakdown-forwarded-hosts', col: "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)", linkFn: forwardedHostLink },
   { id: 'breakdown-content-types', col: '`response.headers.content_type`' },
   { id: 'breakdown-status', col: 'toString(`response.status`)' },
   { id: 'breakdown-errors', col: '`response.headers.x_error`', extraFilter: "AND `response.headers.x_error` != ''" },

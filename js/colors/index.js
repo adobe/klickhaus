@@ -1,5 +1,6 @@
 // Unified color lookup system
 import { colorRules } from './definitions.js';
+import { isSyntheticBucket } from '../utils.js';
 
 // Build lookup map: pattern -> rule
 const patternToRule = new Map();
@@ -17,6 +18,9 @@ for (const [ruleName, rule] of Object.entries(colorRules)) {
  */
 export function getColorForColumn(col, value) {
   if (!value) return '';
+
+  // Synthetic buckets like (same), (empty), (other) don't get colors
+  if (isSyntheticBucket(value)) return '';
 
   // Find matching rule by checking if col includes any pattern
   for (const [pattern, rule] of patternToRule.entries()) {

@@ -1,5 +1,5 @@
 // Breakdown table rendering
-import { escapeHtml } from '../utils.js';
+import { escapeHtml, isSyntheticBucket } from '../utils.js';
 import { formatNumber, formatQueryTime } from '../format.js';
 import { getColorIndicatorHtml } from '../colors/index.js';
 import { state } from '../state.js';
@@ -79,7 +79,10 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   } : null;
   const hasOther = otherRow && otherRow.cnt > 0 && getNextTopN();
 
-  const maxCount = Math.max(...data.map(d => parseInt(d.cnt)));
+  // Exclude synthetic buckets like (same), (empty) from maxCount calculation
+  // so they don't skew the 100% bar width for real values
+  const realData = data.filter(d => !isSyntheticBucket(d.dim));
+  const maxCount = realData.length > 0 ? Math.max(...realData.map(d => parseInt(d.cnt))) : 1;
 
   let html = `<h3>${speedIndicator}${title}${summaryHtml}`;
   if (hasFilters) {
@@ -93,35 +96,47 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     const cnt4xx = parseInt(row.cnt_4xx) || 0;
     const cnt5xx = parseInt(row.cnt_5xx) || 0;
 
-    // Calculate percentages relative to max count (for bar width)
-    const barWidth = (cnt / maxCount) * 100;
+    const dim = row.dim || '(empty)';
+    const isSynthetic = isSyntheticBucket(dim);
+
+    // For synthetic buckets, cap bar at 100% and always show fading gradient
+    // to visually distinguish them from real dimension values
+    const barWidth = (isSynthetic && cnt > maxCount) ? 100 : (cnt / maxCount) * 100;
+    const overflowClass = isSynthetic ? ' bar-overflow' : '';
+
     // Calculate percentages within this row (for stacked segments)
     const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
     const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
     const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
 
-    const dim = row.dim || '(empty)';
     const dimEscaped = (row.dim || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
 
     // Check if this value is currently filtered
     const activeFilter = columnFilters.find(f => f.value === (row.dim || ''));
     const isIncluded = activeFilter && !activeFilter.exclude;
     const isExcluded = activeFilter && activeFilter.exclude;
-    const rowClass = isIncluded ? 'filter-included' : (isExcluded ? 'filter-excluded' : '');
+    const filterClass = isIncluded ? 'filter-included' : (isExcluded ? 'filter-excluded' : '');
+    const rowClass = isSynthetic ? `synthetic-row ${filterClass}` : filterClass;
 
     // Build dimension cell content - with optional link and dimmed prefix
+    // Synthetic buckets like (same), (empty) don't get links
     let dimContent;
     let linkUrl = null;
-    if (linkFn && row.dim) {
-      linkUrl = linkFn(row.dim);
-    } else if (linkPrefix && row.dim) {
-      // For ASN links, extract just the number (before first space)
-      const linkValue = row.dim.split(' ')[0];
-      linkUrl = linkPrefix + linkValue + (linkSuffix || '');
+    if (!isSyntheticBucket(row.dim)) {
+      if (linkFn && row.dim) {
+        linkUrl = linkFn(row.dim);
+      } else if (linkPrefix && row.dim) {
+        // For ASN links, extract just the number (before first space)
+        const linkValue = row.dim.split(' ')[0];
+        linkUrl = linkPrefix + linkValue + (linkSuffix || '');
+      }
     }
-    const formattedDim = formatDimWithPrefix(dim, dimPrefixes, dimFormatFn);
+    // Synthetic buckets get dimmed styling like (other)
+    const formattedDim = isSynthetic
+      ? `<span class="dim-prefix">${escapeHtml(dim)}</span>`
+      : formatDimWithPrefix(dim, dimPrefixes, dimFormatFn);
 
-    // Get color indicator using unified color system
+    // Get color indicator using unified color system (already skips synthetic buckets)
     const colorIndicator = getColorIndicatorHtml(col, row.dim);
 
     if (linkUrl) {
@@ -155,7 +170,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
           ${filterBtn}
         </td>
         <td class="bar">
-          <div class="bar-inner" style="width: ${barWidth}%">
+          <div class="bar-inner${overflowClass}" style="width: ${barWidth}%">
             <div class="bar-segment bar-5xx" style="width: ${pct5xx}%"></div>
             <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
             <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
