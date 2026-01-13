@@ -245,14 +245,14 @@ export function detectSteps(series, maxCount = 5) {
   const greenSpikeRegions = findAnomalyRegions(greenDeviations, threshold, 'above', margin);
   const greenDropRegions = findAnomalyRegions(greenDeviations, threshold, 'below', margin);
 
-  // Importance weights - all equal to see raw magnitude/duration ranking
+  // Importance weights - prioritize spikes and green drops over red/yellow drops
   const weights = {
-    redSpike: 1,
-    yellowSpike: 1,
-    greenDrop: 1,
+    redSpike: 2,
+    yellowSpike: 2,
+    greenDrop: 2,
     yellowDrop: 1,
     redDrop: 1,
-    greenSpike: 1
+    greenSpike: 2
   };
 
   // Score each region: peak deviation × sqrt(duration) × category weight
