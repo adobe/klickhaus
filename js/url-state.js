@@ -1,6 +1,6 @@
 // URL state management
 import { state } from './state.js';
-import { queryTimestamp, setQueryTimestamp } from './time.js';
+import { queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange } from './time.js';
 import { renderActiveFilters } from './filters.js';
 
 // DOM elements (set by main.js)
@@ -20,8 +20,13 @@ export function saveStateToURL() {
   if (state.title) params.set('title', state.title);
   if (state.contentTypeMode !== 'count') params.set('ctm', state.contentTypeMode);
 
-  // Save query timestamp as ISO string
-  if (queryTimestamp) {
+  // Save custom time range or query timestamp
+  if (customTimeRange) {
+    // Custom zoom range: save both start and end
+    params.set('ts', customTimeRange.start.toISOString());
+    params.set('te', customTimeRange.end.toISOString());
+  } else if (queryTimestamp) {
+    // Standard mode: just the reference timestamp
     params.set('ts', queryTimestamp.toISOString());
   }
 
@@ -67,7 +72,16 @@ export function loadStateFromURL() {
   if (params.has('ts')) {
     const ts = new Date(params.get('ts'));
     if (!isNaN(ts.getTime())) {
-      setQueryTimestamp(ts);
+      // Check if this is a custom time range (has both ts and te)
+      if (params.has('te')) {
+        const te = new Date(params.get('te'));
+        if (!isNaN(te.getTime())) {
+          setCustomTimeRange(ts, te);
+        }
+      } else {
+        // Standard mode: just set the reference timestamp
+        setQueryTimestamp(ts);
+      }
     }
   }
 

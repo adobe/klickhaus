@@ -1,15 +1,20 @@
 // Time series chart rendering
-import { DATABASE } from './config.js';
-import { state } from './state.js';
 import { query } from './api.js';
-import { getTimeFilter, getHostFilter, getTimeBucket, getTable, getPeriodMs, queryTimestamp, setQueryTimestamp } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
+import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
-import { detectStep } from './step-detection.js';
+import { state } from './state.js';
+import { detectSteps } from './step-detection.js';
+import { getHostFilter, getPeriodMs, getTable, getTimeBucket, getTimeFilter, queryTimestamp, setCustomTimeRange, setQueryTimestamp } from './time.js';
+import { saveStateToURL } from './url-state.js';
 
 // Navigation state
 let onNavigate = null;
 let navOverlay = null;
+
+// Anomaly zoom state - now supports up to 5 anomalies
+let lastAnomalyBoundsList = []; // Array of { left, right, startTime, endTime, rank }
+let lastChartData = null; // Store data for timestamp lookups
 
 export function setupChartNavigation(callback) {
   onNavigate = callback;
@@ -64,6 +69,79 @@ export function setupChartNavigation(callback) {
       lastTap = now;
     }
   }, { passive: true });
+
+  // Click handler for anomaly zoom
+  canvas.addEventListener('click', (e) => {
+    if (lastAnomalyBoundsList.length === 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    // Check if click is within any anomaly region
+    for (const bounds of lastAnomalyBoundsList) {
+      if (x >= bounds.left && x <= bounds.right) {
+        zoomToAnomalyByRank(bounds.rank);
+        return;
+      }
+    }
+  });
+}
+
+// Get the count of detected anomalies
+export function getAnomalyCount() {
+  return lastAnomalyBoundsList.length;
+}
+
+// Get the time range of an anomaly by rank (1-5)
+export function getAnomalyTimeRange(rank = 1) {
+  const bounds = lastAnomalyBoundsList.find(b => b.rank === rank);
+  if (!bounds) return null;
+  return {
+    start: bounds.startTime,
+    end: bounds.endTime
+  };
+}
+
+// Get the time range for the most recent section (last 20% of timeline)
+export function getMostRecentTimeRange() {
+  if (!lastChartData || lastChartData.length < 2) return null;
+  const len = lastChartData.length;
+  // Last 20% of the timeline
+  const startIdx = Math.floor(len * 0.8);
+  return {
+    start: new Date(lastChartData[startIdx].t),
+    end: new Date(lastChartData[len - 1].t)
+  };
+}
+
+// Zoom to anomaly by rank (1 = most prominent)
+export function zoomToAnomalyByRank(rank) {
+  const range = getAnomalyTimeRange(rank);
+  if (!range) return false;
+
+  setCustomTimeRange(range.start, range.end);
+  saveStateToURL();
+
+  if (onNavigate) onNavigate();
+  return true;
+}
+
+// Zoom to the most prominent anomaly, or most recent section if none
+export function zoomToAnomaly() {
+  // Try most prominent anomaly first
+  if (lastAnomalyBoundsList.length > 0) {
+    return zoomToAnomalyByRank(1);
+  }
+
+  // Fall back to most recent section
+  const range = getMostRecentTimeRange();
+  if (!range) return false;
+
+  setCustomTimeRange(range.start, range.end);
+  saveStateToURL();
+
+  if (onNavigate) onNavigate();
+  return true;
 }
 
 function navigateTime(fraction) {
@@ -111,6 +189,10 @@ export async function loadTimeSeries() {
 }
 
 export function renderChart(data) {
+  // Store data for zoom functionality and reset anomaly bounds
+  lastChartData = data;
+  lastAnomalyBoundsList = [];
+
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -328,9 +410,25 @@ export function renderChart(data) {
     ctx.stroke();
   }
 
-  // Detect and highlight the most significant step region (spike or dip)
-  const step = detectStep(series);
-  if (step) {
+  // Detect and highlight up to 5 anomaly regions (spikes or dips)
+  const steps = detectSteps(series, 5);
+
+  // Debug: show detected anomalies in console
+  if (steps.length > 0) {
+    console.table(steps.map(s => ({
+      rank: s.rank,
+      type: s.type,
+      category: s.category,
+      startIndex: s.startIndex,
+      endIndex: s.endIndex,
+      startTime: data[s.startIndex]?.t,
+      endTime: data[s.endIndex]?.t,
+      magnitude: Math.round(s.magnitude * 100) + '%',
+      score: s.score.toFixed(2)
+    })));
+  }
+
+  for (const step of steps) {
     const startX = getX(step.startIndex);
     const endX = getX(step.endIndex);
     // Wider minimum band for better visibility
@@ -344,29 +442,40 @@ export function renderChart(data) {
       : endX + bandPadding;
     const bandWidth = bandRight - bandLeft;
 
-    // Color coding matches the traffic category colors from CSS:
-    // - Error spike (4xx/5xx): orange/red (matches --status-client-error / --status-server-error)
-    // - Success drop: uses green but inverted meaning (traffic loss)
-    // - Success spike: green (matches --status-ok)
+    // Store anomaly bounds for click detection and zoom
+    const startTime = new Date(data[step.startIndex].t);
+    const endTime = new Date(data[step.endIndex].t);
+    lastAnomalyBoundsList.push({
+      left: bandLeft,
+      right: bandRight,
+      startTime,
+      endTime,
+      rank: step.rank
+    });
+
+    // Color coding matches the traffic category: red (5xx), yellow (4xx), green (2xx/3xx)
+    // Use lower opacity for lower-ranked anomalies
+    const opacityMultiplier = step.rank === 1 ? 1 : 0.6;
     let highlightFill, highlightStroke, labelColor;
 
-    if (step.category === 'error') {
-      // Orange/amber for error spikes (matches 4xx color)
-      highlightFill = 'rgba(247, 144, 9, 0.15)';
-      highlightStroke = 'rgba(247, 144, 9, 0.6)';
-      labelColor = 'rgba(247, 144, 9, 1)';
-    } else if (step.type === 'dip') {
-      // Red for traffic drops (bad - lost traffic)
-      highlightFill = 'rgba(240, 68, 56, 0.15)';
-      highlightStroke = 'rgba(240, 68, 56, 0.6)';
-      labelColor = 'rgba(240, 68, 56, 1)';
+    if (step.category === 'red') {
+      // Red for 5xx anomalies
+      highlightFill = `rgba(240, 68, 56, ${0.15 * opacityMultiplier})`;
+      highlightStroke = `rgba(240, 68, 56, ${0.6 * opacityMultiplier})`;
+      labelColor = `rgba(240, 68, 56, ${1 * opacityMultiplier})`;
+    } else if (step.category === 'yellow') {
+      // Orange/amber for 4xx anomalies
+      highlightFill = `rgba(247, 144, 9, ${0.15 * opacityMultiplier})`;
+      highlightStroke = `rgba(247, 144, 9, ${0.6 * opacityMultiplier})`;
+      labelColor = `rgba(247, 144, 9, ${1 * opacityMultiplier})`;
     } else {
-      // Green for success spikes (matches 2xx color)
-      highlightFill = 'rgba(18, 183, 106, 0.15)';
-      highlightStroke = 'rgba(18, 183, 106, 0.6)';
-      labelColor = 'rgba(18, 183, 106, 1)';
+      // Green for 2xx/3xx anomalies
+      highlightFill = `rgba(18, 183, 106, ${0.15 * opacityMultiplier})`;
+      highlightStroke = `rgba(18, 183, 106, ${0.6 * opacityMultiplier})`;
+      labelColor = `rgba(18, 183, 106, ${1 * opacityMultiplier})`;
     }
 
+    // Draw shaded region from top of chart area to x-axis
     ctx.fillStyle = highlightFill;
     ctx.fillRect(bandLeft, padding.top, bandWidth, chartHeight);
 
@@ -395,23 +504,20 @@ export function renderChart(data) {
     const arrow = step.type === 'spike' ? '▲' : '▼';
 
     // Format magnitude: use multiplier (2x, 3.5x) instead of percentage for large values
-    // magnitude is the deviation ratio: 1.0 = 100% above baseline = "2x"
     let magnitudeLabel;
     if (step.magnitude >= 1) {
-      // 100%+ deviation = show as multiplier
-      // magnitude 1.0 = doubled = 2x, magnitude 2.0 = tripled = 3x
       const multiplier = step.magnitude;
       magnitudeLabel = multiplier >= 10
         ? `${Math.round(multiplier)}x`
         : `${multiplier.toFixed(1).replace(/\.0$/, '')}x`;
     } else {
-      // Under 100% = show as percentage
       magnitudeLabel = `${Math.round(step.magnitude * 100)}%`;
     }
 
+    // Show rank number + arrow + magnitude (e.g., "1 ▲ 2x")
     ctx.font = 'bold 11px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = labelColor;
-    ctx.fillText(`${arrow} ${magnitudeLabel}`, centerX, arrowY);
+    ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, centerX, arrowY);
   }
 }

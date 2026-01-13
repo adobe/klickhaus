@@ -3,7 +3,7 @@ import { state, togglePinnedColumn } from './state.js';
 import { setForceRefresh } from './api.js';
 import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from './auth.js';
 import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements } from './url-state.js';
-import { queryTimestamp, setQueryTimestamp } from './time.js';
+import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange } from './time.js';
 import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
 import { loadTimeSeries, setupChartNavigation } from './chart.js';
 import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
@@ -197,6 +197,8 @@ async function init() {
     state.timeRange = e.target.value;
     // Reset timestamp when changing time range to show most recent window
     setQueryTimestamp(new Date());
+    // Clear any custom zoom range
+    clearCustomTimeRange();
     saveStateToURL();
     loadDashboard();
     updateTimeRangeHint();
@@ -265,6 +267,7 @@ window.increaseTopN = increaseTopN;
 window.closeQuickLinksModal = closeQuickLinksModal;
 window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
 window.toggleFacetMode = toggleFacetMode;
+window.loadDashboard = loadDashboard;
 
 // Load host autocomplete when dashboard is shown
 window.addEventListener('dashboard-shown', () => {

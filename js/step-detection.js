@@ -189,3 +189,160 @@ export function detectStep(series) {
     duration: winner.duration
   };
 }
+
+/**
+ * Detect up to maxCount significant anomalies in CDN traffic.
+ * Treats green (2xx/3xx), yellow (4xx), and red (5xx) as independent categories.
+ * Returns anomalies sorted by score (most significant first).
+ *
+ * Priority order:
+ * 1. Red spikes (5xx up) - server errors, most critical
+ * 2. Yellow spikes (4xx up) - client errors increasing
+ * 3. Green drops (2xx/3xx down) - traffic loss
+ * 4. Yellow drops (4xx down) - fewer client errors (notable)
+ * 5. Red drops (5xx down) - fewer server errors (notable)
+ *
+ * @param {Object} series - Object with ok, client, server arrays
+ * @param {number} [maxCount=5] - Maximum number of anomalies to return
+ * @returns {Array} - Array of { startIndex, endIndex, type, magnitude, category, rank }
+ */
+export function detectSteps(series, maxCount = 5) {
+  const len = series.ok.length;
+  if (len < 8) return [];
+
+  // Ignore first 2 and last 2 data points (incomplete bucket artifacts)
+  const margin = 2;
+
+  // Three independent series: green (ok), yellow (client/4xx), red (server/5xx)
+  const greenScores = series.ok.slice();
+  const yellowScores = series.client.slice();
+  const redScores = series.server.slice();
+
+  // Calculate baselines (median of the valid range)
+  const greenBaseline = median(greenScores.slice(margin, len - margin));
+  const yellowBaseline = median(yellowScores.slice(margin, len - margin));
+  const redBaseline = median(redScores.slice(margin, len - margin));
+
+  // Calculate deviations from baseline (as ratio)
+  const greenDeviations = greenScores.map(v =>
+    greenBaseline > 0 ? (v - greenBaseline) / greenBaseline : 0
+  );
+  const yellowDeviations = yellowScores.map(v =>
+    yellowBaseline > 0 ? (v - yellowBaseline) / yellowBaseline : 0
+  );
+  const redDeviations = redScores.map(v =>
+    redBaseline > 0 ? (v - redBaseline) / redBaseline : 0
+  );
+
+  // Minimum threshold for significance (20% deviation from baseline)
+  const threshold = 0.20;
+
+  // Find anomaly regions for each category and direction
+  const redSpikeRegions = findAnomalyRegions(redDeviations, threshold, 'above', margin);
+  const redDropRegions = findAnomalyRegions(redDeviations, threshold, 'below', margin);
+  const yellowSpikeRegions = findAnomalyRegions(yellowDeviations, threshold, 'above', margin);
+  const yellowDropRegions = findAnomalyRegions(yellowDeviations, threshold, 'below', margin);
+  const greenSpikeRegions = findAnomalyRegions(greenDeviations, threshold, 'above', margin);
+  const greenDropRegions = findAnomalyRegions(greenDeviations, threshold, 'below', margin);
+
+  // Importance weights - all equal to see raw magnitude/duration ranking
+  const weights = {
+    redSpike: 1,
+    yellowSpike: 1,
+    greenDrop: 1,
+    yellowDrop: 1,
+    redDrop: 1,
+    greenSpike: 1
+  };
+
+  // Score each region: peak deviation × sqrt(duration) × category weight
+  const candidates = [];
+
+  for (const region of redSpikeRegions) {
+    candidates.push({
+      ...region,
+      score: region.peakDeviation * Math.sqrt(region.duration) * weights.redSpike,
+      category: 'red',
+      type: 'spike'
+    });
+  }
+
+  for (const region of redDropRegions) {
+    candidates.push({
+      ...region,
+      score: region.peakDeviation * Math.sqrt(region.duration) * weights.redDrop,
+      category: 'red',
+      type: 'dip'
+    });
+  }
+
+  for (const region of yellowSpikeRegions) {
+    candidates.push({
+      ...region,
+      score: region.peakDeviation * Math.sqrt(region.duration) * weights.yellowSpike,
+      category: 'yellow',
+      type: 'spike'
+    });
+  }
+
+  for (const region of yellowDropRegions) {
+    candidates.push({
+      ...region,
+      score: region.peakDeviation * Math.sqrt(region.duration) * weights.yellowDrop,
+      category: 'yellow',
+      type: 'dip'
+    });
+  }
+
+  for (const region of greenSpikeRegions) {
+    candidates.push({
+      ...region,
+      score: region.peakDeviation * Math.sqrt(region.duration) * weights.greenSpike,
+      category: 'green',
+      type: 'spike'
+    });
+  }
+
+  for (const region of greenDropRegions) {
+    candidates.push({
+      ...region,
+      score: region.peakDeviation * Math.sqrt(region.duration) * weights.greenDrop,
+      category: 'green',
+      type: 'dip'
+    });
+  }
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  // Sort by score descending
+  candidates.sort((a, b) => b.score - a.score);
+
+  // Greedily select non-overlapping regions (higher score wins)
+  const selected = [];
+  for (const candidate of candidates) {
+    if (selected.length >= maxCount) break;
+
+    // Check if this candidate overlaps with any already selected region
+    const overlaps = selected.some(s =>
+      !(candidate.end < s.start || candidate.start > s.end)
+    );
+
+    if (!overlaps) {
+      selected.push(candidate);
+    }
+  }
+
+  // Return with rank (1-based for display)
+  return selected.map((c, index) => ({
+    startIndex: c.start,
+    endIndex: c.end,
+    type: c.type,
+    magnitude: c.peakDeviation,
+    category: c.category,
+    duration: c.duration,
+    score: c.score,
+    rank: index + 1
+  }));
+}

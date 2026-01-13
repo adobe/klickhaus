@@ -2,6 +2,9 @@
 import { state } from './state.js';
 import { clearAllFilters, updateHeaderFixed } from './filters.js';
 import { openFacetPalette, isPaletteOpen } from './facet-palette.js';
+import { zoomToAnomaly, zoomToAnomalyByRank, getAnomalyCount } from './chart.js';
+import { zoomOut } from './time.js';
+import { saveStateToURL } from './url-state.js';
 
 // Keyboard navigation state
 const kbd = {
@@ -194,13 +197,11 @@ function openCurrentLink() {
   }
 }
 
-// Select time range by number key (1-5)
-function selectTimeRange(num) {
-  const select = document.getElementById('timeRange');
-  const index = parseInt(num) - 1;
-  if (index >= 0 && index < select.options.length) {
-    select.selectedIndex = index;
-    select.dispatchEvent(new Event('change'));
+// Zoom to anomaly by number key (1-5)
+function zoomToAnomalyNumber(num) {
+  const rank = parseInt(num);
+  if (rank >= 1 && rank <= getAnomalyCount()) {
+    zoomToAnomalyByRank(rank);
   }
 }
 
@@ -236,7 +237,7 @@ export function initKeyboardNavigation() {
 
     // Navigation and action keys activate keyboard mode
     const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', '1', '2', '3', '4', '5'];
+    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', '1', '2', '3', '4', '5', '+', '-', '='];
 
     if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
       if (!kbd.active) {
@@ -314,13 +315,30 @@ export function initKeyboardNavigation() {
       case '4':
       case '5':
         e.preventDefault();
-        selectTimeRange(e.key);
+        // Zoom to specific anomaly by rank
+        zoomToAnomalyNumber(e.key);
         break;
       case 'b':
       case '#':
         e.preventDefault();
         if (window.toggleFacetMode) {
           window.toggleFacetMode('contentTypeMode');
+        }
+        break;
+      case '+':
+      case '=': // Unshifted + on most keyboards
+        e.preventDefault();
+        // Zoom in: to most prominent anomaly, or most recent section if none
+        zoomToAnomaly();
+        break;
+      case '-':
+        e.preventDefault();
+        // Zoom out: expand to next larger predefined period
+        if (zoomOut()) {
+          saveStateToURL();
+          if (window.loadDashboard) {
+            window.loadDashboard();
+          }
         }
         break;
       case 'Escape':
