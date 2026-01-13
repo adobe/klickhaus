@@ -61,7 +61,9 @@ const FACET_ALIASES = {
 let paletteState = {
   open: false,
   selectedIndex: 0,
-  filteredFacets: []
+  filteredFacets: [],
+  savedQueries: null,  // Cached saved queries from index.html
+  savedQueriesLoading: false
 };
 
 // Extract just the title text from an h3, ignoring child elements like badges
@@ -137,6 +139,25 @@ function fuzzyMatch(query, target) {
   query = query.toLowerCase();
   target = target.toLowerCase();
 
+  // Exact match gets highest score
+  if (query === target) {
+    return { score: 1000, positions: [...Array(query.length).keys()] };
+  }
+
+  // Prefix match gets high score
+  if (target.startsWith(query)) {
+    return { score: 500 + query.length * 10, positions: [...Array(query.length).keys()] };
+  }
+
+  // Check if target contains query as substring (word match)
+  const substringIdx = target.indexOf(query);
+  if (substringIdx !== -1) {
+    const positions = [...Array(query.length).keys()].map(i => i + substringIdx);
+    // Higher score if it's at a word boundary
+    const atWordStart = substringIdx === 0 || /[\s\-_.]/.test(target[substringIdx - 1]);
+    return { score: 300 + (atWordStart ? 100 : 0) + query.length * 5, positions };
+  }
+
   let queryIdx = 0;
   let matchPositions = [];
 
@@ -160,24 +181,115 @@ function fuzzyMatch(query, target) {
     // Bonus for consecutive matches
     if (i > 0 && matchPositions[i] === matchPositions[i - 1] + 1) score += 5;
   }
+
+  // Bonus for higher coverage (query length vs target length)
+  score += (query.length / target.length) * 50;
+
   // Penalty for longer targets
   score -= target.length * 0.1;
 
   return { score, positions: matchPositions };
 }
 
-// Filter and score facets
-function filterFacets(query) {
+// Load saved queries from index.html
+async function loadSavedQueries() {
+  if (paletteState.savedQueries !== null || paletteState.savedQueriesLoading) {
+    return paletteState.savedQueries || [];
+  }
+
+  paletteState.savedQueriesLoading = true;
+
+  try {
+    const response = await fetch('/index.html');
+    const html = await response.text();
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const queries = [];
+    const sections = doc.querySelectorAll('.section');
+
+    for (const section of sections) {
+      const sectionTitle = section.querySelector('h2')?.textContent || '';
+      const items = section.querySelectorAll('li:not(.legacy-view)');
+
+      for (const item of items) {
+        const link = item.querySelector('a');
+        if (!link) continue;
+
+        const href = link.getAttribute('href');
+        // Skip non-dashboard links and empty hrefs
+        if (!href || !href.includes('dashboard.html')) continue;
+
+        const titleEl = link.querySelector('.title');
+        const descEl = link.querySelector('.description');
+
+        // Extract text without badges
+        let title = titleEl?.textContent || '';
+        // Remove badge text from title
+        const badge = titleEl?.querySelector('.badge');
+        if (badge) {
+          title = title.replace(badge.textContent, '').trim();
+        }
+
+        const description = descEl?.textContent || '';
+
+        if (title) {
+          queries.push({
+            type: 'query',
+            title,
+            description,
+            section: sectionTitle,
+            href,
+            searchTerms: [
+              title.toLowerCase(),
+              description.toLowerCase(),
+              sectionTitle.toLowerCase()
+            ].filter(Boolean)
+          });
+        }
+      }
+    }
+
+    paletteState.savedQueries = queries;
+    paletteState.savedQueriesLoading = false;
+    return queries;
+  } catch (err) {
+    console.warn('Failed to load saved queries:', err);
+    paletteState.savedQueriesLoading = false;
+    paletteState.savedQueries = [];
+    return [];
+  }
+}
+
+// Filter and score facets and saved queries
+function filterFacets(query, savedQueries = []) {
   const facets = getAllFacets();
 
   if (!query.trim()) {
-    // No query: show all visible facets, then hidden ones
+    // No query: show all visible facets, then hidden ones, then saved queries
     const visible = facets.filter(f => !f.isHidden);
     const hidden = facets.filter(f => f.isHidden);
-    return [...visible, ...hidden].map(f => ({ facet: f, match: null, matchedValue: null }));
+    const facetResults = [...visible, ...hidden].map(f => ({
+      type: 'facet',
+      facet: f,
+      match: null,
+      matchedValue: null
+    }));
+
+    // Add saved queries section
+    const queryResults = savedQueries.map(q => ({
+      type: 'query',
+      query: q,
+      match: null
+    }));
+
+    return [...facetResults, ...queryResults];
   }
 
   const results = [];
+
+  // Search facets
   for (const facet of facets) {
     let bestPrimaryMatch = null;
     let bestValueMatch = null;
@@ -216,18 +328,40 @@ function filterFacets(query) {
     }
 
     if (bestMatch) {
-      results.push({ facet, match: bestMatch, matchedValue });
+      results.push({ type: 'facet', facet, match: bestMatch, matchedValue });
     }
   }
 
-  // Sort by score descending, then by visibility
+  // Search saved queries
+  for (const sq of savedQueries) {
+    let bestMatch = null;
+
+    for (const term of sq.searchTerms) {
+      const match = fuzzyMatch(query, term);
+      if (match && (!bestMatch || match.score > bestMatch.score)) {
+        bestMatch = { ...match, term };
+      }
+    }
+
+    if (bestMatch) {
+      // Slight penalty for saved queries so facets appear first for ambiguous queries
+      bestMatch.score -= 5;
+      results.push({ type: 'query', query: sq, match: bestMatch });
+    }
+  }
+
+  // Sort by score descending, then by type (facets first), then by visibility
   results.sort((a, b) => {
     if (a.match && b.match) {
       const scoreDiff = b.match.score - a.match.score;
       if (scoreDiff !== 0) return scoreDiff;
     }
-    // Prefer visible facets
-    if (a.facet.isHidden !== b.facet.isHidden) {
+    // Prefer facets over saved queries
+    if (a.type !== b.type) {
+      return a.type === 'facet' ? -1 : 1;
+    }
+    // For facets, prefer visible ones
+    if (a.type === 'facet' && a.facet.isHidden !== b.facet.isHidden) {
       return a.facet.isHidden ? 1 : -1;
     }
     return 0;
@@ -242,34 +376,55 @@ function renderList(results) {
   if (!list) return;
 
   list.innerHTML = results.map((r, i) => {
-    const { facet, matchedValue } = r;
     const isSelected = i === paletteState.selectedIndex;
-    const hiddenBadge = facet.isHidden ? '<span class="palette-hidden-badge">hidden</span>' : '';
 
-    // When matched by value, show value as main text with facet as badge
-    // When matched by facet name, show facet as main text
-    const mainText = matchedValue ? escapeHtml(matchedValue) : facet.title;
-    const facetBadge = matchedValue ? `<span class="palette-facet-badge">${facet.title}</span>` : '';
+    if (r.type === 'facet') {
+      const { facet, matchedValue } = r;
+      const hiddenBadge = facet.isHidden ? '<span class="palette-hidden-badge">hidden</span>' : '';
 
-    // Get color for value matches
-    let colorStyle = '';
-    if (matchedValue) {
-      const col = FACET_COLUMNS[facet.id];
-      if (col) {
-        const color = getColorForColumn(col, matchedValue);
-        if (color) {
-          colorStyle = `style="border-left: 3px solid ${color};"`;
+      // When matched by value, show value as main text with facet as badge
+      // When matched by facet name, show facet as main text
+      const mainText = matchedValue ? escapeHtml(matchedValue) : facet.title;
+      const facetBadge = matchedValue ? `<span class="palette-facet-badge">${facet.title}</span>` : '';
+
+      // Get color for value matches
+      let colorStyle = '';
+      if (matchedValue) {
+        const col = FACET_COLUMNS[facet.id];
+        if (col) {
+          const color = getColorForColumn(col, matchedValue);
+          if (color) {
+            colorStyle = `style="border-left: 3px solid ${color};"`;
+          }
         }
       }
-    }
 
-    return `
-      <div class="palette-item${isSelected ? ' selected' : ''}${matchedValue ? ' value-match' : ''}" ${colorStyle} data-index="${i}" data-facet-id="${facet.id}">
-        <span class="palette-item-title">${mainText}</span>
-        ${facetBadge}
-        ${hiddenBadge}
-      </div>
-    `;
+      return `
+        <div class="palette-item${isSelected ? ' selected' : ''}${matchedValue ? ' value-match' : ''}" ${colorStyle} data-index="${i}" data-type="facet" data-facet-id="${facet.id}">
+          <span class="palette-item-title">${mainText}</span>
+          ${facetBadge}
+          ${hiddenBadge}
+        </div>
+      `;
+    } else if (r.type === 'query') {
+      const { query } = r;
+      // Shorten section name by removing common prefixes
+      const shortSection = query.section
+        .replace(/^Legacy Views\s*/i, '')
+        .replace(/\(Migration from Coralogix\)/gi, '')
+        .replace(/^\s*[-–—]\s*/, '')
+        .trim();
+      return `
+        <div class="palette-item palette-query${isSelected ? ' selected' : ''}" data-index="${i}" data-type="query" data-href="${escapeHtml(query.href)}">
+          <div class="palette-query-content">
+            <span class="palette-item-title">${escapeHtml(query.title)}</span>
+            <span class="palette-query-desc">${escapeHtml(query.description)}</span>
+          </div>
+          <span class="palette-query-badge">${escapeHtml(shortSection)}</span>
+        </div>
+      `;
+    }
+    return '';
   }).join('');
 
   paletteState.filteredFacets = results;
@@ -289,7 +444,7 @@ function escapeHtml(text) {
 }
 
 // Open the palette
-export function openFacetPalette() {
+export async function openFacetPalette() {
   const dialog = document.getElementById('facetPalette');
   if (!dialog) return;
 
@@ -299,8 +454,11 @@ export function openFacetPalette() {
   const input = document.getElementById('facetPaletteInput');
   input.value = '';
 
-  // Initial render with all facets
-  const results = filterFacets('');
+  // Load saved queries (cached after first load)
+  const savedQueries = await loadSavedQueries();
+
+  // Initial render with all facets and saved queries
+  const results = filterFacets('', savedQueries);
   renderList(results);
 
   dialog.showModal();
@@ -341,8 +499,15 @@ function navigateToFacet(facetId, matchedValue = null) {
 function handleInput(e) {
   const query = e.target.value;
   paletteState.selectedIndex = 0;
-  const results = filterFacets(query);
+  const savedQueries = paletteState.savedQueries || [];
+  const results = filterFacets(query, savedQueries);
   renderList(results);
+}
+
+// Navigate to saved query URL
+function navigateToQuery(href) {
+  closeFacetPalette();
+  window.location.href = href;
 }
 
 // Handle keyboard navigation within palette
@@ -364,7 +529,11 @@ function handleKeyDown(e) {
       e.preventDefault();
       if (results[paletteState.selectedIndex]) {
         const selected = results[paletteState.selectedIndex];
-        navigateToFacet(selected.facet.id, selected.matchedValue);
+        if (selected.type === 'facet') {
+          navigateToFacet(selected.facet.id, selected.matchedValue);
+        } else if (selected.type === 'query') {
+          navigateToQuery(selected.query.href);
+        }
       }
       break;
     case 'Escape':
@@ -381,7 +550,11 @@ function handleListClick(e) {
     const index = parseInt(item.dataset.index);
     const result = paletteState.filteredFacets[index];
     if (result) {
-      navigateToFacet(result.facet.id, result.matchedValue);
+      if (result.type === 'facet') {
+        navigateToFacet(result.facet.id, result.matchedValue);
+      } else if (result.type === 'query') {
+        navigateToQuery(result.query.href);
+      }
     }
   }
 }

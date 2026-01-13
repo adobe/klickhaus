@@ -1872,6 +1872,36 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
   color: var(--text-secondary);
 }
 
+.palette-query-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.palette-item.palette-query {
+  align-items: flex-start;
+}
+
+.palette-query-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.palette-query-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Jump highlight animation */
 @keyframes palette-jump-flash {
