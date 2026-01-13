@@ -218,7 +218,11 @@ async function init() {
   // Event listeners
   elements.loginForm.addEventListener('submit', handleLogin);
   elements.logoutBtn.addEventListener('click', handleLogout);
-  elements.refreshBtn.addEventListener('click', () => loadDashboard(true));
+  elements.refreshBtn.addEventListener('click', () => {
+    // Clear anomaly focus on refresh - user wants fresh data
+    saveStateToURL(null);
+    loadDashboard(true);
+  });
   elements.timeRangeSelect.addEventListener('change', (e) => {
     state.timeRange = e.target.value;
     // Reset timestamp when changing time range to show most recent window
