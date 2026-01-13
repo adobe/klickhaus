@@ -411,7 +411,12 @@ export function renderChart(data) {
   }
 
   // Detect and highlight up to 5 anomaly regions (spikes or dips)
-  const steps = detectSteps(series, 5);
+  // Skip anomaly detection for time ranges less than 5 minutes
+  const timeRangeMs = data.length >= 2
+    ? new Date(data[data.length - 1].t) - new Date(data[0].t)
+    : 0;
+  const minTimeRangeMs = 5 * 60 * 1000; // 5 minutes
+  const steps = timeRangeMs >= minTimeRangeMs ? detectSteps(series, 5) : [];
 
   // Debug: show detected anomalies in console
   if (steps.length > 0) {
@@ -454,32 +459,72 @@ export function renderChart(data) {
     });
 
     // Color coding matches the traffic category: red (5xx), yellow (4xx), green (2xx/3xx)
-    // Use lower opacity for lower-ranked anomalies
-    const opacityMultiplier = step.rank === 1 ? 1 : 0.6;
+    // Use slightly lower opacity for lower-ranked anomalies, but keep them clearly visible
+    // Labels and lines always use full opacity for readability
+    const opacityMultiplier = step.rank === 1 ? 1 : 0.7;
     let highlightFill, highlightStroke, labelColor;
 
     if (step.category === 'red') {
       // Red for 5xx anomalies
-      highlightFill = `rgba(240, 68, 56, ${0.15 * opacityMultiplier})`;
-      highlightStroke = `rgba(240, 68, 56, ${0.6 * opacityMultiplier})`;
-      labelColor = `rgba(240, 68, 56, ${1 * opacityMultiplier})`;
+      highlightFill = `rgba(240, 68, 56, ${0.35 * opacityMultiplier})`;
+      highlightStroke = 'rgba(240, 68, 56, 0.8)';
+      labelColor = 'rgb(240, 68, 56)';
     } else if (step.category === 'yellow') {
       // Orange/amber for 4xx anomalies
-      highlightFill = `rgba(247, 144, 9, ${0.15 * opacityMultiplier})`;
-      highlightStroke = `rgba(247, 144, 9, ${0.6 * opacityMultiplier})`;
-      labelColor = `rgba(247, 144, 9, ${1 * opacityMultiplier})`;
+      highlightFill = `rgba(247, 144, 9, ${0.35 * opacityMultiplier})`;
+      highlightStroke = 'rgba(247, 144, 9, 0.8)';
+      labelColor = 'rgb(247, 144, 9)';
     } else {
       // Green for 2xx/3xx anomalies
-      highlightFill = `rgba(18, 183, 106, ${0.15 * opacityMultiplier})`;
-      highlightStroke = `rgba(18, 183, 106, ${0.6 * opacityMultiplier})`;
-      labelColor = `rgba(18, 183, 106, ${1 * opacityMultiplier})`;
+      highlightFill = `rgba(18, 183, 106, ${0.35 * opacityMultiplier})`;
+      highlightStroke = 'rgba(18, 183, 106, 0.8)';
+      labelColor = 'rgb(18, 183, 106)';
     }
 
-    // Draw shaded region from top of chart area to x-axis
-    ctx.fillStyle = highlightFill;
-    ctx.fillRect(bandLeft, padding.top, bandWidth, chartHeight);
+    // Determine the data range for this anomaly band
+    const startIdx = step.startIndex;
+    const endIdx = step.endIndex;
 
-    // Draw dashed vertical lines at band edges
+    // Get the top and bottom curves for this category
+    let getSeriesTop, getSeriesBottom;
+    if (step.category === 'red') {
+      // Red: from x-axis (0) to stackedServer
+      getSeriesTop = (i) => getY(stackedServer[i]);
+      getSeriesBottom = () => getY(0);
+    } else if (step.category === 'yellow') {
+      // Yellow: from stackedServer to stackedClient
+      getSeriesTop = (i) => getY(stackedClient[i]);
+      getSeriesBottom = (i) => getY(stackedServer[i]);
+    } else {
+      // Green: from stackedClient to stackedOk
+      getSeriesTop = (i) => getY(stackedOk[i]);
+      getSeriesBottom = (i) => getY(stackedClient[i]);
+    }
+
+    // Draw shaded region as a direct polygon (no clipping)
+    // Build array of points for debugging
+    const points = [];
+
+    // Top edge: trace from startIdx to endIdx along the series top
+    for (let i = startIdx; i <= endIdx; i++) {
+      points.push({ x: getX(i), y: getSeriesTop(i), label: `top[${i}]` });
+    }
+    // Bottom edge: trace back from endIdx to startIdx along the series bottom
+    for (let i = endIdx; i >= startIdx; i--) {
+      points.push({ x: getX(i), y: getSeriesBottom(i), label: `bot[${i}]` });
+    }
+
+    // Draw filled polygon for the anomaly region
+    ctx.fillStyle = highlightFill;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw dashed vertical lines at band edges (full height for visibility)
     ctx.strokeStyle = highlightStroke;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
