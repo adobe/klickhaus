@@ -5,9 +5,9 @@ import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
+import { addFilter } from './filters.js';
 import { getHostFilter, getPeriodMs, getTable, getTimeBucket, getTimeFilter, queryTimestamp, setCustomTimeRange, setQueryTimestamp } from './time.js';
 import { saveStateToURL } from './url-state.js';
-import { setFocusedAnomalyId } from './anomaly-investigation.js';
 
 // Navigation state
 let onNavigate = null;
@@ -30,10 +30,6 @@ export function setupChartNavigation(callback) {
     <div class="chart-nav-zone chart-nav-right"><span class="chart-nav-arrow">\u25B6</span></div>
   `;
   container.appendChild(navOverlay);
-
-  // Click handlers
-  navOverlay.querySelector('.chart-nav-left').addEventListener('click', () => navigateTime(-2/3));
-  navOverlay.querySelector('.chart-nav-right').addEventListener('click', () => navigateTime(2/3));
 
   // Touch swipe support
   let touchStartX = null;
@@ -71,20 +67,62 @@ export function setupChartNavigation(callback) {
     }
   }, { passive: true });
 
-  // Click handler for anomaly zoom
+  // Check if x position is within any anomaly region
+  function getAnomalyAtX(x) {
+    for (const bounds of lastAnomalyBoundsList) {
+      if (x >= bounds.left && x <= bounds.right) {
+        return bounds;
+      }
+    }
+    return null;
+  }
+
+  // Click handler for anomaly zoom on canvas
   canvas.addEventListener('click', (e) => {
     if (lastAnomalyBoundsList.length === 0) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
-    // Check if click is within any anomaly region
-    for (const bounds of lastAnomalyBoundsList) {
-      if (x >= bounds.left && x <= bounds.right) {
-        zoomToAnomalyByRank(bounds.rank);
-        return;
-      }
+    const anomaly = getAnomalyAtX(x);
+    if (anomaly) {
+      zoomToAnomalyByRank(anomaly.rank);
     }
+  });
+
+  // Nav zone click handlers - check for anomaly first
+  navOverlay.querySelector('.chart-nav-left').addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const anomaly = getAnomalyAtX(x);
+    if (anomaly) {
+      zoomToAnomalyByRank(anomaly.rank);
+    } else {
+      navigateTime(-2/3);
+    }
+  });
+
+  navOverlay.querySelector('.chart-nav-right').addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const anomaly = getAnomalyAtX(x);
+    if (anomaly) {
+      zoomToAnomalyByRank(anomaly.rank);
+    } else {
+      navigateTime(2/3);
+    }
+  });
+
+  // Hide nav zone hover when over an anomaly
+  navOverlay.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const anomaly = getAnomalyAtX(x);
+    navOverlay.classList.toggle('over-anomaly', !!anomaly);
+  });
+
+  navOverlay.addEventListener('mouseleave', () => {
+    navOverlay.classList.remove('over-anomaly');
   });
 }
 
@@ -134,20 +172,39 @@ export function getMostRecentTimeRange() {
   };
 }
 
+// Status range column for filtering
+const STATUS_RANGE_COL = "concat(toString(intDiv(`response.status`, 100)), 'xx')";
+
 // Zoom to anomaly by rank (1 = most prominent)
 export function zoomToAnomalyByRank(rank) {
   const range = getAnomalyTimeRange(rank);
   if (!range) return false;
 
   // Get the anomaly ID for this rank (set during investigation)
-  const anomalyId = window._anomalyIds?.[rank];
-  if (anomalyId) {
-    // Set the anomaly ID in URL so we can highlight related dimensions after zoom
-    setFocusedAnomalyId(anomalyId);
+  const anomalyId = window._anomalyIds?.[rank] || null;
+
+  // Get the anomaly category and add corresponding status filter
+  const step = lastDetectedSteps.find(s => s.rank === rank);
+  if (step?.category) {
+    // Map category to status range filter values
+    // red = 5xx errors, yellow = 4xx client errors, green = 2xx success
+    const statusFilters = {
+      'red': ['5xx'],
+      'yellow': ['4xx'],
+      'green': ['2xx']  // Focus on successful requests for green anomalies
+    };
+    const values = statusFilters[step.category];
+    if (values) {
+      for (const value of values) {
+        // Skip reload - we'll reload once after setting time range
+        addFilter(STATUS_RANGE_COL, value, false, true);
+      }
+    }
   }
 
   setCustomTimeRange(range.start, range.end);
-  saveStateToURL();
+  // Save all state atomically in one history entry (time + filters + anomaly ID)
+  saveStateToURL(anomalyId);
 
   if (onNavigate) onNavigate();
   return true;

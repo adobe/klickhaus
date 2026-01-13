@@ -32,7 +32,7 @@ export function clearAllFilters() {
   if (loadDashboard) loadDashboard();
 }
 
-export function addFilter(col, value, exclude) {
+export function addFilter(col, value, exclude, skipReload = false) {
   // Remove existing filter for same col+value
   state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
 
@@ -46,8 +46,10 @@ export function addFilter(col, value, exclude) {
 
   state.filters.push(filter);
   renderActiveFilters();
-  if (saveStateToURL) saveStateToURL();
-  if (loadDashboard) loadDashboard();
+  if (!skipReload) {
+    if (saveStateToURL) saveStateToURL();
+    if (loadDashboard) loadDashboard();
+  }
 }
 
 export function removeFilter(index) {

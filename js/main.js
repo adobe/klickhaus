@@ -2,7 +2,7 @@
 import { state, togglePinnedColumn } from './state.js';
 import { setForceRefresh } from './api.js';
 import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from './auth.js';
-import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements } from './url-state.js';
+import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored } from './url-state.js';
 import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange } from './time.js';
 import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
 import { loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData } from './chart.js';
@@ -48,6 +48,9 @@ setOnShowFiltersView(() => {
 
 // Set up filter callbacks to avoid circular dependencies
 setFilterCallbacks(saveStateToURL, loadDashboard);
+
+// Set up callback for browser back/forward navigation
+setOnStateRestored(loadDashboard);
 
 // Load Dashboard Data
 async function loadDashboard(refresh = false) {

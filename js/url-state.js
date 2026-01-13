@@ -2,15 +2,26 @@
 import { state } from './state.js';
 import { queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange } from './time.js';
 import { renderActiveFilters } from './filters.js';
+import { invalidateInvestigationCache } from './anomaly-investigation.js';
 
 // DOM elements (set by main.js)
 let elements = {};
+
+// Track last saved URL to detect real changes
+let lastSavedURL = null;
+
+// Callback to reload dashboard (set by main.js)
+let onStateRestored = null;
+
+export function setOnStateRestored(callback) {
+  onStateRestored = callback;
+}
 
 export function setUrlStateElements(els) {
   elements = els;
 }
 
-export function saveStateToURL() {
+export function saveStateToURL(newAnomalyId = undefined) {
   const params = new URLSearchParams();
 
   if (state.timeRange !== '1h') params.set('t', state.timeRange);
@@ -35,13 +46,41 @@ export function saveStateToURL() {
     params.set('filters', JSON.stringify(state.filters));
   }
 
+  // Handle anomaly focus:
+  // - If newAnomalyId is explicitly passed, use it (or null to clear)
+  // - If undefined, preserve current anomaly from URL
+  if (newAnomalyId !== undefined) {
+    if (newAnomalyId) {
+      params.set('anomaly', newAnomalyId);
+    }
+    // else: explicitly cleared, don't set
+  } else {
+    // Preserve current anomaly if set
+    const currentAnomaly = new URLSearchParams(window.location.search).get('anomaly');
+    if (currentAnomaly) {
+      params.set('anomaly', currentAnomaly);
+    }
+  }
+
   // Note: pinned columns are NOT auto-saved to URL
   // They can be manually added as ?pinned=col1,col2 for temporary override
 
   const newURL = params.toString()
     ? `${window.location.pathname}?${params}`
     : window.location.pathname;
-  window.history.replaceState({}, '', newURL);
+
+  // Only create history entry if URL actually changed
+  if (newURL !== lastSavedURL) {
+    // Use pushState for real navigation changes, creating browser history
+    if (lastSavedURL === null) {
+      // First save - replace initial state without creating history
+      window.history.replaceState({}, '', newURL);
+    } else {
+      // Subsequent saves - create history entry for back button
+      window.history.pushState({}, '', newURL);
+    }
+    lastSavedURL = newURL;
+  }
 }
 
 export function loadStateFromURL() {
@@ -178,3 +217,27 @@ export function syncUIFromState() {
     elements.logsBtn.style.display = 'none';
   }
 }
+
+// Handle browser back/forward navigation
+window.addEventListener('popstate', () => {
+  // Update lastSavedURL to current location to prevent pushState on reload
+  lastSavedURL = window.location.pathname + window.location.search;
+  if (lastSavedURL === window.location.pathname) {
+    lastSavedURL = window.location.pathname;
+  }
+
+  // Clear custom time range before loading (will be restored if in URL)
+  clearCustomTimeRange();
+
+  // Clear investigation cache - anomalies will be re-detected for new time range
+  invalidateInvestigationCache();
+
+  // Reload state from the new URL
+  loadStateFromURL();
+  syncUIFromState();
+
+  // Trigger dashboard reload if callback is set
+  if (onStateRestored) {
+    onStateRestored();
+  }
+});

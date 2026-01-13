@@ -728,6 +728,16 @@ main {
   background: rgba(0, 0, 0, 0.03);
 }
 
+/* Hide nav hover when cursor is over an anomaly region */
+.chart-nav-overlay.over-anomaly .chart-nav-zone:hover {
+  opacity: 0;
+  background: transparent;
+}
+
+.chart-nav-overlay.over-anomaly .chart-nav-zone {
+  cursor: pointer;
+}
+
 @media (prefers-color-scheme: dark) {
   .chart-nav-zone:hover {
     background: rgba(255, 255, 255, 0.03);
