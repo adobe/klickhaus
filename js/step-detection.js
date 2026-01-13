@@ -320,13 +320,15 @@ export function detectSteps(series, maxCount = 5) {
   candidates.sort((a, b) => b.score - a.score);
 
   // Greedily select non-overlapping regions (higher score wins)
+  // Use a buffer of 2 indices to account for visual band padding
+  const minGap = 2;
   const selected = [];
   for (const candidate of candidates) {
     if (selected.length >= maxCount) break;
 
-    // Check if this candidate overlaps with any already selected region
+    // Check if this candidate overlaps or is too close to any already selected region
     const overlaps = selected.some(s =>
-      !(candidate.end < s.start || candidate.start > s.end)
+      !(candidate.end < s.start - minGap || candidate.start > s.end + minGap)
     );
 
     if (!overlaps) {

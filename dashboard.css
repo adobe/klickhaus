@@ -1947,3 +1947,49 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
     display: none;
   }
 }
+
+/* Investigation highlight for anomaly root cause dimensions */
+.breakdown-table tr.investigation-highlight td.dim {
+  overflow: visible;
+  /* Subtle text glow using current text color (supports light/dark mode) */
+  text-shadow: 0 0 4px currentColor;
+}
+
+.breakdown-table tr.investigation-highlight .status-color {
+  box-shadow: 0 0 6px 2px var(--investigation-glow-color, var(--status-server-error));
+  cursor: help;
+}
+
+/* Pulse animation for the highlight to draw attention */
+@keyframes investigation-pulse {
+  0%, 100% { box-shadow: 0 0 6px 2px var(--investigation-glow-color, var(--status-server-error)); }
+  50% { box-shadow: 0 0 10px 4px var(--investigation-glow-color, var(--status-server-error)); }
+}
+
+@keyframes investigation-text-pulse {
+  0%, 100% { text-shadow: 0 0 4px currentColor; }
+  50% { text-shadow: 0 0 8px currentColor; }
+}
+
+.breakdown-table tr.investigation-highlight .status-color {
+  animation: investigation-pulse 2s ease-in-out 3;
+  animation-fill-mode: forwards;
+}
+
+.breakdown-table tr.investigation-highlight td.dim {
+  animation: investigation-text-pulse 2s ease-in-out 3;
+  animation-fill-mode: forwards;
+}
+
+/* Glow colors matching anomaly category */
+.breakdown-table tr.investigation-highlight.investigation-red {
+  --investigation-glow-color: var(--status-server-error);
+}
+
+.breakdown-table tr.investigation-highlight.investigation-yellow {
+  --investigation-glow-color: var(--status-client-error);
+}
+
+.breakdown-table tr.investigation-highlight.investigation-green {
+  --investigation-glow-color: var(--status-ok);
+}

@@ -5,7 +5,7 @@ import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from
 import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements } from './url-state.js';
 import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange } from './time.js';
 import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
-import { loadTimeSeries, setupChartNavigation } from './chart.js';
+import { loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData } from './chart.js';
 import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import { addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks } from './filters.js';
@@ -16,6 +16,7 @@ import { initModal, closeQuickLinksModal } from './modal.js';
 import { getTimeFilter, getHostFilter } from './time.js';
 import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
+import { investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation } from './anomaly-investigation.js';
 
 // DOM Elements
 const elements = {
@@ -95,20 +96,42 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
       if (focusedFacetId === b.id) {
         restoreKeyboardFocus();
       }
+      // Re-apply cached highlights as each facet loads
+      reapplyHighlightsIfCached();
     })
   );
 
-  // Wait for all facets to complete, then mark slowest
-  Promise.all(facetPromises).then(() => {
-    markSlowestFacet();
-  });
-
-  // Wait for time series to complete
+  // Wait for time series to complete first
   await timeSeriesPromise;
 
   // If no visible facets are updating after time series, stop timer
   if (!hasVisibleUpdatingFacets()) {
     stopQueryTimer();
+  }
+
+  // Check for anomalies to investigate
+  const anomalies = getDetectedAnomalies();
+  const chartData = getLastChartData();
+
+  if (anomalies.length > 0 && chartData) {
+    // Check if we have cached investigation (synchronous check)
+    const hasCache = hasCachedInvestigation();
+
+    if (hasCache) {
+      // Cache available - apply highlights immediately, facets will re-apply as they load
+      investigateAnomalies(anomalies, chartData);
+      // Let facets complete independently
+      Promise.all(facetPromises).then(() => markSlowestFacet());
+    } else {
+      // No cache - wait for ALL facets first to avoid connection competition
+      await Promise.all(facetPromises);
+      markSlowestFacet();
+      // Now run investigation with full connection availability
+      await investigateAnomalies(anomalies, chartData);
+    }
+  } else {
+    // No anomalies, just wait for facets
+    Promise.all(facetPromises).then(() => markSlowestFacet());
   }
 }
 

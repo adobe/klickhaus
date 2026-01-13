@@ -174,8 +174,9 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       : `<button class="mobile-action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)" title="Exclude this value">×</button>`;
 
     const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
+    const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');
     html += `
-      <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}">
+      <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}" data-dim="${dimDataAttr}">
         <td class="dim" title="${escapeHtml(dim)}">${dimContent}</td>
         <td class="count">
           <span class="value">${valueFormatter(cnt)}</span>

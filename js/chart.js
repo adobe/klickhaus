@@ -7,6 +7,7 @@ import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import { getHostFilter, getPeriodMs, getTable, getTimeBucket, getTimeFilter, queryTimestamp, setCustomTimeRange, setQueryTimestamp } from './time.js';
 import { saveStateToURL } from './url-state.js';
+import { setFocusedAnomalyId } from './anomaly-investigation.js';
 
 // Navigation state
 let onNavigate = null;
@@ -102,6 +103,25 @@ export function getAnomalyTimeRange(rank = 1) {
   };
 }
 
+// Get all detected anomalies with time bounds (for investigation)
+export function getDetectedAnomalies() {
+  return lastAnomalyBoundsList.map(bounds => ({
+    rank: bounds.rank,
+    startTime: bounds.startTime,
+    endTime: bounds.endTime,
+    // Find matching step info from last detection
+    ...lastDetectedSteps.find(s => s.rank === bounds.rank)
+  }));
+}
+
+// Get the last chart data (for investigation)
+export function getLastChartData() {
+  return lastChartData;
+}
+
+// Store detected steps for investigation
+let lastDetectedSteps = [];
+
 // Get the time range for the most recent section (last 20% of timeline)
 export function getMostRecentTimeRange() {
   if (!lastChartData || lastChartData.length < 2) return null;
@@ -118,6 +138,13 @@ export function getMostRecentTimeRange() {
 export function zoomToAnomalyByRank(rank) {
   const range = getAnomalyTimeRange(rank);
   if (!range) return false;
+
+  // Get the anomaly ID for this rank (set during investigation)
+  const anomalyId = window._anomalyIds?.[rank];
+  if (anomalyId) {
+    // Set the anomaly ID in URL so we can highlight related dimensions after zoom
+    setFocusedAnomalyId(anomalyId);
+  }
 
   setCustomTimeRange(range.start, range.end);
   saveStateToURL();
@@ -417,6 +444,13 @@ export function renderChart(data) {
     : 0;
   const minTimeRangeMs = 5 * 60 * 1000; // 5 minutes
   const steps = timeRangeMs >= minTimeRangeMs ? detectSteps(series, 5) : [];
+
+  // Store detected steps for investigation (with additional metadata)
+  lastDetectedSteps = steps.map(s => ({
+    ...s,
+    startTime: data[s.startIndex]?.t ? new Date(data[s.startIndex].t) : null,
+    endTime: data[s.endIndex]?.t ? new Date(data[s.endIndex].t) : null
+  }));
 
   // Debug: show detected anomalies in console
   if (steps.length > 0) {

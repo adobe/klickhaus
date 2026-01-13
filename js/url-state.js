@@ -131,7 +131,12 @@ export function loadStateFromURL() {
 }
 
 export function syncUIFromState() {
-  elements.timeRangeSelect.value = state.timeRange;
+  // Show "Custom" in dropdown when in custom time range, otherwise show predefined
+  if (customTimeRange) {
+    elements.timeRangeSelect.value = 'custom';
+  } else {
+    elements.timeRangeSelect.value = state.timeRange;
+  }
   elements.topNSelect.value = state.topN;
   elements.hostFilterInput.value = state.hostFilter;
   renderActiveFilters();
