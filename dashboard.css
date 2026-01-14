@@ -2075,8 +2075,13 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 /* Investigation highlight for anomaly root cause dimensions */
 .breakdown-table tr.investigation-highlight td.dim {
   overflow: visible;
-  /* Subtle text glow using current text color (supports light/dark mode) */
-  text-shadow: 0 0 4px currentColor;
+  /* Subtle text glow - semi-transparent for light mode */
+  text-shadow: 0 0 6px rgba(100, 100, 100, .6);
+}
+
+.breakdown-table tr.investigation-highlight.synthetic-row td.dim {
+  /* Synthetic rows already have faded text, so use currentColor */
+  text-shadow: 0 0 6px currentColor;
 }
 
 .breakdown-table tr.investigation-highlight .status-color {
@@ -2091,8 +2096,8 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 }
 
 @keyframes investigation-text-pulse {
-  0%, 100% { text-shadow: 0 0 4px currentColor; }
-  50% { text-shadow: 0 0 8px currentColor; }
+  0%, 100% { text-shadow: 0 0 6px rgba(100, 100, 100, .6); }
+  50% { text-shadow: 0 0 10px rgba(100, 100, 100, .8); }
 }
 
 .breakdown-table tr.investigation-highlight .status-color {
@@ -2116,6 +2121,19 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 
 .breakdown-table tr.investigation-highlight.investigation-green {
   --investigation-glow-color: var(--status-ok);
+}
+
+/* Dark mode: use currentColor glow instead of light gray */
+@media (prefers-color-scheme: dark) {
+  .breakdown-table tr.investigation-highlight td.dim {
+    text-shadow: 0 0 4px currentColor;
+    animation-name: investigation-text-pulse-dark;
+  }
+
+  @keyframes investigation-text-pulse-dark {
+    0%, 100% { text-shadow: 0 0 4px currentColor; }
+    50% { text-shadow: 0 0 8px currentColor; }
+  }
 }
 
 /* Release ship tooltip */
