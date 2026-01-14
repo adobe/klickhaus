@@ -1335,8 +1335,8 @@ main {
   }
 }
 
-.breakdown-table tr.other-row,
-.breakdown-table tr.synthetic-row {
+.breakdown-table tr.other-row > *,
+.breakdown-table tr.synthetic-row > * {
   opacity: 0.7;
 }
 
@@ -1344,8 +1344,8 @@ main {
   cursor: pointer;
 }
 
-.breakdown-table tr.other-row:hover,
-.breakdown-table tr.synthetic-row:hover {
+.breakdown-table tr.other-row:hover > *,
+.breakdown-table tr.synthetic-row:hover > * {
   opacity: 1;
 }
 
@@ -2080,8 +2080,14 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 }
 
 .breakdown-table tr.investigation-highlight.synthetic-row td.dim {
-  /* Synthetic rows already have faded text, so use currentColor */
-  text-shadow: 0 0 6px currentColor;
+  /* Override cell opacity so text glow is visible */
+  opacity: 1;
+  text-shadow: 0 0 6px rgba(100, 100, 100, .6);
+}
+
+.breakdown-table tr.investigation-highlight.synthetic-row .dim .dim-prefix {
+  /* Cancel the 0.4 opacity on dim-prefix for highlighted synthetic rows */
+  opacity: 1;
 }
 
 .breakdown-table tr.investigation-highlight .status-color {
