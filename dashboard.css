@@ -676,7 +676,7 @@ main {
 /* Chart Section */
 .chart-section {
   background: var(--chart-bg);
-  padding: 20px 0;
+  padding: 0;
   margin: 0 -24px 24px -24px;
 }
 
@@ -728,14 +728,111 @@ main {
   background: rgba(0, 0, 0, 0.03);
 }
 
-/* Hide nav hover when cursor is over an anomaly region */
-.chart-nav-overlay.over-anomaly .chart-nav-zone:hover {
+/* Hide nav hover when cursor is over an anomaly region or ship */
+.chart-nav-overlay.over-anomaly .chart-nav-zone:hover,
+.chart-nav-overlay.over-ship .chart-nav-zone:hover {
   opacity: 0;
   background: transparent;
 }
 
-.chart-nav-overlay.over-anomaly .chart-nav-zone {
+.chart-nav-overlay.over-anomaly .chart-nav-zone,
+.chart-nav-overlay.over-ship .chart-nav-zone {
   cursor: pointer;
+}
+
+/* Chart Scrubber */
+.chart-scrubber-line {
+  position: absolute;
+  width: 1px;
+  background: var(--text-secondary);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+
+.chart-scrubber-line.visible {
+  opacity: 0.6;
+}
+
+.chart-scrubber-status {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: var(--chart-bg);
+  display: flex;
+  align-items: flex-start;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  padding: 4px 24px 0;
+}
+
+.chart-scrubber-status-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.chart-scrubber-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-scrubber-status.visible {
+  opacity: 1;
+}
+
+.scrubber-time,
+.scrubber-relative {
+  font-size: 10px;
+}
+
+.scrubber-anomaly {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(240, 68, 56, 0.1);
+  color: var(--status-server-error);
+}
+
+.scrubber-anomaly-yellow {
+  background: rgba(247, 144, 9, 0.1);
+  color: var(--status-client-error);
+}
+
+.scrubber-anomaly-green {
+  background: rgba(18, 183, 106, 0.1);
+  color: var(--status-ok);
+}
+
+.scrubber-release {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.scrubber-release-patch {
+  background: rgba(18, 183, 106, 0.1);
+  color: var(--status-ok);
+}
+
+.scrubber-release-feature {
+  background: rgba(247, 144, 9, 0.1);
+  color: var(--status-client-error);
+}
+
+.scrubber-release-breaking {
+  background: rgba(240, 68, 56, 0.1);
+  color: var(--status-server-error);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2019,4 +2116,87 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 
 .breakdown-table tr.investigation-highlight.investigation-green {
   --investigation-glow-color: var(--status-ok);
+}
+
+/* Release ship tooltip */
+.release-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 400px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.release-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.release-tooltip .release-repo {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.release-tooltip .release-tag {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--bg);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.release-tooltip-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.release-tooltip-body {
+  line-height: 1.5;
+  max-height: 150px;
+  overflow-y: auto;
+  word-wrap: break-word;
+}
+
+.release-tooltip-body code {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  padding: 1px 4px;
+  background: var(--bg);
+  border-radius: 3px;
+}
+
+.release-tooltip-body a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.release-tooltip-body a:hover {
+  text-decoration: underline;
+}
+
+.release-tooltip-link {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  pointer-events: auto;
+}
+
+.release-tooltip-link a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.release-tooltip-link a:hover {
+  text-decoration: underline;
 }

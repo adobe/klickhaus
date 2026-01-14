@@ -8,10 +8,21 @@ import { detectSteps } from './step-detection.js';
 import { addFilter } from './filters.js';
 import { getHostFilter, getPeriodMs, getTable, getTimeBucket, getTimeFilter, queryTimestamp, setCustomTimeRange, setQueryTimestamp } from './time.js';
 import { saveStateToURL } from './url-state.js';
+import { getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip } from './releases.js';
 
 // Navigation state
 let onNavigate = null;
 let navOverlay = null;
+
+// Ship positions for tooltip hit-testing
+let lastShipPositions = null;
+
+// Scrubber elements
+let scrubberLine = null;
+let scrubberStatusBar = null;
+
+// Chart layout info for scrubber (set during render)
+let chartLayout = null;
 
 // Anomaly zoom state - now supports up to 5 anomalies
 let lastAnomalyBoundsList = []; // Array of { left, right, startTime, endTime, rank }
@@ -30,6 +41,15 @@ export function setupChartNavigation(callback) {
     <div class="chart-nav-zone chart-nav-right"><span class="chart-nav-arrow">\u25B6</span></div>
   `;
   container.appendChild(navOverlay);
+
+  // Create scrubber elements
+  scrubberLine = document.createElement('div');
+  scrubberLine.className = 'chart-scrubber-line';
+  container.appendChild(scrubberLine);
+
+  scrubberStatusBar = document.createElement('div');
+  scrubberStatusBar.className = 'chart-scrubber-status';
+  container.appendChild(scrubberStatusBar);
 
   // Touch swipe support
   let touchStartX = null;
@@ -77,6 +97,211 @@ export function setupChartNavigation(callback) {
     return null;
   }
 
+  // Get ship near x position (with padding for easier hover)
+  function getShipNearX(x, padding = 20) {
+    if (!lastShipPositions) return null;
+    for (const ship of lastShipPositions) {
+      if (Math.abs(x - ship.x) <= padding) {
+        return ship;
+      }
+    }
+    return null;
+  }
+
+  // Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
+  function parseUTC(timestamp) {
+    const str = String(timestamp);
+    // If already has Z suffix, parse directly
+    if (str.endsWith('Z')) {
+      return new Date(str);
+    }
+    // Otherwise, normalize and append Z to treat as UTC
+    return new Date(str.replace(' ', 'T') + 'Z');
+  }
+
+  // Get time at x position
+  function getTimeAtX(x) {
+    if (!chartLayout || !lastChartData || lastChartData.length < 2) return null;
+    const { padding, chartWidth } = chartLayout;
+    const xRatio = (x - padding.left) / chartWidth;
+    if (xRatio < 0 || xRatio > 1) return null;
+
+    const startTime = parseUTC(lastChartData[0].t).getTime();
+    const endTime = parseUTC(lastChartData[lastChartData.length - 1].t).getTime();
+    const time = new Date(startTime + xRatio * (endTime - startTime));
+    return time;
+  }
+
+  // Format time for scrubber display (similar to x-axis labels)
+  function formatScrubberTime(time) {
+    const now = new Date();
+    const diffMs = now - time;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    // Format like x-axis: HH:MM:SS UTC
+    const timeStr = time.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZone: 'UTC'
+    });
+
+    // Add relative time if < 120 minutes ago
+    let relativeStr = '';
+    if (diffMinutes >= 0 && diffMinutes < 120) {
+      if (diffMinutes === 0) {
+        relativeStr = 'just now';
+      } else if (diffMinutes === 1) {
+        relativeStr = '1 min ago';
+      } else {
+        relativeStr = `${diffMinutes} min ago`;
+      }
+    }
+
+    return { timeStr, relativeStr };
+  }
+
+  // Format anomaly duration
+  function formatDuration(startTime, endTime) {
+    const durationMs = endTime - startTime;
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    if (minutes === 0) return `${seconds}s`;
+    if (seconds === 0) return `${minutes}m`;
+    return `${minutes}m ${seconds}s`;
+  }
+
+  // Update scrubber position and content
+  function updateScrubber(x, y) {
+    if (!chartLayout) return;
+
+    const { padding, width, height } = chartLayout;
+
+    // Position the scrubber line
+    scrubberLine.style.left = `${x}px`;
+    scrubberLine.style.top = `${padding.top}px`;
+    scrubberLine.style.height = `${height - padding.top - padding.bottom}px`;
+
+    // Get time at position
+    const time = getTimeAtX(x);
+    if (!time) {
+      scrubberStatusBar.innerHTML = '';
+      return;
+    }
+
+    // Build status bar content in two rows
+    const { timeStr, relativeStr } = formatScrubberTime(time);
+
+    // Row 1: Time
+    let row1 = `<span class="scrubber-time">${timeStr} UTC</span>`;
+    if (relativeStr) {
+      row1 += `<span class="scrubber-relative">${relativeStr}</span>`;
+    }
+
+    // Row 2: Anomaly and/or release info
+    let row2Parts = [];
+
+    // Check for anomaly
+    const anomaly = getAnomalyAtX(x);
+    if (anomaly) {
+      const step = lastDetectedSteps.find(s => s.rank === anomaly.rank);
+      const duration = formatDuration(anomaly.startTime, anomaly.endTime);
+      const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
+      const categoryLabel = step?.category === 'red' ? '5xx' : step?.category === 'yellow' ? '4xx' : '2xx';
+      let magnitudeLabel;
+      if (step?.magnitude >= 1) {
+        magnitudeLabel = step.magnitude >= 10
+          ? `${Math.round(step.magnitude)}x`
+          : `${step.magnitude.toFixed(1).replace(/\.0$/, '')}x`;
+      } else {
+        magnitudeLabel = `${Math.round((step?.magnitude || 0) * 100)}%`;
+      }
+      row2Parts.push(`<span class="scrubber-anomaly scrubber-anomaly-${step?.category || 'red'}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`);
+    }
+
+    // Check for ship (with padding)
+    const ship = getShipNearX(x);
+    if (ship) {
+      const release = ship.release;
+      // Determine release type from semver: x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch (green)
+      const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
+      let releaseType = 'patch';
+      if (versionMatch) {
+        const [, , minor, patch] = versionMatch;
+        if (minor === '0' && patch === '0') {
+          releaseType = 'breaking';
+        } else if (patch === '0') {
+          releaseType = 'feature';
+        }
+      }
+      row2Parts.push(`<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`);
+    }
+
+    // Build final content
+    let content = `<div class="chart-scrubber-status-row">${row1}</div>`;
+    if (row2Parts.length > 0) {
+      content += `<div class="chart-scrubber-status-row">${row2Parts.join('')}</div>`;
+    }
+
+    // Wrap content in inner container for positioning
+    scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner">${content}</div>`;
+
+    // Position the inner element to follow scrubber with edge easing
+    const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
+    if (inner) {
+      const statusWidth = scrubberStatusBar.offsetWidth;
+      const innerWidth = inner.offsetWidth;
+      const padding = 24; // Match CSS padding
+
+      // Calculate target position (centered on scrubber)
+      const targetLeft = x - innerWidth / 2;
+
+      // Apply easing at edges
+      const minLeft = padding;
+      const maxLeft = statusWidth - innerWidth - padding;
+
+      // Ease function: smoothly transition from edge-clamped to centered
+      const edgeZone = innerWidth / 2 + padding;
+      let finalLeft;
+
+      if (x < edgeZone) {
+        // Left edge: ease from minLeft to centered
+        const t = x / edgeZone;
+        finalLeft = minLeft + (targetLeft - minLeft) * t;
+      } else if (x > width - edgeZone) {
+        // Right edge: ease from centered to maxLeft
+        const t = (width - x) / edgeZone;
+        finalLeft = maxLeft + (targetLeft - maxLeft) * t;
+      } else {
+        // Middle: centered on scrubber
+        finalLeft = targetLeft;
+      }
+
+      // Clamp to valid range
+      finalLeft = Math.max(minLeft, Math.min(maxLeft, finalLeft));
+      inner.style.marginLeft = `${finalLeft - padding}px`;
+    }
+  }
+
+  // Show/hide scrubber on container hover
+  container.addEventListener('mouseenter', () => {
+    scrubberLine.classList.add('visible');
+    scrubberStatusBar.classList.add('visible');
+  });
+
+  container.addEventListener('mouseleave', () => {
+    scrubberLine.classList.remove('visible');
+    scrubberStatusBar.classList.remove('visible');
+  });
+
+  container.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    updateScrubber(x, y);
+  });
+
   // Click handler for anomaly zoom on canvas
   canvas.addEventListener('click', (e) => {
     if (lastAnomalyBoundsList.length === 0) return;
@@ -113,16 +338,46 @@ export function setupChartNavigation(callback) {
     }
   });
 
-  // Hide nav zone hover when over an anomaly
+  // Hide nav zone hover when over an anomaly or ship
   navOverlay.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const anomaly = getAnomalyAtX(x);
+    const ship = getShipAtPoint(lastShipPositions, x, y);
     navOverlay.classList.toggle('over-anomaly', !!anomaly);
+    navOverlay.classList.toggle('over-ship', !!ship);
   });
 
   navOverlay.addEventListener('mouseleave', () => {
     navOverlay.classList.remove('over-anomaly');
+    navOverlay.classList.remove('over-ship');
+  });
+
+  // Ship tooltip on hover
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const ship = getShipAtPoint(lastShipPositions, x, y);
+
+    if (ship) {
+      // Convert canvas coordinates to page coordinates
+      const pageX = e.clientX;
+      const pageY = e.clientY;
+      showReleaseTooltip(ship.release, pageX, pageY);
+      canvas.style.cursor = 'pointer';
+    } else {
+      hideReleaseTooltip();
+      // Restore cursor based on anomaly hover state
+      const anomaly = getAnomalyAtX(x);
+      canvas.style.cursor = anomaly ? 'pointer' : '';
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hideReleaseTooltip();
+    canvas.style.cursor = '';
   });
 }
 
@@ -273,9 +528,11 @@ export async function loadTimeSeries() {
 }
 
 export function renderChart(data) {
-  // Store data for zoom functionality and reset anomaly bounds
+  // Store data for zoom functionality and reset anomaly/ship bounds
   lastChartData = data;
   lastAnomalyBoundsList = [];
+  lastShipPositions = null; // Reset ship positions on redraw
+  hideReleaseTooltip(); // Hide any visible tooltip
 
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
@@ -293,6 +550,9 @@ export function renderChart(data) {
   const labelInset = 24; // Match main element padding for alignment with breakdowns
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
+
+  // Store layout for scrubber
+  chartLayout = { width, height, padding, chartWidth, chartHeight };
 
   // Clear
   ctx.clearRect(0, 0, width, height);
@@ -656,4 +916,19 @@ export function renderChart(data) {
     ctx.fillStyle = labelColor;
     ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, centerX, arrowY);
   }
+
+  // Fetch and render release ships asynchronously
+  const startTime = new Date(data[0].t);
+  const endTime = new Date(data[data.length - 1].t);
+  getReleasesInRange(startTime, endTime).then(releases => {
+    if (releases.length > 0) {
+      const chartDimensions = { width, height, padding, chartWidth };
+      lastShipPositions = renderReleaseShips(ctx, releases, data, chartDimensions);
+    } else {
+      lastShipPositions = null;
+    }
+  }).catch(err => {
+    console.error('Failed to render releases:', err);
+    lastShipPositions = null;
+  });
 }
