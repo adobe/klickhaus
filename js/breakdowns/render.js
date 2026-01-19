@@ -75,7 +75,6 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     html += `</h3><div class="empty">No data</div>`;
     html += `<button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${id}')" title="Hide facet"></button>`;
     card.innerHTML = html;
-    card.classList.toggle('facet-pinned', isPinned);
     card.classList.remove('facet-hidden');
     return;
   }
@@ -252,9 +251,6 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   html += `<button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${id}')" title="Hide facet"></button>`;
 
   card.innerHTML = html;
-
-  // Update card classes for pinned state (not hidden since we have data)
-  card.classList.toggle('facet-pinned', isPinned);
   card.classList.remove('facet-hidden');
 }
 

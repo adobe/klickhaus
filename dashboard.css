@@ -1241,10 +1241,6 @@ main {
   color: white;
 }
 
-/* Pinned facet has subtle top border highlight */
-.breakdown-card.facet-pinned {
-  border-top: 2px solid var(--status-ok);
-}
 
 /* Also glow speed indicator if facet has investigation highlights */
 .breakdown-card:has(.investigation-highlight) .speed-indicator {
