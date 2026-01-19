@@ -103,7 +103,7 @@ export const colorRules = {
       if (!value) return '';
       const t = value.toLowerCase();
       if (t === 'aws') return 'var(--bt-aws)';
-      if (t === 'cloudflare') return 'var(--bt-cloudflare)';
+      if (t === 'cloudflare' || t === 'cloudflare (implied)') return 'var(--bt-cloudflare)';
       return '';
     }
   },
