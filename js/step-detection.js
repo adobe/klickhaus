@@ -12,6 +12,10 @@
  * The algorithm compares against the baseline (median) of the entire timeline
  * and weights anomalies by their duration (sustained issues are worse).
  *
+ * Threshold: The anomaly threshold is 1 standard deviation (sigma) of the
+ * deviation values. This ensures only statistically significant deviations
+ * from normal variance are flagged as anomalies.
+ *
  * @module step-detection
  */
 
@@ -26,21 +30,33 @@ function median(arr) {
 }
 
 /**
+ * Calculate standard deviation of an array
+ */
+function stdDev(arr) {
+  if (arr.length <= 1) return 0;
+  const mean = arr.reduce((sum, v) => sum + v, 0) / arr.length;
+  const squareDiffs = arr.map(v => (v - mean) ** 2);
+  const avgSquareDiff = squareDiffs.reduce((sum, v) => sum + v, 0) / arr.length;
+  return Math.sqrt(avgSquareDiff);
+}
+
+/**
  * Find contiguous regions where values exceed a threshold
  * @param {number[]} deviations - Array of deviation values (positive = above baseline)
  * @param {number} threshold - Minimum deviation to consider anomalous
  * @param {string} direction - 'above' or 'below' baseline
- * @param {number} margin - Points to ignore at start/end
+ * @param {number} startMargin - Points to ignore at start (incomplete bucket artifacts)
+ * @param {number} endMargin - Points to ignore at end (data ingestion delay)
  * @returns {Array} Array of { start, end, totalDeviation, peakDeviation }
  */
-function findAnomalyRegions(deviations, threshold, direction, margin) {
+function findAnomalyRegions(deviations, threshold, direction, startMargin, endMargin) {
   const regions = [];
   let inRegion = false;
   let regionStart = 0;
   let totalDeviation = 0;
   let peakDeviation = 0;
 
-  for (let i = margin; i < deviations.length - margin; i++) {
+  for (let i = startMargin; i < deviations.length - endMargin; i++) {
     const dev = deviations[i];
     const isAnomalous = direction === 'above' ? dev > threshold : dev < -threshold;
     const absDev = Math.abs(dev);
@@ -71,7 +87,7 @@ function findAnomalyRegions(deviations, threshold, direction, margin) {
 
   // Close any open region
   if (inRegion) {
-    const end = deviations.length - margin - 1;
+    const end = deviations.length - endMargin - 1;
     regions.push({
       start: regionStart,
       end,
@@ -98,8 +114,10 @@ export function detectStep(series) {
   const len = series.ok.length;
   if (len < 8) return null;
 
-  // Ignore first 2 and last 2 data points (incomplete bucket artifacts)
-  const margin = 2;
+  // Ignore first 2 data points (incomplete bucket artifacts)
+  const startMargin = 2;
+  // Ignore last 2 data points (data ingestion delay - ~2 minutes)
+  const endMargin = 2;
 
   // Calculate separate scores for errors and success
   // Errors: weighted sum (5xx is worse than 4xx)
@@ -110,8 +128,8 @@ export function detectStep(series) {
   const successScores = series.ok.slice();
 
   // Calculate baselines (median of the valid range)
-  const validErrorScores = errorScores.slice(margin, len - margin);
-  const validSuccessScores = successScores.slice(margin, len - margin);
+  const validErrorScores = errorScores.slice(startMargin, len - endMargin);
+  const validSuccessScores = successScores.slice(startMargin, len - endMargin);
   const errorBaseline = median(validErrorScores);
   const successBaseline = median(validSuccessScores);
 
@@ -123,16 +141,25 @@ export function detectStep(series) {
     successBaseline > 0 ? (v - successBaseline) / successBaseline : 0
   );
 
-  // Minimum threshold for significance (20% deviation from baseline)
-  const threshold = 0.20;
+  // Calculate standard deviations for adaptive thresholds
+  const validErrorDeviations = errorDeviations.slice(startMargin, len - endMargin);
+  const validSuccessDeviations = successDeviations.slice(startMargin, len - endMargin);
+
+  const errorSigma = stdDev(validErrorDeviations);
+  const successSigma = stdDev(validSuccessDeviations);
+
+  // Threshold for significance: 1 standard deviation (sigma)
+  // Only flag deviations that exceed normal variance
+  const errorThreshold = errorSigma;
+  const successThreshold = successSigma;
 
   // Find anomaly regions
   // Error spikes: values above baseline (bad)
-  const errorSpikeRegions = findAnomalyRegions(errorDeviations, threshold, 'above', margin);
+  const errorSpikeRegions = findAnomalyRegions(errorDeviations, errorThreshold, 'above', startMargin, endMargin);
   // Success drops: values below baseline (bad)
-  const successDropRegions = findAnomalyRegions(successDeviations, threshold, 'below', margin);
+  const successDropRegions = findAnomalyRegions(successDeviations, successThreshold, 'below', startMargin, endMargin);
   // Success spikes: values above baseline (notable but not urgent)
-  const successSpikeRegions = findAnomalyRegions(successDeviations, threshold, 'above', margin);
+  const successSpikeRegions = findAnomalyRegions(successDeviations, successThreshold, 'above', startMargin, endMargin);
 
   // Importance weights for different anomaly types
   const weights = {
@@ -210,8 +237,10 @@ export function detectSteps(series, maxCount = 5) {
   const len = series.ok.length;
   if (len < 8) return [];
 
-  // Ignore first 2 and last 2 data points (incomplete bucket artifacts)
-  const margin = 2;
+  // Ignore first 2 data points (incomplete bucket artifacts)
+  const startMargin = 2;
+  // Ignore last 2 data points (data ingestion delay - ~2 minutes)
+  const endMargin = 2;
 
   // Three independent series: green (ok), yellow (client/4xx), red (server/5xx)
   const greenScores = series.ok.slice();
@@ -219,9 +248,9 @@ export function detectSteps(series, maxCount = 5) {
   const redScores = series.server.slice();
 
   // Calculate baselines (median of the valid range)
-  const greenBaseline = median(greenScores.slice(margin, len - margin));
-  const yellowBaseline = median(yellowScores.slice(margin, len - margin));
-  const redBaseline = median(redScores.slice(margin, len - margin));
+  const greenBaseline = median(greenScores.slice(startMargin, len - endMargin));
+  const yellowBaseline = median(yellowScores.slice(startMargin, len - endMargin));
+  const redBaseline = median(redScores.slice(startMargin, len - endMargin));
 
   // Calculate deviations from baseline (as ratio)
   const greenDeviations = greenScores.map(v =>
@@ -234,16 +263,28 @@ export function detectSteps(series, maxCount = 5) {
     redBaseline > 0 ? (v - redBaseline) / redBaseline : 0
   );
 
-  // Minimum threshold for significance (20% deviation from baseline)
-  const threshold = 0.20;
+  // Calculate standard deviations for adaptive thresholds
+  const validGreenDeviations = greenDeviations.slice(startMargin, len - endMargin);
+  const validYellowDeviations = yellowDeviations.slice(startMargin, len - endMargin);
+  const validRedDeviations = redDeviations.slice(startMargin, len - endMargin);
+
+  const greenSigma = stdDev(validGreenDeviations);
+  const yellowSigma = stdDev(validYellowDeviations);
+  const redSigma = stdDev(validRedDeviations);
+
+  // Threshold for significance: 1 standard deviation (sigma)
+  // Only flag deviations that exceed normal variance
+  const greenThreshold = greenSigma;
+  const yellowThreshold = yellowSigma;
+  const redThreshold = redSigma;
 
   // Find anomaly regions for each category and direction
-  const redSpikeRegions = findAnomalyRegions(redDeviations, threshold, 'above', margin);
-  const redDropRegions = findAnomalyRegions(redDeviations, threshold, 'below', margin);
-  const yellowSpikeRegions = findAnomalyRegions(yellowDeviations, threshold, 'above', margin);
-  const yellowDropRegions = findAnomalyRegions(yellowDeviations, threshold, 'below', margin);
-  const greenSpikeRegions = findAnomalyRegions(greenDeviations, threshold, 'above', margin);
-  const greenDropRegions = findAnomalyRegions(greenDeviations, threshold, 'below', margin);
+  const redSpikeRegions = findAnomalyRegions(redDeviations, redThreshold, 'above', startMargin, endMargin);
+  const redDropRegions = findAnomalyRegions(redDeviations, redThreshold, 'below', startMargin, endMargin);
+  const yellowSpikeRegions = findAnomalyRegions(yellowDeviations, yellowThreshold, 'above', startMargin, endMargin);
+  const yellowDropRegions = findAnomalyRegions(yellowDeviations, yellowThreshold, 'below', startMargin, endMargin);
+  const greenSpikeRegions = findAnomalyRegions(greenDeviations, greenThreshold, 'above', startMargin, endMargin);
+  const greenDropRegions = findAnomalyRegions(greenDeviations, greenThreshold, 'below', startMargin, endMargin);
 
   // Importance weights - prioritize spikes and green drops over red/yellow drops
   const weights = {

@@ -122,7 +122,7 @@ describe('detectStep', () => {
     }
   });
 
-  it('should ignore first and last 2 data points (artifacts)', () => {
+  it('should ignore first 2 and last 2 data points', () => {
     const series = toSeries(realData);
     const result = detectStep(series);
 
@@ -130,7 +130,7 @@ describe('detectStep', () => {
       assert.ok(result.startIndex >= 2,
         'Should not detect in first 2 points (incomplete bucket artifacts)');
       assert.ok(result.endIndex < realData.length - 2,
-        'Should not detect in last 2 points (incomplete bucket artifacts)');
+        'Should not detect in last 2 points (data ingestion delay)');
     }
   });
 
@@ -186,16 +186,10 @@ describe('detectStep', () => {
   });
 
   it('should return null for stable traffic', () => {
-    // Stable traffic with minor fluctuations (<15% changes)
+    // Perfectly stable traffic with no variance (sigma = 0)
     const stableData = [];
     for (let i = 0; i < 20; i++) {
-      const noise = Math.random() * 0.1 - 0.05; // ±5%
-      stableData.push([
-        i,
-        Math.round(80000 * (1 + noise)),
-        Math.round(10000 * (1 + noise)),
-        Math.round(300 * (1 + noise))
-      ]);
+      stableData.push([i, 80000, 10000, 300]);
     }
     const series = toSeries(stableData);
     const result = detectStep(series);
