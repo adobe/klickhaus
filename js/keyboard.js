@@ -1,5 +1,5 @@
 // Keyboard navigation mode for vim-style navigation
-import { state } from './state.js';
+import { state, togglePinnedFacet, toggleHiddenFacet } from './state.js';
 import { clearAllFilters, updateHeaderFixed } from './filters.js';
 import { openFacetPalette, isPaletteOpen } from './facet-palette.js';
 import { zoomToAnomaly, zoomToAnomalyByRank, getAnomalyCount } from './chart.js';
@@ -197,6 +197,22 @@ function openCurrentLink() {
   }
 }
 
+// Toggle pin on current facet
+function togglePinCurrentFacet() {
+  const facet = document.querySelector('.breakdown-card.kbd-focused');
+  if (facet) {
+    togglePinnedFacet(facet.id);
+  }
+}
+
+// Toggle hide on current facet
+function toggleHideCurrentFacet() {
+  const facet = document.querySelector('.breakdown-card.kbd-focused');
+  if (facet) {
+    toggleHiddenFacet(facet.id);
+  }
+}
+
 // Zoom to anomaly by number key (1-5)
 function zoomToAnomalyNumber(num) {
   const rank = parseInt(num);
@@ -237,7 +253,7 @@ export function initKeyboardNavigation() {
 
     // Navigation and action keys activate keyboard mode
     const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', '1', '2', '3', '4', '5', '+', '-', '='];
+    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', 'p', 'd', '1', '2', '3', '4', '5', '+', '-', '='];
 
     if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
       if (!kbd.active) {
@@ -295,6 +311,14 @@ export function initKeyboardNavigation() {
       case 'o':
         e.preventDefault();
         openCurrentLink();
+        break;
+      case 'p':
+        e.preventDefault();
+        togglePinCurrentFacet();
+        break;
+      case 'd':
+        e.preventDefault();
+        toggleHideCurrentFacet();
         break;
       case 'r':
         e.preventDefault();
