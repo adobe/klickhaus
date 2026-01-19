@@ -5,11 +5,13 @@ import { query } from './api.js';
 // Get releases within a time range from ClickHouse
 export async function getReleasesInRange(startTime, endTime) {
   try {
+    // Format timestamps without 'Z' suffix for ClickHouse
+    const formatTs = (d) => d.toISOString().replace('Z', '').replace('T', ' ');
     const sql = `
       SELECT published, repo, tag, url, body
       FROM helix_logs_production.releases FINAL
-      WHERE published >= toDateTime64('${startTime.toISOString()}', 3)
-        AND published <= toDateTime64('${endTime.toISOString()}', 3)
+      WHERE published >= toDateTime64('${formatTs(startTime)}', 3)
+        AND published <= toDateTime64('${formatTs(endTime)}', 3)
       ORDER BY published
     `;
     const result = await query(sql, { cacheTtl: 300 });
