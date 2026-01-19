@@ -695,6 +695,12 @@ main {
 #chart {
   width: 100%;
   height: 100%;
+  cursor: crosshair;
+}
+
+/* When dragging, use col-resize cursor */
+.chart-container.dragging #chart {
+  cursor: col-resize;
 }
 
 .chart-section h2 {
@@ -833,6 +839,30 @@ main {
 .scrubber-release-breaking {
   background: rgba(240, 68, 56, 0.1);
   color: var(--status-server-error);
+}
+
+/* Chart drag selection overlay */
+.chart-selection-overlay {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.2);
+  border-left: 2px solid rgba(59, 130, 246, 0.8);
+  border-right: 2px solid rgba(59, 130, 246, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 5;
+}
+
+.chart-selection-overlay.visible {
+  opacity: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-selection-overlay {
+    background: rgba(96, 165, 250, 0.25);
+    border-left-color: rgba(96, 165, 250, 0.9);
+    border-right-color: rgba(96, 165, 250, 0.9);
+  }
 }
 
 @media (prefers-color-scheme: dark) {

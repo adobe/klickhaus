@@ -21,6 +21,11 @@ let lastShipPositions = null;
 let scrubberLine = null;
 let scrubberStatusBar = null;
 
+// Drag selection elements and state
+let selectionOverlay = null;
+let isDragging = false;
+let dragStartX = null;
+
 // Chart layout info for scrubber (set during render)
 let chartLayout = null;
 
@@ -50,6 +55,11 @@ export function setupChartNavigation(callback) {
   scrubberStatusBar = document.createElement('div');
   scrubberStatusBar.className = 'chart-scrubber-status';
   container.appendChild(scrubberStatusBar);
+
+  // Create drag selection overlay
+  selectionOverlay = document.createElement('div');
+  selectionOverlay.className = 'chart-selection-overlay';
+  container.appendChild(selectionOverlay);
 
   // Touch swipe support
   let touchStartX = null;
@@ -302,16 +312,113 @@ export function setupChartNavigation(callback) {
     updateScrubber(x, y);
   });
 
-  // Click handler for anomaly zoom on canvas
-  canvas.addEventListener('click', (e) => {
-    if (lastAnomalyBoundsList.length === 0) return;
+  // Drag selection for time range zoom
+  const minDragDistance = 20; // Minimum pixels to count as a drag (not a click)
+
+  function updateSelectionOverlay(startX, endX) {
+    if (!chartLayout) return;
+    const { padding, height } = chartLayout;
+    const left = Math.min(startX, endX);
+    const width = Math.abs(endX - startX);
+
+    selectionOverlay.style.left = `${left}px`;
+    selectionOverlay.style.top = `${padding.top}px`;
+    selectionOverlay.style.width = `${width}px`;
+    selectionOverlay.style.height = `${height - padding.top - padding.bottom}px`;
+    selectionOverlay.classList.add('visible');
+  }
+
+  function hideSelectionOverlay() {
+    selectionOverlay.classList.remove('visible');
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    // Only handle left mouse button
+    if (e.button !== 0) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
+    // Check if clicking on an anomaly - don't start drag
     const anomaly = getAnomalyAtX(x);
     if (anomaly) {
-      zoomToAnomalyByRank(anomaly.rank);
+      // Let click handler deal with it
+      return;
+    }
+
+    // Start drag tracking
+    isDragging = false;
+    dragStartX = x;
+
+    // Hide scrubber during potential drag
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (dragStartX === null) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const distance = Math.abs(x - dragStartX);
+
+    if (distance >= minDragDistance) {
+      isDragging = true;
+      container.classList.add('dragging');
+      // Clamp x to chart bounds
+      const clampedX = Math.max(chartLayout?.padding?.left || 0,
+        Math.min(x, (chartLayout?.width || rect.width) - (chartLayout?.padding?.right || 0)));
+      updateSelectionOverlay(dragStartX, clampedX);
+
+      // Hide scrubber while dragging
+      scrubberLine.classList.remove('visible');
+      scrubberStatusBar.classList.remove('visible');
+    }
+  });
+
+  canvas.addEventListener('mouseup', (e) => {
+    const wasDragging = isDragging;
+    const startX = dragStartX;
+
+    // Reset drag state
+    isDragging = false;
+    dragStartX = null;
+    container.classList.remove('dragging');
+    hideSelectionOverlay();
+
+    if (!wasDragging) {
+      // It was a click, not a drag - check for anomaly
+      if (lastAnomalyBoundsList.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const anomaly = getAnomalyAtX(x);
+        if (anomaly) {
+          zoomToAnomalyByRank(anomaly.rank);
+        }
+      }
+      return;
+    }
+
+    // It was a drag - zoom to selected time range
+    const rect = canvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+
+    const startTime = getTimeAtX(Math.min(startX, endX));
+    const endTime = getTimeAtX(Math.max(startX, endX));
+
+    if (startTime && endTime && startTime < endTime) {
+      setCustomTimeRange(startTime, endTime);
+      saveStateToURL();
+      if (onNavigate) onNavigate();
+    }
+  });
+
+  // Cancel drag if mouse leaves canvas
+  canvas.addEventListener('mouseleave', () => {
+    if (isDragging || dragStartX !== null) {
+      isDragging = false;
+      dragStartX = null;
+      container.classList.remove('dragging');
+      hideSelectionOverlay();
     }
   });
 
