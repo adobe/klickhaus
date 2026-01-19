@@ -741,6 +741,12 @@ main {
   background: transparent;
 }
 
+/* Hide nav overlay entirely when dragging to select time range */
+.chart-container.dragging .chart-nav-overlay .chart-nav-zone {
+  pointer-events: none;
+  opacity: 0;
+}
+
 .chart-nav-overlay.over-anomaly .chart-nav-zone,
 .chart-nav-overlay.over-ship .chart-nav-zone {
   cursor: pointer;
@@ -849,7 +855,7 @@ main {
   border-right: 2px solid rgba(59, 130, 246, 0.8);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.1s ease;
+  transition: opacity 0.1s ease, background 0.15s ease;
   z-index: 5;
 }
 
@@ -857,11 +863,24 @@ main {
   opacity: 1;
 }
 
+/* When selection is confirmed (drag complete), make it clickable */
+.chart-selection-overlay.confirmed {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.chart-selection-overlay.confirmed:hover {
+  background: rgba(59, 130, 246, 0.35);
+}
+
 @media (prefers-color-scheme: dark) {
   .chart-selection-overlay {
     background: rgba(96, 165, 250, 0.25);
     border-left-color: rgba(96, 165, 250, 0.9);
     border-right-color: rgba(96, 165, 250, 0.9);
+  }
+  .chart-selection-overlay.confirmed:hover {
+    background: rgba(96, 165, 250, 0.4);
   }
 }
 
@@ -1104,6 +1123,10 @@ main {
 
 .breakdown-card:has(.investigation-highlight.investigation-green) .speed-indicator {
   box-shadow: 0 0 6px 2px var(--status-ok);
+}
+
+.breakdown-card:has(.investigation-highlight.investigation-blue) .speed-indicator {
+  box-shadow: 0 0 6px 2px #3b82f6;
 }
 
 .clear-facet-btn {
@@ -2158,6 +2181,10 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 
 .breakdown-table tr.investigation-highlight.investigation-green {
   --investigation-glow-color: var(--status-ok);
+}
+
+.breakdown-table tr.investigation-highlight.investigation-blue {
+  --investigation-glow-color: #3b82f6;
 }
 
 /* Dark mode: use currentColor glow instead of light gray */

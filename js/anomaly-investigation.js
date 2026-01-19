@@ -694,6 +694,25 @@ export function getHighlightedDimensions(facetId) {
 }
 
 /**
+ * Find a row in the breakdown table by dimension value
+ * Tries exact match first, then case-insensitive match as fallback
+ * @param {NodeList} rows - Table rows to search
+ * @param {string} dim - Dimension value to find
+ * @returns {Element|null} Matching row or null
+ */
+function findRowByDim(rows, dim) {
+  const rowArray = Array.from(rows);
+  // Try exact match first
+  let row = rowArray.find(r => r.dataset.dim === dim);
+  if (!row && dim) {
+    // Fallback to case-insensitive match
+    const dimLower = dim.toLowerCase();
+    row = rowArray.find(r => r.dataset.dim?.toLowerCase() === dimLower);
+  }
+  return row || null;
+}
+
+/**
  * Apply highlights from a contributors array (for progressive highlighting)
  * Iterates through candidates in priority order, highlighting up to HIGHLIGHT_TOP_N that exist in DOM
  * @param {Array} contributors - Array of contributor objects with facetId, dim, category, etc. (sorted by priority)
@@ -702,7 +721,7 @@ export function getHighlightedDimensions(facetId) {
 function applyHighlightsFromContributors(contributors) {
   // Remove existing highlights and reset titles
   document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green');
+    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green', 'investigation-blue');
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
   });
@@ -731,8 +750,8 @@ function applyHighlightsFromContributors(contributors) {
     const rows = card.querySelectorAll('.breakdown-table tr');
     if (rows.length === 0) continue;
 
-    // Try to find the row with matching dimension
-    const row = Array.from(rows).find(r => r.dataset.dim === c.dim);
+    // Try to find the row with matching dimension (case-insensitive fallback)
+    const row = findRowByDim(rows, c.dim);
     if (row) {
       row.classList.add('investigation-highlight', `investigation-${c.category}`);
       highlightedCount++;
@@ -753,7 +772,7 @@ function applyHighlightsFromContributors(contributors) {
 function applyHighlights() {
   // Remove existing highlights and reset titles
   document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green');
+    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green', 'investigation-blue');
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
   });
@@ -819,7 +838,7 @@ function applyHighlights() {
     if (rows.length === 0) continue;
 
     for (const [expectedDim, info] of dimInfoMap) {
-      const row = Array.from(rows).find(r => r.dataset.dim === expectedDim);
+      const row = findRowByDim(rows, expectedDim);
       if (row) {
         row.classList.add('investigation-highlight', `investigation-${info.category}`);
         const statusColor = row.querySelector('.status-color');
@@ -909,4 +928,259 @@ export function reapplyHighlightsIfCached() {
 export function hasCachedInvestigation() {
   const cacheKey = generateCacheKey();
   return cacheKey === currentCacheKey || loadCachedInvestigation(cacheKey) !== null;
+}
+
+// Store selection investigation contributors for highlighting
+let selectionContributors = [];
+
+/**
+ * Clear selection investigation highlights only (preserve anomaly highlights)
+ */
+export function clearSelectionHighlights() {
+  document.querySelectorAll('.investigation-highlight.investigation-blue').forEach(el => {
+    el.classList.remove('investigation-highlight', 'investigation-blue');
+    const statusColor = el.querySelector('.status-color');
+    if (statusColor) statusColor.removeAttribute('title');
+  });
+  selectionContributors = [];
+}
+
+/**
+ * Investigate a user-selected time range
+ * Compares the selected window against the rest of the visible time range
+ * to find dimension values that are over-represented in the selection.
+ *
+ * @param {Date} selectionStart - Start of selected time range
+ * @param {Date} selectionEnd - End of selected time range
+ * @param {Date} fullStart - Start of full visible time range
+ * @param {Date} fullEnd - End of full visible time range
+ * @returns {Promise<Array>} Array of top contributors
+ */
+export async function investigateTimeRange(selectionStart, selectionEnd, fullStart, fullEnd) {
+  // Clear ALL highlights (both anomaly and previous selection)
+  clearHighlights();
+  clearSelectionHighlights();
+
+  // Select facets to investigate (same as anomaly investigation)
+  const facetsToInvestigate = allBreakdowns.filter(b =>
+    ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
+     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
+     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
+     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id)
+  );
+
+  // Create a pseudo-anomaly object for the investigateFacet function
+  // Use 'blue' as a special category that investigates ALL traffic (not filtered by status)
+  const pseudoAnomaly = {
+    startTime: selectionStart,
+    endTime: selectionEnd,
+    category: 'blue',
+    type: 'selection',
+    rank: 0
+  };
+
+  selectionContributors = [];
+
+  // Launch all facet investigations in parallel
+  const facetPromises = facetsToInvestigate.map(async (breakdown) => {
+    const analysis = await investigateFacetForSelection(breakdown, pseudoAnomaly, fullStart, fullEnd);
+
+    if (analysis.length > 0) {
+      // Add to contributors list
+      for (const item of analysis) {
+        selectionContributors.push({
+          facet: breakdown.id.replace('breakdown-', ''),
+          facetId: breakdown.id,
+          category: 'blue',
+          ...item
+        });
+      }
+    }
+
+    return { facetId: breakdown.id, analysis };
+  });
+
+  await Promise.all(facetPromises);
+
+  // Sort by max change and apply highlights (pass all, function will find first N in DOM)
+  const sorted = [...selectionContributors].sort((a, b) => (b.maxChange || Math.abs(b.shareChange)) - (a.maxChange || Math.abs(a.shareChange)));
+
+  console.log(`Selection investigation found ${selectionContributors.length} contributors, will highlight first ${HIGHLIGHT_TOP_N} found in DOM`);
+
+  applySelectionHighlights(sorted);
+
+  return sorted;
+}
+
+/**
+ * Query a facet for selection investigation (compares selection vs rest of time range)
+ * Looks at error rates (like anomaly investigation) to find dimensions with changed behavior
+ */
+async function investigateFacetForSelection(breakdown, selection, fullStart, fullEnd) {
+  const col = typeof breakdown.col === 'function'
+    ? breakdown.col(state.topN)
+    : breakdown.col;
+
+  const extra = breakdown.extraFilter || '';
+  const hostFilter = getHostFilter();
+  const facetFilters = getFacetFilters();
+
+  // Query for selection window counts - includes error breakdown
+  const selectionFilter = buildTimeFilter(selection.startTime, selection.endTime);
+
+  // Query comparing selection vs baseline with error counts
+  const sql = `
+    SELECT
+      ${col} as dim,
+      countIf(${selectionFilter}) as selection_cnt,
+      countIf(NOT (${selectionFilter})) as baseline_cnt,
+      countIf(${selectionFilter} AND \`response.status\` >= 400) as selection_err_cnt,
+      countIf(NOT (${selectionFilter}) AND \`response.status\` >= 400) as baseline_err_cnt
+    FROM ${DATABASE}.${getTable()}
+    WHERE (${buildTimeFilter(fullStart, fullEnd)})
+      ${hostFilter} ${facetFilters} ${extra}
+    GROUP BY dim
+    HAVING selection_cnt > 0 OR baseline_cnt > 0
+    ORDER BY selection_cnt DESC
+    LIMIT 50
+  `;
+
+  try {
+    const result = await query(sql, { cacheTtl: 60 });
+
+    // Calculate durations for rate normalization
+    const selectionDurationMs = selection.endTime - selection.startTime;
+    const baselineDurationMs = (fullEnd - fullStart) - selectionDurationMs;
+    const selectionMinutes = selectionDurationMs / 60000;
+    const baselineMinutes = baselineDurationMs / 60000;
+
+    // Calculate totals for share computation
+    const totalSelectionCnt = result.data.reduce((sum, r) => sum + parseInt(r.selection_cnt || 0), 0);
+    const totalBaselineCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_cnt || 0), 0);
+    const totalSelectionErrCnt = result.data.reduce((sum, r) => sum + parseInt(r.selection_err_cnt || 0), 0);
+    const totalBaselineErrCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_err_cnt || 0), 0);
+
+    // Analyze each facet value
+    const analyzed = result.data.map(row => {
+      const selectionCnt = parseInt(row.selection_cnt) || 0;
+      const baselineCnt = parseInt(row.baseline_cnt) || 0;
+      const selectionErrCnt = parseInt(row.selection_err_cnt) || 0;
+      const baselineErrCnt = parseInt(row.baseline_err_cnt) || 0;
+
+      // Normalize to rate per minute
+      const selectionRate = selectionMinutes > 0 ? selectionCnt / selectionMinutes : 0;
+      const baselineRate = baselineMinutes > 0 ? baselineCnt / baselineMinutes : 0;
+
+      // Calculate percentage change in rate
+      let rateChange = 0;
+      if (baselineRate > 0) {
+        rateChange = ((selectionRate - baselineRate) / baselineRate) * 100;
+      } else if (selectionRate > 0) {
+        rateChange = Infinity;
+      }
+
+      // Calculate traffic share during selection vs baseline
+      const selectionShare = totalSelectionCnt > 0 ? (selectionCnt / totalSelectionCnt) * 100 : 0;
+      const baselineShare = totalBaselineCnt > 0 ? (baselineCnt / totalBaselineCnt) * 100 : 0;
+      const shareChange = selectionShare - baselineShare;
+
+      // Calculate error share during selection vs baseline
+      const selectionErrShare = totalSelectionErrCnt > 0 ? (selectionErrCnt / totalSelectionErrCnt) * 100 : 0;
+      const baselineErrShare = totalBaselineErrCnt > 0 ? (baselineErrCnt / totalBaselineErrCnt) * 100 : 0;
+      const errShareChange = selectionErrShare - baselineErrShare;
+
+      // Calculate error rate change for this dimension
+      const selectionErrRate = selectionCnt > 0 ? (selectionErrCnt / selectionCnt) * 100 : 0;
+      const baselineErrRate = baselineCnt > 0 ? (baselineErrCnt / baselineCnt) * 100 : 0;
+      const errRateChange = selectionErrRate - baselineErrRate;
+
+      return {
+        dim: row.dim,
+        selectionRate: Math.round(selectionRate * 10) / 10,
+        baselineRate: Math.round(baselineRate * 10) / 10,
+        rateChange: Math.round(rateChange * 10) / 10,
+        selectionShare: Math.round(selectionShare * 10) / 10,
+        baselineShare: Math.round(baselineShare * 10) / 10,
+        shareChange: Math.round(shareChange * 10) / 10,
+        errShareChange: Math.round(errShareChange * 10) / 10,
+        errRateChange: Math.round(errRateChange * 10) / 10
+      };
+    });
+
+    // Filter to meaningful changes in EITHER direction:
+    // - Traffic share changed by >5pp, OR
+    // - Error share changed by >5pp, OR
+    // - Error rate changed by >5pp
+    // Must have some volume (selectionRate > 0.5/min OR baselineRate > 0.5/min for under-represented)
+    const filtered = analyzed
+      .filter(r => {
+        const hasVolume = r.selectionRate > 0.5 || r.baselineRate > 0.5;
+        const hasSignificantChange = Math.abs(r.shareChange) > 5 || Math.abs(r.errShareChange) > 5 || Math.abs(r.errRateChange) > 5;
+        return hasVolume && hasSignificantChange;
+      })
+      .map(r => ({
+        ...r,
+        // Use the maximum absolute change as the sort key, preserve sign for display
+        maxChange: Math.max(Math.abs(r.shareChange), Math.abs(r.errShareChange), Math.abs(r.errRateChange)),
+        // Keep the actual change value with the largest magnitude for tooltip
+        shareChange: [r.shareChange, r.errShareChange, r.errRateChange]
+          .reduce((max, v) => Math.abs(v) > Math.abs(max) ? v : max, 0)
+      }))
+      .sort((a, b) => b.maxChange - a.maxChange)
+      .slice(0, 5);
+
+    if (filtered.length === 0 && analyzed.length > 0) {
+      const sorted = [...analyzed].sort((a, b) => {
+        const aMax = Math.max(Math.abs(a.shareChange), Math.abs(a.errShareChange), Math.abs(a.errRateChange));
+        const bMax = Math.max(Math.abs(b.shareChange), Math.abs(b.errShareChange), Math.abs(b.errRateChange));
+        return bMax - aMax;
+      });
+      const top = sorted[0];
+      console.log(`  ${breakdown.id}: ${analyzed.length} dims analyzed, top shareChange=${top?.shareChange}pp, errShareChange=${top?.errShareChange}pp, errRateChange=${top?.errRateChange}pp`);
+    }
+
+    return filtered;
+  } catch (err) {
+    console.error(`Selection investigation error for ${breakdown.id}:`, err.message);
+    return [];
+  }
+}
+
+/**
+ * Apply blue highlights for selection investigation
+ * Iterates through contributors in priority order, highlighting first HIGHLIGHT_TOP_N that exist in DOM
+ */
+function applySelectionHighlights(contributors) {
+  let appliedCount = 0;
+
+  for (const c of contributors) {
+    // Stop if we've highlighted enough
+    if (appliedCount >= HIGHLIGHT_TOP_N) {
+      break;
+    }
+
+    const card = document.getElementById(c.facetId);
+    if (!card) continue;
+
+    const rows = card.querySelectorAll('.breakdown-table tr');
+    if (rows.length === 0) continue;
+
+    // Try to find the row with matching dimension (case-insensitive fallback)
+    const row = findRowByDim(rows, c.dim);
+    if (row) {
+      row.classList.add('investigation-highlight', 'investigation-blue');
+      const statusColor = row.querySelector('.status-color');
+      if (statusColor) {
+        const sign = c.shareChange >= 0 ? '+' : '';
+        const direction = c.shareChange >= 0 ? 'over' : 'under';
+        statusColor.title = `${sign}${c.shareChange}pp (${direction}-represented in selection)`;
+      }
+      appliedCount++;
+      const sign = c.shareChange >= 0 ? '+' : '';
+      console.log(`  ✓ Highlighted #${appliedCount}: ${c.facetId} = "${c.dim}" (${sign}${c.shareChange}pp)`);
+    }
+  }
+
+  console.log(`  Applied ${appliedCount}/${HIGHLIGHT_TOP_N} selection highlights`);
+  return appliedCount;
 }

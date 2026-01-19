@@ -9,6 +9,7 @@ import { addFilter } from './filters.js';
 import { getHostFilter, getPeriodMs, getTable, getTimeBucket, getTimeFilter, queryTimestamp, setCustomTimeRange, setQueryTimestamp } from './time.js';
 import { saveStateToURL } from './url-state.js';
 import { getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip } from './releases.js';
+import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 
 // Navigation state
 let onNavigate = null;
@@ -25,6 +26,10 @@ let scrubberStatusBar = null;
 let selectionOverlay = null;
 let isDragging = false;
 let dragStartX = null;
+let justCompletedDrag = false; // Flag to prevent click handlers firing after drag
+
+// Pending selection state (module-level for access in renderChart)
+let pendingSelection = null; // { startTime, endTime } - persists after drag until clicked or cleared
 
 // Chart layout info for scrubber (set during render)
 let chartLayout = null;
@@ -60,6 +65,17 @@ export function setupChartNavigation(callback) {
   selectionOverlay = document.createElement('div');
   selectionOverlay.className = 'chart-selection-overlay';
   container.appendChild(selectionOverlay);
+
+  // Click on selection overlay to navigate to the selected time range
+  selectionOverlay.addEventListener('click', () => {
+    if (pendingSelection) {
+      const { startTime, endTime } = pendingSelection;
+      hideSelectionOverlay();
+      setCustomTimeRange(startTime, endTime);
+      saveStateToURL();
+      if (onNavigate) onNavigate();
+    }
+  });
 
   // Touch swipe support
   let touchStartX = null;
@@ -330,9 +346,20 @@ export function setupChartNavigation(callback) {
 
   function hideSelectionOverlay() {
     selectionOverlay.classList.remove('visible');
+    selectionOverlay.classList.remove('confirmed');
+    pendingSelection = null;
+    // Clear blue highlights when selection is cleared
+    clearSelectionHighlights();
+    // Redraw chart to remove blue band
+    if (lastChartData) {
+      requestAnimationFrame(() => {
+        renderChart(lastChartData);
+      });
+    }
   }
 
-  canvas.addEventListener('mousedown', (e) => {
+  // Start drag tracking from a mouse event (works for canvas and nav zones)
+  function startDragTracking(e) {
     // Only handle left mouse button
     if (e.button !== 0) return;
 
@@ -346,15 +373,27 @@ export function setupChartNavigation(callback) {
       return;
     }
 
+    // Clear any existing pending selection when starting a new drag
+    if (pendingSelection) {
+      hideSelectionOverlay();
+    }
+
     // Start drag tracking
     isDragging = false;
     dragStartX = x;
 
     // Hide scrubber during potential drag
     e.preventDefault();
+  }
+
+  // Mousedown on canvas or nav zones starts drag tracking
+  canvas.addEventListener('mousedown', startDragTracking);
+  navOverlay.querySelectorAll('.chart-nav-zone').forEach(zone => {
+    zone.addEventListener('mousedown', startDragTracking);
   });
 
-  canvas.addEventListener('mousemove', (e) => {
+  // Use container-level mousemove so drag works even when over nav zones
+  container.addEventListener('mousemove', (e) => {
     if (dragStartX === null) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -375,7 +414,8 @@ export function setupChartNavigation(callback) {
     }
   });
 
-  canvas.addEventListener('mouseup', (e) => {
+  // Use container-level mouseup so drag completes even when over nav zones
+  container.addEventListener('mouseup', (e) => {
     const wasDragging = isDragging;
     const startX = dragStartX;
 
@@ -383,10 +423,18 @@ export function setupChartNavigation(callback) {
     isDragging = false;
     dragStartX = null;
     container.classList.remove('dragging');
-    hideSelectionOverlay();
 
     if (!wasDragging) {
-      // It was a click, not a drag - check for anomaly
+      // It was a click, not a drag - check for anomaly or clear selection
+      if (pendingSelection) {
+        // Don't clear if clicking on the selection overlay itself (let its click handler deal with it)
+        if (e.target === selectionOverlay || selectionOverlay.contains(e.target)) {
+          return;
+        }
+        // Clicking outside selection clears it
+        hideSelectionOverlay();
+        return;
+      }
       if (lastAnomalyBoundsList.length > 0) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -398,7 +446,7 @@ export function setupChartNavigation(callback) {
       return;
     }
 
-    // It was a drag - zoom to selected time range
+    // It was a drag - store pending selection but don't navigate yet
     const rect = canvas.getBoundingClientRect();
     const endX = e.clientX - rect.left;
 
@@ -406,14 +454,33 @@ export function setupChartNavigation(callback) {
     const endTime = getTimeAtX(Math.max(startX, endX));
 
     if (startTime && endTime && startTime < endTime) {
-      setCustomTimeRange(startTime, endTime);
-      saveStateToURL();
-      if (onNavigate) onNavigate();
+      pendingSelection = { startTime, endTime };
+      selectionOverlay.classList.add('confirmed');
+      // Keep overlay visible - don't hide it
+      // Set flag to prevent click handlers from firing
+      justCompletedDrag = true;
+      requestAnimationFrame(() => { justCompletedDrag = false; });
+
+      // Redraw chart to show blue selection band
+      if (lastChartData) {
+        requestAnimationFrame(() => {
+          renderChart(lastChartData);
+        });
+      }
+
+      // Trigger investigation for the selected time range
+      if (lastChartData && lastChartData.length >= 2) {
+        const fullStart = new Date(lastChartData[0].t);
+        const fullEnd = new Date(lastChartData[lastChartData.length - 1].t);
+        investigateTimeRange(startTime, endTime, fullStart, fullEnd);
+      }
+    } else {
+      hideSelectionOverlay();
     }
   });
 
-  // Cancel drag if mouse leaves canvas
-  canvas.addEventListener('mouseleave', () => {
+  // Cancel drag if mouse leaves container
+  container.addEventListener('mouseleave', () => {
     if (isDragging || dragStartX !== null) {
       isDragging = false;
       dragStartX = null;
@@ -422,8 +489,9 @@ export function setupChartNavigation(callback) {
     }
   });
 
-  // Nav zone click handlers - check for anomaly first
+  // Nav zone click handlers - check for anomaly first, ignore if just completed a drag
   navOverlay.querySelector('.chart-nav-left').addEventListener('click', (e) => {
+    if (justCompletedDrag) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const anomaly = getAnomalyAtX(x);
@@ -435,6 +503,7 @@ export function setupChartNavigation(callback) {
   });
 
   navOverlay.querySelector('.chart-nav-right').addEventListener('click', (e) => {
+    if (justCompletedDrag) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const anomaly = getAnomalyAtX(x);
@@ -1022,6 +1091,49 @@ export function renderChart(data) {
     ctx.textAlign = 'center';
     ctx.fillStyle = labelColor;
     ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, centerX, arrowY);
+  }
+
+  // Draw blue selection band if there's a pending selection
+  if (pendingSelection) {
+    const { startTime: selStart, endTime: selEnd } = pendingSelection;
+    const dataStart = new Date(data[0].t);
+    const dataEnd = new Date(data[data.length - 1].t);
+    const timeRange = dataEnd - dataStart;
+
+    if (timeRange > 0) {
+      // Convert selection times to x coordinates
+      const selStartX = padding.left + ((selStart - dataStart) / timeRange) * chartWidth;
+      const selEndX = padding.left + ((selEnd - dataStart) / timeRange) * chartWidth;
+
+      // Clamp to chart bounds
+      const bandLeft = Math.max(padding.left, Math.min(selStartX, selEndX));
+      const bandRight = Math.min(width - padding.right, Math.max(selStartX, selEndX));
+
+      // Blue selection colors
+      const selectionFill = 'rgba(59, 130, 246, 0.15)';
+      const selectionStroke = 'rgba(59, 130, 246, 0.8)';
+
+      // Draw filled rectangle for selection
+      ctx.fillStyle = selectionFill;
+      ctx.fillRect(bandLeft, padding.top, bandRight - bandLeft, chartHeight);
+
+      // Draw dashed vertical lines at edges
+      ctx.strokeStyle = selectionStroke;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+
+      ctx.beginPath();
+      ctx.moveTo(bandLeft, padding.top);
+      ctx.lineTo(bandLeft, height - padding.bottom);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(bandRight, padding.top);
+      ctx.lineTo(bandRight, height - padding.bottom);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+    }
   }
 
   // Fetch and render release ships asynchronously
