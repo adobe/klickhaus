@@ -13,7 +13,8 @@ async function query(sql, adminUser, adminPassword) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + Buffer.from(`${adminUser}:${adminPassword}`).toString('base64')
+      'Authorization': 'Basic ' + Buffer.from(`${adminUser}:${adminPassword}`).toString('base64'),
+      'Content-Type': 'text/plain'
     },
     body: sql
   });
