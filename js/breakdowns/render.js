@@ -2,7 +2,7 @@
 import { escapeHtml, isSyntheticBucket } from '../utils.js';
 import { formatNumber, formatQueryTime, formatBytes } from '../format.js';
 import { getColorIndicatorHtml } from '../colors/index.js';
-import { state } from '../state.js';
+import { state, togglePinnedFacet, toggleHiddenFacet } from '../state.js';
 
 // Get filters for a specific column
 export function getFiltersForColumn(col) {
@@ -51,7 +51,10 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   // Speed indicator based on elapsed time (aligned with Google LCP thresholds)
   const speedClass = elapsed < 2500 ? 'fast' : (elapsed < 4000 ? 'medium' : 'slow');
   const speedTitle = formatQueryTime(elapsed);
-  const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle}"></span>`;
+  const isPinned = state.pinnedFacets.includes(id);
+  const pinnedClass = isPinned ? ' pinned' : '';
+  const pinTitle = isPinned ? 'Unpin facet' : 'Pin facet to top';
+  const speedIndicator = `<span class="speed-indicator ${speedClass}${pinnedClass}" title="${speedTitle} - ${pinTitle}" onclick="window.toggleFacetPin('${id}')" role="button"></span>`;
 
   // Mode toggle for facets that support it (e.g., content-types: count vs bytes)
   const modeToggleHtml = modeToggle
@@ -70,7 +73,10 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
     }
     html += `</h3><div class="empty">No data</div>`;
+    html += `<button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${id}')" title="Hide facet"></button>`;
     card.innerHTML = html;
+    card.classList.toggle('facet-pinned', isPinned);
+    card.classList.remove('facet-hidden');
     return;
   }
 
@@ -241,7 +247,15 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   }
 
   html += '</table>';
+
+  // Add hide button in bottom-right corner
+  html += `<button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${id}')" title="Hide facet"></button>`;
+
   card.innerHTML = html;
+
+  // Update card classes for pinned state (not hidden since we have data)
+  card.classList.toggle('facet-pinned', isPinned);
+  card.classList.remove('facet-hidden');
 }
 
 export function renderBreakdownError(id, message) {

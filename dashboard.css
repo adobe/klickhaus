@@ -921,7 +921,8 @@ main {
   border-radius: 12px;
   padding: 16px;
   border: 1px solid var(--border);
-  transition: filter 0.2s ease-out;
+  transition: filter 0.2s ease-out, opacity 0.2s ease;
+  position: relative;
 }
 
 @media (max-width: 1400px) {
@@ -1106,6 +1107,143 @@ main {
 
 .speed-indicator.slowest.slow {
   box-shadow: 0 0 6px 2px var(--status-server-error);
+}
+
+/* Clickable speed indicator */
+.speed-indicator[role="button"] {
+  cursor: pointer;
+}
+
+.speed-indicator[role="button"]:hover {
+  transform: scale(1.3);
+}
+
+/* Pinned facet indicator - ring around the dot */
+.speed-indicator.pinned {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor;
+}
+
+.speed-indicator.pinned.fast {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--status-ok);
+}
+
+.speed-indicator.pinned.medium {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--status-client-error);
+}
+
+.speed-indicator.pinned.slow {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--status-server-error);
+}
+
+/* Facet hide button - bottom right corner */
+.facet-hide-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.facet-hide-btn::before {
+  content: '\00d7'; /* Unicode multiplication sign (x) */
+}
+
+.breakdown-card:hover .facet-hide-btn {
+  opacity: 0.5;
+}
+
+.facet-hide-btn:hover {
+  opacity: 1 !important;
+  background: rgba(127, 127, 127, 0.1);
+}
+
+/* Pinned and hidden sections */
+.breakdowns-pinned:empty,
+.breakdowns-hidden:empty {
+  display: none;
+}
+
+.breakdowns-pinned {
+  margin-bottom: 16px;
+}
+
+/* Hidden section - horizontal flow for pills */
+.breakdowns-hidden {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Hidden facet styling - compact pill */
+.breakdown-card.facet-hidden {
+  padding: 6px 10px;
+  opacity: 0.5;
+  border: 1px dashed var(--border);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.breakdown-card.facet-hidden:hover {
+  opacity: 0.8;
+  border-style: solid;
+}
+
+/* Hide content in hidden facets */
+.breakdown-card.facet-hidden .breakdown-table,
+.breakdown-card.facet-hidden .empty,
+.breakdown-card.facet-hidden .loading,
+.breakdown-card.facet-hidden .mode-toggle,
+.breakdown-card.facet-hidden .summary-metric,
+.breakdown-card.facet-hidden .clear-facet-btn,
+.breakdown-card.facet-hidden .speed-indicator {
+  display: none;
+}
+
+/* Compact header for hidden facets */
+.breakdown-card.facet-hidden h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Show hide button as + for hidden facets */
+.breakdown-card.facet-hidden .facet-hide-btn {
+  opacity: 1;
+  position: static;
+  width: 16px;
+  height: 16px;
+  background: var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.breakdown-card.facet-hidden .facet-hide-btn::before {
+  content: '+';
+}
+
+.breakdown-card.facet-hidden .facet-hide-btn:hover {
+  background: var(--status-ok);
+  color: white;
+}
+
+/* Pinned facet has subtle top border highlight */
+.breakdown-card.facet-pinned {
+  border-top: 2px solid var(--status-ok);
 }
 
 /* Also glow speed indicator if facet has investigation highlights */

@@ -15,6 +15,8 @@ export const state = {
   title: '',  // Custom title from URL
   chartData: null,  // Store chart data for redrawing when view changes
   contentTypeMode: 'count',  // 'count' or 'bytes' for content-types facet
+  pinnedFacets: [],   // Facet IDs pinned to top
+  hiddenFacets: [],   // Facet IDs hidden at bottom
 };
 
 // Callback for re-rendering logs table when pinned columns change
@@ -36,4 +38,74 @@ export function togglePinnedColumn(col) {
   if (onPinnedColumnsChange && state.logsData) {
     onPinnedColumnsChange(state.logsData);
   }
+}
+
+// Get localStorage key for facet preferences (keyed by title if present)
+function getFacetPrefsKey() {
+  return state.title ? `facetPrefs_${state.title}` : 'facetPrefs';
+}
+
+// Load facet preferences from localStorage
+export function loadFacetPrefs() {
+  const key = getFacetPrefsKey();
+  try {
+    const prefs = JSON.parse(localStorage.getItem(key) || '{}');
+    state.pinnedFacets = prefs.pinned || [];
+    state.hiddenFacets = prefs.hidden || [];
+  } catch (e) {
+    state.pinnedFacets = [];
+    state.hiddenFacets = [];
+  }
+}
+
+// Save facet preferences to localStorage
+function saveFacetPrefs() {
+  const key = getFacetPrefsKey();
+  localStorage.setItem(key, JSON.stringify({
+    pinned: state.pinnedFacets,
+    hidden: state.hiddenFacets
+  }));
+}
+
+// Callback for facet order changes
+let onFacetOrderChange = null;
+
+export function setOnFacetOrderChange(callback) {
+  onFacetOrderChange = callback;
+}
+
+// Toggle pinned state for a facet
+export function togglePinnedFacet(facetId) {
+  const idx = state.pinnedFacets.indexOf(facetId);
+  if (idx === -1) {
+    state.pinnedFacets.push(facetId);
+    // If it was hidden, unhide it
+    const hiddenIdx = state.hiddenFacets.indexOf(facetId);
+    if (hiddenIdx !== -1) {
+      state.hiddenFacets.splice(hiddenIdx, 1);
+    }
+  } else {
+    state.pinnedFacets.splice(idx, 1);
+  }
+  saveFacetPrefs();
+  if (onFacetOrderChange) onFacetOrderChange();
+}
+
+// Toggle hidden state for a facet
+export function toggleHiddenFacet(facetId) {
+  const idx = state.hiddenFacets.indexOf(facetId);
+  const wasHidden = idx !== -1;
+
+  if (!wasHidden) {
+    state.hiddenFacets.push(facetId);
+    // If it was pinned, unpin it
+    const pinnedIdx = state.pinnedFacets.indexOf(facetId);
+    if (pinnedIdx !== -1) {
+      state.pinnedFacets.splice(pinnedIdx, 1);
+    }
+  } else {
+    state.hiddenFacets.splice(idx, 1);
+  }
+  saveFacetPrefs();
+  if (onFacetOrderChange) onFacetOrderChange(facetId);
 }

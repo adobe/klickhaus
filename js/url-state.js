@@ -1,5 +1,5 @@
 // URL state management
-import { state } from './state.js';
+import { state, loadFacetPrefs } from './state.js';
 import { queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange } from './time.js';
 import { renderActiveFilters } from './filters.js';
 import { invalidateInvestigationCache } from './anomaly-investigation.js';
@@ -60,6 +60,14 @@ export function saveStateToURL(newAnomalyId = undefined) {
     if (currentAnomaly) {
       params.set('anomaly', currentAnomaly);
     }
+  }
+
+  // Save pinned and hidden facets to URL
+  if (state.pinnedFacets.length > 0) {
+    params.set('pf', state.pinnedFacets.join(','));
+  }
+  if (state.hiddenFacets.length > 0) {
+    params.set('hf', state.hiddenFacets.join(','));
   }
 
   // Note: pinned columns are NOT auto-saved to URL
@@ -166,6 +174,17 @@ export function loadStateFromURL() {
     if (['count', 'bytes'].includes(ctm)) {
       state.contentTypeMode = ctm;
     }
+  }
+
+  // Load facet preferences from localStorage (keyed by title)
+  loadFacetPrefs();
+
+  // Override with URL params if present
+  if (params.has('pf')) {
+    state.pinnedFacets = params.get('pf').split(',').filter(f => f);
+  }
+  if (params.has('hf')) {
+    state.hiddenFacets = params.get('hf').split(',').filter(f => f);
   }
 }
 

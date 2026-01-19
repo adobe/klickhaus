@@ -1,5 +1,5 @@
 // Main entry point - CDN Analytics Dashboard
-import { state, togglePinnedColumn } from './state.js';
+import { state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange } from './state.js';
 import { setForceRefresh } from './api.js';
 import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from './auth.js';
 import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored } from './url-state.js';
@@ -51,6 +51,45 @@ setFilterCallbacks(saveStateToURL, loadDashboard);
 
 // Set up callback for browser back/forward navigation
 setOnStateRestored(loadDashboard);
+
+// Move facets between pinned/normal/hidden sections based on state
+// If toggledFacetId is provided, update that facet's display state
+function reorderFacets(toggledFacetId = null) {
+  const pinnedSection = document.getElementById('breakdowns-pinned');
+  const normalSection = document.getElementById('breakdowns');
+  const hiddenSection = document.getElementById('breakdowns-hidden');
+
+  // Move each card to its appropriate section
+  document.querySelectorAll('.breakdown-card').forEach(card => {
+    const id = card.id;
+    const isPinned = state.pinnedFacets.includes(id);
+    const isHidden = state.hiddenFacets.includes(id);
+
+    if (isPinned && card.parentElement !== pinnedSection) {
+      pinnedSection.appendChild(card);
+    } else if (isHidden && card.parentElement !== hiddenSection) {
+      hiddenSection.appendChild(card);
+    } else if (!isPinned && !isHidden && card.parentElement !== normalSection) {
+      normalSection.appendChild(card);
+    }
+  });
+
+  saveStateToURL();
+
+  // If a facet was toggled, call loadBreakdown to update its state
+  // (handles both hiding and unhiding)
+  if (toggledFacetId) {
+    const breakdown = allBreakdowns.find(b => b.id === toggledFacetId);
+    if (breakdown) {
+      const timeFilter = getTimeFilter();
+      const hostFilter = getHostFilter();
+      loadBreakdown(breakdown, timeFilter, hostFilter);
+    }
+  }
+}
+
+// Set up callback for facet order changes
+setOnFacetOrderChange(reorderFacets);
 
 // Load Dashboard Data
 async function loadDashboard(refresh = false) {
@@ -203,6 +242,7 @@ async function init() {
       if (creds && creds.user && creds.password) {
         state.credentials = creds;
         syncUIFromState();
+        reorderFacets();
         showDashboard();
         updateTimeRangeHint();
         // Start loading dashboard - auth errors will be handled by query()
@@ -298,6 +338,8 @@ window.closeQuickLinksModal = closeQuickLinksModal;
 window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
 window.toggleFacetMode = toggleFacetMode;
 window.loadDashboard = loadDashboard;
+window.toggleFacetPin = togglePinnedFacet;
+window.toggleFacetHide = toggleHiddenFacet;
 
 // Load host autocomplete when dashboard is shown
 window.addEventListener('dashboard-shown', () => {

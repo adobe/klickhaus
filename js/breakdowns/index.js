@@ -71,6 +71,27 @@ export async function loadAllBreakdowns() {
 
 export async function loadBreakdown(b, timeFilter, hostFilter) {
   const card = document.getElementById(b.id);
+
+  // Skip fetching data for hidden facets - show as minimal pill
+  if (state.hiddenFacets.includes(b.id)) {
+    // Get or set title before replacing innerHTML
+    if (!card.dataset.title) {
+      const h3 = card.querySelector('h3');
+      card.dataset.title = h3 ? h3.textContent.trim() : b.id.replace('breakdown-', '');
+    }
+    // Replace with minimal HTML
+    card.innerHTML = `<h3>${card.dataset.title}</h3><button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${b.id}')" title="Show facet"></button>`;
+    card.classList.add('facet-hidden');
+    card.classList.remove('updating');
+    // Make whole card clickable to unhide
+    card.onclick = () => window.toggleFacetHide(b.id);
+    return;
+  }
+
+  // Clear onclick for visible facets
+  card.onclick = null;
+
+  card.classList.remove('facet-hidden');
   card.classList.add('updating');
 
   // Support dynamic col expressions that depend on topN
