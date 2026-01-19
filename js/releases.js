@@ -1,42 +1,23 @@
 // Release feed fetching and rendering for AEM releases
 
-const RELEASE_FEED_URL = 'https://aem-release-feed.david8603.workers.dev/';
+import { query } from './api.js';
 
-// Cache for release data
-let releasesCache = null;
-let lastFetchTime = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-// Fetch releases from feed
-async function fetchReleases() {
-  const now = Date.now();
-  if (releasesCache && lastFetchTime && (now - lastFetchTime) < CACHE_TTL) {
-    return releasesCache;
-  }
-
+// Get releases within a time range from ClickHouse
+export async function getReleasesInRange(startTime, endTime) {
   try {
-    const response = await fetch(RELEASE_FEED_URL);
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
-    }
-    releasesCache = await response.json();
-    lastFetchTime = now;
-    return releasesCache;
+    const sql = `
+      SELECT published, repo, tag, url, body
+      FROM helix_logs_production.releases FINAL
+      WHERE published >= toDateTime64('${startTime.toISOString()}', 3)
+        AND published <= toDateTime64('${endTime.toISOString()}', 3)
+      ORDER BY published
+    `;
+    const result = await query(sql, { cacheTtl: 300 });
+    return result.data || [];
   } catch (err) {
     console.error('Failed to fetch releases:', err);
-    return releasesCache || []; // Return cached data or empty array
+    return [];
   }
-}
-
-// Get releases within a time range
-export async function getReleasesInRange(startTime, endTime) {
-  const releases = await fetchReleases();
-  if (!releases || !Array.isArray(releases)) return [];
-
-  return releases.filter(release => {
-    const publishedTime = new Date(release.published).getTime();
-    return publishedTime >= startTime.getTime() && publishedTime <= endTime.getTime();
-  }).sort((a, b) => new Date(a.published) - new Date(b.published));
 }
 
 // Render ship symbols on the chart canvas

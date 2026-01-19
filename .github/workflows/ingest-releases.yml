@@ -1,4 +1,4 @@
-name: Ingest Release Feed
+name: Ingest Releases and Shifts
 
 on:
   schedule:
@@ -22,3 +22,31 @@ jobs:
             "https://${CLICKHOUSE_HOST}:8443/?database=helix_logs_production&query=INSERT%20INTO%20releases%20FORMAT%20JSONEachRow&async_insert=1&wait_for_async_insert=0" \
             -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
             --data-binary @/tmp/releases.jsonl
+
+      - name: Ingest oncall shifts to ClickHouse
+        env:
+          CLICKHOUSE_HOST: ${{ secrets.CLICKHOUSE_HOST }}
+          CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_RELEASES_USER }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_RELEASES_PASSWORD }}
+        run: |
+          # Fetch user_shifts from ClickHouse
+          curl -sf "https://${CLICKHOUSE_HOST}:8443/?database=helix_logs_production" \
+            -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+            --data "SELECT user, ical_url FROM user_shifts FORMAT TabSeparated" > /tmp/users.tsv
+
+          # awk script to parse iCal and output JSON
+          AWK_SCRIPT='BEGIN { RS="BEGIN:VEVENT"; FS="\n" } NR > 1 { uid=""; dtstart=""; dtend=""; summary=""; for (i=1; i<=NF; i++) { if ($i ~ /^UID:/) { gsub(/^UID:/, "", $i); gsub(/\r/, "", $i); uid=$i } if ($i ~ /^DTSTART:/) { gsub(/^DTSTART:/, "", $i); gsub(/\r/, "", $i); dtstart=$i } if ($i ~ /^DTEND:/) { gsub(/^DTEND:/, "", $i); gsub(/\r/, "", $i); dtend=$i } if ($i ~ /^SUMMARY:/) { gsub(/^SUMMARY:/, "", $i); gsub(/\r/, "", $i); summary=$i } } if (length(dtstart) > 0 && length(dtend) > 0) { iso_start = substr(dtstart,1,4) "-" substr(dtstart,5,2) "-" substr(dtstart,7,2) "T" substr(dtstart,10,2) ":" substr(dtstart,12,2) ":" substr(dtstart,14,2) "Z"; iso_end = substr(dtend,1,4) "-" substr(dtend,5,2) "-" substr(dtend,7,2) "T" substr(dtend,10,2) ":" substr(dtend,12,2) ":" substr(dtend,14,2) "Z"; gsub(/"/, "\\\"", summary); print "{\"user\":\"" user "\",\"shift_start\":\"" iso_start "\",\"shift_end\":\"" iso_end "\",\"summary\":\"" summary "\",\"uid\":\"" uid "\"}" } }'
+
+          # Process each user's iCal feed
+          > /tmp/shifts.jsonl
+          while IFS=$'\t' read -r user ical_url; do
+            curl -sf "$ical_url" | awk -v user="$user" "$AWK_SCRIPT" >> /tmp/shifts.jsonl
+          done < /tmp/users.tsv
+
+          # Insert shifts into ClickHouse
+          if [ -s /tmp/shifts.jsonl ]; then
+            curl -sf -X POST \
+              "https://${CLICKHOUSE_HOST}:8443/?database=helix_logs_production&query=INSERT%20INTO%20oncall_shifts%20FORMAT%20JSONEachRow&async_insert=1&wait_for_async_insert=0" \
+              -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+              --data-binary @/tmp/shifts.jsonl
+          fi

@@ -8,7 +8,7 @@
 const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
 const DATABASE = 'helix_logs_production';
-const TABLES = ['cdn_requests_combined', 'cdn_requests_v2'];
+const TABLES = ['cdn_requests_combined', 'cdn_requests_v2', 'releases', 'oncall_shifts'];
 const DICTIONARIES = ['asn_dict'];
 
 function generatePassword(length = 16) {
