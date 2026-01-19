@@ -1779,14 +1779,14 @@ body.keyboard-mode .breakdown-table tr.kbd-next td.dim::before {
 }
 
 body.keyboard-mode .breakdown-table tr.kbd-prev td.dim::before {
-  content: 'h';
+  content: 'k';
 }
 
 body.keyboard-mode .breakdown-table tr.kbd-next td.dim::before {
-  content: 'l';
+  content: 'j';
 }
 
-/* Adjacent facet hints for j/k navigation */
+/* Adjacent facet hints for h/l navigation */
 body.keyboard-mode .breakdown-card.kbd-prev-facet,
 body.keyboard-mode .breakdown-card.kbd-next-facet {
   position: relative;
@@ -1809,11 +1809,11 @@ body.keyboard-mode .breakdown-card.kbd-next-facet > h3::before {
 }
 
 body.keyboard-mode .breakdown-card.kbd-prev-facet > h3::before {
-  content: 'k';
+  content: 'h';
 }
 
 body.keyboard-mode .breakdown-card.kbd-next-facet > h3::before {
-  content: 'j';
+  content: 'l';
 }
 
 /* (other) row shows ... hint in keyboard mode */

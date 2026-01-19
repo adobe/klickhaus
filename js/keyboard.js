@@ -69,7 +69,7 @@ function updateFocus() {
   const facet = facets[kbd.facetIndex];
   facet.classList.add('kbd-focused');
 
-  // Mark adjacent facets for j/k hints
+  // Mark adjacent facets for h/l hints
   if (kbd.facetIndex > 0) {
     facets[kbd.facetIndex - 1].classList.add('kbd-prev-facet');
   }
@@ -84,7 +84,7 @@ function updateFocus() {
   const row = values[kbd.valueIndex];
   row.classList.add('kbd-focused');
 
-  // Mark adjacent rows for h/l hints
+  // Mark adjacent rows for j/k hints
   if (kbd.valueIndex > 0) {
     values[kbd.valueIndex - 1].classList.add('kbd-prev');
   }
@@ -109,7 +109,7 @@ function updateFocus() {
   updateFragment();
 }
 
-// Navigate between facets (j/k)
+// Navigate between facets (h/l)
 function moveFacet(delta) {
   const facets = getFacets();
   kbd.facetIndex = Math.max(0, Math.min(facets.length - 1, kbd.facetIndex + delta));
@@ -117,7 +117,7 @@ function moveFacet(delta) {
   updateFocus();
 }
 
-// Navigate between values (h/l)
+// Navigate between values (j/k)
 function moveValue(delta) {
   const facets = getFacets();
   const values = getValues(facets[kbd.facetIndex]);
@@ -250,22 +250,22 @@ export function initKeyboardNavigation() {
       case 'j':
       case 'ArrowDown':
         e.preventDefault();
-        moveFacet(1);
+        moveValue(1);
         break;
       case 'k':
       case 'ArrowUp':
         e.preventDefault();
-        moveFacet(-1);
+        moveValue(-1);
         break;
       case 'h':
       case 'ArrowLeft':
         e.preventDefault();
-        moveValue(-1);
+        moveFacet(-1);
         break;
       case 'l':
       case 'ArrowRight':
         e.preventDefault();
-        moveValue(1);
+        moveFacet(1);
         break;
       case 'i':
       case ' ':
