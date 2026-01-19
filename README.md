@@ -118,7 +118,7 @@ This starts a development server with auto-reload at http://localhost:8000/dashb
 For ClickHouse CLI access:
 
 ```bash
-clickhouse client --host ogadftwx3q.us-east1.gcp.clickhouse.cloud \
+clickhouse client --host s2p5b8wmt5.eastus2.azure.clickhouse.cloud \
   --user default --password '<password>' --secure
 ```
 

@@ -5,7 +5,7 @@
  * Usage: node add-user.mjs <admin-user> <admin-password> <new-username> [password]
  */
 
-const CLICKHOUSE_HOST = 'ogadftwx3q.us-east1.gcp.clickhouse.cloud';
+const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
 const DATABASE = 'helix_logs_production';
 const TABLES = ['cdn_requests_combined', 'cdn_requests_v2'];

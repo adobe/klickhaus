@@ -18,7 +18,7 @@ This starts a dev server with auto-reload at http://localhost:5391/dashboard.htm
 ## Database Connection
 
 ```bash
-clickhouse client --host ogadftwx3q.us-east1.gcp.clickhouse.cloud \
+clickhouse client --host s2p5b8wmt5.eastus2.azure.clickhouse.cloud \
   --user default --password '<see README.local.md>' --secure
 ```
 
@@ -88,7 +88,8 @@ The `cloudflare_http_ingestion_v2` materialized view filters out Cloudflare Work
 
 ```sql
 WHERE ClientRequestHost NOT IN (
-    'ogadftwx3q.us-east1.gcp.clickhouse.cloud:8443',  -- ClickHouse Cloud
+    's2p5b8wmt5.eastus2.azure.clickhouse.cloud:8443', -- ClickHouse Cloud (Azure, current)
+    'ogadftwx3q.us-east1.gcp.clickhouse.cloud:8443',  -- ClickHouse Cloud (GCP, legacy)
     'ingress.eu1.coralogix.com'                        -- Coralogix logging
 )
 ```

@@ -5,13 +5,13 @@
  *   CLICKHOUSE_PASSWORD - Password for logpush_writer user
  *
  * Optional environment variables:
- *   CLICKHOUSE_HOST - ClickHouse host (default: ogadftwx3q.us-east1.gcp.clickhouse.cloud)
+ *   CLICKHOUSE_HOST - ClickHouse host (default: s2p5b8wmt5.eastus2.azure.clickhouse.cloud)
  *   CLICKHOUSE_PORT - ClickHouse port (default: 8443)
  *   CLICKHOUSE_USER - ClickHouse user (default: logpush_writer)
  *   CLICKHOUSE_TABLE - Target table (default: helix_logs_production.cloudflare_http_requests)
  */
 
-export const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 'ogadftwx3q.us-east1.gcp.clickhouse.cloud';
+export const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 export const CLICKHOUSE_PORT = process.env.CLICKHOUSE_PORT || 8443;
 export const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER || 'logpush_writer';
 export const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD;

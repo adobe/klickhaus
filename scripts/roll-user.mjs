@@ -5,7 +5,7 @@
  * Usage: node roll-user.mjs <admin-user> <admin-password> <username>
  */
 
-const CLICKHOUSE_HOST = 'ogadftwx3q.us-east1.gcp.clickhouse.cloud';
+const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
 
 function generatePassword(length = 16) {
