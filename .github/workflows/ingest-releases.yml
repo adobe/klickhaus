@@ -1,0 +1,24 @@
+name: Ingest Release Feed
+
+on:
+  schedule:
+    # Every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ingest releases to ClickHouse
+        env:
+          CLICKHOUSE_HOST: ${{ secrets.CLICKHOUSE_HOST }}
+          CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_RELEASES_USER }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_RELEASES_PASSWORD }}
+        run: |
+          curl -s 'https://aem-release-feed.david8603.workers.dev/' \
+            | jq -c '.[] | {published, repo, tag, url, body: (.body // "")}' > /tmp/releases.jsonl
+          curl -sf -X POST \
+            "https://${CLICKHOUSE_HOST}:8443/?database=helix_logs_production&query=INSERT%20INTO%20releases%20FORMAT%20JSONEachRow&async_insert=1&wait_for_async_insert=0" \
+            -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+            --data-binary @/tmp/releases.jsonl
