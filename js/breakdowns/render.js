@@ -52,9 +52,8 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   const speedClass = elapsed < 2500 ? 'fast' : (elapsed < 4000 ? 'medium' : 'slow');
   const speedTitle = formatQueryTime(elapsed);
   const isPinned = state.pinnedFacets.includes(id);
-  const pinnedClass = isPinned ? ' pinned' : '';
   const pinTitle = isPinned ? 'Unpin facet' : 'Pin facet to top';
-  const speedIndicator = `<span class="speed-indicator ${speedClass}${pinnedClass}" title="${speedTitle} - ${pinTitle}" onclick="window.toggleFacetPin('${id}')" role="button"></span>`;
+  const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle} - ${pinTitle}" onclick="window.toggleFacetPin('${id}')" role="button"></span>`;
 
   // Mode toggle for facets that support it (e.g., content-types: count vs bytes)
   const modeToggleHtml = modeToggle
