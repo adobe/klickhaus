@@ -1,23 +1,39 @@
 // Main entry point - CDN Analytics Dashboard
 import { state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange } from './state.js';
 import { setForceRefresh } from './api.js';
-import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from './auth.js';
-import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored } from './url-state.js';
+import { setElements, handleLogin, handleLogout, showDashboard } from './auth.js';
+import {
+  loadStateFromURL,
+  saveStateToURL,
+  syncUIFromState,
+  setUrlStateElements,
+  setOnStateRestored,
+} from './url-state.js';
 import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter } from './time.js';
 import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
-import { loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData } from './chart.js';
-import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
+import { loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData, renderChart } from './chart.js';
+import {
+  loadAllBreakdowns,
+  loadBreakdown,
+  allBreakdowns,
+  markSlowestFacet,
+  resetFacetTimings,
+} from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import { addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks } from './filters.js';
 import { loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView } from './logs.js';
-import { renderChart } from './chart.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
 import { investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
-import { initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition } from './ui/mobile.js';
+import {
+  initHostFilterDoubleTap,
+  initMobileTouchSupport,
+  initPullToRefresh,
+  initMobileFiltersPosition,
+} from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
 
 // DOM Elements
@@ -62,8 +78,8 @@ function reorderFacets(toggledFacetId = null) {
   const hiddenSection = document.getElementById('breakdowns-hidden');
 
   // Move each card to its appropriate section
-  document.querySelectorAll('.breakdown-card').forEach(card => {
-    const id = card.id;
+  document.querySelectorAll('.breakdown-card').forEach((card) => {
+    const { id } = card;
     const isPinned = state.pinnedFacets.includes(id);
     const isHidden = state.hiddenFacets.includes(id);
 
@@ -81,7 +97,7 @@ function reorderFacets(toggledFacetId = null) {
   // If a facet was toggled, call loadBreakdown to update its state
   // (handles both hiding and unhiding)
   if (toggledFacetId) {
-    const breakdown = allBreakdowns.find(b => b.id === toggledFacetId);
+    const breakdown = allBreakdowns.find((b) => b.id === toggledFacetId);
     if (breakdown) {
       const timeFilter = getTimeFilter();
       const hostFilter = getHostFilter();
@@ -130,7 +146,7 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   const focusedFacetId = getFocusedFacetId();
 
   // Start loading all facets in parallel (they manage their own blur state)
-  const facetPromises = allBreakdowns.map(b =>
+  const facetPromises = allBreakdowns.map((b) =>
     loadBreakdown(b, timeFilter, hostFilter).then(() => {
       // After each facet completes, check if timer should stop
       if (!hasVisibleUpdatingFacets()) {
@@ -142,7 +158,7 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
       }
       // Re-apply cached highlights as each facet loads
       reapplyHighlightsIfCached();
-    })
+    }),
   );
 
   // Wait for time series to complete first
@@ -210,7 +226,7 @@ function toggleFacetMode(stateKey) {
   // Find and reload all breakdowns that use this mode toggle
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  const breakdowns = allBreakdowns.filter(b => b.modeToggle === stateKey);
+  const breakdowns = allBreakdowns.filter((b) => b.modeToggle === stateKey);
   for (const breakdown of breakdowns) {
     loadBreakdown(breakdown, timeFilter, hostFilter);
   }
@@ -251,7 +267,7 @@ async function init() {
     toggleFacetHide: toggleHiddenFacet,
     toggleFacetMode,
     closeQuickLinksModal,
-    closeDialog: (el) => el.closest('dialog')?.close()
+    closeDialog: (el) => el.closest('dialog')?.close(),
   });
 
   // Check for stored credentials - show dashboard immediately if they exist

@@ -8,17 +8,11 @@
  * This configures which request/response headers are included in RequestHeaders/ResponseHeaders fields.
  */
 
-import {
-  REQUEST_HEADERS,
-  RESPONSE_HEADERS,
-  ENTERPRISE_ZONES,
-  cfApi,
-  getZoneId
-} from './logpush-config.mjs';
+import { REQUEST_HEADERS, RESPONSE_HEADERS, ENTERPRISE_ZONES, cfApi, getZoneId } from './logpush-config.mjs';
 
 async function getCustomFieldsRuleset(token, zoneId) {
   const data = await cfApi(`/zones/${zoneId}/rulesets?phase=http_log_custom_fields`, token);
-  const ruleset = data.result?.find(r => r.phase === 'http_log_custom_fields');
+  const ruleset = data.result?.find((r) => r.phase === 'http_log_custom_fields');
   return ruleset?.id;
 }
 
@@ -32,18 +26,18 @@ async function setCustomFields(token, zoneId, rulesetId) {
   const rule = {
     action: 'log_custom_field',
     action_parameters: {
-      request_fields: REQUEST_HEADERS.map(name => ({ name })),
-      response_fields: RESPONSE_HEADERS.map(name => ({ name }))
+      request_fields: REQUEST_HEADERS.map((name) => ({ name })),
+      response_fields: RESPONSE_HEADERS.map((name) => ({ name })),
     },
     description: 'Set Logpush custom fields for HTTP requests',
     enabled: true,
-    expression: 'true'
+    expression: 'true',
   };
 
   if (rulesetId) {
     // Update existing ruleset
     const data = await cfApi(`/zones/${zoneId}/rulesets/${rulesetId}`, token, 'PUT', {
-      rules: [rule]
+      rules: [rule],
     });
     return data.result;
   } else {
@@ -52,26 +46,26 @@ async function setCustomFields(token, zoneId, rulesetId) {
       name: 'default',
       kind: 'zone',
       phase: 'http_log_custom_fields',
-      rules: [rule]
+      rules: [rule],
     });
     return data.result;
   }
 }
 
-function compareHeaders(current, target, type) {
+function compareHeaders(current, target) {
   if (!current) return { missing: target, extra: [] };
 
-  const currentSet = new Set(current.map(f => f.name.toLowerCase().trim()));
-  const targetSet = new Set(target.map(h => h.toLowerCase()));
+  const currentSet = new Set(current.map((f) => f.name.toLowerCase().trim()));
+  const targetSet = new Set(target.map((h) => h.toLowerCase()));
 
-  const missing = target.filter(h => !currentSet.has(h.toLowerCase()));
-  const extra = [...currentSet].filter(h => !targetSet.has(h));
+  const missing = target.filter((h) => !currentSet.has(h.toLowerCase()));
+  const extra = [...currentSet].filter((h) => !targetSet.has(h));
 
   return { missing, extra };
 }
 
 async function main() {
-  const [,, apiToken, specificZone] = process.argv;
+  const [, , apiToken, specificZone] = process.argv;
 
   if (!apiToken) {
     console.error('Usage: node set-custom-fields.mjs <cloudflare-api-token> [zone-id-or-name]');
@@ -101,8 +95,12 @@ async function main() {
 
       console.log(`Current: ${currentReqCount} request, ${currentRespCount} response`);
 
-      if (reqDiff.missing.length === 0 && reqDiff.extra.length === 0 &&
-          respDiff.missing.length === 0 && respDiff.extra.length === 0) {
+      if (
+        reqDiff.missing.length === 0 &&
+        reqDiff.extra.length === 0 &&
+        respDiff.missing.length === 0 &&
+        respDiff.extra.length === 0
+      ) {
         console.log('Already up to date');
         continue;
       }
@@ -125,7 +123,6 @@ async function main() {
       const newReqCount = updated.rules?.[0]?.action_parameters?.request_fields?.length || 0;
       const newRespCount = updated.rules?.[0]?.action_parameters?.response_fields?.length || 0;
       console.log(`Updated! Now: ${newReqCount} request, ${newRespCount} response`);
-
     } catch (err) {
       console.error(`Error: ${err.message}`);
     }

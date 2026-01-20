@@ -16,103 +16,103 @@ export const COLUMN_DEFS = {
     facetCol: 'toString(`response.status`)',
     label: 'Status',
     shortLabel: 'status',
-    filterTransform: (value) => String(value)
+    filterTransform: (value) => String(value),
   },
   method: {
     logKey: 'request.method',
     facetCol: '`request.method`',
     label: 'Method',
-    shortLabel: 'method'
+    shortLabel: 'method',
   },
   host: {
     logKey: 'request.host',
     facetCol: '`request.host`',
-    label: 'Host'
+    label: 'Host',
   },
   url: {
     logKey: 'request.url',
     facetCol: '`request.url`',
-    label: 'URL'
+    label: 'URL',
   },
   cacheStatus: {
     logKey: 'cdn.cache_status',
     facetCol: 'upper(`cdn.cache_status`)',
     label: 'Cache',
     shortLabel: 'cache',
-    filterTransform: (value) => String(value).toUpperCase()
+    filterTransform: (value) => String(value).toUpperCase(),
   },
   contentType: {
     logKey: 'response.headers.content_type',
     facetCol: '`response.headers.content_type`',
-    label: 'Content Type'
+    label: 'Content Type',
   },
   requestType: {
     logKey: 'helix.request_type',
     facetCol: '`helix.request_type`',
     label: 'Request Type',
-    shortLabel: 'type'
+    shortLabel: 'type',
   },
   backendType: {
     logKey: 'helix.backend_type',
     facetCol: '`helix.backend_type`',
     label: 'Backend Type',
-    shortLabel: 'backend'
+    shortLabel: 'backend',
   },
   forwardedHost: {
     logKey: 'request.headers.x_forwarded_host',
     facetCol: '`request.headers.x_forwarded_host`',
-    label: 'Forwarded Host'
+    label: 'Forwarded Host',
   },
   referer: {
     logKey: 'request.headers.referer',
     facetCol: '`request.headers.referer`',
-    label: 'Referer'
+    label: 'Referer',
   },
   userAgent: {
     logKey: 'request.headers.user_agent',
     facetCol: '`request.headers.user_agent`',
-    label: 'User Agent'
+    label: 'User Agent',
   },
   error: {
     logKey: 'response.headers.x_error',
     facetCol: '`response.headers.x_error`',
-    label: 'Error'
+    label: 'Error',
   },
   clientIp: {
     logKey: 'client.ip',
     facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
-    label: 'Client IP'
+    label: 'Client IP',
   },
   forwardedFor: {
     logKey: 'request.headers.x_forwarded_for',
     facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
-    label: 'Forwarded For'
+    label: 'Forwarded For',
   },
   accept: {
     logKey: 'request.headers.accept',
     facetCol: '`request.headers.accept`',
-    label: 'Accept'
+    label: 'Accept',
   },
   acceptEncoding: {
     logKey: 'request.headers.accept_encoding',
     facetCol: '`request.headers.accept_encoding`',
-    label: 'Accept Encoding'
+    label: 'Accept Encoding',
   },
   cacheControl: {
     logKey: 'request.headers.cache_control',
     facetCol: '`request.headers.cache_control`',
-    label: 'Cache Control'
+    label: 'Cache Control',
   },
   byoCdn: {
     logKey: 'request.headers.x_byo_cdn_type',
     facetCol: '`request.headers.x_byo_cdn_type`',
-    label: 'BYO CDN'
+    label: 'BYO CDN',
   },
   location: {
     logKey: 'response.headers.location',
     facetCol: '`response.headers.location`',
-    label: 'Location'
-  }
+    label: 'Location',
+  },
 };
 
 /**
@@ -139,7 +139,7 @@ export const LOG_COLUMN_ORDER = [
   COLUMN_DEFS.acceptEncoding.logKey,
   COLUMN_DEFS.cacheControl.logKey,
   COLUMN_DEFS.byoCdn.logKey,
-  COLUMN_DEFS.location.logKey
+  COLUMN_DEFS.location.logKey,
 ];
 
 /**
@@ -148,14 +148,14 @@ export const LOG_COLUMN_ORDER = [
  */
 export const LOG_COLUMN_TO_FACET = Object.fromEntries(
   Object.values(COLUMN_DEFS)
-    .filter(def => def.logKey && def.facetCol)
-    .map(def => [
+    .filter((def) => def.logKey && def.facetCol)
+    .map((def) => [
       def.logKey,
       {
         col: def.facetCol,
-        transform: def.filterTransform
-      }
-    ])
+        transform: def.filterTransform,
+      },
+    ]),
 );
 
 /**
@@ -164,7 +164,6 @@ export const LOG_COLUMN_TO_FACET = Object.fromEntries(
  */
 export const LOG_COLUMN_SHORT_LABELS = Object.fromEntries(
   Object.values(COLUMN_DEFS)
-    .filter(def => def.shortLabel)
-    .map(def => [def.logKey, def.shortLabel])
+    .filter((def) => def.shortLabel)
+    .map((def) => [def.logKey, def.shortLabel]),
 );
-

@@ -57,4 +57,3 @@ export function updateTimeRangeLabels(select) {
     option.textContent = isMobile ? TIME_RANGES[key].shortLabel : TIME_RANGES[key].label;
   });
 }
-

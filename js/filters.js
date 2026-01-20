@@ -14,11 +14,11 @@ export function setFilterCallbacks(saveUrl, loadDash) {
 }
 
 export function getFiltersForColumn(col) {
-  return state.filters.filter(f => f.col === col);
+  return state.filters.filter((f) => f.col === col);
 }
 
 export function clearFiltersForColumn(col) {
-  state.filters = state.filters.filter(f => f.col !== col);
+  state.filters = state.filters.filter((f) => f.col !== col);
   renderActiveFilters();
   if (saveStateToURL) saveStateToURL();
   if (loadDashboard) loadDashboard();
@@ -34,10 +34,10 @@ export function clearAllFilters() {
 
 export function addFilter(col, value, exclude, skipReload = false) {
   // Remove existing filter for same col+value
-  state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
+  state.filters = state.filters.filter((f) => !(f.col === col && f.value === value));
 
   // Look up breakdown to get filterCol and filterValueFn if defined
-  const breakdown = allBreakdowns.find(b => b.col === col);
+  const breakdown = allBreakdowns.find((b) => b.col === col);
   const filter = { col, value, exclude };
   if (breakdown?.filterCol) {
     filter.filterCol = breakdown.filterCol;
@@ -60,7 +60,7 @@ export function removeFilter(index) {
 }
 
 export function removeFilterByValue(col, value) {
-  state.filters = state.filters.filter(f => !(f.col === col && f.value === value));
+  state.filters = state.filters.filter((f) => !(f.col === col && f.value === value));
   renderActiveFilters();
   if (saveStateToURL) saveStateToURL();
   if (loadDashboard) loadDashboard();
@@ -68,7 +68,7 @@ export function removeFilterByValue(col, value) {
 
 // Get facet title from breakdown column
 function getFacetTitle(col) {
-  const breakdown = allBreakdowns.find(b => b.col === col);
+  const breakdown = allBreakdowns.find((b) => b.col === col);
   if (!breakdown) return null;
   const card = document.getElementById(breakdown.id);
   if (!card) return null;
@@ -91,19 +91,21 @@ export function renderActiveFilters() {
     updateHeaderFixed();
     return;
   }
-  container.innerHTML = state.filters.map((f, i) => {
-    let label;
-    if (f.value === '') {
-      // Empty value - show facet name with ! prefix
-      const facetTitle = getFacetTitle(f.col) || 'Empty';
-      label = f.exclude ? `NOT !${facetTitle}` : `!${facetTitle}`;
-    } else {
-      label = f.exclude ? `NOT ${f.value}` : f.value;
-    }
-    // Get color indicator using unified color system
-    const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
-    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${i}">${colorIndicator}${escapeHtml(label)}</span>`;
-  }).join('');
+  container.innerHTML = state.filters
+    .map((f, i) => {
+      let label;
+      if (f.value === '') {
+        // Empty value - show facet name with ! prefix
+        const facetTitle = getFacetTitle(f.col) || 'Empty';
+        label = f.exclude ? `NOT !${facetTitle}` : `!${facetTitle}`;
+      } else {
+        label = f.exclude ? `NOT ${f.value}` : f.value;
+      }
+      // Get color indicator using unified color system
+      const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
+      return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${i}">${colorIndicator}${escapeHtml(label)}</span>`;
+    })
+    .join('');
   updateHeaderFixed();
 }
 

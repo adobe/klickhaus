@@ -9,15 +9,18 @@ const queryTimerEl = document.getElementById('queryTimer');
 // Track visible facets with IntersectionObserver
 export const visibleFacets = new Set();
 
-const facetObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      visibleFacets.add(entry.target.id);
-    } else {
-      visibleFacets.delete(entry.target.id);
-    }
-  });
-}, { rootMargin: '50px' });
+const facetObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        visibleFacets.add(entry.target.id);
+      } else {
+        visibleFacets.delete(entry.target.id);
+      }
+    });
+  },
+  { rootMargin: '50px' },
+);
 
 // Check if element is in viewport
 function isInViewport(el) {
@@ -32,7 +35,7 @@ function isInViewport(el) {
 
 // Initialize observers for all breakdown cards
 export function initFacetObservers() {
-  document.querySelectorAll('.breakdown-card').forEach(card => {
+  document.querySelectorAll('.breakdown-card').forEach((card) => {
     facetObserver.observe(card);
     // Check initial visibility for elements already in viewport
     if (isInViewport(card)) {
@@ -43,9 +46,9 @@ export function initFacetObservers() {
 
 export function getTimerClass(ms) {
   // Aligned with Google's LCP thresholds
-  if (ms < 2500) return 'query-timer fast';    // Good: < 2.5s
-  if (ms < 4000) return 'query-timer medium';  // Needs Improvement: 2.5-4s
-  return 'query-timer slow';                   // Poor: > 4s
+  if (ms < 2500) return 'query-timer fast'; // Good: < 2.5s
+  if (ms < 4000) return 'query-timer medium'; // Needs Improvement: 2.5-4s
+  return 'query-timer slow'; // Poor: > 4s
 }
 
 export function startQueryTimer() {

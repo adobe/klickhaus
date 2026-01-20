@@ -1,5 +1,5 @@
 // Keyboard navigation mode for vim-style navigation
-import { state, togglePinnedFacet, toggleHiddenFacet } from './state.js';
+import { togglePinnedFacet, toggleHiddenFacet } from './state.js';
 import { clearAllFilters, updateHeaderFixed } from './filters.js';
 import { openFacetPalette, isPaletteOpen } from './facet-palette.js';
 import { zoomToAnomaly, zoomToAnomalyByRank, getAnomalyCount } from './chart.js';
@@ -11,7 +11,7 @@ const kbd = {
   active: false,
   facetIndex: 0,
   valueIndex: 0,
-  lastC: 0  // timestamp for cc detection
+  lastC: 0, // timestamp for cc detection
 };
 
 // Optional external callbacks
@@ -56,7 +56,7 @@ function deactivateKeyboardMode() {
 
 // Clear all focus-related classes
 function clearFocusClasses() {
-  document.querySelectorAll('.kbd-focused, .kbd-prev, .kbd-next, .kbd-prev-facet, .kbd-next-facet').forEach(el => {
+  document.querySelectorAll('.kbd-focused, .kbd-prev, .kbd-next, .kbd-prev-facet, .kbd-next-facet').forEach((el) => {
     el.classList.remove('kbd-focused', 'kbd-prev', 'kbd-next', 'kbd-prev-facet', 'kbd-next-facet');
   });
 }
@@ -117,7 +117,7 @@ function updateFocus() {
 function moveFacet(delta) {
   const facets = getFacets();
   kbd.facetIndex = Math.max(0, Math.min(facets.length - 1, kbd.facetIndex + delta));
-  kbd.valueIndex = 0;  // Reset to first value in new facet
+  kbd.valueIndex = 0; // Reset to first value in new facet
   updateFocus();
 }
 
@@ -260,7 +260,32 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
 
     // Navigation and action keys activate keyboard mode
     const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', 'p', 'd', '1', '2', '3', '4', '5', '+', '-', '='];
+    const actionKeys = [
+      'i',
+      'c',
+      'e',
+      'x',
+      ' ',
+      'Enter',
+      '.',
+      'r',
+      'f',
+      't',
+      'b',
+      '#',
+      'g',
+      'o',
+      'p',
+      'd',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '+',
+      '-',
+      '=',
+    ];
 
     if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
       if (!kbd.active) {
@@ -269,7 +294,7 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
     }
 
     // Handle shortcuts
-    switch(e.key) {
+    switch (e.key) {
       case 'j':
       case 'ArrowDown':
         e.preventDefault();
@@ -376,6 +401,9 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
         e.preventDefault();
         deactivateKeyboardMode();
         break;
+      default:
+        // No action for other keys
+        break;
     }
   });
 
@@ -388,10 +416,16 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
 
   // Track mouse activity to distinguish Tab focus from click focus
   let recentMouseDown = false;
-  document.addEventListener('mousedown', () => {
-    recentMouseDown = true;
-    setTimeout(() => { recentMouseDown = false; }, 100);
-  }, true);
+  document.addEventListener(
+    'mousedown',
+    () => {
+      recentMouseDown = true;
+      setTimeout(() => {
+        recentMouseDown = false;
+      }, 100);
+    },
+    true,
+  );
 
   // Sync state when Tab focuses a row (not click)
   document.addEventListener('focusin', (e) => {
@@ -443,7 +477,7 @@ export function getFocusedFacetId() {
 // Optionally pass a value to pre-select a specific row
 export function setFocusedFacet(facetId, targetValue = null) {
   const facets = getFacets();
-  const index = facets.findIndex(f => f.id === facetId);
+  const index = facets.findIndex((f) => f.id === facetId);
   if (index >= 0) {
     kbd.facetIndex = index;
     kbd.valueIndex = 0;
@@ -501,7 +535,7 @@ function updateFragment() {
 }
 
 // Track visible facets using IntersectionObserver
-let visibleFacets = new Set();
+const visibleFacets = new Set();
 let chartVisible = false;
 let facetObserver = null;
 let chartObserver = null;
@@ -550,7 +584,7 @@ function restoreFromFragment() {
 
   if (facetId) {
     const facets = getFacets();
-    const index = facets.findIndex(f => f.id === `breakdown-${facetId}`);
+    const index = facets.findIndex((f) => f.id === `breakdown-${facetId}`);
     if (index >= 0) {
       kbd.facetIndex = index;
       kbd.valueIndex = valueIndex;
@@ -573,33 +607,39 @@ function restoreFromFragment() {
 // Initialize scroll tracking with IntersectionObserver
 export function initScrollTracking() {
   // Observer for chart section - triggers when chart enters/leaves viewport top
-  chartObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      chartVisible = entry.isIntersecting;
-      updateFromIntersection();
-    });
-  }, {
-    rootMargin: '-70px 0px 0px 0px',  // Account for header
-    threshold: 0.1
-  });
+  chartObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        chartVisible = entry.isIntersecting;
+        updateFromIntersection();
+      });
+    },
+    {
+      rootMargin: '-70px 0px 0px 0px', // Account for header
+      threshold: 0.1,
+    },
+  );
 
   // Observer for facet cards - tight band near scroll-snap position
   // scroll-padding-top is 70px, scroll-margin-top on cards is 16px
   // So snapped card top is at ~86px from viewport top
   // Use a narrow band from 70px to ~20% down to detect only the snapped row
-  facetObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        visibleFacets.add(entry.target);
-      } else {
-        visibleFacets.delete(entry.target);
-      }
-    });
-    updateFromIntersection();
-  }, {
-    rootMargin: '-86px 0px -80% 0px',  // Narrow band at snap position
-    threshold: 0
-  });
+  facetObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          visibleFacets.add(entry.target);
+        } else {
+          visibleFacets.delete(entry.target);
+        }
+      });
+      updateFromIntersection();
+    },
+    {
+      rootMargin: '-86px 0px -80% 0px', // Narrow band at snap position
+      threshold: 0,
+    },
+  );
 
   // Observe chart section
   const chart = document.querySelector('.chart-section');
@@ -608,7 +648,7 @@ export function initScrollTracking() {
   }
 
   // Observe all facet cards
-  getFacets().forEach(facet => {
+  getFacets().forEach((facet) => {
     facetObserver.observe(facet);
   });
 
@@ -624,7 +664,7 @@ export function refreshFacetObservers() {
 
   // Clear and re-observe
   visibleFacets.clear();
-  getFacets().forEach(facet => {
+  getFacets().forEach((facet) => {
     facetObserver.observe(facet);
   });
 }

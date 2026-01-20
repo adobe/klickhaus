@@ -57,7 +57,7 @@ export function compileFilters(filters) {
     const { sqlCol, includes, excludes } = group;
 
     if (includes.length > 0) {
-      const includeParts = includes.map(value => {
+      const includeParts = includes.map((value) => {
         const isNumeric = typeof value === 'number';
         const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
         const comparison = isNumeric ? escaped : `'${escaped}'`;
@@ -67,7 +67,7 @@ export function compileFilters(filters) {
     }
 
     if (excludes.length > 0) {
-      const excludeParts = excludes.map(value => {
+      const excludeParts = excludes.map((value) => {
         const isNumeric = typeof value === 'number';
         const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
         const comparison = isNumeric ? escaped : `'${escaped}'`;
@@ -83,7 +83,7 @@ export function compileFilters(filters) {
     }
   }
 
-  const sql = columnClauses.map(clause => `AND ${clause}`).join(' ');
+  const sql = columnClauses.map((clause) => `AND ${clause}`).join(' ');
   return { sql, map };
 }
 
@@ -110,4 +110,3 @@ export function isFilterSuperset(current, cached) {
   }
   return true;
 }
-

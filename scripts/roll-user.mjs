@@ -16,7 +16,7 @@ function generatePassword(length = 16) {
   const all = lower + upper + digits + special;
 
   // Ensure at least one of each required type
-  let password = [
+  const password = [
     upper.charAt(Math.floor(Math.random() * upper.length)),
     special.charAt(Math.floor(Math.random() * special.length)),
     digits.charAt(Math.floor(Math.random() * digits.length)),
@@ -41,10 +41,10 @@ async function query(sql, adminUser, adminPassword) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + Buffer.from(`${adminUser}:${adminPassword}`).toString('base64'),
-      'Content-Type': 'text/plain'
+      Authorization: `Basic ${Buffer.from(`${adminUser}:${adminPassword}`).toString('base64')}`,
+      'Content-Type': 'text/plain',
     },
-    body: sql
+    body: sql,
   });
 
   const text = await response.text();
@@ -55,7 +55,7 @@ async function query(sql, adminUser, adminPassword) {
 }
 
 async function main() {
-  const [,, adminUser, adminPassword, username] = process.argv;
+  const [, , adminUser, adminPassword, username] = process.argv;
 
   if (!adminUser || !adminPassword || !username) {
     console.error('Usage: node roll-user.mjs <admin-user> <admin-password> <username>');
@@ -74,7 +74,6 @@ async function main() {
     console.log(`Password: ${newPassword}`);
     console.log(`Host: ${CLICKHOUSE_HOST}`);
     console.log(`Port: ${CLICKHOUSE_PORT} (HTTPS)`);
-
   } catch (err) {
     console.error('Error:', err.message);
     process.exit(1);

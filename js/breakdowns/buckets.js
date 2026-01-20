@@ -18,7 +18,7 @@ function generate125Sequence(minVal, maxVal) {
     boundaries.push(val * 5);
     val *= 10;
   }
-  return boundaries.filter(v => v >= minVal && v <= maxVal);
+  return boundaries.filter((v) => v >= minVal && v <= maxVal);
 }
 
 /**
@@ -39,13 +39,12 @@ function selectBoundaries(allBoundaries, n) {
   // Select evenly spaced boundaries including first and last
   const selected = [];
   for (let i = 0; i < n; i++) {
-    const idx = Math.round(i * (allBoundaries.length - 1) / (n - 1));
+    const idx = Math.round((i * (allBoundaries.length - 1)) / (n - 1));
     selected.push(allBoundaries[idx]);
   }
 
   return selected;
 }
-
 
 /**
  * Format milliseconds as human-readable string
@@ -74,10 +73,8 @@ const CONTENT_LENGTH_SEQUENCE = generate125Sequence(10, 100000000);
  * Range: 1ms to 60s (practical range for web requests)
  */
 const TIME_ELAPSED_SEQUENCE = [
-  1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 70, 100,
-  150, 200, 300, 500, 700, 1000,
-  1500, 2000, 3000, 5000, 7000, 10000,
-  15000, 20000, 30000, 60000
+  1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 70, 100, 150, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 5000, 7000, 10000, 15000,
+  20000, 30000, 60000,
 ];
 
 /**

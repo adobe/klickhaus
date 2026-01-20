@@ -13,10 +13,10 @@ async function query(sql, adminUser, adminPassword) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + Buffer.from(`${adminUser}:${adminPassword}`).toString('base64'),
-      'Content-Type': 'text/plain'
+      Authorization: `Basic ${Buffer.from(`${adminUser}:${adminPassword}`).toString('base64')}`,
+      'Content-Type': 'text/plain',
     },
-    body: sql
+    body: sql,
   });
 
   const text = await response.text();
@@ -27,7 +27,7 @@ async function query(sql, adminUser, adminPassword) {
 }
 
 async function main() {
-  const [,, adminUser, adminPassword, username] = process.argv;
+  const [, , adminUser, adminPassword, username] = process.argv;
 
   if (!adminUser || !adminPassword || !username) {
     console.error('Usage: node drop-user.mjs <admin-user> <admin-password> <username>');
@@ -45,7 +45,6 @@ async function main() {
     const sql = `DROP USER IF EXISTS ${username}`;
     await query(sql, adminUser, adminPassword);
     console.log(`Dropped user: ${username}`);
-
   } catch (err) {
     console.error('Error:', err.message);
     process.exit(1);

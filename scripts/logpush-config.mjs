@@ -14,7 +14,7 @@
 export const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 export const CLICKHOUSE_PORT = process.env.CLICKHOUSE_PORT || 8443;
 export const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER || 'logpush_writer';
-export const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD;
+export const { CLICKHOUSE_PASSWORD } = process.env;
 export const CLICKHOUSE_TABLE = process.env.CLICKHOUSE_TABLE || 'helix_logs_production.cloudflare_http_requests';
 
 /**
@@ -36,7 +36,7 @@ export const ENTERPRISE_ZONES = [
   'hlx.live',
   'hlx.page',
   'hlx-cloudflare.live',
-  'hlx-cloudflare.page'
+  'hlx-cloudflare.page',
 ];
 
 // Full field set - matches Coralogix plus Referer/UserAgent
@@ -123,7 +123,7 @@ export const LOGPUSH_FIELDS = [
   'WorkerStatus',
   'WorkerSubrequest',
   'WorkerSubrequestCount',
-  'WorkerWallTimeUs'
+  'WorkerWallTimeUs',
 ];
 
 // Custom fields for RequestHeaders - superset of all zones
@@ -146,7 +146,7 @@ export const REQUEST_HEADERS = [
   'x-forwarded-for',
   'x-forwarded-host',
   'x-hipaa',
-  'x-push-invalidation'
+  'x-push-invalidation',
 ];
 
 // Custom fields for ResponseHeaders - superset of all zones
@@ -169,7 +169,7 @@ export const RESPONSE_HEADERS = [
   'surrogate-key',
   'vary',
   'x-error',
-  'x-robots-tag'
+  'x-robots-tag',
 ];
 
 /**
@@ -180,9 +180,9 @@ export async function cfApi(endpoint, token, method = 'GET', body = null) {
   const options = {
     method,
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
   };
   if (body) {
     options.body = JSON.stringify(body);
@@ -192,7 +192,7 @@ export async function cfApi(endpoint, token, method = 'GET', body = null) {
   const data = await response.json();
 
   if (!data.success) {
-    const errors = data.errors?.map(e => e.message).join(', ') || 'Unknown error';
+    const errors = data.errors?.map((e) => e.message).join(', ') || 'Unknown error';
     throw new Error(errors);
   }
 
@@ -241,7 +241,7 @@ export function buildJobConfig(zoneName) {
     frequency: 'high',
     output_options: {
       field_names: LOGPUSH_FIELDS,
-      timestamp_format: 'unixnano'
-    }
+      timestamp_format: 'unixnano',
+    },
   };
 }

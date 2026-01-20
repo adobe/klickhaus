@@ -24,7 +24,7 @@ export function initActionHandlers(handlers) {
     const target = event.target.closest('[data-action]');
     if (!target) return;
 
-    const action = target.dataset.action;
+    const { action } = target.dataset;
     if (!action) return;
 
     switch (action) {
@@ -35,11 +35,7 @@ export function initActionHandlers(handlers) {
       }
       case 'add-filter': {
         event.stopPropagation();
-        handlers.addFilter?.(
-          target.dataset.col || '',
-          target.dataset.value || '',
-          target.dataset.exclude === 'true'
-        );
+        handlers.addFilter?.(target.dataset.col || '', target.dataset.value || '', target.dataset.exclude === 'true');
         break;
       }
       case 'remove-filter': {
@@ -95,4 +91,3 @@ export function initActionHandlers(handlers) {
     }
   });
 }
-

@@ -35,53 +35,248 @@ let cachedTopContributors = null;
 
 // Car-themed word lists for generating stable IDs
 const CAR_ADJECTIVES = [
-  'alpine', 'azure', 'blazing', 'bold', 'brilliant', 'chrome', 'classic',
-  'coastal', 'cosmic', 'crimson', 'crystal', 'daring', 'dazzling', 'dusty',
-  'electric', 'elegant', 'ember', 'emerald', 'fierce', 'fiery', 'flash',
-  'forest', 'frozen', 'gentle', 'gilded', 'gleaming', 'golden', 'granite',
-  'hidden', 'highland', 'icy', 'ivory', 'jade', 'jet', 'lunar', 'marble',
-  'midnight', 'misty', 'moonlit', 'neon', 'noble', 'obsidian', 'ocean',
-  'onyx', 'opulent', 'pearl', 'phantom', 'polar', 'pristine', 'radiant',
-  'raven', 'royal', 'ruby', 'rustic', 'sable', 'sapphire', 'scarlet',
-  'shadow', 'silent', 'silver', 'sleek', 'smoky', 'solar', 'sonic',
-  'speedy', 'starlit', 'steel', 'storm', 'sunset', 'swift', 'teal',
-  'thunder', 'titan', 'turbo', 'twilight', 'velvet', 'vintage', 'violet',
-  'wild', 'winter', 'zephyr'
+  'alpine',
+  'azure',
+  'blazing',
+  'bold',
+  'brilliant',
+  'chrome',
+  'classic',
+  'coastal',
+  'cosmic',
+  'crimson',
+  'crystal',
+  'daring',
+  'dazzling',
+  'dusty',
+  'electric',
+  'elegant',
+  'ember',
+  'emerald',
+  'fierce',
+  'fiery',
+  'flash',
+  'forest',
+  'frozen',
+  'gentle',
+  'gilded',
+  'gleaming',
+  'golden',
+  'granite',
+  'hidden',
+  'highland',
+  'icy',
+  'ivory',
+  'jade',
+  'jet',
+  'lunar',
+  'marble',
+  'midnight',
+  'misty',
+  'moonlit',
+  'neon',
+  'noble',
+  'obsidian',
+  'ocean',
+  'onyx',
+  'opulent',
+  'pearl',
+  'phantom',
+  'polar',
+  'pristine',
+  'radiant',
+  'raven',
+  'royal',
+  'ruby',
+  'rustic',
+  'sable',
+  'sapphire',
+  'scarlet',
+  'shadow',
+  'silent',
+  'silver',
+  'sleek',
+  'smoky',
+  'solar',
+  'sonic',
+  'speedy',
+  'starlit',
+  'steel',
+  'storm',
+  'sunset',
+  'swift',
+  'teal',
+  'thunder',
+  'titan',
+  'turbo',
+  'twilight',
+  'velvet',
+  'vintage',
+  'violet',
+  'wild',
+  'winter',
+  'zephyr',
 ];
 
 // Car colors organized by severity for anomaly ID generation
 const CAR_COLORS_RED = [
-  'burgundy', 'cardinal', 'carmine', 'cerise', 'cherry', 'claret', 'coral',
-  'cranberry', 'crimson', 'garnet', 'magenta', 'maroon', 'raspberry', 'rose',
-  'ruby', 'russet', 'rust', 'scarlet', 'vermillion', 'wine'
+  'burgundy',
+  'cardinal',
+  'carmine',
+  'cerise',
+  'cherry',
+  'claret',
+  'coral',
+  'cranberry',
+  'crimson',
+  'garnet',
+  'magenta',
+  'maroon',
+  'raspberry',
+  'rose',
+  'ruby',
+  'russet',
+  'rust',
+  'scarlet',
+  'vermillion',
+  'wine',
 ];
 
 const CAR_COLORS_ORANGE = [
-  'amber', 'apricot', 'bronze', 'burnt', 'butterscotch', 'caramel', 'carrot',
-  'cinnamon', 'copper', 'flame', 'ginger', 'gold', 'honey', 'marigold',
-  'melon', 'ochre', 'orange', 'papaya', 'peach', 'pumpkin', 'saffron',
-  'sand', 'sienna', 'tan', 'tangerine', 'tawny', 'topaz', 'yellow'
+  'amber',
+  'apricot',
+  'bronze',
+  'burnt',
+  'butterscotch',
+  'caramel',
+  'carrot',
+  'cinnamon',
+  'copper',
+  'flame',
+  'ginger',
+  'gold',
+  'honey',
+  'marigold',
+  'melon',
+  'ochre',
+  'orange',
+  'papaya',
+  'peach',
+  'pumpkin',
+  'saffron',
+  'sand',
+  'sienna',
+  'tan',
+  'tangerine',
+  'tawny',
+  'topaz',
+  'yellow',
 ];
 
 const CAR_COLORS_COOL = [
-  'aqua', 'azure', 'blue', 'cerulean', 'chartreuse', 'cobalt', 'cyan',
-  'emerald', 'forest', 'green', 'hunter', 'indigo', 'jade', 'lagoon',
-  'lime', 'mint', 'navy', 'olive', 'pacific', 'pine', 'sage', 'seafoam',
-  'spruce', 'teal', 'turquoise', 'verdant', 'viridian'
+  'aqua',
+  'azure',
+  'blue',
+  'cerulean',
+  'chartreuse',
+  'cobalt',
+  'cyan',
+  'emerald',
+  'forest',
+  'green',
+  'hunter',
+  'indigo',
+  'jade',
+  'lagoon',
+  'lime',
+  'mint',
+  'navy',
+  'olive',
+  'pacific',
+  'pine',
+  'sage',
+  'seafoam',
+  'spruce',
+  'teal',
+  'turquoise',
+  'verdant',
+  'viridian',
 ];
 
 const CAR_MODELS = [
-  'accord', 'alpine', 'beetle', 'boxster', 'bronco', 'camaro', 'camry',
-  'cayenne', 'challenger', 'charger', 'civic', 'cobra', 'continental',
-  'corolla', 'corvette', 'defender', 'elantra', 'escort', 'explorer',
-  'firebird', 'focus', 'frontier', 'fury', 'galaxie', 'giulia', 'gto',
-  'impala', 'jetta', 'lancer', 'landcruiser', 'maverick', 'miata', 'monte',
-  'mustang', 'navigator', 'nova', 'outback', 'panda', 'pantera', 'passat',
-  'pathfinder', 'pinto', 'porsche', 'prelude', 'prius', 'quattro', 'rabbit',
-  'ranger', 'raptor', 'roadster', 'safari', 'scirocco', 'senna', 'shelby',
-  'sierra', 'skyline', 'solara', 'sonata', 'spark', 'spider', 'stingray',
-  'supra', 'tacoma', 'tempest', 'tercel', 'thunderbird', 'tiguan', 'torino',
-  'tundra', 'vantage', 'viper', 'wrangler', 'zephyr'
+  'accord',
+  'alpine',
+  'beetle',
+  'boxster',
+  'bronco',
+  'camaro',
+  'camry',
+  'cayenne',
+  'challenger',
+  'charger',
+  'civic',
+  'cobra',
+  'continental',
+  'corolla',
+  'corvette',
+  'defender',
+  'elantra',
+  'escort',
+  'explorer',
+  'firebird',
+  'focus',
+  'frontier',
+  'fury',
+  'galaxie',
+  'giulia',
+  'gto',
+  'impala',
+  'jetta',
+  'lancer',
+  'landcruiser',
+  'maverick',
+  'miata',
+  'monte',
+  'mustang',
+  'navigator',
+  'nova',
+  'outback',
+  'panda',
+  'pantera',
+  'passat',
+  'pathfinder',
+  'pinto',
+  'porsche',
+  'prelude',
+  'prius',
+  'quattro',
+  'rabbit',
+  'ranger',
+  'raptor',
+  'roadster',
+  'safari',
+  'scirocco',
+  'senna',
+  'shelby',
+  'sierra',
+  'skyline',
+  'solara',
+  'sonata',
+  'spark',
+  'spider',
+  'stingray',
+  'supra',
+  'tacoma',
+  'tempest',
+  'tercel',
+  'thunderbird',
+  'tiguan',
+  'torino',
+  'tundra',
+  'vantage',
+  'viper',
+  'wrangler',
+  'zephyr',
 ];
 
 /**
@@ -93,8 +288,8 @@ function simpleHash(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = (hash << 5) - hash + char;
+    hash &= hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
 }
@@ -125,12 +320,7 @@ function roundToMinute(date) {
  */
 function generateAnomalyId(baseTimeRange, baseFilters, anomalyStart, anomalyEnd, category = 'green') {
   // Create a stable string from the inputs (round timestamps to minute for cache stability)
-  const inputStr = [
-    baseTimeRange,
-    baseFilters,
-    roundToMinute(anomalyStart),
-    roundToMinute(anomalyEnd)
-  ].join('|');
+  const inputStr = [baseTimeRange, baseFilters, roundToMinute(anomalyStart), roundToMinute(anomalyEnd)].join('|');
 
   const hash = simpleHash(inputStr);
 
@@ -261,12 +451,15 @@ function loadCachedInvestigation(cacheKey) {
 function saveCachedInvestigation(cacheKey, data) {
   try {
     const context = getQueryContext();
-    localStorage.setItem(`anomaly_investigation_${cacheKey}`, JSON.stringify({
-      ...data,
-      context,
-      version: CACHE_VERSION,
-      timestamp: Date.now()
-    }));
+    localStorage.setItem(
+      `anomaly_investigation_${cacheKey}`,
+      JSON.stringify({
+        ...data,
+        context,
+        version: CACHE_VERSION,
+        timestamp: Date.now(),
+      }),
+    );
   } catch (e) {
     console.warn('Failed to cache investigation:', e);
   }
@@ -332,9 +525,7 @@ function getCategoryFilter(category) {
  * @returns {Promise<Array>} Facet values with change analysis
  */
 async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
-  const col = typeof breakdown.col === 'function'
-    ? breakdown.col(state.topN)
-    : breakdown.col;
+  const col = typeof breakdown.col === 'function' ? breakdown.col(state.topN) : breakdown.col;
 
   const extra = breakdown.extraFilter || '';
   const hostFilter = getHostFilter();
@@ -367,7 +558,7 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
 
     // Calculate anomaly and baseline durations in ms
     const anomalyDurationMs = anomaly.endTime - anomaly.startTime;
-    const baselineDurationMs = (fullEnd - fullStart) - anomalyDurationMs;
+    const baselineDurationMs = fullEnd - fullStart - anomalyDurationMs;
 
     // Normalize to rate per minute for fair comparison
     const anomalyMinutes = anomalyDurationMs / 60000;
@@ -378,7 +569,7 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
     const totalBaselineCatCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_cat_cnt || 0), 0);
 
     // Analyze each facet value
-    const analyzed = result.data.map(row => {
+    const analyzed = result.data.map((row) => {
       const anomalyCatCnt = parseInt(row.anomaly_cat_cnt) || 0;
       const baselineCatCnt = parseInt(row.baseline_cat_cnt) || 0;
       const anomalyTotalCnt = parseInt(row.anomaly_total_cnt) || 0;
@@ -414,7 +605,7 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
         anomalyShare: Math.round(anomalyShare * 10) / 10,
         baselineShare: Math.round(baselineShare * 10) / 10,
         shareChange: Math.round(shareChange * 10) / 10,
-        errorRateChange: Math.round(errorRateChange * 10) / 10
+        errorRateChange: Math.round(errorRateChange * 10) / 10,
       };
     });
 
@@ -423,7 +614,7 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
     // - OR error rate increased by >5 percentage points
     // - Must have some volume (anomalyRate > 0.5/min)
     return analyzed
-      .filter(r => r.anomalyRate > 0.5 && (r.shareChange > 5 || r.errorRateChange > 5))
+      .filter((r) => r.anomalyRate > 0.5 && (r.shareChange > 5 || r.errorRateChange > 5))
       .sort((a, b) => b.shareChange - a.shareChange)
       .slice(0, 5);
   } catch (err) {
@@ -552,11 +743,20 @@ export async function investigateAnomalies(anomalies, chartData) {
   const fullEnd = new Date(chartData[chartData.length - 1].t);
 
   // Select facets to investigate
-  const facetsToInvestigate = allBreakdowns.filter(b =>
-    ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
-     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
-     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id)
+  const facetsToInvestigate = allBreakdowns.filter((b) =>
+    [
+      'breakdown-hosts',
+      'breakdown-forwarded-hosts',
+      'breakdown-paths',
+      'breakdown-errors',
+      'breakdown-user-agents',
+      'breakdown-ips',
+      'breakdown-asn',
+      'breakdown-datacenters',
+      'breakdown-cache',
+      'breakdown-content-types',
+      'breakdown-backend-type',
+    ].includes(b.id),
   );
 
   // Process each anomaly
@@ -567,7 +767,7 @@ export async function investigateAnomalies(anomalies, chartData) {
       baseFacetFilters,
       anomaly.startTime,
       anomaly.endTime,
-      anomaly.category
+      anomaly.category,
     );
 
     // Initialize result structure for this anomaly
@@ -597,7 +797,7 @@ export async function investigateAnomalies(anomalies, chartData) {
             facetId: breakdown.id,
             category: anomaly.category,
             rank: anomaly.rank,
-            ...item
+            ...item,
           });
         }
 
@@ -621,7 +821,7 @@ export async function investigateAnomalies(anomalies, chartData) {
   cachedTopContributors = topForCache; // Also set memory cache for drill-down
   saveCachedInvestigation(cacheKey, {
     results: lastInvestigationResults,
-    topContributors: topForCache
+    topContributors: topForCache,
   });
   cleanupOldCaches();
 
@@ -691,11 +891,11 @@ export function getHighlightedDimensions(facetId) {
 function findRowByDim(rows, dim) {
   const rowArray = Array.from(rows);
   // Try exact match first
-  let row = rowArray.find(r => r.dataset.dim === dim);
+  let row = rowArray.find((r) => r.dataset.dim === dim);
   if (!row && dim) {
     // Fallback to case-insensitive match
     const dimLower = dim.toLowerCase();
-    row = rowArray.find(r => r.dataset.dim?.toLowerCase() === dimLower);
+    row = rowArray.find((r) => r.dataset.dim?.toLowerCase() === dimLower);
   }
   return row || null;
 }
@@ -708,8 +908,14 @@ function findRowByDim(rows, dim) {
  */
 function applyHighlightsFromContributors(contributors) {
   // Remove existing highlights and reset titles
-  document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green', 'investigation-blue');
+  document.querySelectorAll('.investigation-highlight').forEach((el) => {
+    el.classList.remove(
+      'investigation-highlight',
+      'investigation-red',
+      'investigation-yellow',
+      'investigation-green',
+      'investigation-blue',
+    );
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
   });
@@ -718,7 +924,6 @@ function applyHighlightsFromContributors(contributors) {
 
   // Iterate through contributors in priority order, highlight first N that exist in DOM
   let highlightedCount = 0;
-  let checkedCount = 0;
 
   for (const c of contributors) {
     // Stop if we've highlighted enough
@@ -731,7 +936,6 @@ function applyHighlightsFromContributors(contributors) {
       continue;
     }
 
-    checkedCount++;
     const card = document.getElementById(c.facetId);
     if (!card) continue;
 
@@ -759,8 +963,14 @@ function applyHighlightsFromContributors(contributors) {
  */
 function applyHighlights() {
   // Remove existing highlights and reset titles
-  document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green', 'investigation-blue');
+  document.querySelectorAll('.investigation-highlight').forEach((el) => {
+    el.classList.remove(
+      'investigation-highlight',
+      'investigation-red',
+      'investigation-yellow',
+      'investigation-green',
+      'investigation-blue',
+    );
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
   });
@@ -775,7 +985,7 @@ function applyHighlights() {
     const persistedResult = investigationsByAnomalyId.get(focusedId);
     if (persistedResult) {
       const category = persistedResult.anomaly?.category || 'red';
-      const anomalyId = persistedResult.anomalyId;
+      const { anomalyId } = persistedResult;
       const rank = persistedResult.anomaly?.rank || 1;
       for (const [facetId, facetResults] of Object.entries(persistedResult.facets)) {
         if (!highlightMap.has(facetId)) {
@@ -786,7 +996,7 @@ function applyHighlights() {
             category,
             shareChange: item.shareChange,
             anomalyId,
-            rank
+            rank,
           });
         }
       }
@@ -795,7 +1005,7 @@ function applyHighlights() {
     // No specific focus - highlight from all current results (use highest share change per dim)
     for (const result of lastInvestigationResults) {
       const category = result.anomaly?.category || 'red';
-      const anomalyId = result.anomalyId;
+      const { anomalyId } = result;
       const rank = result.anomaly?.rank || 1;
       for (const [facetId, facetResults] of Object.entries(result.facets)) {
         if (!highlightMap.has(facetId)) {
@@ -809,7 +1019,7 @@ function applyHighlights() {
               category,
               shareChange: item.shareChange,
               anomalyId,
-              rank
+              rank,
             });
           }
         }
@@ -842,7 +1052,7 @@ function applyHighlights() {
  * Clear all investigation highlights
  */
 export function clearHighlights() {
-  document.querySelectorAll('.investigation-highlight').forEach(el => {
+  document.querySelectorAll('.investigation-highlight').forEach((el) => {
     el.classList.remove('investigation-highlight');
   });
 }
@@ -876,7 +1086,7 @@ export function getInvestigationByAnomalyId(anomalyId) {
  * @returns {string|null} Anomaly ID or null
  */
 export function getAnomalyIdByRank(rank) {
-  const result = lastInvestigationResults.find(r => r.anomaly?.rank === rank);
+  const result = lastInvestigationResults.find((r) => r.anomaly?.rank === rank);
   return result?.anomalyId || null;
 }
 
@@ -925,7 +1135,7 @@ let selectionContributors = [];
  * Clear selection investigation highlights only (preserve anomaly highlights)
  */
 export function clearSelectionHighlights() {
-  document.querySelectorAll('.investigation-highlight.investigation-blue').forEach(el => {
+  document.querySelectorAll('.investigation-highlight.investigation-blue').forEach((el) => {
     el.classList.remove('investigation-highlight', 'investigation-blue');
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
@@ -950,11 +1160,20 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
   clearSelectionHighlights();
 
   // Select facets to investigate (same as anomaly investigation)
-  const facetsToInvestigate = allBreakdowns.filter(b =>
-    ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
-     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
-     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id)
+  const facetsToInvestigate = allBreakdowns.filter((b) =>
+    [
+      'breakdown-hosts',
+      'breakdown-forwarded-hosts',
+      'breakdown-paths',
+      'breakdown-errors',
+      'breakdown-user-agents',
+      'breakdown-ips',
+      'breakdown-asn',
+      'breakdown-datacenters',
+      'breakdown-cache',
+      'breakdown-content-types',
+      'breakdown-backend-type',
+    ].includes(b.id),
   );
 
   // Create a pseudo-anomaly object for the investigateFacet function
@@ -964,7 +1183,7 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
     endTime: selectionEnd,
     category: 'blue',
     type: 'selection',
-    rank: 0
+    rank: 0,
   };
 
   selectionContributors = [];
@@ -980,7 +1199,7 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
           facet: breakdown.id.replace('breakdown-', ''),
           facetId: breakdown.id,
           category: 'blue',
-          ...item
+          ...item,
         });
       }
     }
@@ -991,9 +1210,13 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
   await Promise.all(facetPromises);
 
   // Sort by max change and apply highlights (pass all, function will find first N in DOM)
-  const sorted = [...selectionContributors].sort((a, b) => (b.maxChange || Math.abs(b.shareChange)) - (a.maxChange || Math.abs(a.shareChange)));
+  const sorted = [...selectionContributors].sort(
+    (a, b) => (b.maxChange || Math.abs(b.shareChange)) - (a.maxChange || Math.abs(a.shareChange)),
+  );
 
-  console.log(`Selection investigation found ${selectionContributors.length} contributors, will highlight first ${HIGHLIGHT_TOP_N} found in DOM`);
+  console.log(
+    `Selection investigation found ${selectionContributors.length} contributors, will highlight first ${HIGHLIGHT_TOP_N} found in DOM`,
+  );
 
   applySelectionHighlights(sorted);
 
@@ -1005,9 +1228,7 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
  * Looks at error rates (like anomaly investigation) to find dimensions with changed behavior
  */
 async function investigateFacetForSelection(breakdown, selection, fullStart, fullEnd) {
-  const col = typeof breakdown.col === 'function'
-    ? breakdown.col(state.topN)
-    : breakdown.col;
+  const col = typeof breakdown.col === 'function' ? breakdown.col(state.topN) : breakdown.col;
 
   const extra = breakdown.extraFilter || '';
   const hostFilter = getHostFilter();
@@ -1038,7 +1259,7 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
 
     // Calculate durations for rate normalization
     const selectionDurationMs = selection.endTime - selection.startTime;
-    const baselineDurationMs = (fullEnd - fullStart) - selectionDurationMs;
+    const baselineDurationMs = fullEnd - fullStart - selectionDurationMs;
     const selectionMinutes = selectionDurationMs / 60000;
     const baselineMinutes = baselineDurationMs / 60000;
 
@@ -1049,7 +1270,7 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
     const totalBaselineErrCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_err_cnt || 0), 0);
 
     // Analyze each facet value
-    const analyzed = result.data.map(row => {
+    const analyzed = result.data.map((row) => {
       const selectionCnt = parseInt(row.selection_cnt) || 0;
       const baselineCnt = parseInt(row.baseline_cnt) || 0;
       const selectionErrCnt = parseInt(row.selection_err_cnt) || 0;
@@ -1091,7 +1312,7 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
         baselineShare: Math.round(baselineShare * 10) / 10,
         shareChange: Math.round(shareChange * 10) / 10,
         errShareChange: Math.round(errShareChange * 10) / 10,
-        errRateChange: Math.round(errRateChange * 10) / 10
+        errRateChange: Math.round(errRateChange * 10) / 10,
       };
     });
 
@@ -1101,18 +1322,21 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
     // - Error rate changed by >5pp
     // Must have some volume (selectionRate > 0.5/min OR baselineRate > 0.5/min for under-represented)
     const filtered = analyzed
-      .filter(r => {
+      .filter((r) => {
         const hasVolume = r.selectionRate > 0.5 || r.baselineRate > 0.5;
-        const hasSignificantChange = Math.abs(r.shareChange) > 5 || Math.abs(r.errShareChange) > 5 || Math.abs(r.errRateChange) > 5;
+        const hasSignificantChange =
+          Math.abs(r.shareChange) > 5 || Math.abs(r.errShareChange) > 5 || Math.abs(r.errRateChange) > 5;
         return hasVolume && hasSignificantChange;
       })
-      .map(r => ({
+      .map((r) => ({
         ...r,
         // Use the maximum absolute change as the sort key, preserve sign for display
         maxChange: Math.max(Math.abs(r.shareChange), Math.abs(r.errShareChange), Math.abs(r.errRateChange)),
         // Keep the actual change value with the largest magnitude for tooltip
-        shareChange: [r.shareChange, r.errShareChange, r.errRateChange]
-          .reduce((max, v) => Math.abs(v) > Math.abs(max) ? v : max, 0)
+        shareChange: [r.shareChange, r.errShareChange, r.errRateChange].reduce(
+          (max, v) => (Math.abs(v) > Math.abs(max) ? v : max),
+          0,
+        ),
       }))
       .sort((a, b) => b.maxChange - a.maxChange)
       .slice(0, 5);
@@ -1124,7 +1348,9 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
         return bMax - aMax;
       });
       const top = sorted[0];
-      console.log(`  ${breakdown.id}: ${analyzed.length} dims analyzed, top shareChange=${top?.shareChange}pp, errShareChange=${top?.errShareChange}pp, errRateChange=${top?.errRateChange}pp`);
+      console.log(
+        `  ${breakdown.id}: ${analyzed.length} dims analyzed, top shareChange=${top?.shareChange}pp, errShareChange=${top?.errShareChange}pp, errRateChange=${top?.errRateChange}pp`,
+      );
     }
 
     return filtered;

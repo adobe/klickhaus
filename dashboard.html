@@ -1,286 +1,383 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CDN Analytics</title>
-  <link rel="canonical" href="https://klickhaus.aemstatus.net/dashboard.html">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CDN Analytics</title>
+    <link rel="canonical" href="https://klickhaus.aemstatus.net/dashboard.html" />
 
-  <!-- PWA Meta Tags -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CDN Analytics">
-  <meta name="theme-color" content="#4a90d9">
-  <meta name="mobile-web-app-capable" content="yes">
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CDN Analytics" />
+    <meta name="theme-color" content="#4a90d9" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
-  <!-- Manifest & Icons -->
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icons/icon-180.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+    <!-- Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png" />
 
-  <!-- Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js');
-    }
-  </script>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js');
+      }
+    </script>
 
-  <link rel="stylesheet" href="dashboard.css">
-</head>
-<body>
-  <!-- Login Form -->
-  <div id="login">
-    <div class="login-card">
-      <h1>CDN Analytics</h1>
-      <p>Sign in to view your analytics dashboard</p>
-      <div id="loginError" class="error-message"></div>
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" required autocomplete="username">
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required autocomplete="current-password">
-        </div>
-        <button type="submit" class="btn btn-primary">Sign In</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Dashboard -->
-  <div id="dashboard">
-    <header>
-      <div class="header-left">
-        <button id="menuBtn" class="menu-btn" title="Quick Links">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <rect y="3" width="20" height="2" rx="1"/>
-            <rect y="9" width="20" height="2" rx="1"/>
-            <rect y="15" width="20" height="2" rx="1"/>
-          </svg>
-        </button>
-        <h1><span id="dashboardTitle">CDN Analytics</span> <span id="queryTimer" class="query-timer"></span></h1>
-        <div id="activeFilters"></div>
-      </div>
-      <div class="header-center">
-        <span class="kbd-control"><kbd class="kbd-hint">t</kbd><button id="logsBtn" class="logs-btn">Logs</button></span>
-      </div>
-      <div class="header-right">
-        <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange"></select></span>
-        <select id="topN"></select>
-        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off"></span>
-        <datalist id="hostSuggestions"></datalist>
-        <span class="kbd-control"><kbd class="kbd-hint">r</kbd><button id="refreshBtn" class="btn btn-secondary"><span class="btn-icon">↻</span><span class="btn-text">Refresh</span></button></span>
-        <button id="logoutBtn" class="btn btn-secondary"><span class="btn-icon">⏻</span><span class="btn-text">Logout</span></button>
-      </div>
-    </header>
-
-    <!-- Logs View -->
-    <div id="logsView">
-      <div class="logs-table-container">
-        <div class="logs-loading"><div class="spinner"></div>Loading logs...</div>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <!-- Login Form -->
+    <div id="login">
+      <div class="login-card">
+        <h1>CDN Analytics</h1>
+        <p>Sign in to view your analytics dashboard</p>
+        <div id="loginError" class="error-message"></div>
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
       </div>
     </div>
 
-    <main id="dashboardContent">
-      <!-- Time Series Chart -->
-      <section class="chart-section">
-        <h2>Requests over time</h2>
-        <div class="chart-container">
-          <canvas id="chart"></canvas>
+    <!-- Dashboard -->
+    <div id="dashboard">
+      <header>
+        <div class="header-left">
+          <button id="menuBtn" class="menu-btn" title="Quick Links">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <rect y="3" width="20" height="2" rx="1" />
+              <rect y="9" width="20" height="2" rx="1" />
+              <rect y="15" width="20" height="2" rx="1" />
+            </svg>
+          </button>
+          <h1><span id="dashboardTitle">CDN Analytics</span> <span id="queryTimer" class="query-timer"></span></h1>
+          <div id="activeFilters"></div>
         </div>
-      </section>
+        <div class="header-center">
+          <span class="kbd-control"
+            ><kbd class="kbd-hint">t</kbd><button id="logsBtn" class="logs-btn">Logs</button></span
+          >
+        </div>
+        <div class="header-right">
+          <span class="kbd-control"
+            ><kbd class="kbd-hint" id="timeRangeHint">2</kbd
+            ><select id="timeRange"></select
+          ></span>
+          <select id="topN"></select>
+          <span class="kbd-control"
+            ><kbd class="kbd-hint">f</kbd
+            ><input
+              type="text"
+              id="hostFilter"
+              placeholder="Filter by host..."
+              list="hostSuggestions"
+              autocomplete="off"
+          /></span>
+          <datalist id="hostSuggestions"></datalist>
+          <span class="kbd-control"
+            ><kbd class="kbd-hint">r</kbd
+            ><button id="refreshBtn" class="btn btn-secondary">
+              <span class="btn-icon">↻</span><span class="btn-text">Refresh</span>
+            </button></span
+          >
+          <button id="logoutBtn" class="btn btn-secondary">
+            <span class="btn-icon">⏻</span><span class="btn-text">Logout</span>
+          </button>
+        </div>
+      </header>
 
-      <!-- Breakdown Tables -->
-      <section class="breakdowns breakdowns-pinned" id="breakdowns-pinned"></section>
-      <section class="breakdowns" id="breakdowns">
-        <div class="breakdown-card" id="breakdown-status-range">
-          <h3>Status Range</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
+      <!-- Logs View -->
+      <div id="logsView">
+        <div class="logs-table-container">
+          <div class="logs-loading">
+            <div class="spinner"></div>
+            Loading logs...
+          </div>
         </div>
-        <div class="breakdown-card" id="breakdown-hosts">
-          <h3>Hosts</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-forwarded-hosts">
-          <h3>Forwarded Hosts</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-content-types">
-          <h3>Content Types</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-status">
-          <h3>Status Codes</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-errors">
-          <h3>Errors</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-cache">
-          <h3>Cache Status</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-paths">
-          <h3>Paths</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-referers">
-          <h3>Referers</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-user-agents">
-          <h3>User Agents</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-ips">
-          <h3>IP Addresses</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-request-type">
-          <h3>Request Types</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-backend-type">
-          <h3>Backend Types</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-methods">
-          <h3>HTTP Methods</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-datacenters">
-          <h3>Datacenters</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-asn">
-          <h3>ASN</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-accept">
-          <h3>Accept</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-accept-encoding">
-          <h3>Accept-Encoding</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-req-cache-control">
-          <h3>Cache-Control (Req)</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-byo-cdn">
-          <h3>BYO CDN Type</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-push-invalidation">
-          <h3>Push Invalidation</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-content-length">
-          <h3>Content Length</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-location">
-          <h3>Redirect Location</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-time-elapsed">
-          <h3>Response Time</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-      </section>
-      <section class="breakdowns breakdowns-hidden" id="breakdowns-hidden"></section>
-    </main>
-  </div>
-
-  <!-- Quick Links Modal -->
-  <dialog id="quickLinksModal">
-    <div class="modal-header">
-      <h2>Quick Links</h2>
-      <button class="modal-close" data-action="close-quick-links">&times;</button>
-    </div>
-    <iframe id="quickLinksFrame" src="index.html"></iframe>
-  </dialog>
-
-  <!-- Keyboard Help Dialog -->
-  <dialog id="keyboardHelp" role="dialog" aria-labelledby="keyboardHelpTitle">
-    <div class="keyboard-help-content">
-      <h2 id="keyboardHelpTitle">Keyboard Shortcuts <button data-action="close-dialog" aria-label="Close">&times;</button></h2>
-      <div class="keyboard-help-grid">
-        <div class="key-group"><kbd>j</kbd> <kbd>k</kbd></div>
-        <div class="key-desc">Navigate between values</div>
-
-        <div class="key-group"><kbd>h</kbd> <kbd>l</kbd></div>
-        <div class="key-desc">Navigate between facets</div>
-
-        <div class="key-group"><kbd>Tab</kbd></div>
-        <div class="key-desc">Next value (wraps to next facet)</div>
-
-        <div class="key-group"><kbd>i</kbd> <kbd>c</kbd> <kbd>Space</kbd></div>
-        <div class="key-desc">Toggle filter on value</div>
-
-        <div class="key-group"><kbd>e</kbd> <kbd>x</kbd></div>
-        <div class="key-desc">Toggle exclude on value</div>
-
-        <div class="key-group"><kbd>c</kbd><kbd>c</kbd></div>
-        <div class="key-desc">Clear all filters</div>
-
-        <div class="key-group"><kbd>.</kbd></div>
-        <div class="key-desc">Expand (other) / show more</div>
-
-        <div class="key-group"><kbd>o</kbd></div>
-        <div class="key-desc">Open link in new tab</div>
-
-        <div class="key-group"><kbd>p</kbd></div>
-        <div class="key-desc">Pin/unpin facet</div>
-
-        <div class="key-group"><kbd>d</kbd></div>
-        <div class="key-desc">Hide/show facet</div>
-
-        <div class="key-group"><kbd>g</kbd></div>
-        <div class="key-desc">Go to facet (quick navigation)</div>
-
-        <div class="key-group"><kbd>r</kbd></div>
-        <div class="key-desc">Refresh data</div>
-
-        <div class="key-group"><kbd>f</kbd></div>
-        <div class="key-desc">Focus host filter</div>
-
-        <div class="key-group"><kbd>t</kbd></div>
-        <div class="key-desc">Toggle logs view</div>
-
-        <div class="key-group"><kbd>b</kbd> <kbd>#</kbd></div>
-        <div class="key-desc">Toggle bytes/count mode</div>
-
-        <div class="key-group"><kbd>1</kbd>-<kbd>5</kbd></div>
-        <div class="key-desc">Zoom to anomaly by rank</div>
-
-        <div class="key-group"><kbd>+</kbd></div>
-        <div class="key-desc">Zoom to most prominent anomaly</div>
-
-        <div class="key-group"><kbd>-</kbd></div>
-        <div class="key-desc">Zoom out to larger period</div>
-
-        <div class="key-group"><kbd>?</kbd></div>
-        <div class="key-desc">Show this help</div>
-
-        <div class="key-group"><kbd>Esc</kbd></div>
-        <div class="key-desc">Exit keyboard mode</div>
       </div>
-    </div>
-  </dialog>
 
-  <!-- Facet Command Palette (VS Code-style goto) -->
-  <dialog id="facetPalette" role="dialog" aria-labelledby="facetPaletteTitle">
-    <div class="palette-header">
-      <input type="text" id="facetPaletteInput" placeholder="Go to facet..." aria-label="Search facets">
-    </div>
-    <div id="facetPaletteList" role="listbox" aria-label="Facet list"></div>
-  </dialog>
+      <main id="dashboardContent">
+        <!-- Time Series Chart -->
+        <section class="chart-section">
+          <h2>Requests over time</h2>
+          <div class="chart-container">
+            <canvas id="chart"></canvas>
+          </div>
+        </section>
 
-  <script type="module" src="js/main.js"></script>
-</body>
+        <!-- Breakdown Tables -->
+        <section class="breakdowns breakdowns-pinned" id="breakdowns-pinned"></section>
+        <section class="breakdowns" id="breakdowns">
+          <div class="breakdown-card" id="breakdown-status-range">
+            <h3>Status Range</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-hosts">
+            <h3>Hosts</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-forwarded-hosts">
+            <h3>Forwarded Hosts</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-content-types">
+            <h3>Content Types</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-status">
+            <h3>Status Codes</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-errors">
+            <h3>Errors</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-cache">
+            <h3>Cache Status</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-paths">
+            <h3>Paths</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-referers">
+            <h3>Referers</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-user-agents">
+            <h3>User Agents</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-ips">
+            <h3>IP Addresses</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-request-type">
+            <h3>Request Types</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-backend-type">
+            <h3>Backend Types</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-methods">
+            <h3>HTTP Methods</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-datacenters">
+            <h3>Datacenters</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-asn">
+            <h3>ASN</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-accept">
+            <h3>Accept</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-accept-encoding">
+            <h3>Accept-Encoding</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-req-cache-control">
+            <h3>Cache-Control (Req)</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-byo-cdn">
+            <h3>BYO CDN Type</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-push-invalidation">
+            <h3>Push Invalidation</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-content-length">
+            <h3>Content Length</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-location">
+            <h3>Redirect Location</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+          <div class="breakdown-card" id="breakdown-time-elapsed">
+            <h3>Response Time</h3>
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading...
+            </div>
+          </div>
+        </section>
+        <section class="breakdowns breakdowns-hidden" id="breakdowns-hidden"></section>
+      </main>
+    </div>
+
+    <!-- Quick Links Modal -->
+    <dialog id="quickLinksModal">
+      <div class="modal-header">
+        <h2>Quick Links</h2>
+        <button class="modal-close" data-action="close-quick-links">&times;</button>
+      </div>
+      <iframe id="quickLinksFrame" src="index.html"></iframe>
+    </dialog>
+
+    <!-- Keyboard Help Dialog -->
+    <dialog id="keyboardHelp" role="dialog" aria-labelledby="keyboardHelpTitle">
+      <div class="keyboard-help-content">
+        <h2 id="keyboardHelpTitle">
+          Keyboard Shortcuts <button data-action="close-dialog" aria-label="Close">&times;</button>
+        </h2>
+        <div class="keyboard-help-grid">
+          <div class="key-group"><kbd>j</kbd> <kbd>k</kbd></div>
+          <div class="key-desc">Navigate between values</div>
+
+          <div class="key-group"><kbd>h</kbd> <kbd>l</kbd></div>
+          <div class="key-desc">Navigate between facets</div>
+
+          <div class="key-group"><kbd>Tab</kbd></div>
+          <div class="key-desc">Next value (wraps to next facet)</div>
+
+          <div class="key-group"><kbd>i</kbd> <kbd>c</kbd> <kbd>Space</kbd></div>
+          <div class="key-desc">Toggle filter on value</div>
+
+          <div class="key-group"><kbd>e</kbd> <kbd>x</kbd></div>
+          <div class="key-desc">Toggle exclude on value</div>
+
+          <div class="key-group"><kbd>c</kbd><kbd>c</kbd></div>
+          <div class="key-desc">Clear all filters</div>
+
+          <div class="key-group"><kbd>.</kbd></div>
+          <div class="key-desc">Expand (other) / show more</div>
+
+          <div class="key-group"><kbd>o</kbd></div>
+          <div class="key-desc">Open link in new tab</div>
+
+          <div class="key-group"><kbd>p</kbd></div>
+          <div class="key-desc">Pin/unpin facet</div>
+
+          <div class="key-group"><kbd>d</kbd></div>
+          <div class="key-desc">Hide/show facet</div>
+
+          <div class="key-group"><kbd>g</kbd></div>
+          <div class="key-desc">Go to facet (quick navigation)</div>
+
+          <div class="key-group"><kbd>r</kbd></div>
+          <div class="key-desc">Refresh data</div>
+
+          <div class="key-group"><kbd>f</kbd></div>
+          <div class="key-desc">Focus host filter</div>
+
+          <div class="key-group"><kbd>t</kbd></div>
+          <div class="key-desc">Toggle logs view</div>
+
+          <div class="key-group"><kbd>b</kbd> <kbd>#</kbd></div>
+          <div class="key-desc">Toggle bytes/count mode</div>
+
+          <div class="key-group"><kbd>1</kbd>-<kbd>5</kbd></div>
+          <div class="key-desc">Zoom to anomaly by rank</div>
+
+          <div class="key-group"><kbd>+</kbd></div>
+          <div class="key-desc">Zoom to most prominent anomaly</div>
+
+          <div class="key-group"><kbd>-</kbd></div>
+          <div class="key-desc">Zoom out to larger period</div>
+
+          <div class="key-group"><kbd>?</kbd></div>
+          <div class="key-desc">Show this help</div>
+
+          <div class="key-group"><kbd>Esc</kbd></div>
+          <div class="key-desc">Exit keyboard mode</div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Facet Command Palette (VS Code-style goto) -->
+    <dialog id="facetPalette" role="dialog" aria-labelledby="facetPaletteTitle">
+      <div class="palette-header">
+        <input type="text" id="facetPaletteInput" placeholder="Go to facet..." aria-label="Search facets" />
+      </div>
+      <div id="facetPaletteList" role="listbox" aria-label="Facet list"></div>
+    </dialog>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
 </html>

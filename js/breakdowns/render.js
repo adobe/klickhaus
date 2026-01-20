@@ -7,7 +7,7 @@ import { TOP_N_OPTIONS } from '../constants.js';
 
 // Get filters for a specific column
 export function getFiltersForColumn(col) {
-  return state.filters.filter(f => f.col === col);
+  return state.filters.filter((f) => f.col === col);
 }
 
 // Get next topN value for "show more" functionality
@@ -30,13 +30,29 @@ function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
   return escapeHtml(dim);
 }
 
-export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuffix, linkFn, elapsed, dimPrefixes, dimFormatFn, summaryRatio, summaryLabel, summaryColor, modeToggle, isContinuous) {
+export function renderBreakdownTable(
+  id,
+  data,
+  totals,
+  col,
+  linkPrefix,
+  linkSuffix,
+  linkFn,
+  elapsed,
+  dimPrefixes,
+  dimFormatFn,
+  summaryRatio,
+  summaryLabel,
+  summaryColor,
+  modeToggle,
+  isContinuous,
+) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
   if (!card.dataset.title) {
     card.dataset.title = card.querySelector('h3').textContent;
   }
-  const title = card.dataset.title;
+  const { title } = card.dataset;
 
   // Get active filters for this column
   const columnFilters = getFiltersForColumn(col);
@@ -48,7 +64,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   const valueFormatter = isBytes ? formatBytes : formatNumber;
 
   // Speed indicator based on elapsed time (aligned with Google LCP thresholds)
-  const speedClass = elapsed < 2500 ? 'fast' : (elapsed < 4000 ? 'medium' : 'slow');
+  const speedClass = elapsed < 2500 ? 'fast' : elapsed < 4000 ? 'medium' : 'slow';
   const speedTitle = formatQueryTime(elapsed);
   const isPinned = state.pinnedFacets.includes(id);
   const pinTitle = isPinned ? 'Unpin facet' : 'Pin facet to top';
@@ -61,16 +77,17 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
 
   // Summary metric display (e.g., "87% efficiency")
   const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
-  const summaryHtml = (summaryRatio !== null && summaryLabel)
-    ? `<span class="summary-metric${summaryColorClass}" title="${(summaryRatio * 100).toFixed(1)}% ${summaryLabel}">${Math.round(summaryRatio * 100)}%</span>`
-    : '';
+  const summaryHtml =
+    summaryRatio !== null && summaryLabel
+      ? `<span class="summary-metric${summaryColorClass}" title="${(summaryRatio * 100).toFixed(1)}% ${summaryLabel}">${Math.round(summaryRatio * 100)}%</span>`
+      : '';
 
   if (data.length === 0) {
     let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
     if (hasFilters) {
       html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
     }
-    html += `</h3><div class="empty">No data</div>`;
+    html += '</h3><div class="empty">No data</div>';
     html += `<button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${escapeHtml(id)}" title="Hide facet"></button>`;
     card.innerHTML = html;
     card.classList.remove('facet-hidden');
@@ -82,20 +99,22 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     cnt: data.reduce((sum, d) => sum + parseInt(d.cnt), 0),
     cnt_ok: data.reduce((sum, d) => sum + (parseInt(d.cnt_ok) || 0), 0),
     cnt_4xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_4xx) || 0), 0),
-    cnt_5xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_5xx) || 0), 0)
+    cnt_5xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_5xx) || 0), 0),
   };
-  const otherRow = totals ? {
-    cnt: parseInt(totals.cnt) - topKSum.cnt,
-    cnt_ok: (parseInt(totals.cnt_ok) || 0) - topKSum.cnt_ok,
-    cnt_4xx: (parseInt(totals.cnt_4xx) || 0) - topKSum.cnt_4xx,
-    cnt_5xx: (parseInt(totals.cnt_5xx) || 0) - topKSum.cnt_5xx
-  } : null;
+  const otherRow = totals
+    ? {
+        cnt: parseInt(totals.cnt) - topKSum.cnt,
+        cnt_ok: (parseInt(totals.cnt_ok) || 0) - topKSum.cnt_ok,
+        cnt_4xx: (parseInt(totals.cnt_4xx) || 0) - topKSum.cnt_4xx,
+        cnt_5xx: (parseInt(totals.cnt_5xx) || 0) - topKSum.cnt_5xx,
+      }
+    : null;
   const hasOther = otherRow && otherRow.cnt > 0 && getNextTopN();
 
   // Exclude synthetic buckets like (same), (empty) from maxCount calculation
   // so they don't skew the 100% bar width for real values
-  const realData = data.filter(d => !isSyntheticBucket(d.dim));
-  const maxCount = realData.length > 0 ? Math.max(...realData.map(d => parseInt(d.cnt))) : 1;
+  const realData = data.filter((d) => !isSyntheticBucket(d.dim));
+  const maxCount = realData.length > 0 ? Math.max(...realData.map((d) => parseInt(d.cnt))) : 1;
 
   let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
   if (hasFilters) {
@@ -115,7 +134,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
 
     // For synthetic buckets, cap bar at 100% and always show fading gradient
     // to visually distinguish them from real dimension values
-    const barWidth = (isSynthetic && cnt > maxCount) ? 100 : (cnt / maxCount) * 100;
+    const barWidth = isSynthetic && cnt > maxCount ? 100 : (cnt / maxCount) * 100;
     const overflowClass = isSynthetic ? ' bar-overflow' : '';
 
     // Calculate percentages within this row (for stacked segments)
@@ -123,12 +142,11 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
     const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
 
-
     // Check if this value is currently filtered
-    const activeFilter = columnFilters.find(f => f.value === (row.dim || ''));
+    const activeFilter = columnFilters.find((f) => f.value === (row.dim || ''));
     const isIncluded = activeFilter && !activeFilter.exclude;
     const isExcluded = activeFilter && activeFilter.exclude;
-    const filterClass = isIncluded ? 'filter-included' : (isExcluded ? 'filter-excluded' : '');
+    const filterClass = isIncluded ? 'filter-included' : isExcluded ? 'filter-excluded' : '';
     const rowClass = isSynthetic ? `synthetic-row ${filterClass}` : filterClass;
 
     // Build dimension cell content - with optional link and dimmed prefix
@@ -212,7 +230,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
       </tr>
     `;
   } else if (hasOther) {
-    const cnt = otherRow.cnt;
+    const { cnt } = otherRow;
     const cntOk = otherRow.cnt_ok;
     const cnt4xx = otherRow.cnt_4xx;
     const cnt5xx = otherRow.cnt_5xx;
@@ -251,7 +269,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   card.classList.remove('facet-hidden');
 }
 
-export function renderBreakdownError(id, message) {
+export function renderBreakdownError(id, _message) {
   const card = document.getElementById(id);
   const title = card.querySelector('h3').textContent;
   card.innerHTML = `<h3>${title}</h3><div class="empty">Error loading data</div>`;

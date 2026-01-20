@@ -25,9 +25,9 @@ function formatTimestamp(value) {
  * @returns {string[]}
  */
 function getLogColumns(allColumns) {
-  const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
-  const preferred = LOG_COLUMN_ORDER.filter(col => allColumns.includes(col) && !pinned.includes(col));
-  const rest = allColumns.filter(col => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
+  const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
+  const preferred = LOG_COLUMN_ORDER.filter((col) => allColumns.includes(col) && !pinned.includes(col));
+  const rest = allColumns.filter((col) => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
   return [...pinned, ...preferred, ...rest];
 }
 
@@ -95,9 +95,8 @@ function formatLogCell(col, value) {
 function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col, value);
   const isPinned = pinned.includes(col);
-  const leftOffset = isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined
-    ? `left: ${pinnedOffsets[col]}px;`
-    : '';
+  const leftOffset =
+    isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined ? `left: ${pinnedOffsets[col]}px;` : '';
 
   let className = cellClass;
   if (isPinned) className = `${className} pinned`.trim();
@@ -109,7 +108,7 @@ function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
   if (colorIndicator && facetMapping && value !== null && value !== undefined && value !== '') {
     const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
     className = `${className} clickable`.trim();
-    actionAttrs = ` data-action=\"add-filter\" data-col=\"${escapeHtml(facetMapping.col)}\" data-value=\"${escapeHtml(filterValue)}\" data-exclude=\"false\"`;
+    actionAttrs = ` data-action="add-filter" data-col="${escapeHtml(facetMapping.col)}" data-value="${escapeHtml(filterValue)}" data-exclude="false"`;
   }
 
   return `<td class="${className}" style="${leftOffset}" title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</td>`;
@@ -128,7 +127,12 @@ function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
 function buildLogRowHtml({ row, columns, rowIdx, pinned, pinnedOffsets }) {
   let html = `<tr data-row-idx="${rowIdx}">`;
   for (const col of columns) {
-    html += buildLogCellHtml({ col, value: row[col], pinned, pinnedOffsets });
+    html += buildLogCellHtml({
+      col,
+      value: row[col],
+      pinned,
+      pinnedOffsets,
+    });
   }
   html += '</tr>';
   return html;
@@ -156,16 +160,16 @@ function updatePinnedOffsets(container, pinned) {
 
     headerCells.forEach((th, idx) => {
       if (idx < pinned.length) {
-        th.style.left = pinnedWidths[idx] + 'px';
+        th.style.left = `${pinnedWidths[idx]}px`;
       }
     });
 
     const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
+    rows.forEach((row) => {
       const cells = row.querySelectorAll('td');
       cells.forEach((td, idx) => {
         if (idx < pinned.length) {
-          td.style.left = pinnedWidths[idx] + 'px';
+          td.style.left = `${pinnedWidths[idx]}px`;
         }
       });
     });
@@ -199,7 +203,7 @@ function handleLogsScroll() {
   // Only handle scroll when logs view is visible
   if (!state.showLogs) return;
 
-  const scrollHeight = document.documentElement.scrollHeight;
+  const { scrollHeight } = document.documentElement;
   const scrollTop = window.scrollY;
   const clientHeight = window.innerHeight;
 
@@ -329,7 +333,7 @@ export function renderLogsTable(data) {
   const allColumns = Object.keys(data[0]);
 
   // Sort columns: pinned first, then preferred order, then the rest
-  const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
+  const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
   const columns = getLogColumns(allColumns);
 
   // Calculate left offsets for sticky pinned columns
@@ -340,22 +344,30 @@ export function renderLogsTable(data) {
     <table class="logs-table">
       <thead>
         <tr>
-          ${columns.map((col, idx) => {
-            const isPinned = pinned.includes(col);
-            const pinnedClass = isPinned ? 'pinned' : '';
-            const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
-            const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
-            const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
-            const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
-            return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
-          }).join('')}
+          ${columns
+            .map((col) => {
+              const isPinned = pinned.includes(col);
+              const pinnedClass = isPinned ? 'pinned' : '';
+              const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
+              const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
+              const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
+              const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
+              return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
+            })
+            .join('')}
         </tr>
       </thead>
       <tbody>
   `;
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
-    html += buildLogRowHtml({ row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets });
+    html += buildLogRowHtml({
+      row: data[rowIdx],
+      columns,
+      rowIdx,
+      pinned,
+      pinnedOffsets,
+    });
   }
 
   html += '</tbody></table>';
@@ -372,15 +384,13 @@ function appendLogsRows(data) {
 
   // Get columns from existing table header
   const headerCells = container.querySelectorAll('.logs-table thead th');
-  const columns = Array.from(headerCells).map(th => th.title || th.textContent);
+  const columns = Array.from(headerCells).map((th) => th.title || th.textContent);
 
   // Map short names back to full names
-  const shortToFull = Object.fromEntries(
-    Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full])
-  );
+  const shortToFull = Object.fromEntries(Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full]));
 
-  const fullColumns = columns.map(col => shortToFull[col] || col);
-  const pinned = state.pinnedColumns.filter(col => fullColumns.includes(col));
+  const fullColumns = columns.map((col) => shortToFull[col] || col);
+  const pinned = state.pinnedColumns.filter((col) => fullColumns.includes(col));
 
   // Get starting index from existing rows
   const existingRows = tbody.querySelectorAll('tr').length;
@@ -388,7 +398,12 @@ function appendLogsRows(data) {
   let html = '';
   for (let i = 0; i < data.length; i++) {
     const rowIdx = existingRows + i;
-    html += buildLogRowHtml({ row: data[i], columns: fullColumns, rowIdx, pinned });
+    html += buildLogRowHtml({
+      row: data[i],
+      columns: fullColumns,
+      rowIdx,
+      pinned,
+    });
   }
 
   tbody.insertAdjacentHTML('beforeend', html);
@@ -424,12 +439,15 @@ export function copyLogRow(rowIdx) {
   }
 
   const json = JSON.stringify(nested, null, 2);
-  navigator.clipboard.writeText(json).then(() => {
-    // Brief visual feedback
-    showCopyFeedback();
-  }).catch(err => {
-    console.error('Failed to copy:', err);
-  });
+  navigator.clipboard
+    .writeText(json)
+    .then(() => {
+      // Brief visual feedback
+      showCopyFeedback();
+    })
+    .catch((err) => {
+      console.error('Failed to copy:', err);
+    });
 }
 
 // Show brief "Copied!" feedback
@@ -468,7 +486,7 @@ export function setupLogRowClickHandler() {
 
   container.addEventListener('click', (e) => {
     // Only handle clicks directly on td or tr (not on links, buttons, or spans)
-    const target = e.target;
+    const { target } = e;
     if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
 
     // Don't copy if clicking on a clickable cell (filter action)

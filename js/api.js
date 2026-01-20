@@ -39,9 +39,9 @@ export async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + btoa(`${state.credentials.user}:${state.credentials.password}`)
+      Authorization: `Basic ${btoa(`${state.credentials.user}:${state.credentials.password}`)}`,
     },
-    body: normalizedSql + ' FORMAT JSON'
+    body: `${normalizedSql} FORMAT JSON`,
   });
   const fetchEnd = performance.now();
 

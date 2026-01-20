@@ -34,7 +34,7 @@ export function initMobileTouchSupport() {
 
     if (isActionBtn) {
       setTimeout(() => {
-        document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+        document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
           r.classList.remove('touch-active');
         });
       }, 100);
@@ -43,7 +43,7 @@ export function initMobileTouchSupport() {
 
     if (row) {
       const wasActive = row.classList.contains('touch-active');
-      document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+      document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
         r.classList.remove('touch-active');
       });
       if (!wasActive) {
@@ -52,7 +52,7 @@ export function initMobileTouchSupport() {
       return;
     }
 
-    document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+    document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
       r.classList.remove('touch-active');
     });
   });
@@ -77,44 +77,56 @@ export function initPullToRefresh(refresh) {
   let isPulling = false;
   const threshold = 80;
 
-  document.addEventListener('touchstart', (e) => {
-    if (window.scrollY === 0) {
-      touchStartY = e.touches[0].clientY;
-      isPulling = true;
-    }
-  }, { passive: true });
+  document.addEventListener(
+    'touchstart',
+    (e) => {
+      if (window.scrollY === 0) {
+        touchStartY = e.touches[0].clientY;
+        isPulling = true;
+      }
+    },
+    { passive: true },
+  );
 
-  document.addEventListener('touchmove', (e) => {
-    if (!isPulling) return;
-    const touchY = e.touches[0].clientY;
-    const pullDistance = touchY - touchStartY;
+  document.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!isPulling) return;
+      const touchY = e.touches[0].clientY;
+      const pullDistance = touchY - touchStartY;
 
-    if (pullDistance > 0 && window.scrollY === 0) {
-      indicator.classList.add('visible');
-      indicator.querySelector('.pull-text').textContent =
-        pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
-    } else {
-      indicator.classList.remove('visible');
-    }
-  }, { passive: true });
+      if (pullDistance > 0 && window.scrollY === 0) {
+        indicator.classList.add('visible');
+        indicator.querySelector('.pull-text').textContent =
+          pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
+      } else {
+        indicator.classList.remove('visible');
+      }
+    },
+    { passive: true },
+  );
 
-  document.addEventListener('touchend', async (e) => {
-    if (!isPulling) return;
-    const touchEndY = e.changedTouches[0].clientY;
-    const pullDistance = touchEndY - touchStartY;
+  document.addEventListener(
+    'touchend',
+    async (e) => {
+      if (!isPulling) return;
+      const touchEndY = e.changedTouches[0].clientY;
+      const pullDistance = touchEndY - touchStartY;
 
-    if (pullDistance > threshold && window.scrollY === 0) {
-      indicator.classList.add('refreshing');
-      indicator.querySelector('.pull-text').textContent = 'Refreshing...';
-      await refresh();
-      indicator.classList.remove('visible', 'refreshing');
-    } else {
-      indicator.classList.remove('visible');
-    }
+      if (pullDistance > threshold && window.scrollY === 0) {
+        indicator.classList.add('refreshing');
+        indicator.querySelector('.pull-text').textContent = 'Refreshing...';
+        await refresh();
+        indicator.classList.remove('visible', 'refreshing');
+      } else {
+        indicator.classList.remove('visible');
+      }
 
-    isPulling = false;
-    touchStartY = 0;
-  }, { passive: true });
+      isPulling = false;
+      touchStartY = 0;
+    },
+    { passive: true },
+  );
 }
 
 /**
@@ -139,4 +151,3 @@ export function initMobileFiltersPosition() {
   updatePosition();
   window.addEventListener('resize', updatePosition);
 }
-

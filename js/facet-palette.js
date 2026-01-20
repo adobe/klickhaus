@@ -27,7 +27,7 @@ const FACET_COLUMNS = {
   'breakdown-push-invalidation': 'request.headers.x_push_invalidation',
   'breakdown-content-length': 'response.headers.content_length',
   'breakdown-location': 'response.headers.location',
-  'breakdown-time-elapsed': 'cdn.time_elapsed_msec'
+  'breakdown-time-elapsed': 'cdn.time_elapsed_msec',
 };
 
 // Aliases for facets (beyond the h3 title)
@@ -55,15 +55,15 @@ const FACET_ALIASES = {
   'breakdown-push-invalidation': ['purge', 'invalidate'],
   'breakdown-content-length': ['size', 'bytes', 'length'],
   'breakdown-location': ['redirect', '301', '302', 'location header'],
-  'breakdown-time-elapsed': ['time', 'duration', 'latency', 'ttfb']
+  'breakdown-time-elapsed': ['time', 'duration', 'latency', 'ttfb'],
 };
 
-let paletteState = {
+const paletteState = {
   open: false,
   selectedIndex: 0,
   filteredFacets: [],
-  savedQueries: null,  // Cached saved queries from index.html
-  savedQueriesLoading: false
+  savedQueries: null, // Cached saved queries from index.html
+  savedQueriesLoading: false,
 };
 
 // Extract just the title text from an h3, ignoring child elements like badges
@@ -101,8 +101,8 @@ function getFacetValues(card) {
 // Get all facets with their searchable text
 function getAllFacets() {
   const cards = [...document.querySelectorAll('.breakdown-card')];
-  return cards.map(card => {
-    const id = card.id;
+  return cards.map((card) => {
+    const { id } = card;
     const h3 = card.querySelector('h3');
     const title = extractTitleText(h3);
     const dataAlias = card.dataset.alias || '';
@@ -117,7 +117,7 @@ function getAllFacets() {
       title.toLowerCase(),
       id.replace('breakdown-', '').replace(/-/g, ' ').toLowerCase(),
       dataAlias.toLowerCase(),
-      ...aliases.map(a => a.toLowerCase())
+      ...aliases.map((a) => a.toLowerCase()),
     ].filter(Boolean);
 
     // Value terms - lower priority, only used for searching
@@ -129,7 +129,7 @@ function getAllFacets() {
       primaryTerms,
       valueTerms,
       isHidden,
-      element: card
+      element: card,
     };
   });
 }
@@ -152,14 +152,14 @@ function fuzzyMatch(query, target) {
   // Check if target contains query as substring (word match)
   const substringIdx = target.indexOf(query);
   if (substringIdx !== -1) {
-    const positions = [...Array(query.length).keys()].map(i => i + substringIdx);
+    const positions = [...Array(query.length).keys()].map((i) => i + substringIdx);
     // Higher score if it's at a word boundary
     const atWordStart = substringIdx === 0 || /[\s\-_.]/.test(target[substringIdx - 1]);
     return { score: 300 + (atWordStart ? 100 : 0) + query.length * 5, positions };
   }
 
   let queryIdx = 0;
-  let matchPositions = [];
+  const matchPositions = [];
 
   for (let i = 0; i < target.length && queryIdx < query.length; i++) {
     if (target[i] === query[queryIdx]) {
@@ -241,11 +241,7 @@ async function loadSavedQueries() {
             description,
             section: sectionTitle,
             href,
-            searchTerms: [
-              title.toLowerCase(),
-              description.toLowerCase(),
-              sectionTitle.toLowerCase()
-            ].filter(Boolean)
+            searchTerms: [title.toLowerCase(), description.toLowerCase(), sectionTitle.toLowerCase()].filter(Boolean),
           });
         }
       }
@@ -268,20 +264,20 @@ function filterFacets(query, savedQueries = []) {
 
   if (!query.trim()) {
     // No query: show all visible facets, then hidden ones, then saved queries
-    const visible = facets.filter(f => !f.isHidden);
-    const hidden = facets.filter(f => f.isHidden);
-    const facetResults = [...visible, ...hidden].map(f => ({
+    const visible = facets.filter((f) => !f.isHidden);
+    const hidden = facets.filter((f) => f.isHidden);
+    const facetResults = [...visible, ...hidden].map((f) => ({
       type: 'facet',
       facet: f,
       match: null,
-      matchedValue: null
+      matchedValue: null,
     }));
 
     // Add saved queries section
-    const queryResults = savedQueries.map(q => ({
+    const queryResults = savedQueries.map((q) => ({
       type: 'query',
       query: q,
-      match: null
+      match: null,
     }));
 
     return [...facetResults, ...queryResults];
@@ -328,7 +324,12 @@ function filterFacets(query, savedQueries = []) {
     }
 
     if (bestMatch) {
-      results.push({ type: 'facet', facet, match: bestMatch, matchedValue });
+      results.push({
+        type: 'facet',
+        facet,
+        match: bestMatch,
+        matchedValue,
+      });
     }
   }
 
@@ -375,46 +376,47 @@ function renderList(results) {
   const list = document.getElementById('facetPaletteList');
   if (!list) return;
 
-  list.innerHTML = results.map((r, i) => {
-    const isSelected = i === paletteState.selectedIndex;
+  list.innerHTML = results
+    .map((r, i) => {
+      const isSelected = i === paletteState.selectedIndex;
 
-    if (r.type === 'facet') {
-      const { facet, matchedValue } = r;
-      const hiddenBadge = facet.isHidden ? '<span class="palette-hidden-badge">hidden</span>' : '';
+      if (r.type === 'facet') {
+        const { facet, matchedValue } = r;
+        const hiddenBadge = facet.isHidden ? '<span class="palette-hidden-badge">hidden</span>' : '';
 
-      // When matched by value, show value as main text with facet as badge
-      // When matched by facet name, show facet as main text
-      const mainText = matchedValue ? escapeHtml(matchedValue) : facet.title;
-      const facetBadge = matchedValue ? `<span class="palette-facet-badge">${facet.title}</span>` : '';
+        // When matched by value, show value as main text with facet as badge
+        // When matched by facet name, show facet as main text
+        const mainText = matchedValue ? escapeHtml(matchedValue) : facet.title;
+        const facetBadge = matchedValue ? `<span class="palette-facet-badge">${facet.title}</span>` : '';
 
-      // Get color for value matches
-      let colorStyle = '';
-      if (matchedValue) {
-        const col = FACET_COLUMNS[facet.id];
-        if (col) {
-          const color = getColorForColumn(col, matchedValue);
-          if (color) {
-            colorStyle = `style="border-left: 3px solid ${color};"`;
+        // Get color for value matches
+        let colorStyle = '';
+        if (matchedValue) {
+          const col = FACET_COLUMNS[facet.id];
+          if (col) {
+            const color = getColorForColumn(col, matchedValue);
+            if (color) {
+              colorStyle = `style="border-left: 3px solid ${color};"`;
+            }
           }
         }
-      }
 
-      return `
+        return `
         <div class="palette-item${isSelected ? ' selected' : ''}${matchedValue ? ' value-match' : ''}" ${colorStyle} data-index="${i}" data-type="facet" data-facet-id="${facet.id}">
           <span class="palette-item-title">${mainText}</span>
           ${facetBadge}
           ${hiddenBadge}
         </div>
       `;
-    } else if (r.type === 'query') {
-      const { query } = r;
-      // Shorten section name by removing common prefixes
-      const shortSection = query.section
-        .replace(/^Legacy Views\s*/i, '')
-        .replace(/\(Migration from Coralogix\)/gi, '')
-        .replace(/^\s*[-–—]\s*/, '')
-        .trim();
-      return `
+      } else if (r.type === 'query') {
+        const { query } = r;
+        // Shorten section name by removing common prefixes
+        const shortSection = query.section
+          .replace(/^Legacy Views\s*/i, '')
+          .replace(/\(Migration from Coralogix\)/gi, '')
+          .replace(/^\s*[-–—]\s*/, '')
+          .trim();
+        return `
         <div class="palette-item palette-query${isSelected ? ' selected' : ''}" data-index="${i}" data-type="query" data-href="${escapeHtml(query.href)}">
           <div class="palette-query-content">
             <span class="palette-item-title">${escapeHtml(query.title)}</span>
@@ -423,9 +425,10 @@ function renderList(results) {
           <span class="palette-query-badge">${escapeHtml(shortSection)}</span>
         </div>
       `;
-    }
-    return '';
-  }).join('');
+      }
+      return '';
+    })
+    .join('');
 
   paletteState.filteredFacets = results;
 
@@ -539,6 +542,9 @@ function handleKeyDown(e) {
     case 'Escape':
       e.preventDefault();
       closeFacetPalette();
+      break;
+    default:
+      // No action for other keys
       break;
   }
 }

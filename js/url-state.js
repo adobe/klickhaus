@@ -1,6 +1,12 @@
 // URL state management
 import { state, loadFacetPrefs } from './state.js';
-import { queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange } from './time.js';
+import {
+  queryTimestamp,
+  setQueryTimestamp,
+  customTimeRange,
+  setCustomTimeRange,
+  clearCustomTimeRange,
+} from './time.js';
 import { renderActiveFilters } from './filters.js';
 import { invalidateInvestigationCache } from './anomaly-investigation.js';
 import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS } from './constants.js';
@@ -74,9 +80,7 @@ export function saveStateToURL(newAnomalyId = undefined) {
   // Note: pinned columns are NOT auto-saved to URL
   // They can be manually added as ?pinned=col1,col2 for temporary override
 
-  const newURL = params.toString()
-    ? `${window.location.pathname}?${params}`
-    : window.location.pathname;
+  const newURL = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
 
   // Only create history entry if URL actually changed
   if (newURL !== lastSavedURL) {
@@ -119,11 +123,11 @@ export function loadStateFromURL() {
 
   if (params.has('ts')) {
     const ts = new Date(params.get('ts'));
-    if (!isNaN(ts.getTime())) {
+    if (!Number.isNaN(ts.getTime())) {
       // Check if this is a custom time range (has both ts and te)
       if (params.has('te')) {
         const te = new Date(params.get('te'));
-        if (!isNaN(te.getTime())) {
+        if (!Number.isNaN(te.getTime())) {
           setCustomTimeRange(ts, te);
         }
       } else {
@@ -138,8 +142,9 @@ export function loadStateFromURL() {
       const filters = JSON.parse(params.get('filters'));
       if (Array.isArray(filters)) {
         // Preserve filterCol and filterValue if present (for ASN integer filtering)
-        state.filters = filters.filter(f => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
-          .map(f => {
+        state.filters = filters
+          .filter((f) => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
+          .map((f) => {
             const filter = { col: f.col, value: f.value, exclude: f.exclude };
             if (f.filterCol) filter.filterCol = f.filterCol;
             if (f.filterValue !== undefined) filter.filterValue = f.filterValue;
@@ -152,7 +157,10 @@ export function loadStateFromURL() {
   }
 
   if (params.has('pinned')) {
-    const pinned = params.get('pinned').split(',').filter(c => c);
+    const pinned = params
+      .get('pinned')
+      .split(',')
+      .filter((c) => c);
     if (pinned.length > 0) {
       // Override state temporarily without persisting to localStorage
       state.pinnedColumns = pinned;
@@ -161,7 +169,10 @@ export function loadStateFromURL() {
 
   // Hide UI controls (comma-separated: timeRange,topN,host,refresh,logout,logs)
   if (params.has('hide')) {
-    state.hiddenControls = params.get('hide').split(',').filter(c => c);
+    state.hiddenControls = params
+      .get('hide')
+      .split(',')
+      .filter((c) => c);
   }
 
   // Custom title from URL
@@ -182,10 +193,16 @@ export function loadStateFromURL() {
 
   // Override with URL params if present
   if (params.has('pf')) {
-    state.pinnedFacets = params.get('pf').split(',').filter(f => f);
+    state.pinnedFacets = params
+      .get('pf')
+      .split(',')
+      .filter((f) => f);
   }
   if (params.has('hf')) {
-    state.hiddenFacets = params.get('hf').split(',').filter(f => f);
+    state.hiddenFacets = params
+      .get('hf')
+      .split(',')
+      .filter((f) => f);
   }
 }
 
@@ -204,7 +221,7 @@ export function syncUIFromState() {
   const titleEl = document.getElementById('dashboardTitle');
   if (state.title) {
     titleEl.textContent = state.title;
-    document.title = state.title + ' - CDN Analytics';
+    document.title = `${state.title} - CDN Analytics`;
   } else {
     titleEl.textContent = 'CDN Analytics';
     document.title = 'CDN Analytics';

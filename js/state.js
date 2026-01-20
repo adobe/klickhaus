@@ -1,31 +1,32 @@
 // Application state management
 import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N } from './constants.js';
 
-const storage = (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function')
-  ? localStorage
-  : {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {}
-  };
+const storage =
+  typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function'
+    ? localStorage
+    : {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      };
 
 export const state = {
   credentials: null,
   timeRange: DEFAULT_TIME_RANGE,
   hostFilter: '',
   topN: DEFAULT_TOP_N,
-  filters: [],    // [{col: '`request.url`', value: '/foo', exclude: false}]
+  filters: [], // [{col: '`request.url`', value: '/foo', exclude: false}]
   logsData: null,
   logsLoading: false,
   logsReady: false,
   showLogs: false,
   pinnedColumns: JSON.parse(storage.getItem('pinnedColumns') || '[]'),
-  hiddenControls: [],  // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
-  title: '',  // Custom title from URL
-  chartData: null,  // Store chart data for redrawing when view changes
-  contentTypeMode: 'count',  // 'count' or 'bytes' for content-types facet
-  pinnedFacets: [],   // Facet IDs pinned to top
-  hiddenFacets: [],   // Facet IDs hidden at bottom
+  hiddenControls: [], // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
+  title: '', // Custom title from URL
+  chartData: null, // Store chart data for redrawing when view changes
+  contentTypeMode: 'count', // 'count' or 'bytes' for content-types facet
+  pinnedFacets: [], // Facet IDs pinned to top
+  hiddenFacets: [], // Facet IDs hidden at bottom
 };
 
 // Callback for re-rendering logs table when pinned columns change
@@ -70,10 +71,13 @@ export function loadFacetPrefs() {
 // Save facet preferences to localStorage
 function saveFacetPrefs() {
   const key = getFacetPrefsKey();
-  storage.setItem(key, JSON.stringify({
-    pinned: state.pinnedFacets,
-    hidden: state.hiddenFacets
-  }));
+  storage.setItem(
+    key,
+    JSON.stringify({
+      pinned: state.pinnedFacets,
+      hidden: state.hiddenFacets,
+    }),
+  );
 }
 
 // Callback for facet order changes

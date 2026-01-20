@@ -32,16 +32,16 @@ const FASTLY_SERVICE_ACCOUNT_FULL = `${FASTLY_SERVICE_ACCOUNT}@${PROJECT}.iam.gs
 const IAM_BINDINGS = [
   {
     member: `serviceAccount:${FASTLY_SERVICE_ACCOUNT_FULL}`,
-    role: 'roles/storage.objectCreator'
+    role: 'roles/storage.objectCreator',
   },
   {
     member: `serviceAccount:clickhouse-log-ingestion@${PROJECT}.iam.gserviceaccount.com`,
-    role: 'roles/storage.legacyBucketReader'  // "Storage Bucket Viewer (Beta)"
+    role: 'roles/storage.legacyBucketReader', // "Storage Bucket Viewer (Beta)"
   },
   {
     member: `serviceAccount:clickhouse-log-ingestion@${PROJECT}.iam.gserviceaccount.com`,
-    role: 'roles/storage.objectViewer'
-  }
+    role: 'roles/storage.objectViewer',
+  },
 ];
 
 function run(cmd, options = {}) {
@@ -57,7 +57,7 @@ function run(cmd, options = {}) {
 }
 
 async function main() {
-  const [,, serviceId] = process.argv;
+  const [, , serviceId] = process.argv;
 
   if (!serviceId) {
     console.error('Usage: node create-bucket.mjs <fastly-service-id>');
@@ -89,9 +89,9 @@ async function main() {
     rule: [
       {
         action: { type: 'Delete' },
-        condition: { age: LIFECYCLE_DELETE_DAYS }
-      }
-    ]
+        condition: { age: LIFECYCLE_DELETE_DAYS },
+      },
+    ],
   };
   const lifecycleJson = JSON.stringify(lifecycleConfig);
   // Write to temp file since gcloud needs a file
@@ -120,7 +120,9 @@ async function main() {
   // 6. Verify configuration
   console.log('\n=== Bucket created successfully ===\n');
   console.log('Configuration:');
-  run(`gcloud storage buckets describe ${bucketUrl} --format="table(name,location,public_access_prevention,soft_delete_policy.retentionDurationSeconds)"`);
+  run(
+    `gcloud storage buckets describe ${bucketUrl} --format="table(name,location,public_access_prevention,soft_delete_policy.retentionDurationSeconds)"`,
+  );
 
   console.log('\nIAM Policy:');
   run(`gcloud storage buckets get-iam-policy ${bucketUrl} --format="table(bindings.role,bindings.members)"`);
@@ -255,7 +257,7 @@ log {"syslog "} req.service_id {" GCS-Clickhouse :: { "}
 
   console.log(vclSnippet);
 
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${'='.repeat(60)}`);
   console.log('CLICKHOUSE CLICKPIPES SETUP');
   console.log('='.repeat(60));
 
@@ -283,7 +285,7 @@ log {"syslog "} req.service_id {" GCS-Clickhouse :: { "}
   console.log(`✓ Bucket ${bucketName} is ready for Fastly service ${serviceId}`);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('\nFailed to create bucket:', err.message);
   process.exit(1);
 });

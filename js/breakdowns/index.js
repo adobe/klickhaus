@@ -4,7 +4,7 @@ import { state } from '../state.js';
 import { query } from '../api.js';
 import { getTimeFilter, getHostFilter, getTable } from '../time.js';
 import { allBreakdowns } from './definitions.js';
-import { renderBreakdownTable, renderBreakdownError } from './render.js';
+import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
 
 // Track elapsed time per facet id for slowest detection
@@ -19,13 +19,13 @@ export function getFacetFilters() {
 }
 
 export function getFacetFiltersExcluding(col) {
-  return compileFilters(state.filters.filter(f => f.col !== col)).sql;
+  return compileFilters(state.filters.filter((f) => f.col !== col)).sql;
 }
 
 export async function loadAllBreakdowns() {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  await Promise.all(allBreakdowns.map(b => loadBreakdown(b, timeFilter, hostFilter)));
+  await Promise.all(allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter)));
 }
 
 export async function loadBreakdown(b, timeFilter, hostFilter) {
@@ -102,28 +102,51 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   try {
     const result = await query(sql);
     // Prefer actual network time from Resource Timing API, fallback to wall clock
-    const elapsed = result._networkTime ?? (performance.now() - startTime);
+    const elapsed = result._networkTime ?? performance.now() - startTime;
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
     // Calculate summary ratio from totals if summaryCountIf is defined
-    const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
-      ? parseInt(result.totals.summary_cnt) / parseInt(result.totals.cnt)
-      : null;
+    const summaryRatio =
+      b.summaryCountIf && result.totals && result.totals.cnt > 0
+        ? parseInt(result.totals.summary_cnt) / parseInt(result.totals.cnt)
+        : null;
 
     // Fill in missing buckets for continuous range facets (e.g., content-length, time-elapsed)
-    let data = result.data;
+    let { data } = result;
     if (b.getExpectedLabels) {
       const expectedLabels = b.getExpectedLabels(state.topN);
-      const existingByLabel = new Map(data.map(row => [row.dim, row]));
-      data = expectedLabels.map(label => {
+      const existingByLabel = new Map(data.map((row) => [row.dim, row]));
+      data = expectedLabels.map((label) => {
         if (existingByLabel.has(label)) {
           return existingByLabel.get(label);
         }
         // Create empty bucket row
-        return { dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0 };
+        return {
+          dim: label,
+          cnt: 0,
+          cnt_ok: 0,
+          cnt_4xx: 0,
+          cnt_5xx: 0,
+        };
       });
     }
 
-    renderBreakdownTable(b.id, data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor, b.modeToggle, !!b.getExpectedLabels);
+    renderBreakdownTable(
+      b.id,
+      data,
+      result.totals,
+      col,
+      b.linkPrefix,
+      b.linkSuffix,
+      b.linkFn,
+      elapsed,
+      b.dimPrefixes,
+      b.dimFormatFn,
+      summaryRatio,
+      b.summaryLabel,
+      b.summaryColor,
+      b.modeToggle,
+      !!b.getExpectedLabels,
+    );
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);
@@ -135,7 +158,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 // Mark the slowest facet with a glow
 export function markSlowestFacet() {
   // Remove existing slowest markers
-  document.querySelectorAll('.speed-indicator.slowest').forEach(el => {
+  document.querySelectorAll('.speed-indicator.slowest').forEach((el) => {
     el.classList.remove('slowest');
   });
 

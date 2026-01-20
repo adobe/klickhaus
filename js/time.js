@@ -24,7 +24,7 @@ export function setCustomTimeRange(start, end) {
     const midpoint = (roundedStart.getTime() + roundedEnd.getTime()) / 2;
     customTimeRange = {
       start: new Date(midpoint - minDuration / 2),
-      end: new Date(midpoint + minDuration / 2)
+      end: new Date(midpoint + minDuration / 2),
     };
   } else {
     customTimeRange = { start: roundedStart, end: roundedEnd };
@@ -137,10 +137,10 @@ export function zoomOut() {
 
   // Determine current duration and next larger period
   const currentDurationMs = getPeriodMs();
-  const periods = TIME_RANGE_ORDER.map(key => ({ key, ms: TIME_RANGES[key].periodMs }));
+  const periods = TIME_RANGE_ORDER.map((key) => ({ key, ms: TIME_RANGES[key].periodMs }));
 
   // Find next larger period
-  let nextPeriod = periods.find(p => p.ms > currentDurationMs);
+  const nextPeriod = periods.find((p) => p.ms > currentDurationMs);
   if (!nextPeriod) {
     // Already at 7d, can't zoom out further
     return null;

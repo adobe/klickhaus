@@ -272,7 +272,15 @@ html {
 }
 
 body {
-  font-family: 'Adobe Clean', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-family:
+    'Adobe Clean',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
@@ -318,12 +326,14 @@ body {
   padding: 20px;
 }
 
-#login.hidden { display: none; }
+#login.hidden {
+  display: none;
+}
 
 .login-card {
   background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   padding: 40px;
   width: 100%;
   max-width: 400px;
@@ -410,7 +420,9 @@ body {
   display: none;
 }
 
-.error-message.visible { display: block; }
+.error-message.visible {
+  display: block;
+}
 
 /* Dashboard */
 #dashboard {
@@ -418,7 +430,9 @@ body {
   min-height: 100vh;
 }
 
-#dashboard.visible { display: block; }
+#dashboard.visible {
+  display: block;
+}
 
 /* Header */
 header {
@@ -518,11 +532,27 @@ header h1 {
     align-items: center;
   }
 
-  #menuBtn { order: 1; }
-  #hostFilter { order: 2; flex: 1; min-width: 0; width: auto; }
-  #logsBtn { order: 3; }
-  #timeRange { order: 4; flex: 1; min-width: 0; width: auto; }
-  #logoutBtn { order: 5; }
+  #menuBtn {
+    order: 1;
+  }
+  #hostFilter {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+  #logsBtn {
+    order: 3;
+  }
+  #timeRange {
+    order: 4;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+  #logoutBtn {
+    order: 5;
+  }
 
   /* Hide these on mobile */
   #topN,
@@ -583,7 +613,7 @@ header h1 {
 .query-timer {
   font-size: 12px;
   font-weight: normal;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   color: var(--text-secondary);
   margin-left: 8px;
 }
@@ -601,7 +631,7 @@ header h1 {
 }
 
 header select,
-header input[type="text"] {
+header input[type='text'] {
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -610,7 +640,7 @@ header input[type="text"] {
   color: var(--text);
 }
 
-header input[type="text"] {
+header input[type='text'] {
   width: 250px;
 }
 
@@ -855,7 +885,9 @@ main {
   border-right: 2px solid rgba(59, 130, 246, 0.8);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.1s ease, background 0.15s ease;
+  transition:
+    opacity 0.1s ease,
+    background 0.15s ease;
   z-index: 5;
 }
 
@@ -921,7 +953,9 @@ main {
   border-radius: 12px;
   padding: 16px;
   border: 1px solid var(--border);
-  transition: filter 0.2s ease-out, opacity 0.2s ease;
+  transition:
+    filter 0.2s ease-out,
+    opacity 0.2s ease;
   position: relative;
 }
 
@@ -1110,11 +1144,11 @@ main {
 }
 
 /* Clickable speed indicator */
-.speed-indicator[role="button"] {
+.speed-indicator[role='button'] {
   cursor: pointer;
 }
 
-.speed-indicator[role="button"]:hover {
+.speed-indicator[role='button']:hover {
   transform: scale(1.3);
 }
 
@@ -1223,7 +1257,6 @@ main {
   background: var(--status-ok);
   color: white;
 }
-
 
 /* Also glow speed indicator if facet has investigation highlights */
 .breakdown-card:has(.investigation-highlight) .speed-indicator {
@@ -1550,7 +1583,9 @@ main {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Empty State */
@@ -1897,12 +1932,16 @@ body.keyboard-mode .kbd-control > kbd.kbd-hint {
 
 /* Focused facet card gets a blue glow */
 body.keyboard-mode .breakdown-card.kbd-focused {
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3), 0 0 16px rgba(59, 130, 246, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.3),
+    0 0 16px rgba(59, 130, 246, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
   body.keyboard-mode .breakdown-card.kbd-focused {
-    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.4), 0 0 20px rgba(96, 165, 250, 0.25);
+    box-shadow:
+      0 0 0 1px rgba(96, 165, 250, 0.4),
+      0 0 20px rgba(96, 165, 250, 0.25);
   }
 }
 
@@ -2201,8 +2240,12 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 
 /* Jump highlight animation */
 @keyframes palette-jump-flash {
-  0% { box-shadow: 0 0 0 4px var(--primary); }
-  100% { box-shadow: none; }
+  0% {
+    box-shadow: 0 0 0 4px var(--primary);
+  }
+  100% {
+    box-shadow: none;
+  }
 }
 
 .breakdown-card.palette-jump-highlight {
@@ -2247,13 +2290,13 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 /* Investigation highlight for anomaly root cause dimensions */
 .breakdown-table tr.investigation-highlight td.dim {
   /* Subtle text glow - semi-transparent for light mode */
-  text-shadow: 0 0 6px rgba(100, 100, 100, .6);
+  text-shadow: 0 0 6px rgba(100, 100, 100, 0.6);
 }
 
 .breakdown-table tr.investigation-highlight.synthetic-row td.dim {
   /* Override cell opacity so text glow is visible */
   opacity: 1;
-  text-shadow: 0 0 6px rgba(100, 100, 100, .6);
+  text-shadow: 0 0 6px rgba(100, 100, 100, 0.6);
 }
 
 .breakdown-table tr.investigation-highlight.synthetic-row .dim .dim-prefix {
@@ -2268,13 +2311,23 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 
 /* Pulse animation for the highlight to draw attention */
 @keyframes investigation-pulse {
-  0%, 100% { box-shadow: 0 0 6px 2px currentColor; }
-  50% { box-shadow: 0 0 10px 4px currentColor; }
+  0%,
+  100% {
+    box-shadow: 0 0 6px 2px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 10px 4px currentColor;
+  }
 }
 
 @keyframes investigation-text-pulse {
-  0%, 100% { text-shadow: 0 0 6px rgba(100, 100, 100, .6); }
-  50% { text-shadow: 0 0 10px rgba(100, 100, 100, .8); }
+  0%,
+  100% {
+    text-shadow: 0 0 6px rgba(100, 100, 100, 0.6);
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(100, 100, 100, 0.8);
+  }
 }
 
 .breakdown-table tr.investigation-highlight .status-color {
@@ -2295,8 +2348,13 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
   }
 
   @keyframes investigation-text-pulse-dark {
-    0%, 100% { text-shadow: 0 0 4px currentColor; }
-    50% { text-shadow: 0 0 8px currentColor; }
+    0%,
+    100% {
+      text-shadow: 0 0 4px currentColor;
+    }
+    50% {
+      text-shadow: 0 0 8px currentColor;
+    }
   }
 }
 

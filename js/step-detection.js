@@ -35,7 +35,7 @@ function median(arr) {
 function stdDev(arr) {
   if (arr.length <= 1) return 0;
   const mean = arr.reduce((sum, v) => sum + v, 0) / arr.length;
-  const squareDiffs = arr.map(v => (v - mean) ** 2);
+  const squareDiffs = arr.map((v) => (v - mean) ** 2);
   const avgSquareDiff = squareDiffs.reduce((sum, v) => sum + v, 0) / arr.length;
   return Math.sqrt(avgSquareDiff);
 }
@@ -79,7 +79,7 @@ function findAnomalyRegions(deviations, threshold, direction, startMargin, endMa
         duration: i - regionStart,
         totalDeviation,
         peakDeviation,
-        avgDeviation: totalDeviation / (i - regionStart)
+        avgDeviation: totalDeviation / (i - regionStart),
       });
       inRegion = false;
     }
@@ -94,7 +94,7 @@ function findAnomalyRegions(deviations, threshold, direction, startMargin, endMa
       duration: end - regionStart + 1,
       totalDeviation,
       peakDeviation,
-      avgDeviation: totalDeviation / (end - regionStart + 1)
+      avgDeviation: totalDeviation / (end - regionStart + 1),
     });
   }
 
@@ -121,9 +121,7 @@ export function detectStep(series) {
 
   // Calculate separate scores for errors and success
   // Errors: weighted sum (5xx is worse than 4xx)
-  const errorScores = series.ok.map((_, i) =>
-    series.client[i] * 2 + series.server[i] * 5
-  );
+  const errorScores = series.ok.map((_, i) => series.client[i] * 2 + series.server[i] * 5);
   // Success: just the ok count
   const successScores = series.ok.slice();
 
@@ -134,11 +132,9 @@ export function detectStep(series) {
   const successBaseline = median(validSuccessScores);
 
   // Calculate deviations from baseline (as percentage)
-  const errorDeviations = errorScores.map(v =>
-    errorBaseline > 0 ? (v - errorBaseline) / errorBaseline : 0
-  );
-  const successDeviations = successScores.map(v =>
-    successBaseline > 0 ? (v - successBaseline) / successBaseline : 0
+  const errorDeviations = errorScores.map((v) => (errorBaseline > 0 ? (v - errorBaseline) / errorBaseline : 0));
+  const successDeviations = successScores.map((v) =>
+    successBaseline > 0 ? (v - successBaseline) / successBaseline : 0,
   );
 
   // Calculate standard deviations for adaptive thresholds
@@ -163,9 +159,9 @@ export function detectStep(series) {
 
   // Importance weights for different anomaly types
   const weights = {
-    errorSpike: 10,    // Error spikes are critical
-    successDrop: 10,   // Traffic loss is critical
-    successSpike: 1    // Traffic spikes are notable but not urgent
+    errorSpike: 10, // Error spikes are critical
+    successDrop: 10, // Traffic loss is critical
+    successSpike: 1, // Traffic spikes are notable but not urgent
   };
 
   // Score each region: peak deviation × sqrt(duration) × category weight
@@ -177,7 +173,7 @@ export function detectStep(series) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.errorSpike,
       category: 'error',
-      type: 'spike'
+      type: 'spike',
     });
   }
 
@@ -186,7 +182,7 @@ export function detectStep(series) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.successDrop,
       category: 'success',
-      type: 'dip'
+      type: 'dip',
     });
   }
 
@@ -195,7 +191,7 @@ export function detectStep(series) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.successSpike,
       category: 'success',
-      type: 'spike'
+      type: 'spike',
     });
   }
 
@@ -204,8 +200,7 @@ export function detectStep(series) {
   }
 
   // Pick the highest scored anomaly
-  const winner = candidates.reduce((best, c) =>
-    (!best || c.score > best.score) ? c : best, null);
+  const winner = candidates.reduce((best, c) => (!best || c.score > best.score ? c : best), null);
 
   return {
     startIndex: winner.start,
@@ -213,7 +208,7 @@ export function detectStep(series) {
     type: winner.type,
     magnitude: winner.peakDeviation,
     category: winner.category,
-    duration: winner.duration
+    duration: winner.duration,
   };
 }
 
@@ -253,15 +248,9 @@ export function detectSteps(series, maxCount = 5) {
   const redBaseline = median(redScores.slice(startMargin, len - endMargin));
 
   // Calculate deviations from baseline (as ratio)
-  const greenDeviations = greenScores.map(v =>
-    greenBaseline > 0 ? (v - greenBaseline) / greenBaseline : 0
-  );
-  const yellowDeviations = yellowScores.map(v =>
-    yellowBaseline > 0 ? (v - yellowBaseline) / yellowBaseline : 0
-  );
-  const redDeviations = redScores.map(v =>
-    redBaseline > 0 ? (v - redBaseline) / redBaseline : 0
-  );
+  const greenDeviations = greenScores.map((v) => (greenBaseline > 0 ? (v - greenBaseline) / greenBaseline : 0));
+  const yellowDeviations = yellowScores.map((v) => (yellowBaseline > 0 ? (v - yellowBaseline) / yellowBaseline : 0));
+  const redDeviations = redScores.map((v) => (redBaseline > 0 ? (v - redBaseline) / redBaseline : 0));
 
   // Calculate standard deviations for adaptive thresholds
   const validGreenDeviations = greenDeviations.slice(startMargin, len - endMargin);
@@ -293,7 +282,7 @@ export function detectSteps(series, maxCount = 5) {
     greenDrop: 2,
     yellowDrop: 1,
     redDrop: 1,
-    greenSpike: 2
+    greenSpike: 2,
   };
 
   // Score each region: peak deviation × sqrt(duration) × category weight
@@ -304,7 +293,7 @@ export function detectSteps(series, maxCount = 5) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.redSpike,
       category: 'red',
-      type: 'spike'
+      type: 'spike',
     });
   }
 
@@ -313,7 +302,7 @@ export function detectSteps(series, maxCount = 5) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.redDrop,
       category: 'red',
-      type: 'dip'
+      type: 'dip',
     });
   }
 
@@ -322,7 +311,7 @@ export function detectSteps(series, maxCount = 5) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.yellowSpike,
       category: 'yellow',
-      type: 'spike'
+      type: 'spike',
     });
   }
 
@@ -331,7 +320,7 @@ export function detectSteps(series, maxCount = 5) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.yellowDrop,
       category: 'yellow',
-      type: 'dip'
+      type: 'dip',
     });
   }
 
@@ -340,7 +329,7 @@ export function detectSteps(series, maxCount = 5) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.greenSpike,
       category: 'green',
-      type: 'spike'
+      type: 'spike',
     });
   }
 
@@ -349,7 +338,7 @@ export function detectSteps(series, maxCount = 5) {
       ...region,
       score: region.peakDeviation * Math.sqrt(region.duration) * weights.greenDrop,
       category: 'green',
-      type: 'dip'
+      type: 'dip',
     });
   }
 
@@ -368,9 +357,7 @@ export function detectSteps(series, maxCount = 5) {
     if (selected.length >= maxCount) break;
 
     // Check if this candidate overlaps or is too close to any already selected region
-    const overlaps = selected.some(s =>
-      !(candidate.end < s.start - minGap || candidate.start > s.end + minGap)
-    );
+    const overlaps = selected.some((s) => !(candidate.end < s.start - minGap || candidate.start > s.end + minGap));
 
     if (!overlaps) {
       selected.push(candidate);
@@ -386,6 +373,6 @@ export function detectSteps(series, maxCount = 5) {
     category: c.category,
     duration: c.duration,
     score: c.score,
-    rank: index + 1
+    rank: index + 1,
   }));
 }

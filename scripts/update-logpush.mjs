@@ -13,7 +13,7 @@ import {
   cfApi,
   getZoneId,
   buildJobConfig,
-  requireClickHousePassword
+  requireClickHousePassword,
 } from './logpush-config.mjs';
 
 requireClickHousePassword();
@@ -21,7 +21,7 @@ requireClickHousePassword();
 async function getClickHouseLogpushJob(token, zoneId) {
   const data = await cfApi(`/zones/${zoneId}/logpush/jobs`, token);
   const jobs = data.result || [];
-  return jobs.find(j => j.destination_conf?.includes('clickhouse.cloud'));
+  return jobs.find((j) => j.destination_conf?.includes('clickhouse.cloud'));
 }
 
 async function updateLogpushJob(token, zoneId, jobId, zoneName) {
@@ -34,7 +34,7 @@ async function updateLogpushJob(token, zoneId, jobId, zoneName) {
 }
 
 async function main() {
-  const [,, apiToken, specificZone] = process.argv;
+  const [, , apiToken, specificZone] = process.argv;
 
   if (!apiToken) {
     console.error('Usage: node update-logpush.mjs <cloudflare-api-token> [zone-id-or-name]');
@@ -67,7 +67,6 @@ async function main() {
       console.log('Updating...');
       const updated = await updateLogpushJob(apiToken, zoneId, job.id, zoneName);
       console.log(`Updated! New field count: ${updated.output_options?.field_names?.length || 0}`);
-
     } catch (err) {
       console.error(`Error: ${err.message}`);
     }

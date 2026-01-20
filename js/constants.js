@@ -23,7 +23,7 @@ export const TIME_RANGES = {
     interval: 'INTERVAL 15 MINUTE',
     bucket: 'toStartOfInterval(timestamp, INTERVAL 5 SECOND)',
     periodMs: 15 * 60 * 1000,
-    cacheTtl: 60
+    cacheTtl: 60,
   },
   '1h': {
     label: 'Last hour',
@@ -31,7 +31,7 @@ export const TIME_RANGES = {
     interval: 'INTERVAL 1 HOUR',
     bucket: 'toStartOfInterval(timestamp, INTERVAL 10 SECOND)',
     periodMs: 60 * 60 * 1000,
-    cacheTtl: 300
+    cacheTtl: 300,
   },
   '12h': {
     label: 'Last 12 hours',
@@ -39,7 +39,7 @@ export const TIME_RANGES = {
     interval: 'INTERVAL 12 HOUR',
     bucket: 'toStartOfMinute(timestamp)',
     periodMs: 12 * 60 * 60 * 1000,
-    cacheTtl: 600
+    cacheTtl: 600,
   },
   '24h': {
     label: 'Last 24 hours',
@@ -47,7 +47,7 @@ export const TIME_RANGES = {
     interval: 'INTERVAL 24 HOUR',
     bucket: 'toStartOfFiveMinutes(timestamp)',
     periodMs: 24 * 60 * 60 * 1000,
-    cacheTtl: 900
+    cacheTtl: 900,
   },
   '7d': {
     label: 'Last 7 days',
@@ -55,8 +55,8 @@ export const TIME_RANGES = {
     interval: 'INTERVAL 7 DAY',
     bucket: 'toStartOfTenMinutes(timestamp)',
     periodMs: 7 * 24 * 60 * 60 * 1000,
-    cacheTtl: 1800
-  }
+    cacheTtl: 1800,
+  },
 };
 
 /** @type {string} */
@@ -67,4 +67,3 @@ export const TOP_N_OPTIONS = [5, 10, 20, 50, 100];
 
 /** @type {number} */
 export const DEFAULT_TOP_N = 5;
-

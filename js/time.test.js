@@ -1,7 +1,14 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { state } from './state.js';
-import { setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange, getTimeFilter, getTimeBucket, getPeriodMs } from './time.js';
+import {
+  setQueryTimestamp,
+  setCustomTimeRange,
+  clearCustomTimeRange,
+  getTimeFilter,
+  getTimeBucket,
+  getPeriodMs,
+} from './time.js';
 
 beforeEach(() => {
   clearCustomTimeRange();
@@ -22,8 +29,8 @@ describe('time helpers', () => {
     setCustomTimeRange(start, end);
 
     const filter = getTimeFilter();
-    assert.ok(filter.includes("2026-01-20 11:59:30"));
-    assert.ok(filter.includes("2026-01-20 12:02:30"));
+    assert.ok(filter.includes('2026-01-20 11:59:30'));
+    assert.ok(filter.includes('2026-01-20 12:02:30'));
   });
 
   it('uses expected bucket for short custom range', () => {
