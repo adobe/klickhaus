@@ -3,7 +3,7 @@ import { state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnF
 import { setForceRefresh } from './api.js';
 import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from './auth.js';
 import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored } from './url-state.js';
-import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange } from './time.js';
+import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter } from './time.js';
 import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
 import { loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData } from './chart.js';
 import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
@@ -13,10 +13,12 @@ import { loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView } from 
 import { renderChart } from './chart.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
-import { getTimeFilter, getHostFilter } from './time.js';
 import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
 import { investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation } from './anomaly-investigation.js';
+import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
+import { initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition } from './ui/mobile.js';
+import { initActionHandlers } from './ui/actions.js';
 
 // DOM Elements
 const elements = {
@@ -219,6 +221,10 @@ async function init() {
   // Load state from URL first
   loadStateFromURL();
 
+  // Populate select options from constants
+  populateTimeRangeSelect(elements.timeRangeSelect);
+  populateTopNSelect(elements.topNSelect);
+
   // Initialize facet observers
   initFacetObservers();
 
@@ -226,12 +232,27 @@ async function init() {
   initModal();
 
   // Initialize keyboard navigation and scroll tracking
-  initKeyboardNavigation();
+  initKeyboardNavigation({ toggleFacetMode, reloadDashboard: loadDashboard });
   initFacetPalette();
   initScrollTracking();
 
   // Set up chart navigation
   setupChartNavigation(() => loadDashboard());
+
+  // Set up delegated action handlers (replaces inline onclick)
+  initActionHandlers({
+    togglePinnedColumn,
+    addFilter,
+    removeFilter,
+    removeFilterByValue,
+    clearFiltersForColumn,
+    increaseTopN,
+    toggleFacetPin: togglePinnedFacet,
+    toggleFacetHide: toggleHiddenFacet,
+    toggleFacetMode,
+    closeQuickLinksModal,
+    closeDialog: (el) => el.closest('dialog')?.close()
+  });
 
   // Check for stored credentials - show dashboard immediately if they exist
   const stored = localStorage.getItem('clickhouse_credentials');
@@ -327,195 +348,21 @@ async function init() {
   });
 }
 
-// Expose functions needed by onclick handlers in HTML
-window.removeFilter = removeFilter;
-window.addFilter = addFilter;
-window.removeFilterByValue = removeFilterByValue;
-window.clearFiltersForColumn = clearFiltersForColumn;
-window.togglePinnedColumn = togglePinnedColumn;
-window.increaseTopN = increaseTopN;
-window.closeQuickLinksModal = closeQuickLinksModal;
-window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
-window.toggleFacetMode = toggleFacetMode;
-window.loadDashboard = loadDashboard;
-window.toggleFacetPin = togglePinnedFacet;
-window.toggleFacetHide = toggleHiddenFacet;
-
 // Load host autocomplete when dashboard is shown
 window.addEventListener('dashboard-shown', () => {
   setTimeout(loadHostAutocomplete, 100);
 });
 
-// Double-tap to clear host filter on mobile
-function initHostFilterDoubleTap() {
-  if (!('ontouchstart' in window)) return;
-
-  const hostFilter = document.getElementById('hostFilter');
-  let lastTap = 0;
-
-  hostFilter.addEventListener('touchend', (e) => {
-    const now = Date.now();
-    if (now - lastTap < 300 && now - lastTap > 0) {
-      hostFilter.value = '';
-      hostFilter.dispatchEvent(new Event('input'));
-      lastTap = 0;
-    } else {
-      lastTap = now;
-    }
-  });
-}
-
-// Mobile touch support for breakdown rows
-function initMobileTouchSupport() {
-  // Only on touch devices
-  if (!('ontouchstart' in window)) return;
-
-  document.addEventListener('click', (e) => {
-    const row = e.target.closest('.breakdown-table tr:not(.other-row)');
-    const isActionBtn = e.target.closest('.mobile-action-btn');
-
-    // If clicking an action button, clear touch-active after action fires
-    if (isActionBtn) {
-      setTimeout(() => {
-        document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
-          r.classList.remove('touch-active');
-        });
-      }, 100);
-      return;
-    }
-
-    // If clicking a row, toggle touch-active on it
-    if (row) {
-      const wasActive = row.classList.contains('touch-active');
-      // Clear all other touch-active states
-      document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
-        r.classList.remove('touch-active');
-      });
-      // Toggle on clicked row
-      if (!wasActive) {
-        row.classList.add('touch-active');
-      }
-      return;
-    }
-
-    // Clicking outside - clear all touch-active
-    document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
-      r.classList.remove('touch-active');
-    });
-  });
-}
-
-// Pull to refresh
-function initPullToRefresh() {
-  if (!('ontouchstart' in window)) return;
-
-  // Create indicator element - insert before breakdowns
-  const indicator = document.createElement('div');
-  indicator.className = 'pull-to-refresh';
-  indicator.innerHTML = '<span class="pull-arrow">↻</span><span class="pull-text">Pull to refresh</span>';
-  const breakdowns = document.querySelector('.breakdowns');
-  if (breakdowns) {
-    breakdowns.parentNode.insertBefore(indicator, breakdowns);
-  }
-
-  let touchStartY = 0;
-  let isPulling = false;
-  const threshold = 80;
-
-  document.addEventListener('touchstart', (e) => {
-    if (window.scrollY === 0) {
-      touchStartY = e.touches[0].clientY;
-      isPulling = true;
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!isPulling) return;
-    const touchY = e.touches[0].clientY;
-    const pullDistance = touchY - touchStartY;
-
-    if (pullDistance > 0 && window.scrollY === 0) {
-      indicator.classList.add('visible');
-      indicator.querySelector('.pull-text').textContent =
-        pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
-    } else {
-      indicator.classList.remove('visible');
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-    if (!isPulling) return;
-    const touchEndY = e.changedTouches[0].clientY;
-    const pullDistance = touchEndY - touchStartY;
-
-    if (pullDistance > threshold && window.scrollY === 0) {
-      indicator.classList.add('refreshing');
-      indicator.querySelector('.pull-text').textContent = 'Refreshing...';
-      loadDashboard(true).then(() => {
-        indicator.classList.remove('visible', 'refreshing');
-      });
-    } else {
-      indicator.classList.remove('visible');
-    }
-
-    isPulling = false;
-    touchStartY = 0;
-  }, { passive: true });
-}
-
-// Move active filters to chart area on mobile
-function initMobileFiltersPosition() {
-  const activeFilters = document.getElementById('activeFilters');
-  const chartSection = document.querySelector('.chart-section');
-  const headerLeft = document.querySelector('.header-left');
-
-  function updatePosition() {
-    const isMobile = window.innerWidth < 600;
-    if (isMobile && activeFilters.parentElement !== chartSection) {
-      chartSection.appendChild(activeFilters);
-    } else if (!isMobile && activeFilters.parentElement !== headerLeft) {
-      headerLeft.appendChild(activeFilters);
-    }
-  }
-
-  updatePosition();
-  window.addEventListener('resize', updatePosition);
-}
-
-// Responsive time range labels
-function initResponsiveLabels() {
-  const timeRange = document.getElementById('timeRange');
-  const fullLabels = {
-    '15m': 'Last 15 minutes',
-    '1h': 'Last hour',
-    '12h': 'Last 12 hours',
-    '24h': 'Last 24 hours',
-    '7d': 'Last 7 days'
-  };
-  const shortLabels = {
-    '15m': '15m',
-    '1h': '1h',
-    '12h': '12h',
-    '24h': '24h',
-    '7d': '7d'
-  };
-
-  function updateLabels() {
-    const isMobile = window.innerWidth < 600;
-    const labels = isMobile ? shortLabels : fullLabels;
-    Array.from(timeRange.options).forEach(opt => {
-      opt.textContent = labels[opt.value] || opt.value;
-    });
-  }
-
-  updateLabels();
-  window.addEventListener('resize', updateLabels);
-}
-
 // Start
 init();
-initHostFilterDoubleTap();
+initHostFilterDoubleTap(elements.hostFilterInput);
 initMobileTouchSupport();
-initPullToRefresh();
-initResponsiveLabels();
+initPullToRefresh(() => loadDashboard(true));
 initMobileFiltersPosition();
+
+// Responsive time range labels
+updateTimeRangeLabels(elements.timeRangeSelect);
+window.addEventListener('resize', () => updateTimeRangeLabels(elements.timeRangeSelect));
+
+// Expose only for chart.js double-tap without inline handlers
+window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);

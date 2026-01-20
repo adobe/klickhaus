@@ -1,16 +1,25 @@
 // Application state management
+import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N } from './constants.js';
+
+const storage = (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function')
+  ? localStorage
+  : {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {}
+  };
 
 export const state = {
   credentials: null,
-  timeRange: '1h',
+  timeRange: DEFAULT_TIME_RANGE,
   hostFilter: '',
-  topN: 5,
+  topN: DEFAULT_TOP_N,
   filters: [],    // [{col: '`request.url`', value: '/foo', exclude: false}]
   logsData: null,
   logsLoading: false,
   logsReady: false,
   showLogs: false,
-  pinnedColumns: JSON.parse(localStorage.getItem('pinnedColumns') || '[]'),
+  pinnedColumns: JSON.parse(storage.getItem('pinnedColumns') || '[]'),
   hiddenControls: [],  // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
   title: '',  // Custom title from URL
   chartData: null,  // Store chart data for redrawing when view changes
@@ -34,7 +43,7 @@ export function togglePinnedColumn(col) {
   } else {
     state.pinnedColumns.splice(idx, 1);
   }
-  localStorage.setItem('pinnedColumns', JSON.stringify(state.pinnedColumns));
+  storage.setItem('pinnedColumns', JSON.stringify(state.pinnedColumns));
   if (onPinnedColumnsChange && state.logsData) {
     onPinnedColumnsChange(state.logsData);
   }
@@ -49,7 +58,7 @@ function getFacetPrefsKey() {
 export function loadFacetPrefs() {
   const key = getFacetPrefsKey();
   try {
-    const prefs = JSON.parse(localStorage.getItem(key) || '{}');
+    const prefs = JSON.parse(storage.getItem(key) || '{}');
     state.pinnedFacets = prefs.pinned || [];
     state.hiddenFacets = prefs.hidden || [];
   } catch (e) {
@@ -61,7 +70,7 @@ export function loadFacetPrefs() {
 // Save facet preferences to localStorage
 function saveFacetPrefs() {
   const key = getFacetPrefsKey();
-  localStorage.setItem(key, JSON.stringify({
+  storage.setItem(key, JSON.stringify({
     pinned: state.pinnedFacets,
     hidden: state.hiddenFacets
   }));

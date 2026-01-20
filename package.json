@@ -2,9 +2,10 @@
   "name": "klickhaus",
   "version": "1.0.0",
   "description": "ClickHouse CDN Analytics Dashboard",
+  "type": "module",
   "scripts": {
     "start": "live-server --port=5391 --open=/ --ignore=scripts,.github,.claude,hars,node_modules --ignorePattern=\"\\\\.md$|package.*\\\\.json$|screenshot\\\\.png$\"",
-    "test": "node --test js/*.test.js"
+    "test": "node --test"
   },
   "devDependencies": {
     "canvas": "3.2.1",

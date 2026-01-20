@@ -4,7 +4,8 @@ import { state } from '../state.js';
 import { query } from '../api.js';
 import { getTimeFilter, getHostFilter, getTable } from '../time.js';
 import { allBreakdowns } from './definitions.js';
-import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
+import { renderBreakdownTable, renderBreakdownError } from './render.js';
+import { compileFilters } from '../filter-sql.js';
 
 // Track elapsed time per facet id for slowest detection
 export let facetTimings = {};
@@ -13,54 +14,12 @@ export function resetFacetTimings() {
   facetTimings = {};
 }
 
-// Build facet filter SQL excluding a specific column
-function buildFacetFilterSQL(filters) {
-  if (filters.length === 0) return '';
-
-  // Group filters by column (use filterCol for SQL if present)
-  const byColumn = {};
-  for (const f of filters) {
-    const sqlCol = f.filterCol || f.col;
-    const sqlValue = f.filterValue ?? f.value;
-    if (!byColumn[f.col]) byColumn[f.col] = { sqlCol, includes: [], excludes: [] };
-    // Use numeric comparison for integer filter values, string otherwise
-    const isNumeric = typeof sqlValue === 'number';
-    const escaped = isNumeric ? sqlValue : sqlValue.replace(/'/g, "\\'");
-    const comparison = isNumeric ? escaped : `'${escaped}'`;
-    if (f.exclude) {
-      byColumn[f.col].excludes.push(`${sqlCol} != ${comparison}`);
-    } else {
-      byColumn[f.col].includes.push(`${sqlCol} = ${comparison}`);
-    }
-  }
-
-  // Build SQL for each column group
-  const columnClauses = [];
-  for (const col of Object.keys(byColumn)) {
-    const { includes, excludes } = byColumn[col];
-    const parts = [];
-    // Include filters: OR together (match any of these values)
-    if (includes.length > 0) {
-      parts.push(includes.length === 1 ? includes[0] : `(${includes.join(' OR ')})`);
-    }
-    // Exclude filters: AND together (exclude all of these values)
-    if (excludes.length > 0) {
-      parts.push(excludes.join(' AND '));
-    }
-    // Combine includes and excludes for this column with AND
-    columnClauses.push(parts.length === 1 ? parts[0] : `(${parts.join(' AND ')})`);
-  }
-
-  // Combine all column clauses with AND
-  return columnClauses.map(c => `AND ${c}`).join(' ');
-}
-
 export function getFacetFilters() {
-  return buildFacetFilterSQL(state.filters);
+  return compileFilters(state.filters).sql;
 }
 
 export function getFacetFiltersExcluding(col) {
-  return buildFacetFilterSQL(state.filters.filter(f => f.col !== col));
+  return compileFilters(state.filters.filter(f => f.col !== col)).sql;
 }
 
 export async function loadAllBreakdowns() {
@@ -80,16 +39,18 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       card.dataset.title = h3 ? h3.textContent.trim() : b.id.replace('breakdown-', '');
     }
     // Replace with minimal HTML
-    card.innerHTML = `<h3>${card.dataset.title}</h3><button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${b.id}')" title="Show facet"></button>`;
+    card.innerHTML = `<h3>${card.dataset.title}</h3><button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${b.id}" title="Show facet"></button>`;
     card.classList.add('facet-hidden');
     card.classList.remove('updating');
     // Make whole card clickable to unhide
-    card.onclick = () => window.toggleFacetHide(b.id);
+    card.dataset.action = 'toggle-facet-hide';
+    card.dataset.facet = b.id;
     return;
   }
 
-  // Clear onclick for visible facets
-  card.onclick = null;
+  // Clear delegated action markers for visible facets
+  card.removeAttribute('data-action');
+  card.removeAttribute('data-facet');
 
   card.classList.remove('facet-hidden');
   card.classList.add('updating');

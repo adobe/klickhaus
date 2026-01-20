@@ -102,7 +102,7 @@ export function renderActiveFilters() {
     }
     // Get color indicator using unified color system
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
-    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" onclick="removeFilter(${i})">${colorIndicator}${escapeHtml(label)}</span>`;
+    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${i}">${colorIndicator}${escapeHtml(label)}</span>`;
   }).join('');
   updateHeaderFixed();
 }

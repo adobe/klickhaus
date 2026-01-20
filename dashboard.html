@@ -67,21 +67,8 @@
         <span class="kbd-control"><kbd class="kbd-hint">t</kbd><button id="logsBtn" class="logs-btn">Logs</button></span>
       </div>
       <div class="header-right">
-        <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange">
-          <option value="custom" disabled hidden>Custom</option>
-          <option value="15m">Last 15 minutes</option>
-          <option value="1h" selected>Last hour</option>
-          <option value="12h">Last 12 hours</option>
-          <option value="24h">Last 24 hours</option>
-          <option value="7d">Last 7 days</option>
-        </select></span>
-        <select id="topN">
-          <option value="5" selected>Top 5</option>
-          <option value="10">Top 10</option>
-          <option value="20">Top 20</option>
-          <option value="50">Top 50</option>
-          <option value="100">Top 100</option>
-        </select>
+        <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange"></select></span>
+        <select id="topN"></select>
         <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off"></span>
         <datalist id="hostSuggestions"></datalist>
         <span class="kbd-control"><kbd class="kbd-hint">r</kbd><button id="refreshBtn" class="btn btn-secondary"><span class="btn-icon">↻</span><span class="btn-text">Refresh</span></button></span>
@@ -213,7 +200,7 @@
   <dialog id="quickLinksModal">
     <div class="modal-header">
       <h2>Quick Links</h2>
-      <button class="modal-close" onclick="closeQuickLinksModal()">&times;</button>
+      <button class="modal-close" data-action="close-quick-links">&times;</button>
     </div>
     <iframe id="quickLinksFrame" src="index.html"></iframe>
   </dialog>
@@ -221,7 +208,7 @@
   <!-- Keyboard Help Dialog -->
   <dialog id="keyboardHelp" role="dialog" aria-labelledby="keyboardHelpTitle">
     <div class="keyboard-help-content">
-      <h2 id="keyboardHelpTitle">Keyboard Shortcuts <button onclick="this.closest('dialog').close()" aria-label="Close">&times;</button></h2>
+      <h2 id="keyboardHelpTitle">Keyboard Shortcuts <button data-action="close-dialog" aria-label="Close">&times;</button></h2>
       <div class="keyboard-help-grid">
         <div class="key-group"><kbd>j</kbd> <kbd>k</kbd></div>
         <div class="key-desc">Navigate between values</div>

@@ -1,6 +1,8 @@
 // Dynamic bucket generation for numeric facets
 // Produces exactly n buckets using 1/2/5 progression
 
+import { formatBytesCompact } from '../format.js';
+
 /**
  * Generate 1/2/5 sequence boundaries (3 per decade)
  * @param {number} minVal - Starting value
@@ -44,21 +46,6 @@ function selectBoundaries(allBoundaries, n) {
   return selected;
 }
 
-/**
- * Format bytes as human-readable string using KB/MB units
- * @param {number} bytes
- * @returns {string}
- */
-function formatBytes(bytes) {
-  if (bytes === 0) return '0';
-  if (bytes < 1000) return `${bytes} B`;
-  if (bytes < 1000000) {
-    const kb = bytes / 1000;
-    return Number.isInteger(kb) ? `${kb} KB` : `${kb} KB`;
-  }
-  const mb = bytes / 1000000;
-  return Number.isInteger(mb) ? `${mb} MB` : `${mb} MB`;
-}
 
 /**
  * Format milliseconds as human-readable string
@@ -105,15 +92,15 @@ export function getContentLengthLabels(topN) {
   const labels = ['0 (empty)'];
 
   if (boundaries.length > 0) {
-    labels.push(`1 B-${formatBytes(boundaries[0])}`);
+    labels.push(`1 B-${formatBytesCompact(boundaries[0])}`);
 
     for (let i = 1; i < boundaries.length; i++) {
-      labels.push(`${formatBytes(boundaries[i - 1])}-${formatBytes(boundaries[i])}`);
+      labels.push(`${formatBytesCompact(boundaries[i - 1])}-${formatBytesCompact(boundaries[i])}`);
     }
   }
 
   const lastBoundary = boundaries[boundaries.length - 1] || 10;
-  labels.push(`≥ ${formatBytes(lastBoundary)}`);
+  labels.push(`≥ ${formatBytesCompact(lastBoundary)}`);
 
   return labels;
 }

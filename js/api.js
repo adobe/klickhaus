@@ -1,5 +1,6 @@
 // ClickHouse query helper
 import { CLICKHOUSE_URL } from './config.js';
+import { TIME_RANGES } from './constants.js';
 import { state } from './state.js';
 
 // Force refresh flag - set by dashboard when refresh button is clicked
@@ -23,14 +24,7 @@ export async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
     } else if (cacheTtl === null) {
       // Longer TTLs since we use fixed timestamps for deterministic queries
       // Cache is effectively invalidated by timestamp change on refresh/page load
-      const ttls = {
-        '15m': 60,     // 1 minute for last 15 minutes
-        '1h': 300,     // 5 minutes for last hour
-        '12h': 600,    // 10 minutes for last 12 hours
-        '24h': 900,    // 15 minutes for last 24 hours
-        '7d': 1800     // 30 minutes for last 7 days
-      };
-      cacheTtl = ttls[state.timeRange] || 300;
+      cacheTtl = TIME_RANGES[state.timeRange]?.cacheTtl || 300;
     }
     params.set('use_query_cache', '1');
     params.set('query_cache_ttl', cacheTtl.toString());

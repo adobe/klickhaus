@@ -13,6 +13,7 @@ import { state } from './state.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
 import { getTable, getHostFilter, getTimeFilter } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
+import { compileFilters, isFilterSuperset } from './filter-sql.js';
 
 // Store last investigation results for UI integration
 let lastInvestigationResults = [];
@@ -161,18 +162,7 @@ function generateAnomalyId(baseTimeRange, baseFilters, anomalyStart, anomalyEnd,
 function getQueryContext() {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
-
-  // Parse facet filters into a map of col -> value for comparison
-  // getFacetFilters returns SQL like: AND col1 = 'val1' AND col2 = 'val2'
-  const filterMap = {};
-  if (facetFilters) {
-    // Extract individual filters from the SQL string
-    const matches = facetFilters.matchAll(/(`[^`]+`|[a-zA-Z_]+(?:\([^)]+\))?)\s*(?:=|!=)\s*'([^']+)'/g);
-    for (const match of matches) {
-      filterMap[match[1]] = match[2];
-    }
-  }
+  const { map: filterMap } = compileFilters(state.filters);
 
   return { timeFilter, hostFilter, filterMap };
 }
@@ -208,11 +198,9 @@ function isCacheEligible(cachedContext) {
   }
 
   // Current filters must be a superset of cached filters (drill-in allowed, drill-out not)
-  for (const [col, value] of Object.entries(cachedContext.filterMap || {})) {
-    if (current.filterMap[col] !== value) {
-      console.log(`Cache ineligible: filter ${col} changed or removed`);
-      return false;
-    }
+  if (!isFilterSuperset(current.filterMap, cachedContext.filterMap || {})) {
+    console.log('Cache ineligible: filters changed or removed');
+    return false;
   }
 
   // All checks passed - current is same or superset of cached

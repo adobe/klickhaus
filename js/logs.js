@@ -6,13 +6,8 @@ import { getTimeFilter, getHostFilter, getTable } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
-import {
-  getStatusColor, getMethodColor, getHostColor, getContentTypeColor,
-  getCacheStatusColor, getPathColor, getRefererColor, getUserAgentColor,
-  getIPColor, getRequestTypeColor, getBackendTypeColor, getErrorColor,
-  getAcceptColor, getAcceptEncodingColor, getCacheControlColor,
-  getByoCdnColor, getLocationColor
-} from './colors/index.js';
+import { getColorForColumn } from './colors/index.js';
+import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET } from './columns.js';
 
 // Format timestamp - short format on mobile
 function formatTimestamp(value) {
@@ -24,23 +19,158 @@ function formatTimestamp(value) {
   return date.toLocaleString();
 }
 
-// Map log columns to facet column expressions and value transformations
-const logColumnToFacet = {
-  'response.status': { col: 'toString(`response.status`)', transform: (v) => String(v) },
-  'request.method': { col: '`request.method`' },
-  'request.host': { col: '`request.host`' },
-  'request.url': { col: '`request.url`' },
-  'cdn.cache_status': { col: 'upper(`cdn.cache_status`)', transform: (v) => String(v).toUpperCase() },
-  'response.headers.content_type': { col: '`response.headers.content_type`' },
-  'helix.request_type': { col: '`helix.request_type`' },
-  'helix.backend_type': { col: '`helix.backend_type`' },
-  'request.headers.x_forwarded_host': { col: '`request.headers.x_forwarded_host`' },
-  'request.headers.referer': { col: '`request.headers.referer`' },
-  'request.headers.user_agent': { col: '`request.headers.user_agent`' },
-  'response.headers.x_error': { col: '`response.headers.x_error`' },
-  'client.ip': { col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
-  'request.headers.x_forwarded_for': { col: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)" },
-};
+/**
+ * Build ordered log column list from available columns.
+ * @param {string[]} allColumns
+ * @returns {string[]}
+ */
+function getLogColumns(allColumns) {
+  const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
+  const preferred = LOG_COLUMN_ORDER.filter(col => allColumns.includes(col) && !pinned.includes(col));
+  const rest = allColumns.filter(col => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
+  return [...pinned, ...preferred, ...rest];
+}
+
+/**
+ * Build approximate left offsets for pinned columns.
+ * @param {string[]} pinned
+ * @param {number} width
+ * @returns {Record<string, number>}
+ */
+function getApproxPinnedOffsets(pinned, width) {
+  const offsets = {};
+  pinned.forEach((col, index) => {
+    offsets[col] = index * width;
+  });
+  return offsets;
+}
+
+/**
+ * Format a log cell for display and color.
+ * @param {string} col
+ * @param {unknown} value
+ * @returns {{ displayValue: string, cellClass: string, colorIndicator: string }}
+ */
+function formatLogCell(col, value) {
+  let cellClass = '';
+  let displayValue = '';
+
+  if (col === 'timestamp' && value) {
+    displayValue = formatTimestamp(value);
+    cellClass = 'timestamp';
+  } else if (col === 'response.status' && value) {
+    const status = parseInt(value, 10);
+    displayValue = String(status);
+    if (status >= 500) cellClass = 'status-5xx';
+    else if (status >= 400) cellClass = 'status-4xx';
+    else cellClass = 'status-ok';
+  } else if (col === 'response.body_size' && value) {
+    displayValue = formatBytes(parseInt(value, 10));
+  } else if (col === 'request.method') {
+    displayValue = value || '';
+    cellClass = 'method';
+  } else if (value === null || value === undefined || value === '') {
+    displayValue = '';
+  } else if (typeof value === 'object') {
+    displayValue = JSON.stringify(value);
+  } else {
+    displayValue = String(value);
+  }
+
+  const color = value ? getColorForColumn(col, value) : '';
+  const colorIndicator = color ? `<span class="log-color" style="background:${color}"></span>` : '';
+
+  return { displayValue, cellClass, colorIndicator };
+}
+
+/**
+ * Build HTML for a log table cell.
+ * @param {Object} params
+ * @param {string} params.col
+ * @param {unknown} params.value
+ * @param {string[]} params.pinned
+ * @param {Record<string, number>} [params.pinnedOffsets]
+ * @returns {string}
+ */
+function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
+  const { displayValue, cellClass, colorIndicator } = formatLogCell(col, value);
+  const isPinned = pinned.includes(col);
+  const leftOffset = isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined
+    ? `left: ${pinnedOffsets[col]}px;`
+    : '';
+
+  let className = cellClass;
+  if (isPinned) className = `${className} pinned`.trim();
+
+  const escaped = escapeHtml(displayValue);
+
+  let actionAttrs = '';
+  const facetMapping = LOG_COLUMN_TO_FACET[col];
+  if (colorIndicator && facetMapping && value !== null && value !== undefined && value !== '') {
+    const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
+    className = `${className} clickable`.trim();
+    actionAttrs = ` data-action=\"add-filter\" data-col=\"${escapeHtml(facetMapping.col)}\" data-value=\"${escapeHtml(filterValue)}\" data-exclude=\"false\"`;
+  }
+
+  return `<td class="${className}" style="${leftOffset}" title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</td>`;
+}
+
+/**
+ * Build HTML for a log table row.
+ * @param {Object} params
+ * @param {Object} params.row
+ * @param {string[]} params.columns
+ * @param {number} params.rowIdx
+ * @param {string[]} params.pinned
+ * @param {Record<string, number>} [params.pinnedOffsets]
+ * @returns {string}
+ */
+function buildLogRowHtml({ row, columns, rowIdx, pinned, pinnedOffsets }) {
+  let html = `<tr data-row-idx="${rowIdx}">`;
+  for (const col of columns) {
+    html += buildLogCellHtml({ col, value: row[col], pinned, pinnedOffsets });
+  }
+  html += '</tr>';
+  return html;
+}
+
+/**
+ * Update pinned column offsets based on actual column widths.
+ * @param {HTMLElement} container
+ * @param {string[]} pinned
+ */
+function updatePinnedOffsets(container, pinned) {
+  if (pinned.length === 0) return;
+
+  requestAnimationFrame(() => {
+    const table = container.querySelector('.logs-table');
+    if (!table) return;
+    const headerCells = table.querySelectorAll('thead th');
+    const pinnedWidths = [];
+    let cumLeft = 0;
+
+    for (let i = 0; i < pinned.length; i++) {
+      pinnedWidths.push(cumLeft);
+      cumLeft += headerCells[i].offsetWidth;
+    }
+
+    headerCells.forEach((th, idx) => {
+      if (idx < pinned.length) {
+        th.style.left = pinnedWidths[idx] + 'px';
+      }
+    });
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      cells.forEach((td, idx) => {
+        if (idx < pinned.length) {
+          td.style.left = pinnedWidths[idx] + 'px';
+        }
+      });
+    });
+  });
+}
 
 // DOM elements (set by main.js)
 let logsView = null;
@@ -198,47 +328,13 @@ export function renderLogsTable(data) {
   // Get all column names from first row
   const allColumns = Object.keys(data[0]);
 
-  // Columns that have color coding (in preferred display order)
-  const colorCodedColumns = [
-    'timestamp',
-    'response.status',
-    'request.method',
-    'request.host',
-    'request.url',
-    'cdn.cache_status',
-    'response.headers.content_type',
-    'helix.request_type',
-    'helix.backend_type',
-    'request.headers.x_forwarded_host',
-    'request.headers.referer',
-    'request.headers.user_agent',
-    'client.ip',
-    'request.headers.x_forwarded_for',
-    'response.headers.x_error',
-    'request.headers.accept',
-    'request.headers.accept_encoding',
-    'request.headers.cache_control',
-    'request.headers.x_byo_cdn_type',
-    'response.headers.location',
-  ];
-
-  // Sort columns: pinned first, then color-coded, then the rest
+  // Sort columns: pinned first, then preferred order, then the rest
   const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
-  const colorCoded = colorCodedColumns.filter(col => allColumns.includes(col) && !pinned.includes(col));
-  const rest = allColumns.filter(col => !pinned.includes(col) && !colorCodedColumns.includes(col));
-  const columns = [...pinned, ...colorCoded, ...rest];
+  const columns = getLogColumns(allColumns);
 
   // Calculate left offsets for sticky pinned columns
   const COL_WIDTH = 120;
-
-  // Short names for columns to save space
-  const shortNames = {
-    'response.status': 'status',
-    'request.method': 'method',
-    'cdn.cache_status': 'cache',
-    'helix.request_type': 'type',
-    'helix.backend_type': 'backend',
-  };
+  const pinnedOffsets = getApproxPinnedOffsets(pinned, COL_WIDTH);
 
   let html = `
     <table class="logs-table">
@@ -247,11 +343,11 @@ export function renderLogsTable(data) {
           ${columns.map((col, idx) => {
             const isPinned = pinned.includes(col);
             const pinnedClass = isPinned ? 'pinned' : '';
-            const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
-            const colEscaped = col.replace(/'/g, "\\'");
-            const displayName = shortNames[col] || col;
-            const titleAttr = shortNames[col] ? ` title="${escapeHtml(col)}"` : '';
-            return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr} onclick="togglePinnedColumn('${colEscaped}')">${escapeHtml(displayName)}</th>`;
+            const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
+            const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
+            const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
+            const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
+            return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
           }).join('')}
         </tr>
       </thead>
@@ -259,136 +355,13 @@ export function renderLogsTable(data) {
   `;
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
-    const row = data[rowIdx];
-    html += `<tr data-row-idx="${rowIdx}">`;
-    for (const col of columns) {
-      let value = row[col];
-      let cellClass = '';
-      let displayValue = '';
-      let colorIndicator = '';
-
-      // Format specific columns
-      if (col === 'timestamp' && value) {
-        displayValue = formatTimestamp(value);
-        cellClass = 'timestamp';
-      } else if (col === 'response.status' && value) {
-        const status = parseInt(value);
-        displayValue = String(status);
-        if (status >= 500) cellClass = 'status-5xx';
-        else if (status >= 400) cellClass = 'status-4xx';
-        else cellClass = 'status-ok';
-        const color = getStatusColor(status);
-        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
-      } else if (col === 'response.body_size' && value) {
-        displayValue = formatBytes(parseInt(value));
-      } else if (col === 'request.method') {
-        displayValue = value || '';
-        cellClass = 'method';
-        const color = getMethodColor(value);
-        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
-      } else if (value === null || value === undefined || value === '') {
-        displayValue = '';
-      } else if (typeof value === 'object') {
-        displayValue = JSON.stringify(value);
-      } else {
-        displayValue = String(value);
-      }
-
-      // Apply color coding based on column type
-      if (!colorIndicator && value) {
-        let color = '';
-        if (col === 'request.host' || col === 'request.headers.x_forwarded_host') {
-          color = getHostColor(value);
-        } else if (col === 'response.headers.content_type') {
-          color = getContentTypeColor(value);
-        } else if (col === 'cdn.cache_status') {
-          color = getCacheStatusColor(value);
-        } else if (col === 'request.url') {
-          color = getPathColor(value);
-        } else if (col === 'request.headers.referer') {
-          color = getRefererColor(value);
-        } else if (col === 'request.headers.user_agent') {
-          color = getUserAgentColor(value);
-        } else if (col === 'client.ip' || col === 'request.headers.x_forwarded_for') {
-          color = getIPColor(value);
-        } else if (col === 'helix.request_type') {
-          color = getRequestTypeColor(value);
-        } else if (col === 'helix.backend_type') {
-          color = getBackendTypeColor(value);
-        } else if (col === 'response.headers.x_error') {
-          color = getErrorColor(value);
-        } else if (col === 'request.headers.accept') {
-          color = getAcceptColor(value);
-        } else if (col === 'request.headers.accept_encoding') {
-          color = getAcceptEncodingColor(value);
-        } else if (col === 'request.headers.cache_control') {
-          color = getCacheControlColor(value);
-        } else if (col === 'request.headers.x_byo_cdn_type') {
-          color = getByoCdnColor(value);
-        } else if (col === 'response.headers.location') {
-          color = getLocationColor(value);
-        }
-        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
-      }
-
-      const isPinned = pinned.includes(col);
-      if (isPinned) cellClass += ' pinned';
-      const leftOffset = isPinned ? `left: ${pinned.indexOf(col) * COL_WIDTH}px;` : '';
-
-      const escaped = escapeHtml(displayValue);
-
-      // Add click handler for filterable columns with color indicators
-      let clickHandler = '';
-      const facetMapping = logColumnToFacet[col];
-      if (colorIndicator && facetMapping && value) {
-        const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
-        const colEscaped = facetMapping.col.replace(/'/g, "\\'");
-        const valEscaped = filterValue.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        clickHandler = ` onclick="addFilter('${colEscaped}', '${valEscaped}', false)"`;
-        cellClass += ' clickable';
-      }
-
-      html += `<td class="${cellClass.trim()}" style="${leftOffset}" title="${escaped}"${clickHandler}>${colorIndicator}${escaped}</td>`;
-    }
-    html += '</tr>';
+    html += buildLogRowHtml({ row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets });
   }
 
   html += '</tbody></table>';
   container.innerHTML = html;
 
-  // After render, measure actual column widths and update left offsets
-  if (pinned.length > 0) {
-    requestAnimationFrame(() => {
-      const table = container.querySelector('.logs-table');
-      if (!table) return;
-      const headerCells = table.querySelectorAll('thead th');
-      const pinnedWidths = [];
-      let cumLeft = 0;
-
-      // Calculate cumulative widths for pinned columns
-      for (let i = 0; i < pinned.length; i++) {
-        pinnedWidths.push(cumLeft);
-        cumLeft += headerCells[i].offsetWidth;
-      }
-
-      // Update all pinned cells with correct left values
-      headerCells.forEach((th, idx) => {
-        if (idx < pinned.length) {
-          th.style.left = pinnedWidths[idx] + 'px';
-        }
-      });
-
-      const rows = table.querySelectorAll('tbody tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        cells.forEach((td, idx) => {
-          if (idx < pinned.length) {
-            td.style.left = pinnedWidths[idx] + 'px';
-          }
-        });
-      });
-    });
-  }
+  updatePinnedOffsets(container, pinned);
 }
 
 // Append rows to existing logs table (for infinite scroll)
@@ -402,13 +375,9 @@ function appendLogsRows(data) {
   const columns = Array.from(headerCells).map(th => th.title || th.textContent);
 
   // Map short names back to full names
-  const shortToFull = {
-    'status': 'response.status',
-    'method': 'request.method',
-    'cache': 'cdn.cache_status',
-    'type': 'helix.request_type',
-    'backend': 'helix.backend_type',
-  };
+  const shortToFull = Object.fromEntries(
+    Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full])
+  );
 
   const fullColumns = columns.map(col => shortToFull[col] || col);
   const pinned = state.pinnedColumns.filter(col => fullColumns.includes(col));
@@ -418,123 +387,13 @@ function appendLogsRows(data) {
 
   let html = '';
   for (let i = 0; i < data.length; i++) {
-    const row = data[i];
     const rowIdx = existingRows + i;
-    html += `<tr data-row-idx="${rowIdx}">`;
-    for (const col of fullColumns) {
-      let value = row[col];
-      let cellClass = '';
-      let displayValue = '';
-      let colorIndicator = '';
-
-      // Format specific columns (same logic as renderLogsTable)
-      if (col === 'timestamp' && value) {
-        displayValue = formatTimestamp(value);
-        cellClass = 'timestamp';
-      } else if (col === 'response.status' && value) {
-        const status = parseInt(value);
-        displayValue = String(status);
-        if (status >= 500) cellClass = 'status-5xx';
-        else if (status >= 400) cellClass = 'status-4xx';
-        else cellClass = 'status-ok';
-        const color = getStatusColor(status);
-        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
-      } else if (col === 'response.body_size' && value) {
-        displayValue = formatBytes(parseInt(value));
-      } else if (col === 'request.method') {
-        displayValue = value || '';
-        cellClass = 'method';
-        const color = getMethodColor(value);
-        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
-      } else if (value === null || value === undefined || value === '') {
-        displayValue = '';
-      } else if (typeof value === 'object') {
-        displayValue = JSON.stringify(value);
-      } else {
-        displayValue = String(value);
-      }
-
-      // Apply color coding based on column type
-      if (!colorIndicator && value) {
-        let color = '';
-        if (col === 'request.host' || col === 'request.headers.x_forwarded_host') {
-          color = getHostColor(value);
-        } else if (col === 'response.headers.content_type') {
-          color = getContentTypeColor(value);
-        } else if (col === 'cdn.cache_status') {
-          color = getCacheStatusColor(value);
-        } else if (col === 'request.url') {
-          color = getPathColor(value);
-        } else if (col === 'request.headers.referer') {
-          color = getRefererColor(value);
-        } else if (col === 'request.headers.user_agent') {
-          color = getUserAgentColor(value);
-        } else if (col === 'client.ip' || col === 'request.headers.x_forwarded_for') {
-          color = getIPColor(value);
-        } else if (col === 'helix.request_type') {
-          color = getRequestTypeColor(value);
-        } else if (col === 'helix.backend_type') {
-          color = getBackendTypeColor(value);
-        } else if (col === 'response.headers.x_error') {
-          color = getErrorColor(value);
-        } else if (col === 'request.headers.accept') {
-          color = getAcceptColor(value);
-        } else if (col === 'request.headers.accept_encoding') {
-          color = getAcceptEncodingColor(value);
-        } else if (col === 'request.headers.cache_control') {
-          color = getCacheControlColor(value);
-        } else if (col === 'request.headers.x_byo_cdn_type') {
-          color = getByoCdnColor(value);
-        } else if (col === 'response.headers.location') {
-          color = getLocationColor(value);
-        }
-        if (color) colorIndicator = `<span class="log-color" style="background:${color}"></span>`;
-      }
-
-      const isPinned = pinned.includes(col);
-      if (isPinned) cellClass += ' pinned';
-
-      const escaped = escapeHtml(displayValue);
-
-      // Add click handler for filterable columns with color indicators
-      let clickHandler = '';
-      const facetMapping = logColumnToFacet[col];
-      if (colorIndicator && facetMapping && value) {
-        const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
-        const colEscaped = facetMapping.col.replace(/'/g, "\\'");
-        const valEscaped = filterValue.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        clickHandler = ` onclick="addFilter('${colEscaped}', '${valEscaped}', false)"`;
-        cellClass += ' clickable';
-      }
-
-      html += `<td class="${cellClass.trim()}" title="${escaped}"${clickHandler}>${colorIndicator}${escaped}</td>`;
-    }
-    html += '</tr>';
+    html += buildLogRowHtml({ row: data[i], columns: fullColumns, rowIdx, pinned });
   }
 
   tbody.insertAdjacentHTML('beforeend', html);
 
-  // Update pinned column positions for new rows
-  if (pinned.length > 0) {
-    requestAnimationFrame(() => {
-      const headerCells = container.querySelectorAll('.logs-table thead th');
-      const pinnedWidths = [];
-      let cumLeft = 0;
-      for (let i = 0; i < pinned.length; i++) {
-        pinnedWidths.push(cumLeft);
-        cumLeft += headerCells[i].offsetWidth;
-      }
-      const rows = tbody.querySelectorAll('tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td.pinned');
-        cells.forEach((td, idx) => {
-          if (idx < pinnedWidths.length) {
-            td.style.left = pinnedWidths[idx] + 'px';
-          }
-        });
-      });
-    });
-  }
+  updatePinnedOffsets(container, pinned);
 }
 
 function renderLogsError(message) {

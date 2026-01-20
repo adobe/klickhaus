@@ -15,6 +15,22 @@ export function formatBytes(bytes) {
   return bytes + ' B';
 }
 
+/**
+ * Compact bytes formatting for bucket labels (no fixed decimals).
+ * @param {number} bytes
+ * @returns {string}
+ */
+export function formatBytesCompact(bytes) {
+  if (bytes === 0) return '0';
+  if (bytes < 1000) return `${bytes} B`;
+  if (bytes < 1000000) {
+    const kb = bytes / 1000;
+    return Number.isInteger(kb) ? `${kb} KB` : `${kb} KB`;
+  }
+  const mb = bytes / 1000000;
+  return Number.isInteger(mb) ? `${mb} MB` : `${mb} MB`;
+}
+
 export function formatPercent(current, previous) {
   if (!previous || previous === 0) return { text: '', className: '' };
   const change = ((current - previous) / previous) * 100;

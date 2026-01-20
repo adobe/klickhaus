@@ -2,7 +2,8 @@
 import { escapeHtml, isSyntheticBucket } from '../utils.js';
 import { formatNumber, formatQueryTime, formatBytes } from '../format.js';
 import { getColorIndicatorHtml } from '../colors/index.js';
-import { state, togglePinnedFacet, toggleHiddenFacet } from '../state.js';
+import { state } from '../state.js';
+import { TOP_N_OPTIONS } from '../constants.js';
 
 // Get filters for a specific column
 export function getFiltersForColumn(col) {
@@ -11,10 +12,9 @@ export function getFiltersForColumn(col) {
 
 // Get next topN value for "show more" functionality
 export function getNextTopN() {
-  const options = [5, 10, 20, 50, 100];
-  const currentIdx = options.indexOf(state.topN);
-  if (currentIdx === -1 || currentIdx >= options.length - 1) return null;
-  return options[currentIdx + 1];
+  const currentIdx = TOP_N_OPTIONS.indexOf(state.topN);
+  if (currentIdx === -1 || currentIdx >= TOP_N_OPTIONS.length - 1) return null;
+  return TOP_N_OPTIONS[currentIdx + 1];
 }
 
 // Format dimension value with dimmed prefix if applicable
@@ -41,7 +41,6 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   // Get active filters for this column
   const columnFilters = getFiltersForColumn(col);
   const hasFilters = columnFilters.length > 0;
-  const colEscaped = col.replace(/'/g, "\\'");
 
   // Check mode for this facet (count vs bytes)
   const mode = modeToggle ? state[modeToggle] : 'count';
@@ -53,11 +52,11 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   const speedTitle = formatQueryTime(elapsed);
   const isPinned = state.pinnedFacets.includes(id);
   const pinTitle = isPinned ? 'Unpin facet' : 'Pin facet to top';
-  const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle} - ${pinTitle}" onclick="window.toggleFacetPin('${id}')" role="button"></span>`;
+  const speedIndicator = `<span class="speed-indicator ${speedClass}" title="${speedTitle} - ${pinTitle}" data-action="toggle-facet-pin" data-facet="${escapeHtml(id)}" role="button"></span>`;
 
   // Mode toggle for facets that support it (e.g., content-types: count vs bytes)
   const modeToggleHtml = modeToggle
-    ? `<button class="mode-toggle${isBytes ? ' active' : ''}" onclick="toggleFacetMode('${modeToggle}')" title="Toggle between request count and bytes transferred">${isBytes ? 'B' : '#'}</button>`
+    ? `<button class="mode-toggle${isBytes ? ' active' : ''}" data-action="toggle-facet-mode" data-mode="${escapeHtml(modeToggle)}" title="Toggle between request count and bytes transferred">${isBytes ? 'B' : '#'}</button>`
     : '';
 
   // Summary metric display (e.g., "87% efficiency")
@@ -69,10 +68,10 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   if (data.length === 0) {
     let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
     if (hasFilters) {
-      html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
+      html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
     }
     html += `</h3><div class="empty">No data</div>`;
-    html += `<button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${id}')" title="Hide facet"></button>`;
+    html += `<button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${escapeHtml(id)}" title="Hide facet"></button>`;
     card.innerHTML = html;
     card.classList.remove('facet-hidden');
     return;
@@ -100,7 +99,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
 
   let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
   if (hasFilters) {
-    html += ` <button class="clear-facet-btn" onclick="clearFiltersForColumn('${colEscaped}')">Clear</button>`;
+    html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
   }
   html += `</h3><table class="breakdown-table" role="listbox" aria-label="${title} values">`;
 
@@ -124,7 +123,6 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
     const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
 
-    const dimEscaped = (row.dim || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
 
     // Check if this value is currently filtered
     const activeFilter = columnFilters.find(f => f.value === (row.dim || ''));
@@ -162,20 +160,20 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
 
     // Determine button actions based on current filter state
     const filterBtn = isIncluded
-      ? `<button class="action-btn" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')">Clear</button>`
-      : `<button class="action-btn" onclick="addFilter('${colEscaped}', '${dimEscaped}', false)">Filter</button>`;
+      ? `<button class="action-btn" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}">Clear</button>`
+      : `<button class="action-btn" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="false">Filter</button>`;
     const excludeBtn = isExcluded
-      ? `<button class="action-btn" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')">Clear</button>`
-      : `<button class="action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)">Exclude</button>`;
+      ? `<button class="action-btn" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}">Clear</button>`
+      : `<button class="action-btn exclude" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="true">Exclude</button>`;
 
     // Mobile action buttons (shown on tap) - using Unicode symbols
     // ▼ for filter, × for exclude, ✓ for clear
     const mobileFilterBtn = isIncluded
-      ? `<button class="mobile-action-btn active" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')" title="Remove filter">✓</button>`
-      : `<button class="mobile-action-btn" onclick="addFilter('${colEscaped}', '${dimEscaped}', false)" title="Filter to this value">▼</button>`;
+      ? `<button class="mobile-action-btn active" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" title="Remove filter">✓</button>`
+      : `<button class="mobile-action-btn" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="false" title="Filter to this value">▼</button>`;
     const mobileExcludeBtn = isExcluded
-      ? `<button class="mobile-action-btn exclude active" onclick="removeFilterByValue('${colEscaped}', '${dimEscaped}')" title="Remove exclusion">✓</button>`
-      : `<button class="mobile-action-btn exclude" onclick="addFilter('${colEscaped}', '${dimEscaped}', true)" title="Exclude this value">×</button>`;
+      ? `<button class="mobile-action-btn exclude active" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" title="Remove exclusion">✓</button>`
+      : `<button class="mobile-action-btn exclude" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="true" title="Exclude this value">×</button>`;
 
     const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
     const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');
@@ -206,7 +204,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   if (isContinuous && nextN) {
     // Continuous facets: show "(more)" to get finer-grained buckets
     html += `
-      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" onclick="increaseTopN()" title="Click to show ${nextN} buckets with finer granularity">
+      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" data-action="increase-topn" title="Click to show ${nextN} buckets with finer granularity">
         <td class="dim"><span class="dim-prefix">(more)</span></td>
         <td class="count"></td>
         <td class="bar"></td>
@@ -227,7 +225,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
     const overflowClass = isOverflow ? ' bar-overflow' : '';
 
     html += `
-      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" onclick="increaseTopN()" title="Click to show top ${nextN}">
+      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" data-action="increase-topn" title="Click to show top ${nextN}">
         <td class="dim"><span class="dim-prefix">(other)</span></td>
         <td class="count">
           <span class="value">${valueFormatter(cnt)}</span>
@@ -247,7 +245,7 @@ export function renderBreakdownTable(id, data, totals, col, linkPrefix, linkSuff
   html += '</table>';
 
   // Add hide button in bottom-right corner
-  html += `<button class="facet-hide-btn" onclick="event.stopPropagation(); window.toggleFacetHide('${id}')" title="Hide facet"></button>`;
+  html += `<button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${escapeHtml(id)}" title="Hide facet"></button>`;
 
   card.innerHTML = html;
   card.classList.remove('facet-hidden');

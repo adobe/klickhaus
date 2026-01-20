@@ -1,6 +1,6 @@
 // Time range helpers
 import { state } from './state.js';
-import { DATABASE } from './config.js';
+import { TIME_RANGES, TIME_RANGE_ORDER } from './constants.js';
 
 // Query timestamp for deterministic/cacheable queries
 export let queryTimestamp = null;
@@ -57,14 +57,7 @@ export function getInterval() {
     return `INTERVAL ${minutes} MINUTE`;
   }
 
-  const intervals = {
-    '15m': 'INTERVAL 15 MINUTE',
-    '1h': 'INTERVAL 1 HOUR',
-    '12h': 'INTERVAL 12 HOUR',
-    '24h': 'INTERVAL 24 HOUR',
-    '7d': 'INTERVAL 7 DAY'
-  };
-  return intervals[state.timeRange];
+  return TIME_RANGES[state.timeRange]?.interval;
 }
 
 export function getTimeBucket() {
@@ -92,14 +85,7 @@ export function getTimeBucket() {
     }
   }
 
-  const buckets = {
-    '15m': 'toStartOfInterval(timestamp, INTERVAL 5 SECOND)',
-    '1h': 'toStartOfInterval(timestamp, INTERVAL 10 SECOND)',
-    '12h': 'toStartOfMinute(timestamp)',
-    '24h': 'toStartOfFiveMinutes(timestamp)',
-    '7d': 'toStartOfTenMinutes(timestamp)'
-  };
-  return buckets[state.timeRange];
+  return TIME_RANGES[state.timeRange]?.bucket;
 }
 
 export function getTimeFilter() {
@@ -131,14 +117,7 @@ export function getPeriodMs() {
     return customTimeRange.end - customTimeRange.start;
   }
 
-  const periods = {
-    '15m': 15 * 60 * 1000,
-    '1h': 60 * 60 * 1000,
-    '12h': 12 * 60 * 60 * 1000,
-    '24h': 24 * 60 * 60 * 1000,
-    '7d': 7 * 24 * 60 * 60 * 1000
-  };
-  return periods[state.timeRange];
+  return TIME_RANGES[state.timeRange]?.periodMs;
 }
 
 // Zoom out to next larger predefined period, centered on current midpoint
@@ -158,13 +137,7 @@ export function zoomOut() {
 
   // Determine current duration and next larger period
   const currentDurationMs = getPeriodMs();
-  const periods = [
-    { key: '15m', ms: 15 * 60 * 1000 },
-    { key: '1h', ms: 60 * 60 * 1000 },
-    { key: '12h', ms: 12 * 60 * 60 * 1000 },
-    { key: '24h', ms: 24 * 60 * 60 * 1000 },
-    { key: '7d', ms: 7 * 24 * 60 * 60 * 1000 }
-  ];
+  const periods = TIME_RANGE_ORDER.map(key => ({ key, ms: TIME_RANGES[key].periodMs }));
 
   // Find next larger period
   let nextPeriod = periods.find(p => p.ms > currentDurationMs);

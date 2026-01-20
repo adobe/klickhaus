@@ -14,6 +14,10 @@ const kbd = {
   lastC: 0  // timestamp for cc detection
 };
 
+// Optional external callbacks
+let onToggleFacetMode = null;
+let onReloadDashboard = null;
+
 // Get visible facet cards (not hidden)
 function getFacets() {
   return [...document.querySelectorAll('.breakdown-card:not(.hidden)')];
@@ -222,7 +226,10 @@ function zoomToAnomalyNumber(num) {
 }
 
 // Initialize keyboard navigation
-export function initKeyboardNavigation() {
+export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}) {
+  onToggleFacetMode = toggleFacetMode || null;
+  onReloadDashboard = reloadDashboard || null;
+
   // Main keydown handler
   document.addEventListener('keydown', (e) => {
     // Ignore if in input field or dialog is open
@@ -345,8 +352,8 @@ export function initKeyboardNavigation() {
       case 'b':
       case '#':
         e.preventDefault();
-        if (window.toggleFacetMode) {
-          window.toggleFacetMode('contentTypeMode');
+        if (onToggleFacetMode) {
+          onToggleFacetMode('contentTypeMode');
         }
         break;
       case '+':
@@ -360,8 +367,8 @@ export function initKeyboardNavigation() {
         // Zoom out: expand to next larger predefined period
         if (zoomOut()) {
           saveStateToURL();
-          if (window.loadDashboard) {
-            window.loadDashboard();
+          if (onReloadDashboard) {
+            onReloadDashboard();
           }
         }
         break;

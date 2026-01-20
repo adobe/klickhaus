@@ -3,6 +3,7 @@ import { state, loadFacetPrefs } from './state.js';
 import { queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange } from './time.js';
 import { renderActiveFilters } from './filters.js';
 import { invalidateInvestigationCache } from './anomaly-investigation.js';
+import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS } from './constants.js';
 
 // DOM elements (set by main.js)
 let elements = {};
@@ -24,9 +25,9 @@ export function setUrlStateElements(els) {
 export function saveStateToURL(newAnomalyId = undefined) {
   const params = new URLSearchParams();
 
-  if (state.timeRange !== '1h') params.set('t', state.timeRange);
+  if (state.timeRange !== DEFAULT_TIME_RANGE) params.set('t', state.timeRange);
   if (state.hostFilter) params.set('host', state.hostFilter);
-  if (state.topN !== 5) params.set('n', state.topN);
+  if (state.topN !== DEFAULT_TOP_N) params.set('n', state.topN);
   if (state.showLogs) params.set('view', 'logs');
   if (state.title) params.set('title', state.title);
   if (state.contentTypeMode !== 'count') params.set('ctm', state.contentTypeMode);
@@ -96,7 +97,7 @@ export function loadStateFromURL() {
 
   if (params.has('t')) {
     const t = params.get('t');
-    if (['15m', '1h', '12h', '24h', '7d'].includes(t)) {
+    if (TIME_RANGES[t]) {
       state.timeRange = t;
     }
   }
@@ -107,7 +108,7 @@ export function loadStateFromURL() {
 
   if (params.has('n')) {
     const n = parseInt(params.get('n'));
-    if ([5, 10, 20, 50, 100].includes(n)) {
+    if (TOP_N_OPTIONS.includes(n)) {
       state.topN = n;
     }
   }
