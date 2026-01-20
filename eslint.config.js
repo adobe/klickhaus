@@ -19,6 +19,10 @@ export default [
   {
     ...recommended,
     files: ['js/**/*.js', 'scripts/**/*.mjs'],
+    rules: {
+      ...recommended.rules,
+      'max-lines': ['error', { max: 1000 }],
+    },
   },
   {
     // Browser source files
