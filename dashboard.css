@@ -2262,14 +2262,14 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 }
 
 .breakdown-table tr.investigation-highlight .status-color {
-  box-shadow: 0 0 6px 2px var(--investigation-glow-color, var(--status-server-error));
+  box-shadow: 0 0 6px 2px currentColor;
   cursor: help;
 }
 
 /* Pulse animation for the highlight to draw attention */
 @keyframes investigation-pulse {
-  0%, 100% { box-shadow: 0 0 6px 2px var(--investigation-glow-color, var(--status-server-error)); }
-  50% { box-shadow: 0 0 10px 4px var(--investigation-glow-color, var(--status-server-error)); }
+  0%, 100% { box-shadow: 0 0 6px 2px currentColor; }
+  50% { box-shadow: 0 0 10px 4px currentColor; }
 }
 
 @keyframes investigation-text-pulse {
@@ -2285,23 +2285,6 @@ body.keyboard-mode .other-row td.dim .dim-prefix::after {
 .breakdown-table tr.investigation-highlight td.dim {
   animation: investigation-text-pulse 2s ease-in-out 3;
   animation-fill-mode: forwards;
-}
-
-/* Glow colors matching anomaly category */
-.breakdown-table tr.investigation-highlight.investigation-red {
-  --investigation-glow-color: var(--status-server-error);
-}
-
-.breakdown-table tr.investigation-highlight.investigation-yellow {
-  --investigation-glow-color: var(--status-client-error);
-}
-
-.breakdown-table tr.investigation-highlight.investigation-green {
-  --investigation-glow-color: var(--status-ok);
-}
-
-.breakdown-table tr.investigation-highlight.investigation-blue {
-  --investigation-glow-color: #3b82f6;
 }
 
 /* Dark mode: use currentColor glow instead of light gray */

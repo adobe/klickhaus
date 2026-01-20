@@ -42,7 +42,7 @@ export function getColorForColumn(col, value) {
 export function getColorIndicatorHtml(col, value, className = 'status-color') {
   const color = getColorForColumn(col, value);
   if (!color) return '';
-  return `<span class="${className}" style="background:${color}"></span>`;
+  return `<span class="${className}" style="background:${color};color:${color}"></span>`;
 }
 
 // Export individual color functions for backward compatibility
