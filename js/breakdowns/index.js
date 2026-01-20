@@ -1,7 +1,7 @@
 // Breakdown loading and management
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
-import { query } from '../api.js';
+import { query, StaleResponseError } from '../api.js';
 import { getTimeFilter, getHostFilter, getTable } from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError } from './render.js';
@@ -100,7 +100,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
   const startTime = performance.now();
   try {
-    const result = await query(sql);
+    // Use breakdown ID as category for request cancellation
+    const result = await query(sql, { category: b.id });
     // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result._networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
@@ -125,6 +126,10 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
     renderBreakdownTable(b.id, data, result.totals, col, b.linkPrefix, b.linkSuffix, b.linkFn, elapsed, b.dimPrefixes, b.dimFormatFn, summaryRatio, b.summaryLabel, b.summaryColor, b.modeToggle, !!b.getExpectedLabels);
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return;
+    }
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);
   } finally {

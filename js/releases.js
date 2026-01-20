@@ -1,6 +1,6 @@
 // Release feed fetching and rendering for AEM releases
 
-import { query } from './api.js';
+import { query, StaleResponseError } from './api.js';
 
 // Get releases within a time range from ClickHouse
 export async function getReleasesInRange(startTime, endTime) {
@@ -14,9 +14,14 @@ export async function getReleasesInRange(startTime, endTime) {
         AND published <= toDateTime64('${formatTs(endTime)}', 3)
       ORDER BY published
     `;
-    const result = await query(sql, { cacheTtl: 300 });
+    // Use 'releases' category for request cancellation
+    const result = await query(sql, { cacheTtl: 300, category: 'releases' });
     return result.data || [];
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return [];
+    }
     console.error('Failed to fetch releases:', err);
     return [];
   }

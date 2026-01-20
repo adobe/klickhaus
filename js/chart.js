@@ -1,5 +1,5 @@
 // Time series chart rendering
-import { query } from './api.js';
+import { query, StaleResponseError } from './api.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
@@ -695,10 +695,15 @@ export async function loadTimeSeries() {
   `;
 
   try {
-    const result = await query(sql);
+    // Use 'chart' as category for request cancellation
+    const result = await query(sql, { category: 'chart' });
     state.chartData = result.data;
     renderChart(result.data);
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return;
+    }
     console.error('Chart error:', err);
   }
 }

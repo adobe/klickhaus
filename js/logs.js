@@ -1,7 +1,7 @@
 // Logs view management
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
-import { query } from './api.js';
+import { query, StaleResponseError } from './api.js';
 import { getTimeFilter, getHostFilter, getTable } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
@@ -267,7 +267,8 @@ export async function loadLogs() {
   `;
 
   try {
-    const result = await query(sql);
+    // Use 'logs' as category for request cancellation
+    const result = await query(sql, { category: 'logs' });
     state.logsData = result.data;
     renderLogsTable(result.data);
     state.logsReady = true;
@@ -276,6 +277,10 @@ export async function loadLogs() {
     hasMoreLogs = result.data.length === PAGE_SIZE;
     logsOffset = result.data.length;
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return;
+    }
     console.error('Logs error:', err);
     renderLogsError(err.message);
   } finally {
@@ -302,7 +307,8 @@ async function loadMoreLogs() {
   `;
 
   try {
-    const result = await query(sql);
+    // Use 'logs-more' as category for request cancellation (separate from main logs query)
+    const result = await query(sql, { category: 'logs-more' });
     if (result.data.length > 0) {
       state.logsData = [...state.logsData, ...result.data];
       appendLogsRows(result.data);
@@ -311,6 +317,10 @@ async function loadMoreLogs() {
     // Check if there might be more data
     hasMoreLogs = result.data.length === PAGE_SIZE;
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return;
+    }
     console.error('Load more logs error:', err);
   } finally {
     loadingMore = false;

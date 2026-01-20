@@ -7,7 +7,7 @@
  * @module anomaly-investigation
  */
 
-import { query } from './api.js';
+import { query, StaleResponseError, cancelRequest } from './api.js';
 import { DATABASE } from './config.js';
 import { state } from './state.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
@@ -363,7 +363,8 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
   `;
 
   try {
-    const result = await query(sql, { cacheTtl: 60 });
+    // Use facet-specific category for request cancellation
+    const result = await query(sql, { cacheTtl: 60, category: `investigation-${breakdown.id}` });
 
     // Calculate anomaly and baseline durations in ms
     const anomalyDurationMs = anomaly.endTime - anomaly.startTime;
@@ -427,6 +428,10 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
       .sort((a, b) => b.shareChange - a.shareChange)
       .slice(0, 5);
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return [];
+    }
     console.error(`Investigation error for ${breakdown.id}:`, err.message);
     return [];
   }
@@ -1034,7 +1039,8 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
   `;
 
   try {
-    const result = await query(sql, { cacheTtl: 60 });
+    // Use selection-specific category for request cancellation
+    const result = await query(sql, { cacheTtl: 60, category: `selection-${breakdown.id}` });
 
     // Calculate durations for rate normalization
     const selectionDurationMs = selection.endTime - selection.startTime;
@@ -1129,6 +1135,10 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
 
     return filtered;
   } catch (err) {
+    // Silently ignore aborted requests and stale responses
+    if (err.name === 'AbortError' || err instanceof StaleResponseError) {
+      return [];
+    }
     console.error(`Selection investigation error for ${breakdown.id}:`, err.message);
     return [];
   }

@@ -13,7 +13,43 @@ export function setForceRefresh(value) {
 // Auth error event - dispatched when authentication fails
 const authErrorEvent = new CustomEvent('auth-error');
 
-export async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
+// Stale response error - thrown when a response is superseded by a newer request
+export class StaleResponseError extends Error {
+  constructor(message = 'Response superseded by newer request') {
+    super(message);
+    this.name = 'StaleResponseError';
+  }
+}
+
+// Request controllers by category - allows cancelling previous requests when new ones start
+const controllers = new Map();
+
+// Request sequence numbers by category - for stale response detection
+const sequences = new Map();
+
+/**
+ * Cancel any pending request for the given category
+ * @param {string} category - Request category (e.g., 'chart', 'logs', 'breakdown-url')
+ */
+export function cancelRequest(category) {
+  const controller = controllers.get(category);
+  if (controller) {
+    controller.abort();
+    controllers.delete(category);
+  }
+}
+
+/**
+ * Cancel all pending requests (useful for page-wide refresh)
+ */
+export function cancelAllRequests() {
+  for (const controller of controllers.values()) {
+    controller.abort();
+  }
+  controllers.clear();
+}
+
+export async function query(sql, { cacheTtl = null, skipCache = false, category = null } = {}) {
   const params = new URLSearchParams();
 
   // Skip caching entirely for simple queries like auth check
@@ -34,6 +70,24 @@ export async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
   // Normalize SQL whitespace for consistent cache keys
   const normalizedSql = sql.replace(/\s+/g, ' ').trim();
 
+  // Set up AbortController and sequence tracking for cancellable requests
+  let signal = undefined;
+  let thisSeq = null;
+
+  if (category) {
+    // Cancel any previous request in this category
+    cancelRequest(category);
+
+    // Create new controller for this request
+    const controller = new AbortController();
+    controllers.set(category, controller);
+    signal = controller.signal;
+
+    // Increment sequence number for stale response detection
+    thisSeq = (sequences.get(category) || 0) + 1;
+    sequences.set(category, thisSeq);
+  }
+
   const url = `${CLICKHOUSE_URL}?${params}`;
   const fetchStart = performance.now();
   const response = await fetch(url, {
@@ -41,9 +95,15 @@ export async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
     headers: {
       'Authorization': 'Basic ' + btoa(`${state.credentials.user}:${state.credentials.password}`)
     },
-    body: normalizedSql + ' FORMAT JSON'
+    body: normalizedSql + ' FORMAT JSON',
+    signal
   });
   const fetchEnd = performance.now();
+
+  // Check for stale response (another request started while we were waiting)
+  if (category && thisSeq !== sequences.get(category)) {
+    throw new StaleResponseError();
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -55,7 +115,19 @@ export async function query(sql, { cacheTtl = null, skipCache = false } = {}) {
   }
 
   const data = await response.json();
+
+  // Final stale check after parsing (in case another request started during JSON parsing)
+  if (category && thisSeq !== sequences.get(category)) {
+    throw new StaleResponseError();
+  }
+
   // Wall clock timing from fetch call to response
   data._networkTime = fetchEnd - fetchStart;
+
+  // Clean up controller on successful completion
+  if (category) {
+    controllers.delete(category);
+  }
+
   return data;
 }
