@@ -9,183 +9,82 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+
+/**
+ * UI plane for chart - handles rendering and event handling.
+ * State management and navigation logic are in chart-state.js.
+ */
+
 import { query } from './api.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
-import { addFilter } from './filters.js';
 import {
   getHostFilter,
-  getPeriodMs,
   getTable,
   getTimeBucket,
   getTimeFilter,
-  queryTimestamp,
   setCustomTimeRange,
-  setQueryTimestamp,
 } from './time.js';
 import { saveStateToURL } from './url-state.js';
 import {
   getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
 } from './releases.js';
 import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
+import {
+  setNavigationCallback,
+  getNavigationCallback,
+  navigateTime,
+  setChartLayout,
+  getChartLayout,
+  setLastChartData,
+  getLastChartData,
+  addAnomalyBounds,
+  resetAnomalyBounds,
+  setDetectedSteps,
+  getDetectedSteps,
+  setShipPositions,
+  getShipPositions,
+  setPendingSelection,
+  getPendingSelection,
+  getAnomalyAtX,
+  getTimeAtX,
+  formatScrubberTime,
+  formatDuration,
+  zoomToAnomalyByRank,
+  getShipNearX,
+  hexToRgba,
+  roundToNice,
+} from './chart-state.js';
 
-// Navigation state
-let onNavigate = null;
-let navOverlay = null;
+// Re-export state functions for external use
+export {
+  getAnomalyCount,
+  getAnomalyTimeRange,
+  getDetectedAnomalies,
+  getLastChartData,
+  getMostRecentTimeRange,
+  zoomToAnomalyByRank,
+  zoomToAnomaly,
+} from './chart-state.js';
 
-// Ship positions for tooltip hit-testing
-let lastShipPositions = null;
-
-// Scrubber elements
+// UI elements and drag state
 let scrubberLine = null;
 let scrubberStatusBar = null;
-
-// Drag selection elements and state
 let selectionOverlay = null;
+let navOverlay = null;
 let isDragging = false;
 let dragStartX = null;
-let justCompletedDrag = false; // Flag to prevent click handlers firing after drag
-
-// Pending selection state (module-level for access in renderChart)
-// { startTime, endTime } - persists after drag until clicked or cleared
-let pendingSelection = null;
-
-// Chart layout info for scrubber (set during render)
-let chartLayout = null;
-
-// Anomaly zoom state - now supports up to 5 anomalies
-let lastAnomalyBoundsList = []; // Array of { left, right, startTime, endTime, rank }
-let lastChartData = null; // Store data for timestamp lookups
-
-// Store detected steps for investigation
-let lastDetectedSteps = [];
-
-function navigateTime(fraction) {
-  const periodMs = getPeriodMs();
-  const shiftMs = periodMs * fraction;
-  const currentTs = queryTimestamp() || new Date();
-  const newTs = new Date(currentTs.getTime() + shiftMs);
-
-  // Don't go into the future
-  const now = new Date();
-  if (newTs > now) {
-    setQueryTimestamp(now);
-  } else {
-    setQueryTimestamp(newTs);
-  }
-
-  if (onNavigate) onNavigate();
-}
-
-// Get the count of detected anomalies
-export function getAnomalyCount() {
-  return lastAnomalyBoundsList.length;
-}
-
-// Get the time range of an anomaly by rank (1-5)
-export function getAnomalyTimeRange(rank = 1) {
-  const bounds = lastAnomalyBoundsList.find((b) => b.rank === rank);
-  if (!bounds) return null;
-  return {
-    start: bounds.startTime,
-    end: bounds.endTime,
-  };
-}
-
-// Get all detected anomalies with time bounds (for investigation)
-export function getDetectedAnomalies() {
-  return lastAnomalyBoundsList.map((bounds) => ({
-    rank: bounds.rank,
-    startTime: bounds.startTime,
-    endTime: bounds.endTime,
-    // Find matching step info from last detection
-    ...lastDetectedSteps.find((s) => s.rank === bounds.rank),
-  }));
-}
-
-// Get the last chart data (for investigation)
-export function getLastChartData() {
-  return lastChartData;
-}
-
-// Get the time range for the most recent section (last 20% of timeline)
-export function getMostRecentTimeRange() {
-  if (!lastChartData || lastChartData.length < 2) return null;
-  const len = lastChartData.length;
-  // Last 20% of the timeline
-  const startIdx = Math.floor(len * 0.8);
-  return {
-    start: new Date(lastChartData[startIdx].t),
-    end: new Date(lastChartData[len - 1].t),
-  };
-}
-
-// Status range column for filtering
-const STATUS_RANGE_COL = "concat(toString(intDiv(`response.status`, 100)), 'xx')";
-
-// Zoom to anomaly by rank (1 = most prominent)
-export function zoomToAnomalyByRank(rank) {
-  const range = getAnomalyTimeRange(rank);
-  if (!range) return false;
-
-  // Get the anomaly ID for this rank (set during investigation)
-  const anomalyId = window.anomalyIdsByRank?.[rank] || null;
-
-  // Get the anomaly category and add corresponding status filter
-  const step = lastDetectedSteps.find((s) => s.rank === rank);
-  if (step?.category) {
-    // Map category to status range filter values
-    // red = 5xx errors, yellow = 4xx client errors, green = 2xx success
-    const statusFilters = {
-      red: ['5xx'],
-      yellow: ['4xx'],
-      green: ['2xx'], // Focus on successful requests for green anomalies
-    };
-    const values = statusFilters[step.category];
-    if (values) {
-      for (const value of values) {
-        // Skip reload - we'll reload once after setting time range
-        addFilter(STATUS_RANGE_COL, value, false, true);
-      }
-    }
-  }
-
-  setCustomTimeRange(range.start, range.end);
-  // Save all state atomically in one history entry (time + filters + anomaly ID)
-  saveStateToURL(anomalyId);
-
-  if (onNavigate) onNavigate();
-  return true;
-}
-
-// Zoom to the most prominent anomaly, or most recent section if none
-export function zoomToAnomaly() {
-  // Try most prominent anomaly first
-  if (lastAnomalyBoundsList.length > 0) {
-    return zoomToAnomalyByRank(1);
-  }
-
-  // Fall back to most recent section
-  const range = getMostRecentTimeRange();
-  if (!range) return false;
-
-  setCustomTimeRange(range.start, range.end);
-  saveStateToURL();
-
-  if (onNavigate) onNavigate();
-  return true;
-}
+let justCompletedDrag = false;
 
 export function renderChart(data) {
   // Store data for zoom functionality and reset anomaly/ship bounds
-  lastChartData = data;
-  lastAnomalyBoundsList = [];
-  lastShipPositions = null; // Reset ship positions on redraw
-  hideReleaseTooltip(); // Hide any visible tooltip
-
+  setLastChartData(data);
+  resetAnomalyBounds();
+  setShipPositions(null);
+  hideReleaseTooltip();
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -206,9 +105,9 @@ export function renderChart(data) {
   const chartHeight = height - padding.top - padding.bottom;
 
   // Store layout for scrubber
-  chartLayout = {
+  setChartLayout({
     width, height, padding, chartWidth, chartHeight,
-  };
+  });
 
   // Clear
   ctx.clearRect(0, 0, width, height);
@@ -237,13 +136,6 @@ export function renderChart(data) {
   const minValue = 0;
 
   // Colors from CSS variables
-  const hexToRgba = (hex, alpha) => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
-
   const okColor = cssVar('--status-ok');
   const clientColor = cssVar('--status-client-error');
   const serverColor = cssVar('--status-server-error');
@@ -268,21 +160,6 @@ export function renderChart(data) {
   ctx.fillStyle = cssVar('--text-secondary');
   ctx.font = '11px -apple-system, sans-serif';
   ctx.textAlign = 'left';
-
-  // Round intermediate values to nice numbers, keep top value exact
-  const roundToNice = (val) => {
-    if (val === 0) return 0;
-    const magnitude = 10 ** Math.floor(Math.log10(val));
-    const normalized = val / magnitude;
-    // Round to nearest 1, 2, 2.5, or 5
-    let nice;
-    if (normalized <= 1.5) nice = 1;
-    else if (normalized <= 2.25) nice = 2;
-    else if (normalized <= 3.5) nice = 2.5;
-    else if (normalized <= 7.5) nice = 5;
-    else nice = 10;
-    return nice * magnitude;
-  };
 
   for (let i = 1; i <= 4; i += 1) {
     const rawVal = minValue + (maxValue - minValue) * (i / 4);
@@ -424,14 +301,16 @@ export function renderChart(data) {
   const steps = timeRangeMs >= minTimeRangeMs ? detectSteps(series, 5) : [];
 
   // Store detected steps for investigation (with additional metadata)
-  lastDetectedSteps = steps.map((s) => ({
+  const stepsWithTime = steps.map((s) => ({
     ...s,
     startTime: data[s.startIndex]?.t ? new Date(data[s.startIndex].t) : null,
     endTime: data[s.endIndex]?.t ? new Date(data[s.endIndex].t) : null,
   }));
+  setDetectedSteps(stepsWithTime);
 
   // Debug: show detected anomalies in console
   if (steps.length > 0) {
+    // eslint-disable-next-line no-console
     console.table(steps.map((s) => ({
       rank: s.rank,
       type: s.type,
@@ -461,7 +340,7 @@ export function renderChart(data) {
     // Store anomaly bounds for click detection and zoom
     const startTime = new Date(data[step.startIndex].t);
     const endTime = new Date(data[step.endIndex].t);
-    lastAnomalyBoundsList.push({
+    addAnomalyBounds({
       left: bandLeft,
       right: bandRight,
       startTime,
@@ -581,6 +460,7 @@ export function renderChart(data) {
   }
 
   // Draw blue selection band if there's a pending selection
+  const pendingSelection = getPendingSelection();
   if (pendingSelection) {
     const { startTime: selStart, endTime: selEnd } = pendingSelection;
     const dataStart = new Date(data[0].t);
@@ -631,18 +511,19 @@ export function renderChart(data) {
       const chartDimensions = {
         width, height, padding, chartWidth,
       };
-      lastShipPositions = renderReleaseShips(ctx, releases, data, chartDimensions);
+      setShipPositions(renderReleaseShips(ctx, releases, data, chartDimensions));
     } else {
-      lastShipPositions = null;
+      setShipPositions(null);
     }
   }).catch((err) => {
+    // eslint-disable-next-line no-console
     console.error('Failed to render releases:', err);
-    lastShipPositions = null;
+    setShipPositions(null);
   });
 }
 
 export function setupChartNavigation(callback) {
-  onNavigate = callback;
+  setNavigationCallback(callback);
   const canvas = document.getElementById('chart');
   const container = canvas.parentElement;
 
@@ -669,8 +550,9 @@ export function setupChartNavigation(callback) {
   selectionOverlay.className = 'chart-selection-overlay';
   container.appendChild(selectionOverlay);
 
-  // Drag selection helper functions (defined early for use in event handlers)
+  // Drag selection helper functions
   function updateSelectionOverlay(startX, endX) {
+    const chartLayout = getChartLayout();
     if (!chartLayout) return;
     const { padding, height } = chartLayout;
     const left = Math.min(startX, endX);
@@ -686,24 +568,27 @@ export function setupChartNavigation(callback) {
   function hideSelectionOverlay() {
     selectionOverlay.classList.remove('visible');
     selectionOverlay.classList.remove('confirmed');
-    pendingSelection = null;
+    setPendingSelection(null);
     // Clear blue highlights when selection is cleared
     clearSelectionHighlights();
     // Redraw chart to remove blue band
-    if (lastChartData) {
+    const lastData = getLastChartData();
+    if (lastData) {
       requestAnimationFrame(() => {
-        renderChart(lastChartData);
+        renderChart(lastData);
       });
     }
   }
 
   // Click on selection overlay to navigate to the selected time range
   selectionOverlay.addEventListener('click', () => {
+    const pendingSelection = getPendingSelection();
     if (pendingSelection) {
       const { startTime, endTime } = pendingSelection;
       hideSelectionOverlay();
       setCustomTimeRange(startTime, endTime);
       saveStateToURL();
+      const onNavigate = getNavigationCallback();
       if (onNavigate) onNavigate();
     }
   });
@@ -744,93 +629,9 @@ export function setupChartNavigation(callback) {
     }
   }, { passive: true });
 
-  // Check if x position is within any anomaly region
-  function getAnomalyAtX(x) {
-    for (const bounds of lastAnomalyBoundsList) {
-      if (x >= bounds.left && x <= bounds.right) {
-        return bounds;
-      }
-    }
-    return null;
-  }
-
-  // Get ship near x position (with padding for easier hover)
-  function getShipNearX(x, padding = 20) {
-    if (!lastShipPositions) return null;
-    for (const ship of lastShipPositions) {
-      if (Math.abs(x - ship.x) <= padding) {
-        return ship;
-      }
-    }
-    return null;
-  }
-
-  // Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
-  function parseUTC(timestamp) {
-    const str = String(timestamp);
-    // If already has Z suffix, parse directly
-    if (str.endsWith('Z')) {
-      return new Date(str);
-    }
-    // Otherwise, normalize and append Z to treat as UTC
-    return new Date(`${str.replace(' ', 'T')}Z`);
-  }
-
-  // Get time at x position
-  function getTimeAtX(x) {
-    if (!chartLayout || !lastChartData || lastChartData.length < 2) return null;
-    const { padding, chartWidth } = chartLayout;
-    const xRatio = (x - padding.left) / chartWidth;
-    if (xRatio < 0 || xRatio > 1) return null;
-
-    const startTime = parseUTC(lastChartData[0].t).getTime();
-    const endTime = parseUTC(lastChartData[lastChartData.length - 1].t).getTime();
-    const time = new Date(startTime + xRatio * (endTime - startTime));
-    return time;
-  }
-
-  // Format time for scrubber display (similar to x-axis labels)
-  function formatScrubberTime(time) {
-    const now = new Date();
-    const diffMs = now - time;
-    const diffMinutes = Math.floor(diffMs / 60000);
-
-    // Format like x-axis: HH:MM:SS UTC
-    const timeStr = time.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      timeZone: 'UTC',
-    });
-
-    // Add relative time if < 120 minutes ago
-    let relativeStr = '';
-    if (diffMinutes >= 0 && diffMinutes < 120) {
-      if (diffMinutes === 0) {
-        relativeStr = 'just now';
-      } else if (diffMinutes === 1) {
-        relativeStr = '1 min ago';
-      } else {
-        relativeStr = `${diffMinutes} min ago`;
-      }
-    }
-
-    return { timeStr, relativeStr };
-  }
-
-  // Format anomaly duration
-  function formatDuration(startTime, endTime) {
-    const durationMs = endTime - startTime;
-    const minutes = Math.floor(durationMs / 60000);
-    const seconds = Math.floor((durationMs % 60000) / 1000);
-    if (minutes === 0) return `${seconds}s`;
-    if (seconds === 0) return `${minutes}m`;
-    return `${minutes}m ${seconds}s`;
-  }
-
   // Update scrubber position and content
   function updateScrubber(x, _) {
+    const chartLayout = getChartLayout();
     if (!chartLayout) return;
 
     const { padding, width, height } = chartLayout;
@@ -862,7 +663,8 @@ export function setupChartNavigation(callback) {
     // Check for anomaly
     const anomaly = getAnomalyAtX(x);
     if (anomaly) {
-      const step = lastDetectedSteps.find((s) => s.rank === anomaly.rank);
+      const detectedSteps = getDetectedSteps();
+      const step = detectedSteps.find((s) => s.rank === anomaly.rank);
       const duration = formatDuration(anomaly.startTime, anomaly.endTime);
       const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
       let categoryLabel = '2xx';
@@ -981,7 +783,7 @@ export function setupChartNavigation(callback) {
     }
 
     // Clear any existing pending selection when starting a new drag
-    if (pendingSelection) {
+    if (getPendingSelection()) {
       hideSelectionOverlay();
     }
 
@@ -1003,6 +805,7 @@ export function setupChartNavigation(callback) {
   container.addEventListener('mousemove', (e) => {
     if (dragStartX === null) return;
 
+    const chartLayout = getChartLayout();
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const distance = Math.abs(x - dragStartX);
@@ -1035,7 +838,7 @@ export function setupChartNavigation(callback) {
 
     if (!wasDragging) {
       // It was a click, not a drag - check for anomaly or clear selection
-      if (pendingSelection) {
+      if (getPendingSelection()) {
         // Don't clear if clicking on the selection overlay itself
         const isOverlayClick = e.target === selectionOverlay
           || selectionOverlay.contains(e.target);
@@ -1046,13 +849,9 @@ export function setupChartNavigation(callback) {
         hideSelectionOverlay();
         return;
       }
-      if (lastAnomalyBoundsList.length > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const anomaly = getAnomalyAtX(x);
-        if (anomaly) {
-          zoomToAnomalyByRank(anomaly.rank);
-        }
+      const anomalyBounds = getAnomalyAtX(e.clientX - canvas.getBoundingClientRect().left);
+      if (anomalyBounds) {
+        zoomToAnomalyByRank(anomalyBounds.rank);
       }
       return;
     }
@@ -1065,7 +864,7 @@ export function setupChartNavigation(callback) {
     const endTime = getTimeAtX(Math.max(startX, endX));
 
     if (startTime && endTime && startTime < endTime) {
-      pendingSelection = { startTime, endTime };
+      setPendingSelection({ startTime, endTime });
       selectionOverlay.classList.add('confirmed');
       // Keep overlay visible - don't hide it
       // Set flag to prevent click handlers from firing
@@ -1075,16 +874,18 @@ export function setupChartNavigation(callback) {
       });
 
       // Redraw chart to show blue selection band
-      if (lastChartData) {
+      const lastData = getLastChartData();
+      if (lastData) {
         requestAnimationFrame(() => {
-          renderChart(lastChartData);
+          renderChart(lastData);
         });
       }
 
       // Trigger investigation for the selected time range
-      if (lastChartData && lastChartData.length >= 2) {
-        const fullStart = new Date(lastChartData[0].t);
-        const fullEnd = new Date(lastChartData[lastChartData.length - 1].t);
+      const chartData = getLastChartData();
+      if (chartData && chartData.length >= 2) {
+        const fullStart = new Date(chartData[0].t);
+        const fullEnd = new Date(chartData[chartData.length - 1].t);
         investigateTimeRange(startTime, endTime, fullStart, fullEnd);
       }
     } else {
@@ -1133,7 +934,7 @@ export function setupChartNavigation(callback) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const anomaly = getAnomalyAtX(x);
-    const ship = getShipAtPoint(lastShipPositions, x, y);
+    const ship = getShipAtPoint(getShipPositions(), x, y);
     navOverlay.classList.toggle('over-anomaly', !!anomaly);
     navOverlay.classList.toggle('over-ship', !!ship);
   });
@@ -1148,7 +949,7 @@ export function setupChartNavigation(callback) {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const ship = getShipAtPoint(lastShipPositions, x, y);
+    const ship = getShipAtPoint(getShipPositions(), x, y);
 
     if (ship) {
       // Convert canvas coordinates to page coordinates
@@ -1193,6 +994,7 @@ export async function loadTimeSeries() {
     state.chartData = result.data;
     renderChart(result.data);
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Chart error:', err);
   }
 }
