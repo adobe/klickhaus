@@ -1,12 +1,14 @@
-/**
- * Anomaly root cause investigation module.
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
  *
- * When an anomaly is detected, this module queries facets to identify
- * which dimension values contributed most to the spike or drop.
- *
- * @module anomaly-investigation
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  */
-
 import { query } from './api.js';
 import { DATABASE } from './config.js';
 import { state } from './state.js';
@@ -33,6 +35,9 @@ const HIGHLIGHT_TOP_N = 3;
 // Store cached top contributors for re-applying highlights as facets load
 let cachedTopContributors = null;
 
+// Store investigation results by anomaly ID for persistent access across zooms
+const investigationsByAnomalyId = new Map();
+
 // Car-themed word lists for generating stable IDs
 const CAR_ADJECTIVES = [
   'alpine', 'azure', 'blazing', 'bold', 'brilliant', 'chrome', 'classic',
@@ -46,28 +51,28 @@ const CAR_ADJECTIVES = [
   'shadow', 'silent', 'silver', 'sleek', 'smoky', 'solar', 'sonic',
   'speedy', 'starlit', 'steel', 'storm', 'sunset', 'swift', 'teal',
   'thunder', 'titan', 'turbo', 'twilight', 'velvet', 'vintage', 'violet',
-  'wild', 'winter', 'zephyr'
+  'wild', 'winter', 'zephyr',
 ];
 
 // Car colors organized by severity for anomaly ID generation
 const CAR_COLORS_RED = [
   'burgundy', 'cardinal', 'carmine', 'cerise', 'cherry', 'claret', 'coral',
   'cranberry', 'crimson', 'garnet', 'magenta', 'maroon', 'raspberry', 'rose',
-  'ruby', 'russet', 'rust', 'scarlet', 'vermillion', 'wine'
+  'ruby', 'russet', 'rust', 'scarlet', 'vermillion', 'wine',
 ];
 
 const CAR_COLORS_ORANGE = [
   'amber', 'apricot', 'bronze', 'burnt', 'butterscotch', 'caramel', 'carrot',
   'cinnamon', 'copper', 'flame', 'ginger', 'gold', 'honey', 'marigold',
   'melon', 'ochre', 'orange', 'papaya', 'peach', 'pumpkin', 'saffron',
-  'sand', 'sienna', 'tan', 'tangerine', 'tawny', 'topaz', 'yellow'
+  'sand', 'sienna', 'tan', 'tangerine', 'tawny', 'topaz', 'yellow',
 ];
 
 const CAR_COLORS_COOL = [
   'aqua', 'azure', 'blue', 'cerulean', 'chartreuse', 'cobalt', 'cyan',
   'emerald', 'forest', 'green', 'hunter', 'indigo', 'jade', 'lagoon',
   'lime', 'mint', 'navy', 'olive', 'pacific', 'pine', 'sage', 'seafoam',
-  'spruce', 'teal', 'turquoise', 'verdant', 'viridian'
+  'spruce', 'teal', 'turquoise', 'verdant', 'viridian',
 ];
 
 const CAR_MODELS = [
@@ -81,7 +86,7 @@ const CAR_MODELS = [
   'ranger', 'raptor', 'roadster', 'safari', 'scirocco', 'senna', 'shelby',
   'sierra', 'skyline', 'solara', 'sonata', 'spark', 'spider', 'stingray',
   'supra', 'tacoma', 'tempest', 'tercel', 'thunderbird', 'tiguan', 'torino',
-  'tundra', 'vantage', 'viper', 'wrangler', 'zephyr'
+  'tundra', 'vantage', 'viper', 'wrangler', 'zephyr',
 ];
 
 /**
@@ -91,10 +96,12 @@ const CAR_MODELS = [
  */
 function simpleHash(str) {
   let hash = 0;
-  for (let i = 0; i < str.length; i++) {
+  for (let i = 0; i < str.length; i += 1) {
     const char = str.charCodeAt(i);
+    // eslint-disable-next-line no-bitwise
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    // eslint-disable-next-line no-bitwise
+    hash |= 0; // Convert to 32-bit integer
   }
   return Math.abs(hash);
 }
@@ -129,7 +136,7 @@ function generateAnomalyId(baseTimeRange, baseFilters, anomalyStart, anomalyEnd,
     baseTimeRange,
     baseFilters,
     roundToMinute(anomalyStart),
-    roundToMinute(anomalyEnd)
+    roundToMinute(anomalyEnd),
   ].join('|');
 
   const hash = simpleHash(inputStr);
@@ -150,7 +157,9 @@ function generateAnomalyId(baseTimeRange, baseFilters, anomalyStart, anomalyEnd,
   // Use different parts of the hash to select words
   const adjIdx = hash % CAR_ADJECTIVES.length;
   const colorIdx = Math.floor(hash / CAR_ADJECTIVES.length) % colorList.length;
-  const modelIdx = Math.floor(hash / (CAR_ADJECTIVES.length * colorList.length)) % CAR_MODELS.length;
+  const modelIdx = Math.floor(
+    hash / (CAR_ADJECTIVES.length * colorList.length),
+  ) % CAR_MODELS.length;
 
   return `${CAR_ADJECTIVES[adjIdx]}-${colorList[colorIdx]}-${CAR_MODELS[modelIdx]}`;
 }
@@ -265,7 +274,7 @@ function saveCachedInvestigation(cacheKey, data) {
       ...data,
       context,
       version: CACHE_VERSION,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }));
   } catch (e) {
     console.warn('Failed to cache investigation:', e);
@@ -278,7 +287,7 @@ function saveCachedInvestigation(cacheKey, data) {
 function cleanupOldCaches() {
   try {
     const keys = [];
-    for (let i = 0; i < localStorage.length; i++) {
+    for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
       if (key?.startsWith('anomaly_investigation_')) {
         const data = JSON.parse(localStorage.getItem(key));
@@ -288,7 +297,7 @@ function cleanupOldCaches() {
     // Sort by timestamp descending, remove all but the 10 most recent
     keys.sort((a, b) => b.timestamp - a.timestamp);
     keys.slice(10).forEach(({ key }) => localStorage.removeItem(key));
-  } catch (e) {
+  } catch (_e) {
     // Ignore cleanup errors
   }
 }
@@ -374,15 +383,21 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
     const baselineMinutes = baselineDurationMs / 60000;
 
     // Calculate totals for share computation
-    const totalAnomalyCatCnt = result.data.reduce((sum, r) => sum + parseInt(r.anomaly_cat_cnt || 0), 0);
-    const totalBaselineCatCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_cat_cnt || 0), 0);
+    const totalAnomalyCatCnt = result.data.reduce(
+      (sum, r) => sum + parseInt(r.anomaly_cat_cnt || 0, 10),
+      0,
+    );
+    const totalBaselineCatCnt = result.data.reduce(
+      (sum, r) => sum + parseInt(r.baseline_cat_cnt || 0, 10),
+      0,
+    );
 
     // Analyze each facet value
-    const analyzed = result.data.map(row => {
-      const anomalyCatCnt = parseInt(row.anomaly_cat_cnt) || 0;
-      const baselineCatCnt = parseInt(row.baseline_cat_cnt) || 0;
-      const anomalyTotalCnt = parseInt(row.anomaly_total_cnt) || 0;
-      const baselineTotalCnt = parseInt(row.baseline_total_cnt) || 0;
+    const analyzed = result.data.map((row) => {
+      const anomalyCatCnt = parseInt(row.anomaly_cat_cnt, 10) || 0;
+      const baselineCatCnt = parseInt(row.baseline_cat_cnt, 10) || 0;
+      const anomalyTotalCnt = parseInt(row.anomaly_total_cnt, 10) || 0;
+      const baselineTotalCnt = parseInt(row.baseline_total_cnt, 10) || 0;
 
       // Normalize to rate per minute
       const anomalyRate = anomalyMinutes > 0 ? anomalyCatCnt / anomalyMinutes : 0;
@@ -397,13 +412,22 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
       }
 
       // Calculate share of category during anomaly vs baseline
-      const anomalyShare = totalAnomalyCatCnt > 0 ? (anomalyCatCnt / totalAnomalyCatCnt) * 100 : 0;
-      const baselineShare = totalBaselineCatCnt > 0 ? (baselineCatCnt / totalBaselineCatCnt) * 100 : 0;
-      const shareChange = anomalyShare - baselineShare; // Positive = over-represented during anomaly
+      const anomalyShare = totalAnomalyCatCnt > 0
+        ? (anomalyCatCnt / totalAnomalyCatCnt) * 100
+        : 0;
+      const baselineShare = totalBaselineCatCnt > 0
+        ? (baselineCatCnt / totalBaselineCatCnt) * 100
+        : 0;
+      // Positive = over-represented during anomaly
+      const shareChange = anomalyShare - baselineShare;
 
       // Calculate error rate for this dimension (category errors / total requests)
-      const anomalyErrorRate = anomalyTotalCnt > 0 ? (anomalyCatCnt / anomalyTotalCnt) * 100 : 0;
-      const baselineErrorRate = baselineTotalCnt > 0 ? (baselineCatCnt / baselineTotalCnt) * 100 : 0;
+      const anomalyErrorRate = anomalyTotalCnt > 0
+        ? (anomalyCatCnt / anomalyTotalCnt) * 100
+        : 0;
+      const baselineErrorRate = baselineTotalCnt > 0
+        ? (baselineCatCnt / baselineTotalCnt) * 100
+        : 0;
       const errorRateChange = anomalyErrorRate - baselineErrorRate;
 
       return {
@@ -414,7 +438,7 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
         anomalyShare: Math.round(anomalyShare * 10) / 10,
         baselineShare: Math.round(baselineShare * 10) / 10,
         shareChange: Math.round(shareChange * 10) / 10,
-        errorRateChange: Math.round(errorRateChange * 10) / 10
+        errorRateChange: Math.round(errorRateChange * 10) / 10,
       };
     });
 
@@ -423,13 +447,226 @@ async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
     // - OR error rate increased by >5 percentage points
     // - Must have some volume (anomalyRate > 0.5/min)
     return analyzed
-      .filter(r => r.anomalyRate > 0.5 && (r.shareChange > 5 || r.errorRateChange > 5))
+      .filter((r) => r.anomalyRate > 0.5 && (r.shareChange > 5 || r.errorRateChange > 5))
       .sort((a, b) => b.shareChange - a.shareChange)
       .slice(0, 5);
   } catch (err) {
     console.error(`Investigation error for ${breakdown.id}:`, err.message);
     return [];
   }
+}
+
+/**
+ * Store anomaly ID on detected step (called from investigation)
+ * @param {number} rank - Step rank
+ * @param {string} id - Anomaly ID
+ */
+function storeAnomalyIdOnStep(rank, id) {
+  // This will be used by chart.js to access IDs when zooming
+  window.anomalyIdsByRank = window.anomalyIdsByRank || {};
+  window.anomalyIdsByRank[rank] = id;
+}
+
+/**
+ * Get the focused anomaly ID from URL or null
+ * @returns {string|null} Anomaly ID or null
+ */
+export function getFocusedAnomalyId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('anomaly') || null;
+}
+
+/**
+ * Set the focused anomaly ID in URL
+ * @param {string|null} anomalyId - Anomaly ID or null to clear
+ */
+export function setFocusedAnomalyId(anomalyId) {
+  const url = new URL(window.location);
+  if (anomalyId) {
+    url.searchParams.set('anomaly', anomalyId);
+  } else {
+    url.searchParams.delete('anomaly');
+  }
+  window.history.replaceState({}, '', url);
+}
+
+/**
+ * Find a row in the breakdown table by dimension value
+ * Tries exact match first, then case-insensitive match as fallback
+ * @param {NodeList} rows - Table rows to search
+ * @param {string} dim - Dimension value to find
+ * @returns {Element|null} Matching row or null
+ */
+function findRowByDim(rows, dim) {
+  const rowArray = Array.from(rows);
+  // Try exact match first
+  let row = rowArray.find((r) => r.dataset.dim === dim);
+  if (!row && dim) {
+    // Fallback to case-insensitive match
+    const dimLower = dim.toLowerCase();
+    row = rowArray.find((r) => r.dataset.dim?.toLowerCase() === dimLower);
+  }
+  return row || null;
+}
+
+/**
+ * Apply highlights from a contributors array (for progressive highlighting)
+ * Iterates through candidates in priority order, highlighting up to
+ * HIGHLIGHT_TOP_N that exist in DOM
+ * @param {Array} contributors - Array of contributor objects with facetId,
+ *   dim, category, etc. (sorted by priority)
+ * @returns {number} Number of items actually highlighted
+ */
+function applyHighlightsFromContributors(contributors) {
+  // Remove existing highlights and reset titles
+  document.querySelectorAll('.investigation-highlight').forEach((el) => {
+    el.classList.remove(
+      'investigation-highlight',
+      'investigation-red',
+      'investigation-yellow',
+      'investigation-green',
+      'investigation-blue',
+    );
+    const statusColor = el.querySelector('.status-color');
+    if (statusColor) statusColor.removeAttribute('title');
+  });
+
+  const focusedId = getFocusedAnomalyId();
+
+  // Iterate through contributors in priority order, highlight first N that exist in DOM
+  let highlightedCount = 0;
+
+  for (const c of contributors) {
+    // Stop if we've highlighted enough
+    if (highlightedCount >= HIGHLIGHT_TOP_N) {
+      break;
+    }
+
+    // Skip if focused on a specific anomaly and this isn't it
+    const shouldProcess = !focusedId || c.anomalyId === focusedId;
+    if (shouldProcess) {
+      const card = document.getElementById(c.facetId);
+      if (card) {
+        const rows = card.querySelectorAll('.breakdown-table tr');
+        if (rows.length > 0) {
+          // Try to find the row with matching dimension (case-insensitive fallback)
+          const row = findRowByDim(rows, c.dim);
+          if (row) {
+            row.classList.add('investigation-highlight', `investigation-${c.category}`);
+            highlightedCount += 1;
+            // eslint-disable-next-line no-console
+            console.log(`  Highlighted #${highlightedCount}: ${c.facetId} = "${c.dim}" (+${c.shareChange}pp)`);
+            const statusColor = row.querySelector('.status-color');
+            if (statusColor) {
+              statusColor.title = `+${c.shareChange}pp share of #${c.rank} ${c.anomalyId}`;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return highlightedCount;
+}
+
+/**
+ * Apply visual highlights to all facet values
+ */
+function applyHighlights() {
+  // Remove existing highlights and reset titles
+  document.querySelectorAll('.investigation-highlight').forEach((el) => {
+    el.classList.remove(
+      'investigation-highlight',
+      'investigation-red',
+      'investigation-yellow',
+      'investigation-green',
+      'investigation-blue',
+    );
+    const statusColor = el.querySelector('.status-color');
+    if (statusColor) statusColor.removeAttribute('title');
+  });
+
+  const focusedId = getFocusedAnomalyId();
+
+  // Build a map of facetId -> dim -> { category, shareChange, anomalyId, rank }
+  const highlightMap = new Map();
+
+  // If we have a focused anomaly ID, try to get its results from the persistent map
+  if (focusedId) {
+    const persistedResult = investigationsByAnomalyId.get(focusedId);
+    if (persistedResult) {
+      const category = persistedResult.anomaly?.category || 'red';
+      const { anomalyId } = persistedResult;
+      const rank = persistedResult.anomaly?.rank || 1;
+      for (const [facetId, facetResults] of Object.entries(persistedResult.facets)) {
+        if (!highlightMap.has(facetId)) {
+          highlightMap.set(facetId, new Map());
+        }
+        for (const item of facetResults) {
+          highlightMap.get(facetId).set(item.dim, {
+            category,
+            shareChange: item.shareChange,
+            anomalyId,
+            rank,
+          });
+        }
+      }
+    }
+  } else {
+    // No specific focus - highlight from all current results (use highest share change per dim)
+    for (const result of lastInvestigationResults) {
+      const category = result.anomaly?.category || 'red';
+      const { anomalyId } = result;
+      const rank = result.anomaly?.rank || 1;
+      for (const [facetId, facetResults] of Object.entries(result.facets)) {
+        if (!highlightMap.has(facetId)) {
+          highlightMap.set(facetId, new Map());
+        }
+        for (const item of facetResults) {
+          const existing = highlightMap.get(facetId).get(item.dim);
+          // Keep the one with higher share change
+          if (!existing || item.shareChange > existing.shareChange) {
+            highlightMap.get(facetId).set(item.dim, {
+              category,
+              shareChange: item.shareChange,
+              anomalyId,
+              rank,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Apply highlights to matching rows
+  for (const [facetId, dimInfoMap] of highlightMap) {
+    const card = document.getElementById(facetId);
+    if (card) {
+      const rows = card.querySelectorAll('.breakdown-table tr');
+      if (rows.length > 0) {
+        for (const [expectedDim, info] of dimInfoMap) {
+          const row = findRowByDim(rows, expectedDim);
+          if (row) {
+            row.classList.add('investigation-highlight', `investigation-${info.category}`);
+            const statusColor = row.querySelector('.status-color');
+            if (statusColor) {
+              const title = `+${info.shareChange}pp share of #${info.rank} ${info.anomalyId}`;
+              statusColor.title = title;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Clear all investigation highlights
+ */
+export function clearHighlights() {
+  document.querySelectorAll('.investigation-highlight').forEach((el) => {
+    el.classList.remove('investigation-highlight');
+  });
 }
 
 // Track all contributors for progressive highlighting
@@ -456,7 +693,7 @@ function updateProgressiveHighlights() {
 export async function investigateAnomalies(anomalies, chartData) {
   if (!anomalies || anomalies.length === 0) {
     clearHighlights();
-    return;
+    return [];
   }
 
   // Generate cache key for current context
@@ -507,7 +744,8 @@ export async function investigateAnomalies(anomalies, chartData) {
         }
       }
     }
-    // Store top contributors for re-applying as facets load (keep all cached, function limits to HIGHLIGHT_TOP_N)
+    // Store top contributors for re-applying as facets load
+    // (keep all cached, function limits to HIGHLIGHT_TOP_N)
     let highlightedFromCache = 0;
     if (cached.topContributors && cached.topContributors.length > 0) {
       cachedTopContributors = cached.topContributors;
@@ -526,7 +764,7 @@ export async function investigateAnomalies(anomalies, chartData) {
     // fall through to run a fresh investigation which will create a new cache entry
     if (highlightedFromCache >= HIGHLIGHT_TOP_N) {
       console.log('Cache sufficient, skipping fresh investigation');
-      return 'cached';
+      return lastInvestigationResults;
     }
     console.log(`Only ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlighted, fetching fresh candidates`);
     // Clear stale cache data before fresh investigation
@@ -552,14 +790,42 @@ export async function investigateAnomalies(anomalies, chartData) {
   const fullEnd = new Date(chartData[chartData.length - 1].t);
 
   // Select facets to investigate
-  const facetsToInvestigate = allBreakdowns.filter(b =>
-    ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
-     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
-     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id)
-  );
+  const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
+    'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
+    'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
+    'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
 
-  // Process each anomaly
+  // Helper to process a single facet investigation
+  const processFacetInvestigation = async (breakdown, anomaly, anomalyId, result) => {
+    const analysis = await investigateFacet(breakdown, anomaly, fullStart, fullEnd);
+
+    if (analysis.length > 0) {
+      // Store results in the result object (intentional mutation)
+      // eslint-disable-next-line no-param-reassign
+      result.facets[breakdown.id] = analysis;
+
+      // Add to global contributors list
+      for (const item of analysis) {
+        allContributors.push({
+          anomalyId,
+          anomaly: `#${anomaly.rank} ${anomaly.category} ${anomaly.type}`,
+          anomalyLabel: `${anomalyId.split('-').slice(0, 2).join('-')}`,
+          facet: breakdown.id.replace('breakdown-', ''),
+          facetId: breakdown.id,
+          category: anomaly.category,
+          rank: anomaly.rank,
+          ...item,
+        });
+      }
+
+      // Progressive update - re-rank and highlight after each facet completes
+      updateProgressiveHighlights();
+    }
+
+    return { facetId: breakdown.id, analysis };
+  };
+
+  // Process each anomaly sequentially (results depend on order)
   for (const anomaly of anomalies) {
     // Generate stable car-themed ID for this anomaly (color matches severity)
     const anomalyId = generateAnomalyId(
@@ -567,7 +833,7 @@ export async function investigateAnomalies(anomalies, chartData) {
       baseFacetFilters,
       anomaly.startTime,
       anomaly.endTime,
-      anomaly.category
+      anomaly.category,
     );
 
     // Initialize result structure for this anomaly
@@ -580,35 +846,12 @@ export async function investigateAnomalies(anomalies, chartData) {
     storeAnomalyIdOnStep(anomaly.rank, anomalyId);
 
     // Launch all facet investigations in parallel with callbacks
-    const facetPromises = facetsToInvestigate.map(async (breakdown) => {
-      const analysis = await investigateFacet(breakdown, anomaly, fullStart, fullEnd);
+    const facetPromises = facetsToInvestigate.map(
+      (breakdown) => processFacetInvestigation(breakdown, anomaly, anomalyId, result),
+    );
 
-      if (analysis.length > 0) {
-        // Store results in the result object
-        result.facets[breakdown.id] = analysis;
-
-        // Add to global contributors list
-        for (const item of analysis) {
-          allContributors.push({
-            anomalyId,
-            anomaly: `#${anomaly.rank} ${anomaly.category} ${anomaly.type}`,
-            anomalyLabel: `${anomalyId.split('-').slice(0, 2).join('-')}`,
-            facet: breakdown.id.replace('breakdown-', ''),
-            facetId: breakdown.id,
-            category: anomaly.category,
-            rank: anomaly.rank,
-            ...item
-          });
-        }
-
-        // Progressive update - re-rank and highlight after each facet completes
-        updateProgressiveHighlights();
-      }
-
-      return { facetId: breakdown.id, analysis };
-    });
-
-    // Wait for all facets for this anomaly to complete before moving to next anomaly
+    // Wait for all facets for this anomaly to complete before moving to next
+    // eslint-disable-next-line no-await-in-loop
     await Promise.all(facetPromises);
   }
 
@@ -621,7 +864,7 @@ export async function investigateAnomalies(anomalies, chartData) {
   cachedTopContributors = topForCache; // Also set memory cache for drill-down
   saveCachedInvestigation(cacheKey, {
     results: lastInvestigationResults,
-    topContributors: topForCache
+    topContributors: topForCache,
   });
   cleanupOldCaches();
 
@@ -630,29 +873,6 @@ export async function investigateAnomalies(anomalies, chartData) {
   }
 
   return lastInvestigationResults;
-}
-
-/**
- * Get the focused anomaly ID from URL or null
- * @returns {string|null} Anomaly ID or null
- */
-export function getFocusedAnomalyId() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('anomaly') || null;
-}
-
-/**
- * Set the focused anomaly ID in URL
- * @param {string|null} anomalyId - Anomaly ID or null to clear
- */
-export function setFocusedAnomalyId(anomalyId) {
-  const url = new URL(window.location);
-  if (anomalyId) {
-    url.searchParams.set('anomaly', anomalyId);
-  } else {
-    url.searchParams.delete('anomaly');
-  }
-  window.history.replaceState({}, '', url);
 }
 
 /**
@@ -665,186 +885,19 @@ export function getHighlightedDimensions(facetId) {
   const highlighted = new Set();
 
   for (const result of lastInvestigationResults) {
-    // If focused on a specific anomaly, only include its dimensions
-    if (focusedId && result.anomalyId !== focusedId) {
-      continue;
-    }
-
-    const facetResults = result.facets[facetId];
-    if (facetResults) {
-      for (const item of facetResults) {
-        highlighted.add(item.dim);
+    // Only include dimensions if not focused or this is the focused anomaly
+    const shouldInclude = !focusedId || result.anomalyId === focusedId;
+    if (shouldInclude) {
+      const facetResults = result.facets[facetId];
+      if (facetResults) {
+        for (const item of facetResults) {
+          highlighted.add(item.dim);
+        }
       }
     }
   }
 
   return highlighted;
-}
-
-/**
- * Find a row in the breakdown table by dimension value
- * Tries exact match first, then case-insensitive match as fallback
- * @param {NodeList} rows - Table rows to search
- * @param {string} dim - Dimension value to find
- * @returns {Element|null} Matching row or null
- */
-function findRowByDim(rows, dim) {
-  const rowArray = Array.from(rows);
-  // Try exact match first
-  let row = rowArray.find(r => r.dataset.dim === dim);
-  if (!row && dim) {
-    // Fallback to case-insensitive match
-    const dimLower = dim.toLowerCase();
-    row = rowArray.find(r => r.dataset.dim?.toLowerCase() === dimLower);
-  }
-  return row || null;
-}
-
-/**
- * Apply highlights from a contributors array (for progressive highlighting)
- * Iterates through candidates in priority order, highlighting up to HIGHLIGHT_TOP_N that exist in DOM
- * @param {Array} contributors - Array of contributor objects with facetId, dim, category, etc. (sorted by priority)
- * @returns {number} Number of items actually highlighted
- */
-function applyHighlightsFromContributors(contributors) {
-  // Remove existing highlights and reset titles
-  document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green', 'investigation-blue');
-    const statusColor = el.querySelector('.status-color');
-    if (statusColor) statusColor.removeAttribute('title');
-  });
-
-  const focusedId = getFocusedAnomalyId();
-
-  // Iterate through contributors in priority order, highlight first N that exist in DOM
-  let highlightedCount = 0;
-  let checkedCount = 0;
-
-  for (const c of contributors) {
-    // Stop if we've highlighted enough
-    if (highlightedCount >= HIGHLIGHT_TOP_N) {
-      break;
-    }
-
-    // If focused on a specific anomaly, only include its dimensions
-    if (focusedId && c.anomalyId !== focusedId) {
-      continue;
-    }
-
-    checkedCount++;
-    const card = document.getElementById(c.facetId);
-    if (!card) continue;
-
-    const rows = card.querySelectorAll('.breakdown-table tr');
-    if (rows.length === 0) continue;
-
-    // Try to find the row with matching dimension (case-insensitive fallback)
-    const row = findRowByDim(rows, c.dim);
-    if (row) {
-      row.classList.add('investigation-highlight', `investigation-${c.category}`);
-      highlightedCount++;
-      console.log(`  Highlighted #${highlightedCount}: ${c.facetId} = "${c.dim}" (+${c.shareChange}pp)`);
-      const statusColor = row.querySelector('.status-color');
-      if (statusColor) {
-        statusColor.title = `+${c.shareChange}pp share of #${c.rank} ${c.anomalyId}`;
-      }
-    }
-  }
-
-  return highlightedCount;
-}
-
-/**
- * Apply visual highlights to all facet values
- */
-function applyHighlights() {
-  // Remove existing highlights and reset titles
-  document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight', 'investigation-red', 'investigation-yellow', 'investigation-green', 'investigation-blue');
-    const statusColor = el.querySelector('.status-color');
-    if (statusColor) statusColor.removeAttribute('title');
-  });
-
-  const focusedId = getFocusedAnomalyId();
-
-  // Build a map of facetId -> dim -> { category, shareChange, anomalyId, rank }
-  const highlightMap = new Map();
-
-  // If we have a focused anomaly ID, try to get its results from the persistent map
-  if (focusedId) {
-    const persistedResult = investigationsByAnomalyId.get(focusedId);
-    if (persistedResult) {
-      const category = persistedResult.anomaly?.category || 'red';
-      const anomalyId = persistedResult.anomalyId;
-      const rank = persistedResult.anomaly?.rank || 1;
-      for (const [facetId, facetResults] of Object.entries(persistedResult.facets)) {
-        if (!highlightMap.has(facetId)) {
-          highlightMap.set(facetId, new Map());
-        }
-        for (const item of facetResults) {
-          highlightMap.get(facetId).set(item.dim, {
-            category,
-            shareChange: item.shareChange,
-            anomalyId,
-            rank
-          });
-        }
-      }
-    }
-  } else {
-    // No specific focus - highlight from all current results (use highest share change per dim)
-    for (const result of lastInvestigationResults) {
-      const category = result.anomaly?.category || 'red';
-      const anomalyId = result.anomalyId;
-      const rank = result.anomaly?.rank || 1;
-      for (const [facetId, facetResults] of Object.entries(result.facets)) {
-        if (!highlightMap.has(facetId)) {
-          highlightMap.set(facetId, new Map());
-        }
-        for (const item of facetResults) {
-          const existing = highlightMap.get(facetId).get(item.dim);
-          // Keep the one with higher share change
-          if (!existing || item.shareChange > existing.shareChange) {
-            highlightMap.get(facetId).set(item.dim, {
-              category,
-              shareChange: item.shareChange,
-              anomalyId,
-              rank
-            });
-          }
-        }
-      }
-    }
-  }
-
-  // Apply highlights to matching rows
-  for (const [facetId, dimInfoMap] of highlightMap) {
-    const card = document.getElementById(facetId);
-    if (!card) continue;
-
-    const rows = card.querySelectorAll('.breakdown-table tr');
-    if (rows.length === 0) continue;
-
-    for (const [expectedDim, info] of dimInfoMap) {
-      const row = findRowByDim(rows, expectedDim);
-      if (row) {
-        row.classList.add('investigation-highlight', `investigation-${info.category}`);
-        const statusColor = row.querySelector('.status-color');
-        if (statusColor) {
-          statusColor.title = `+${info.shareChange}pp share of #${info.rank} ${info.anomalyId}`;
-        }
-      }
-    }
-  }
-}
-
-/**
- * Clear all investigation highlights
- */
-export function clearHighlights() {
-  document.querySelectorAll('.investigation-highlight').forEach(el => {
-    el.classList.remove('investigation-highlight');
-  });
 }
 
 /**
@@ -857,9 +910,6 @@ export function invalidateInvestigationCache() {
   cachedTopContributors = null;
   clearHighlights();
 }
-
-// Store investigation results by anomaly ID for persistent access across zooms
-const investigationsByAnomalyId = new Map();
 
 /**
  * Get investigation results for a specific anomaly ID
@@ -876,19 +926,8 @@ export function getInvestigationByAnomalyId(anomalyId) {
  * @returns {string|null} Anomaly ID or null
  */
 export function getAnomalyIdByRank(rank) {
-  const result = lastInvestigationResults.find(r => r.anomaly?.rank === rank);
+  const result = lastInvestigationResults.find((r) => r.anomaly?.rank === rank);
   return result?.anomalyId || null;
-}
-
-/**
- * Store anomaly ID on detected step (called from investigation)
- * @param {number} rank - Step rank
- * @param {string} id - Anomaly ID
- */
-function storeAnomalyIdOnStep(rank, id) {
-  // This will be used by chart.js to access IDs when zooming
-  window._anomalyIds = window._anomalyIds || {};
-  window._anomalyIds[rank] = id;
 }
 
 /**
@@ -925,79 +964,12 @@ let selectionContributors = [];
  * Clear selection investigation highlights only (preserve anomaly highlights)
  */
 export function clearSelectionHighlights() {
-  document.querySelectorAll('.investigation-highlight.investigation-blue').forEach(el => {
+  document.querySelectorAll('.investigation-highlight.investigation-blue').forEach((el) => {
     el.classList.remove('investigation-highlight', 'investigation-blue');
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
   });
   selectionContributors = [];
-}
-
-/**
- * Investigate a user-selected time range
- * Compares the selected window against the rest of the visible time range
- * to find dimension values that are over-represented in the selection.
- *
- * @param {Date} selectionStart - Start of selected time range
- * @param {Date} selectionEnd - End of selected time range
- * @param {Date} fullStart - Start of full visible time range
- * @param {Date} fullEnd - End of full visible time range
- * @returns {Promise<Array>} Array of top contributors
- */
-export async function investigateTimeRange(selectionStart, selectionEnd, fullStart, fullEnd) {
-  // Clear ALL highlights (both anomaly and previous selection)
-  clearHighlights();
-  clearSelectionHighlights();
-
-  // Select facets to investigate (same as anomaly investigation)
-  const facetsToInvestigate = allBreakdowns.filter(b =>
-    ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
-     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
-     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id)
-  );
-
-  // Create a pseudo-anomaly object for the investigateFacet function
-  // Use 'blue' as a special category that investigates ALL traffic (not filtered by status)
-  const pseudoAnomaly = {
-    startTime: selectionStart,
-    endTime: selectionEnd,
-    category: 'blue',
-    type: 'selection',
-    rank: 0
-  };
-
-  selectionContributors = [];
-
-  // Launch all facet investigations in parallel
-  const facetPromises = facetsToInvestigate.map(async (breakdown) => {
-    const analysis = await investigateFacetForSelection(breakdown, pseudoAnomaly, fullStart, fullEnd);
-
-    if (analysis.length > 0) {
-      // Add to contributors list
-      for (const item of analysis) {
-        selectionContributors.push({
-          facet: breakdown.id.replace('breakdown-', ''),
-          facetId: breakdown.id,
-          category: 'blue',
-          ...item
-        });
-      }
-    }
-
-    return { facetId: breakdown.id, analysis };
-  });
-
-  await Promise.all(facetPromises);
-
-  // Sort by max change and apply highlights (pass all, function will find first N in DOM)
-  const sorted = [...selectionContributors].sort((a, b) => (b.maxChange || Math.abs(b.shareChange)) - (a.maxChange || Math.abs(a.shareChange)));
-
-  console.log(`Selection investigation found ${selectionContributors.length} contributors, will highlight first ${HIGHLIGHT_TOP_N} found in DOM`);
-
-  applySelectionHighlights(sorted);
-
-  return sorted;
 }
 
 /**
@@ -1043,17 +1015,29 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
     const baselineMinutes = baselineDurationMs / 60000;
 
     // Calculate totals for share computation
-    const totalSelectionCnt = result.data.reduce((sum, r) => sum + parseInt(r.selection_cnt || 0), 0);
-    const totalBaselineCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_cnt || 0), 0);
-    const totalSelectionErrCnt = result.data.reduce((sum, r) => sum + parseInt(r.selection_err_cnt || 0), 0);
-    const totalBaselineErrCnt = result.data.reduce((sum, r) => sum + parseInt(r.baseline_err_cnt || 0), 0);
+    const totalSelectionCnt = result.data.reduce(
+      (sum, r) => sum + parseInt(r.selection_cnt || 0, 10),
+      0,
+    );
+    const totalBaselineCnt = result.data.reduce(
+      (sum, r) => sum + parseInt(r.baseline_cnt || 0, 10),
+      0,
+    );
+    const totalSelectionErrCnt = result.data.reduce(
+      (sum, r) => sum + parseInt(r.selection_err_cnt || 0, 10),
+      0,
+    );
+    const totalBaselineErrCnt = result.data.reduce(
+      (sum, r) => sum + parseInt(r.baseline_err_cnt || 0, 10),
+      0,
+    );
 
     // Analyze each facet value
-    const analyzed = result.data.map(row => {
-      const selectionCnt = parseInt(row.selection_cnt) || 0;
-      const baselineCnt = parseInt(row.baseline_cnt) || 0;
-      const selectionErrCnt = parseInt(row.selection_err_cnt) || 0;
-      const baselineErrCnt = parseInt(row.baseline_err_cnt) || 0;
+    const analyzed = result.data.map((row) => {
+      const selectionCnt = parseInt(row.selection_cnt, 10) || 0;
+      const baselineCnt = parseInt(row.baseline_cnt, 10) || 0;
+      const selectionErrCnt = parseInt(row.selection_err_cnt, 10) || 0;
+      const baselineErrCnt = parseInt(row.baseline_err_cnt, 10) || 0;
 
       // Normalize to rate per minute
       const selectionRate = selectionMinutes > 0 ? selectionCnt / selectionMinutes : 0;
@@ -1073,8 +1057,12 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
       const shareChange = selectionShare - baselineShare;
 
       // Calculate error share during selection vs baseline
-      const selectionErrShare = totalSelectionErrCnt > 0 ? (selectionErrCnt / totalSelectionErrCnt) * 100 : 0;
-      const baselineErrShare = totalBaselineErrCnt > 0 ? (baselineErrCnt / totalBaselineErrCnt) * 100 : 0;
+      const selectionErrShare = totalSelectionErrCnt > 0
+        ? (selectionErrCnt / totalSelectionErrCnt) * 100
+        : 0;
+      const baselineErrShare = totalBaselineErrCnt > 0
+        ? (baselineErrCnt / totalBaselineErrCnt) * 100
+        : 0;
       const errShareChange = selectionErrShare - baselineErrShare;
 
       // Calculate error rate change for this dimension
@@ -1091,40 +1079,57 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
         baselineShare: Math.round(baselineShare * 10) / 10,
         shareChange: Math.round(shareChange * 10) / 10,
         errShareChange: Math.round(errShareChange * 10) / 10,
-        errRateChange: Math.round(errRateChange * 10) / 10
+        errRateChange: Math.round(errRateChange * 10) / 10,
       };
     });
 
     // Filter to meaningful changes in EITHER direction:
-    // - Traffic share changed by >5pp, OR
-    // - Error share changed by >5pp, OR
-    // - Error rate changed by >5pp
-    // Must have some volume (selectionRate > 0.5/min OR baselineRate > 0.5/min for under-represented)
+    // - Traffic share changed by >5pp, OR error share changed by >5pp,
+    //   OR error rate changed by >5pp
+    // - Must have some volume (selectionRate > 0.5/min OR baselineRate > 0.5/min)
     const filtered = analyzed
-      .filter(r => {
+      .filter((r) => {
         const hasVolume = r.selectionRate > 0.5 || r.baselineRate > 0.5;
-        const hasSignificantChange = Math.abs(r.shareChange) > 5 || Math.abs(r.errShareChange) > 5 || Math.abs(r.errRateChange) > 5;
+        const hasSignificantChange = Math.abs(r.shareChange) > 5
+          || Math.abs(r.errShareChange) > 5
+          || Math.abs(r.errRateChange) > 5;
         return hasVolume && hasSignificantChange;
       })
-      .map(r => ({
+      .map((r) => ({
         ...r,
-        // Use the maximum absolute change as the sort key, preserve sign for display
-        maxChange: Math.max(Math.abs(r.shareChange), Math.abs(r.errShareChange), Math.abs(r.errRateChange)),
+        // Use the maximum absolute change as the sort key
+        maxChange: Math.max(
+          Math.abs(r.shareChange),
+          Math.abs(r.errShareChange),
+          Math.abs(r.errRateChange),
+        ),
         // Keep the actual change value with the largest magnitude for tooltip
         shareChange: [r.shareChange, r.errShareChange, r.errRateChange]
-          .reduce((max, v) => Math.abs(v) > Math.abs(max) ? v : max, 0)
+          .reduce((max, v) => (Math.abs(v) > Math.abs(max) ? v : max), 0),
       }))
       .sort((a, b) => b.maxChange - a.maxChange)
       .slice(0, 5);
 
     if (filtered.length === 0 && analyzed.length > 0) {
       const sorted = [...analyzed].sort((a, b) => {
-        const aMax = Math.max(Math.abs(a.shareChange), Math.abs(a.errShareChange), Math.abs(a.errRateChange));
-        const bMax = Math.max(Math.abs(b.shareChange), Math.abs(b.errShareChange), Math.abs(b.errRateChange));
+        const aMax = Math.max(
+          Math.abs(a.shareChange),
+          Math.abs(a.errShareChange),
+          Math.abs(a.errRateChange),
+        );
+        const bMax = Math.max(
+          Math.abs(b.shareChange),
+          Math.abs(b.errShareChange),
+          Math.abs(b.errRateChange),
+        );
         return bMax - aMax;
       });
       const top = sorted[0];
-      console.log(`  ${breakdown.id}: ${analyzed.length} dims analyzed, top shareChange=${top?.shareChange}pp, errShareChange=${top?.errShareChange}pp, errRateChange=${top?.errRateChange}pp`);
+      // eslint-disable-next-line no-console
+      console.log(
+        `  ${breakdown.id}: ${analyzed.length} dims, `
+        + `top share=${top?.shareChange}pp, errShare=${top?.errShareChange}pp`,
+      );
     }
 
     return filtered;
@@ -1136,7 +1141,8 @@ async function investigateFacetForSelection(breakdown, selection, fullStart, ful
 
 /**
  * Apply blue highlights for selection investigation
- * Iterates through contributors in priority order, highlighting first HIGHLIGHT_TOP_N that exist in DOM
+ * Iterates through contributors in priority order, highlighting first
+ * HIGHLIGHT_TOP_N that exist in DOM
  */
 function applySelectionHighlights(contributors) {
   let appliedCount = 0;
@@ -1148,27 +1154,109 @@ function applySelectionHighlights(contributors) {
     }
 
     const card = document.getElementById(c.facetId);
-    if (!card) continue;
-
-    const rows = card.querySelectorAll('.breakdown-table tr');
-    if (rows.length === 0) continue;
-
-    // Try to find the row with matching dimension (case-insensitive fallback)
-    const row = findRowByDim(rows, c.dim);
-    if (row) {
-      row.classList.add('investigation-highlight', 'investigation-blue');
-      const statusColor = row.querySelector('.status-color');
-      if (statusColor) {
-        const sign = c.shareChange >= 0 ? '+' : '';
-        const direction = c.shareChange >= 0 ? 'over' : 'under';
-        statusColor.title = `${sign}${c.shareChange}pp (${direction}-represented in selection)`;
+    if (card) {
+      const rows = card.querySelectorAll('.breakdown-table tr');
+      if (rows.length > 0) {
+        // Try to find row with matching dimension (case-insensitive fallback)
+        const row = findRowByDim(rows, c.dim);
+        if (row) {
+          row.classList.add('investigation-highlight', 'investigation-blue');
+          const statusColor = row.querySelector('.status-color');
+          if (statusColor) {
+            const sign = c.shareChange >= 0 ? '+' : '';
+            const direction = c.shareChange >= 0 ? 'over' : 'under';
+            const title = `${sign}${c.shareChange}pp (${direction}-represented)`;
+            statusColor.title = title;
+          }
+          appliedCount += 1;
+          const sign = c.shareChange >= 0 ? '+' : '';
+          // eslint-disable-next-line no-console
+          console.log(`  ✓ Highlighted #${appliedCount}: ${c.facetId} = "${c.dim}" (${sign}${c.shareChange}pp)`);
+        }
       }
-      appliedCount++;
-      const sign = c.shareChange >= 0 ? '+' : '';
-      console.log(`  ✓ Highlighted #${appliedCount}: ${c.facetId} = "${c.dim}" (${sign}${c.shareChange}pp)`);
     }
   }
 
+  // eslint-disable-next-line no-console
   console.log(`  Applied ${appliedCount}/${HIGHLIGHT_TOP_N} selection highlights`);
   return appliedCount;
+}
+
+/**
+ * Investigate a user-selected time range
+ * Compares the selected window against the rest of the visible time range
+ * to find dimension values that are over-represented in the selection.
+ *
+ * @param {Date} selectionStart - Start of selected time range
+ * @param {Date} selectionEnd - End of selected time range
+ * @param {Date} fullStart - Start of full visible time range
+ * @param {Date} fullEnd - End of full visible time range
+ * @returns {Promise<Array>} Array of top contributors
+ */
+export async function investigateTimeRange(selectionStart, selectionEnd, fullStart, fullEnd) {
+  // Clear ALL highlights (both anomaly and previous selection)
+  clearHighlights();
+  clearSelectionHighlights();
+
+  // Select facets to investigate (same as anomaly investigation)
+  const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
+    'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
+    'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
+    'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
+
+  // Create a pseudo-anomaly object for the investigateFacet function
+  // Use 'blue' as a special category that investigates ALL traffic (not filtered by status)
+  const pseudoAnomaly = {
+    startTime: selectionStart,
+    endTime: selectionEnd,
+    category: 'blue',
+    type: 'selection',
+    rank: 0,
+  };
+
+  selectionContributors = [];
+
+  // Launch all facet investigations in parallel
+  const facetPromises = facetsToInvestigate.map(async (breakdown) => {
+    const analysis = await investigateFacetForSelection(
+      breakdown,
+      pseudoAnomaly,
+      fullStart,
+      fullEnd,
+    );
+
+    if (analysis.length > 0) {
+      // Add to contributors list
+      for (const item of analysis) {
+        selectionContributors.push({
+          facet: breakdown.id.replace('breakdown-', ''),
+          facetId: breakdown.id,
+          category: 'blue',
+          ...item,
+        });
+      }
+    }
+
+    return { facetId: breakdown.id, analysis };
+  });
+
+  await Promise.all(facetPromises);
+
+  // Sort by max change and apply highlights
+  // (pass all, function will find first N in DOM)
+  const sorted = [...selectionContributors].sort((a, b) => {
+    const aVal = b.maxChange || Math.abs(b.shareChange);
+    const bVal = a.maxChange || Math.abs(a.shareChange);
+    return aVal - bVal;
+  });
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `Selection investigation found ${selectionContributors.length} contributors,`
+    + ` will highlight first ${HIGHLIGHT_TOP_N} found in DOM`,
+  );
+
+  applySelectionHighlights(sorted);
+
+  return sorted;
 }

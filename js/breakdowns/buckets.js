@@ -1,4 +1,14 @@
-// Dynamic bucket generation for numeric facets
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 // Produces exactly n buckets using 1/2/5 progression
 
 import { formatBytesCompact } from '../format.js';
@@ -18,7 +28,7 @@ function generate125Sequence(minVal, maxVal) {
     boundaries.push(val * 5);
     val *= 10;
   }
-  return boundaries.filter(v => v >= minVal && v <= maxVal);
+  return boundaries.filter((v) => v >= minVal && v <= maxVal);
 }
 
 /**
@@ -38,14 +48,13 @@ function selectBoundaries(allBoundaries, n) {
 
   // Select evenly spaced boundaries including first and last
   const selected = [];
-  for (let i = 0; i < n; i++) {
-    const idx = Math.round(i * (allBoundaries.length - 1) / (n - 1));
+  for (let i = 0; i < n; i += 1) {
+    const idx = Math.round((i * (allBoundaries.length - 1)) / (n - 1));
     selected.push(allBoundaries[idx]);
   }
 
   return selected;
 }
-
 
 /**
  * Format milliseconds as human-readable string
@@ -77,7 +86,7 @@ const TIME_ELAPSED_SEQUENCE = [
   1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 70, 100,
   150, 200, 300, 500, 700, 1000,
   1500, 2000, 3000, 5000, 7000, 10000,
-  15000, 20000, 30000, 60000
+  15000, 20000, 30000, 60000,
 ];
 
 /**
@@ -94,7 +103,7 @@ export function getContentLengthLabels(topN) {
   if (boundaries.length > 0) {
     labels.push(`1 B-${formatBytesCompact(boundaries[0])}`);
 
-    for (let i = 1; i < boundaries.length; i++) {
+    for (let i = 1; i < boundaries.length; i += 1) {
       labels.push(`${formatBytesCompact(boundaries[i - 1])}-${formatBytesCompact(boundaries[i])}`);
     }
   }
@@ -126,7 +135,7 @@ export function contentLengthBuckets(topN) {
   if (boundaries.length > 0) {
     conditions.push(`${col} < ${boundaries[0]}, '${labels[1]}'`);
 
-    for (let i = 1; i < boundaries.length; i++) {
+    for (let i = 1; i < boundaries.length; i += 1) {
       conditions.push(`${col} < ${boundaries[i]}, '${labels[i + 1]}'`);
     }
   }
@@ -148,7 +157,7 @@ export function getTimeElapsedLabels(topN) {
 
   const labels = [`< ${formatMs(boundaries[0])}`];
 
-  for (let i = 1; i < boundaries.length; i++) {
+  for (let i = 1; i < boundaries.length; i += 1) {
     labels.push(`${formatMs(boundaries[i - 1])}-${formatMs(boundaries[i])}`);
   }
 
@@ -175,7 +184,7 @@ export function timeElapsedBuckets(topN) {
   conditions.push(`${col} < ${boundaries[0]}, '${labels[0]}'`);
 
   // Middle ranges
-  for (let i = 1; i < boundaries.length; i++) {
+  for (let i = 1; i < boundaries.length; i += 1) {
     conditions.push(`${col} < ${boundaries[i]}, '${labels[i]}'`);
   }
 

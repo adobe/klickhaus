@@ -1,5 +1,14 @@
-// Release feed fetching and rendering for AEM releases
-
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { query } from './api.js';
 
 // Get releases within a time range from ClickHouse
@@ -24,9 +33,9 @@ export async function getReleasesInRange(startTime, endTime) {
 
 // Render ship symbols on the chart canvas
 export function renderReleaseShips(ctx, releases, data, chartDimensions) {
-  if (!releases || releases.length === 0 || !data || data.length < 2) return;
+  if (!releases || releases.length === 0 || !data || data.length < 2) return [];
 
-  const { width, height, padding, chartWidth } = chartDimensions;
+  const { padding, chartWidth } = chartDimensions;
   const startTime = new Date(data[0].t).getTime();
   const endTime = new Date(data[data.length - 1].t).getTime();
   const timeRange = endTime - startTime;
@@ -82,7 +91,8 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
     // Draw at the very top of the chart
     const y = 10;
 
-    // Determine release type from semver: x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch (green)
+    // Determine release type from semver:
+    // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch (green)
     const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
     let shipColor = cssVar('--status-ok') || '#12b76a'; // Default: patch (green)
     if (versionMatch) {
@@ -101,7 +111,7 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
       x,
       y,
       release,
-      radius: 12 // Hit area radius
+      radius: 12, // Hit area radius
     });
   }
 
@@ -127,7 +137,7 @@ function formatReleaseNotes(body) {
 
   // Process line by line for better control
   const lines = body.split('\n');
-  const htmlLines = lines.map(line => {
+  const htmlLines = lines.map((line) => {
     // Strip markdown links first - keep only the link text
     let html = line.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
@@ -153,7 +163,7 @@ function formatReleaseNotes(body) {
     }
 
     // List items (- or *)
-    if (html.match(/^[\*\-] /)) {
+    if (html.match(/^[*-] /)) {
       html = `• ${html.slice(2)}`;
     }
 
@@ -179,7 +189,7 @@ export function showReleaseTooltip(release, x, y) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'UTC'
+    timeZone: 'UTC',
   });
 
   tooltip.innerHTML = `

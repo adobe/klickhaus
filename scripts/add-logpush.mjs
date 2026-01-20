@@ -1,5 +1,16 @@
 #!/usr/bin/env node
 
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 /**
  * Add ClickHouse logpush to a Cloudflare zone
  * Usage: node add-logpush.mjs <cloudflare-api-token> <zone-id-or-name>
@@ -15,7 +26,7 @@ import {
   cfApi,
   getZoneId,
   buildJobConfig,
-  requireClickHousePassword
+  requireClickHousePassword,
 } from './logpush-config.mjs';
 
 requireClickHousePassword();
@@ -38,7 +49,7 @@ async function createLogpushJob(token, zoneId, zoneName) {
     `/zones/${zoneId}/logpush/ownership`,
     token,
     'POST',
-    { destination_conf: jobConfig.destination_conf }
+    { destination_conf: jobConfig.destination_conf },
   );
 
   // For ClickHouse HTTP destination, we need to validate ownership
@@ -79,9 +90,7 @@ async function main() {
 
     // Check for existing ClickHouse logpush
     const existingJobs = await getExistingLogpushJobs(apiToken, zoneId);
-    const clickhouseJob = existingJobs.find(j =>
-      j.destination_conf?.includes('clickhouse.cloud')
-    );
+    const clickhouseJob = existingJobs.find((j) => j.destination_conf?.includes('clickhouse.cloud'));
 
     if (clickhouseJob) {
       console.log(`\nExisting ClickHouse logpush job found: ${clickhouseJob.id}`);
@@ -102,7 +111,6 @@ async function main() {
     console.log(`Fields: ${LOGPUSH_FIELDS.length}`);
     console.log(`Destination: ClickHouse (${CLICKHOUSE_HOST})`);
     console.log(`Table: ${CLICKHOUSE_TABLE}`);
-
   } catch (err) {
     console.error('Error:', err.message);
     process.exit(1);

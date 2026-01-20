@@ -1,5 +1,14 @@
-// Mobile/touch UI helpers
-
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 /**
  * Initialize double-tap to clear host filter on touch devices.
  * @param {HTMLInputElement} hostFilter
@@ -8,13 +17,14 @@ export function initHostFilterDoubleTap(hostFilter) {
   if (!('ontouchstart' in window)) return;
   if (!hostFilter) return;
 
+  const inputEl = hostFilter;
   let lastTap = 0;
 
-  hostFilter.addEventListener('touchend', () => {
+  inputEl.addEventListener('touchend', () => {
     const now = Date.now();
     if (now - lastTap < 300 && now - lastTap > 0) {
-      hostFilter.value = '';
-      hostFilter.dispatchEvent(new Event('input'));
+      inputEl.value = '';
+      inputEl.dispatchEvent(new Event('input'));
       lastTap = 0;
     } else {
       lastTap = now;
@@ -34,7 +44,7 @@ export function initMobileTouchSupport() {
 
     if (isActionBtn) {
       setTimeout(() => {
-        document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+        document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
           r.classList.remove('touch-active');
         });
       }, 100);
@@ -43,7 +53,7 @@ export function initMobileTouchSupport() {
 
     if (row) {
       const wasActive = row.classList.contains('touch-active');
-      document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+      document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
         r.classList.remove('touch-active');
       });
       if (!wasActive) {
@@ -52,7 +62,7 @@ export function initMobileTouchSupport() {
       return;
     }
 
-    document.querySelectorAll('.breakdown-table tr.touch-active').forEach(r => {
+    document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
       r.classList.remove('touch-active');
     });
   });
@@ -91,8 +101,7 @@ export function initPullToRefresh(refresh) {
 
     if (pullDistance > 0 && window.scrollY === 0) {
       indicator.classList.add('visible');
-      indicator.querySelector('.pull-text').textContent =
-        pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
+      indicator.querySelector('.pull-text').textContent = pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
     } else {
       indicator.classList.remove('visible');
     }
@@ -139,4 +148,3 @@ export function initMobileFiltersPosition() {
   updatePosition();
   window.addEventListener('resize', updatePosition);
 }
-

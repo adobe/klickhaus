@@ -1,12 +1,22 @@
-// Color rule definitions as declarative registry
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 // Each rule maps column patterns to color determination logic
 
 export const colorRules = {
   status: {
     patterns: ['response.status'],
     getColor: (value) => {
-      const code = parseInt(value);
-      if (isNaN(code)) return '';
+      const code = parseInt(value, 10);
+      if (Number.isNaN(code)) return '';
       if (code < 400) return 'var(--status-ok)';
       if (code < 500) return 'var(--status-client-error)';
       return 'var(--status-server-error)';
@@ -14,8 +24,8 @@ export const colorRules = {
     // For status columns, extract first digit and multiply by 100
     transform: (value) => {
       const numMatch = String(value).match(/^(\d)/);
-      return numMatch ? parseInt(numMatch[1]) * 100 : value;
-    }
+      return numMatch ? parseInt(numMatch[1], 10) * 100 : value;
+    },
   },
 
   host: {
@@ -26,7 +36,7 @@ export const colorRules = {
       if (firstHost.endsWith('.live')) return 'var(--host-delivery)';
       if (firstHost.endsWith('.page')) return 'var(--host-authoring)';
       return 'var(--host-customer)';
-    }
+    },
   },
 
   contentType: {
@@ -41,7 +51,7 @@ export const colorRules = {
       if (ct.startsWith('font/')) return 'var(--ct-font)';
       if (ct.startsWith('binary/')) return 'var(--ct-binary)';
       return '';
-    }
+    },
   },
 
   cacheStatus: {
@@ -59,7 +69,7 @@ export const colorRules = {
       if (s.startsWith('ERROR')) return 'var(--cache-error)';
       if (s === 'UNKNOWN') return 'var(--cache-unknown)';
       return '';
-    }
+    },
   },
 
   requestType: {
@@ -94,7 +104,7 @@ export const colorRules = {
       if (t === 'delivery') return 'var(--rt-delivery)';
       if (t === 'config') return 'var(--rt-config)';
       return '';
-    }
+    },
   },
 
   backendType: {
@@ -105,7 +115,7 @@ export const colorRules = {
       if (t === 'aws') return 'var(--bt-aws)';
       if (t === 'cloudflare' || t === 'cloudflare (implied)') return 'var(--bt-cloudflare)';
       return '';
-    }
+    },
   },
 
   method: {
@@ -121,7 +131,7 @@ export const colorRules = {
       if (m === 'OPTIONS') return 'var(--method-options)';
       if (m === 'DELETE') return 'var(--method-delete)';
       return '';
-    }
+    },
   },
 
   asn: {
@@ -134,7 +144,7 @@ export const colorRules = {
       if (a.includes('zscaler') || a.includes('incapsula')) return 'var(--asn-bad-cdn)';
       if (a.includes('microsoft') || a.includes('google')) return 'var(--asn-cloud)';
       return 'var(--asn-other)';
-    }
+    },
   },
 
   error: {
@@ -147,7 +157,7 @@ export const colorRules = {
       if (e.includes('content-bus') || e.includes('failed to load')) return 'var(--err-contentbus)';
       if (e.includes('s3:') || e.includes('r2:')) return 'var(--err-storage)';
       return 'var(--err-other)';
-    }
+    },
   },
 
   ip: {
@@ -168,7 +178,7 @@ export const colorRules = {
         if (isIPv4) return 'var(--ip-v4)';
         return 'var(--ip-bad)';
       }
-    }
+    },
   },
 
   userAgent: {
@@ -184,7 +194,7 @@ export const colorRules = {
       if (u.includes('macintosh') || u.includes('mac os')) return 'var(--ua-mac)';
       if (u.includes('linux')) return 'var(--ua-linux)';
       return '';
-    }
+    },
   },
 
   referer: {
@@ -196,7 +206,7 @@ export const colorRules = {
       if (r.includes('adobe.com') || r.includes('adobe.net') || r.includes('adobeaemcloud.com')) return 'var(--ref-adobe)';
       if (r.includes('.live') || r.includes('.page')) return 'var(--ref-aem)';
       return 'var(--ref-other)';
-    }
+    },
   },
 
   path: {
@@ -216,7 +226,7 @@ export const colorRules = {
       if (['woff', 'woff2', 'ttf', 'otf', 'eot'].includes(ext)) return 'var(--path-font)';
       if (['php', 'asp', 'aspx', 'cgi', 'jsp'].includes(ext)) return 'var(--path-server)';
       return '';
-    }
+    },
   },
 
   accept: {
@@ -232,7 +242,7 @@ export const colorRules = {
       if (ct.startsWith('font/')) return 'var(--ct-font)';
       if (ct === '*/*') return 'var(--ct-binary)';
       return '';
-    }
+    },
   },
 
   acceptEncoding: {
@@ -246,7 +256,7 @@ export const colorRules = {
       if (enc.includes('deflate')) return 'var(--enc-deflate)';
       if (enc === 'identity' || enc === '*') return 'var(--enc-identity)';
       return '';
-    }
+    },
   },
 
   cacheControl: {
@@ -258,7 +268,7 @@ export const colorRules = {
       if (cc.includes('no-cache') || cc.includes('max-age=0')) return 'var(--cc-no-cache)';
       if (cc.includes('max-age')) return 'var(--cc-max-age)';
       return 'var(--cc-other)';
-    }
+    },
   },
 
   byoCdn: {
@@ -270,7 +280,7 @@ export const colorRules = {
       if (cdn.includes('akamai')) return 'var(--cdn-akamai)';
       if (cdn.includes('cloudfront')) return 'var(--cdn-cloudfront)';
       return 'var(--cdn-other)';
-    }
+    },
   },
 
   location: {
@@ -283,6 +293,6 @@ export const colorRules = {
       }
       // Relative URLs (start with / or don't have protocol)
       return 'var(--loc-relative)';
-    }
-  }
+    },
+  },
 };

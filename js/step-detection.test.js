@@ -1,3 +1,14 @@
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { detectStep } from './step-detection.js';
@@ -7,67 +18,67 @@ import { detectStep } from './step-detection.js';
 // - Index 8 (21:12): 4xx spike from ~12k to 28,932
 // - Index 23 (21:27): 2xx spike to 110,628 (should NOT be highlighted)
 const realData = [
-  ["2026-01-12 21:04:00", "29321", "4835", "185"],
-  ["2026-01-12 21:05:00", "62374", "11805", "320"],
-  ["2026-01-12 21:06:00", "64109", "11107", "241"],
-  ["2026-01-12 21:07:00", "64878", "9875", "286"],
-  ["2026-01-12 21:08:00", "70722", "10168", "291"],
-  ["2026-01-12 21:09:00", "87118", "10852", "343"],
-  ["2026-01-12 21:10:00", "79909", "13132", "362"],
-  ["2026-01-12 21:11:00", "87551", "12309", "388"],
-  ["2026-01-12 21:12:00", "71661", "28932", "376"],  // <-- 4xx spike here (index 8)
-  ["2026-01-12 21:13:00", "95562", "18359", "424"],
-  ["2026-01-12 21:14:00", "93239", "11378", "435"],
-  ["2026-01-12 21:15:00", "90492", "11996", "544"],
-  ["2026-01-12 21:16:00", "86064", "10623", "452"],
-  ["2026-01-12 21:17:00", "90787", "11413", "358"],
-  ["2026-01-12 21:18:00", "81593", "11097", "384"],
-  ["2026-01-12 21:19:00", "70973", "11750", "348"],
-  ["2026-01-12 21:20:00", "74590", "10204", "419"],
-  ["2026-01-12 21:21:00", "76793", "11905", "376"],
-  ["2026-01-12 21:22:00", "78309", "12666", "489"],
-  ["2026-01-12 21:23:00", "83069", "10855", "368"],
-  ["2026-01-12 21:24:00", "79898", "10099", "407"],
-  ["2026-01-12 21:25:00", "78972", "10239", "478"],
-  ["2026-01-12 21:26:00", "94156", "11704", "482"],
-  ["2026-01-12 21:27:00", "110628", "10215", "473"],  // <-- 2xx spike (should NOT highlight)
-  ["2026-01-12 21:28:00", "92292", "10751", "394"],
-  ["2026-01-12 21:29:00", "94989", "10802", "436"],
-  ["2026-01-12 21:30:00", "95992", "12266", "377"],
-  ["2026-01-12 21:31:00", "81765", "10196", "311"],
-  ["2026-01-12 21:32:00", "75309", "11682", "371"],
-  ["2026-01-12 21:33:00", "76558", "9912", "347"],
-  ["2026-01-12 21:34:00", "88861", "10292", "335"],
-  ["2026-01-12 21:35:00", "74727", "11097", "379"],
-  ["2026-01-12 21:36:00", "72673", "10656", "378"],
-  ["2026-01-12 21:37:00", "69385", "10422", "438"],
-  ["2026-01-12 21:38:00", "66435", "11415", "354"],
-  ["2026-01-12 21:39:00", "66063", "10352", "371"],
-  ["2026-01-12 21:40:00", "78223", "10779", "338"],
-  ["2026-01-12 21:41:00", "73214", "10705", "252"],
-  ["2026-01-12 21:42:00", "71712", "9977", "324"],
-  ["2026-01-12 21:43:00", "69377", "10450", "308"],
-  ["2026-01-12 21:44:00", "66511", "11850", "334"],
-  ["2026-01-12 21:45:00", "65707", "10667", "314"],
-  ["2026-01-12 21:46:00", "65417", "9795", "553"],
-  ["2026-01-12 21:47:00", "64782", "10316", "378"],
-  ["2026-01-12 21:48:00", "66743", "11046", "329"],
-  ["2026-01-12 21:49:00", "62203", "10501", "307"],
-  ["2026-01-12 21:50:00", "69531", "10092", "300"],
-  ["2026-01-12 21:51:00", "75612", "11187", "285"],
-  ["2026-01-12 21:52:00", "68203", "9308", "308"],
-  ["2026-01-12 21:53:00", "63897", "10464", "315"],
-  ["2026-01-12 21:54:00", "71908", "10199", "322"],
-  ["2026-01-12 21:55:00", "75586", "10087", "328"],
-  ["2026-01-12 21:56:00", "71510", "10270", "315"],
-  ["2026-01-12 21:57:00", "78671", "10084", "359"],
-  ["2026-01-12 21:58:00", "80763", "9793", "310"],
-  ["2026-01-12 21:59:00", "78042", "9069", "303"],
-  ["2026-01-12 22:00:00", "85987", "12139", "343"],
-  ["2026-01-12 22:01:00", "65363", "12313", "371"],
-  ["2026-01-12 22:02:00", "65486", "10453", "277"],
-  ["2026-01-12 22:03:00", "58460", "9883", "72"],
-  ["2026-01-12 22:04:00", "21705", "3796", "2"]
+  ['2026-01-12 21:04:00', '29321', '4835', '185'],
+  ['2026-01-12 21:05:00', '62374', '11805', '320'],
+  ['2026-01-12 21:06:00', '64109', '11107', '241'],
+  ['2026-01-12 21:07:00', '64878', '9875', '286'],
+  ['2026-01-12 21:08:00', '70722', '10168', '291'],
+  ['2026-01-12 21:09:00', '87118', '10852', '343'],
+  ['2026-01-12 21:10:00', '79909', '13132', '362'],
+  ['2026-01-12 21:11:00', '87551', '12309', '388'],
+  ['2026-01-12 21:12:00', '71661', '28932', '376'], // <-- 4xx spike here (index 8)
+  ['2026-01-12 21:13:00', '95562', '18359', '424'],
+  ['2026-01-12 21:14:00', '93239', '11378', '435'],
+  ['2026-01-12 21:15:00', '90492', '11996', '544'],
+  ['2026-01-12 21:16:00', '86064', '10623', '452'],
+  ['2026-01-12 21:17:00', '90787', '11413', '358'],
+  ['2026-01-12 21:18:00', '81593', '11097', '384'],
+  ['2026-01-12 21:19:00', '70973', '11750', '348'],
+  ['2026-01-12 21:20:00', '74590', '10204', '419'],
+  ['2026-01-12 21:21:00', '76793', '11905', '376'],
+  ['2026-01-12 21:22:00', '78309', '12666', '489'],
+  ['2026-01-12 21:23:00', '83069', '10855', '368'],
+  ['2026-01-12 21:24:00', '79898', '10099', '407'],
+  ['2026-01-12 21:25:00', '78972', '10239', '478'],
+  ['2026-01-12 21:26:00', '94156', '11704', '482'],
+  ['2026-01-12 21:27:00', '110628', '10215', '473'], // <-- 2xx spike (should NOT highlight)
+  ['2026-01-12 21:28:00', '92292', '10751', '394'],
+  ['2026-01-12 21:29:00', '94989', '10802', '436'],
+  ['2026-01-12 21:30:00', '95992', '12266', '377'],
+  ['2026-01-12 21:31:00', '81765', '10196', '311'],
+  ['2026-01-12 21:32:00', '75309', '11682', '371'],
+  ['2026-01-12 21:33:00', '76558', '9912', '347'],
+  ['2026-01-12 21:34:00', '88861', '10292', '335'],
+  ['2026-01-12 21:35:00', '74727', '11097', '379'],
+  ['2026-01-12 21:36:00', '72673', '10656', '378'],
+  ['2026-01-12 21:37:00', '69385', '10422', '438'],
+  ['2026-01-12 21:38:00', '66435', '11415', '354'],
+  ['2026-01-12 21:39:00', '66063', '10352', '371'],
+  ['2026-01-12 21:40:00', '78223', '10779', '338'],
+  ['2026-01-12 21:41:00', '73214', '10705', '252'],
+  ['2026-01-12 21:42:00', '71712', '9977', '324'],
+  ['2026-01-12 21:43:00', '69377', '10450', '308'],
+  ['2026-01-12 21:44:00', '66511', '11850', '334'],
+  ['2026-01-12 21:45:00', '65707', '10667', '314'],
+  ['2026-01-12 21:46:00', '65417', '9795', '553'],
+  ['2026-01-12 21:47:00', '64782', '10316', '378'],
+  ['2026-01-12 21:48:00', '66743', '11046', '329'],
+  ['2026-01-12 21:49:00', '62203', '10501', '307'],
+  ['2026-01-12 21:50:00', '69531', '10092', '300'],
+  ['2026-01-12 21:51:00', '75612', '11187', '285'],
+  ['2026-01-12 21:52:00', '68203', '9308', '308'],
+  ['2026-01-12 21:53:00', '63897', '10464', '315'],
+  ['2026-01-12 21:54:00', '71908', '10199', '322'],
+  ['2026-01-12 21:55:00', '75586', '10087', '328'],
+  ['2026-01-12 21:56:00', '71510', '10270', '315'],
+  ['2026-01-12 21:57:00', '78671', '10084', '359'],
+  ['2026-01-12 21:58:00', '80763', '9793', '310'],
+  ['2026-01-12 21:59:00', '78042', '9069', '303'],
+  ['2026-01-12 22:00:00', '85987', '12139', '343'],
+  ['2026-01-12 22:01:00', '65363', '12313', '371'],
+  ['2026-01-12 22:02:00', '65486', '10453', '277'],
+  ['2026-01-12 22:03:00', '58460', '9883', '72'],
+  ['2026-01-12 22:04:00', '21705', '3796', '2'],
 ];
 
 /**
@@ -75,9 +86,9 @@ const realData = [
  */
 function toSeries(data) {
   return {
-    ok: data.map(d => parseInt(d[1]) || 0),
-    client: data.map(d => parseInt(d[2]) || 0),
-    server: data.map(d => parseInt(d[3]) || 0)
+    ok: data.map((d) => parseInt(d[1], 10) || 0),
+    client: data.map((d) => parseInt(d[2], 10) || 0),
+    server: data.map((d) => parseInt(d[3], 10) || 0),
   };
 }
 
@@ -86,7 +97,7 @@ describe('detectStep', () => {
     const shortSeries = {
       ok: [100, 200, 300],
       client: [10, 20, 30],
-      server: [1, 2, 3]
+      server: [1, 2, 3],
     };
     const result = detectStep(shortSeries);
     assert.strictEqual(result, null);
@@ -114,10 +125,16 @@ describe('detectStep', () => {
     if (result) {
       // If the startIndex is 23, it's detecting the wrong thing
       if (result.startIndex === 23 || result.endIndex === 23) {
-        assert.notStrictEqual(result.category, 'success',
-          'Should not highlight 2xx spike - green spikes are good!');
-        assert.notStrictEqual(result.type, 'spike',
-          'Should not be a spike in success traffic');
+        assert.notStrictEqual(
+          result.category,
+          'success',
+          'Should not highlight 2xx spike - green spikes are good!',
+        );
+        assert.notStrictEqual(
+          result.type,
+          'spike',
+          'Should not be a spike in success traffic',
+        );
       }
     }
   });
@@ -127,10 +144,14 @@ describe('detectStep', () => {
     const result = detectStep(series);
 
     if (result) {
-      assert.ok(result.startIndex >= 2,
-        'Should not detect in first 2 points (incomplete bucket artifacts)');
-      assert.ok(result.endIndex < realData.length - 2,
-        'Should not detect in last 2 points (data ingestion delay)');
+      assert.ok(
+        result.startIndex >= 2,
+        'Should not detect in first 2 points (incomplete bucket artifacts)',
+      );
+      assert.ok(
+        result.endIndex < realData.length - 2,
+        'Should not detect in last 2 points (data ingestion delay)',
+      );
     }
   });
 
@@ -142,12 +163,12 @@ describe('detectStep', () => {
       [2, 79000, 10100, 290],
       [3, 81000, 10000, 320],
       [4, 80000, 10150, 305],
-      [5, 40000, 10000, 300],  // <-- 50% drop in success traffic
+      [5, 40000, 10000, 300], // <-- 50% drop in success traffic
       [6, 42000, 10050, 295],
-      [7, 78000, 10000, 310],  // recovery
+      [7, 78000, 10000, 310], // recovery
       [8, 80000, 10100, 300],
       [9, 79000, 10000, 305],
-      [10, 81000, 10200, 290]
+      [10, 81000, 10200, 290],
     ];
     const series = toSeries(dropData);
     const result = detectStep(series);
@@ -166,21 +187,24 @@ describe('detectStep', () => {
       [0, 80000, 10000, 300],
       [1, 82000, 10200, 310],
       [2, 79000, 10100, 290],
-      [3, 40000, 10000, 320],  // success drop
-      [4, 80000, 30000, 305],  // error spike (3x increase)
+      [3, 40000, 10000, 320], // success drop
+      [4, 80000, 30000, 305], // error spike (3x increase)
       [5, 80000, 12000, 300],
       [6, 82000, 10050, 295],
       [7, 78000, 10000, 310],
       [8, 80000, 10100, 300],
       [9, 79000, 10000, 305],
-      [10, 81000, 10200, 290]
+      [10, 81000, 10200, 290],
     ];
     const series = toSeries(mixedData);
     const result = detectStep(series);
 
     assert.ok(result, 'Should detect something');
-    assert.strictEqual(result.category, 'error',
-      'Should prioritize error spike over success drop');
+    assert.strictEqual(
+      result.category,
+      'error',
+      'Should prioritize error spike over success drop',
+    );
 
     console.log('Detected (prioritized):', result);
   });
@@ -188,7 +212,7 @@ describe('detectStep', () => {
   it('should return null for stable traffic', () => {
     // Perfectly stable traffic with no variance (sigma = 0)
     const stableData = [];
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 20; i += 1) {
       stableData.push([i, 80000, 10000, 300]);
     }
     const series = toSeries(stableData);
@@ -205,14 +229,14 @@ describe('CDN operational requirements', () => {
       [0, 50000, 5000, 100],
       [1, 52000, 5100, 105],
       [2, 51000, 5050, 98],
-      [3, 100000, 5000, 100],  // 2x traffic - notable
+      [3, 100000, 5000, 100], // 2x traffic - notable
       [4, 98000, 5100, 102],
       [5, 102000, 5000, 100],
       [6, 99000, 5050, 98],
       [7, 101000, 5000, 105],
       [8, 100000, 5100, 100],
       [9, 98000, 5000, 102],
-      [10, 99000, 5050, 100]
+      [10, 99000, 5050, 100],
     ];
     const series = toSeries(goodNewsData);
     const result = detectStep(series);
@@ -233,14 +257,14 @@ describe('CDN operational requirements', () => {
       [0, 80000, 5000, 100],
       [1, 82000, 5100, 105],
       [2, 79000, 5050, 98],
-      [3, 80000, 5000, 3000],  // 30x 5xx spike - bad! (score: 10k+15k=25k vs 10k+500=10.5k)
+      [3, 80000, 5000, 3000], // 30x 5xx spike - bad! (score: 10k+15k=25k vs 10k+500=10.5k)
       [4, 81000, 5100, 2800],
-      [5, 80000, 5000, 200],   // recovering
+      [5, 80000, 5000, 200], // recovering
       [6, 82000, 5050, 100],
       [7, 78000, 5000, 102],
       [8, 80000, 5100, 98],
       [9, 79000, 5000, 100],
-      [10, 81000, 5200, 99]
+      [10, 81000, 5200, 99],
     ];
     const series = toSeries(badNewsData);
     const result = detectStep(series);
@@ -256,14 +280,14 @@ describe('CDN operational requirements', () => {
       [0, 100000, 10000, 100],
       [1, 102000, 10200, 105],
       [2, 99000, 10100, 98],
-      [3, 40000, 10000, 100],  // 60% traffic loss - bad!
+      [3, 40000, 10000, 100], // 60% traffic loss - bad!
       [4, 38000, 10100, 102],
       [5, 42000, 10000, 100],
-      [6, 99000, 10050, 98],   // recovery
+      [6, 99000, 10050, 98], // recovery
       [7, 101000, 10000, 105],
       [8, 100000, 10100, 100],
       [9, 98000, 10000, 102],
-      [10, 99000, 10050, 100]
+      [10, 99000, 10050, 100],
     ];
     const series = toSeries(trafficLossData);
     const result = detectStep(series);
@@ -279,53 +303,60 @@ describe('CDN operational requirements', () => {
       [0, 50000, 5000, 100],
       [1, 52000, 5100, 105],
       [2, 51000, 5050, 98],
-      [3, 100000, 5000, 100],  // 2x green spike (50% increase, weighted 1x = 0.5)
-      [4, 98000, 15000, 102],  // error spike (3x 4xx, ~50% weighted increase, weighted 10x = 5.0)
+      [3, 100000, 5000, 100], // 2x green spike (50% increase, weighted 1x = 0.5)
+      [4, 98000, 15000, 102], // error spike (3x 4xx, ~50% weighted increase, weighted 10x = 5.0)
       [5, 102000, 5000, 100],
       [6, 99000, 5050, 98],
       [7, 101000, 5000, 105],
       [8, 100000, 5100, 100],
       [9, 98000, 5000, 102],
-      [10, 99000, 5050, 100]
+      [10, 99000, 5050, 100],
     ];
     const series = toSeries(mixedData);
     const result = detectStep(series);
 
     assert.ok(result, 'Should detect something');
-    assert.strictEqual(result.category, 'error',
-      'Error spike (10x weight) should beat green spike (1x weight)');
+    assert.strictEqual(
+      result.category,
+      'error',
+      'Error spike (10x weight) should beat green spike (1x weight)',
+    );
   });
 
   it('sustained anomaly beats brief spike (duration weighting)', () => {
     // Brief large spike vs sustained smaller deviation
     // Need enough data points so baselines are stable (margin=2 on each side)
     const data = [
-      [0, 70000, 10000, 300],   // ignored (margin)
-      [1, 72000, 10200, 310],   // ignored (margin)
+      [0, 70000, 10000, 300], // ignored (margin)
+      [1, 72000, 10200, 310], // ignored (margin)
       [2, 71000, 10100, 290],
       [3, 70000, 10000, 300],
       [4, 72000, 10200, 310],
-      [5, 140000, 10000, 320],  // Brief 2x green spike (1 bucket)
-      [6, 70000, 10150, 305],   // Returns to normal
+      [5, 140000, 10000, 320], // Brief 2x green spike (1 bucket)
+      [6, 70000, 10150, 305], // Returns to normal
       [7, 71000, 10000, 300],
-      [8, 70000, 15000, 300],   // Sustained error spike starts
-      [9, 70000, 16000, 310],   // continues (~50% above baseline)
-      [10, 70000, 15500, 295],  // continues
-      [11, 70000, 15000, 300],  // continues (4 buckets total)
-      [12, 70000, 10000, 305],  // back to normal
+      [8, 70000, 15000, 300], // Sustained error spike starts
+      [9, 70000, 16000, 310], // continues (~50% above baseline)
+      [10, 70000, 15500, 295], // continues
+      [11, 70000, 15000, 300], // continues (4 buckets total)
+      [12, 70000, 10000, 305], // back to normal
       [13, 71000, 10200, 290],
       [14, 70000, 10000, 300],
-      [15, 72000, 10100, 310],  // ignored (margin)
-      [16, 71000, 10200, 290]   // ignored (margin)
+      [15, 72000, 10100, 310], // ignored (margin)
+      [16, 71000, 10200, 290], // ignored (margin)
     ];
     const series = toSeries(data);
     const result = detectStep(series);
 
     assert.ok(result, 'Should detect something');
-    // The sustained error spike (4 buckets at ~50%) should beat the brief green spike (1 bucket at 100%)
+    // The sustained error spike (4 buckets at ~50%) should beat the brief green spike
+    // (1 bucket at 100%)
     // Error: 0.5 × √4 × 10 = 10 vs Success spike: 1.0 × √1 × 1 = 1
-    assert.strictEqual(result.category, 'error',
-      'Sustained error spike should beat brief green spike due to duration weighting');
+    assert.strictEqual(
+      result.category,
+      'error',
+      'Sustained error spike should beat brief green spike due to duration weighting',
+    );
   });
 
   it('red drop = good, should not highlight', () => {
@@ -334,14 +365,14 @@ describe('CDN operational requirements', () => {
       [0, 80000, 10000, 500],
       [1, 82000, 10200, 480],
       [2, 79000, 10100, 520],
-      [3, 80000, 10000, 100],  // 80% drop in 5xx - recovery!
+      [3, 80000, 10000, 100], // 80% drop in 5xx - recovery!
       [4, 81000, 10100, 98],
       [5, 80000, 10000, 102],
       [6, 82000, 10050, 100],
       [7, 78000, 10000, 99],
       [8, 80000, 10100, 101],
       [9, 79000, 10000, 100],
-      [10, 81000, 10200, 98]
+      [10, 81000, 10200, 98],
     ];
     const series = toSeries(goodRecoveryData);
     const result = detectStep(series);

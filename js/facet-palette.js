@@ -1,6 +1,23 @@
-// Facet command palette for quick navigation (VS Code-style)
-import { setFocusedFacet } from './keyboard.js';
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { getColorForColumn } from './colors/index.js';
+import { escapeHtml } from './utils.js';
+
+// Callback to set focused facet (set by keyboard.js to avoid circular dependency)
+let onFacetNavigate = null;
+
+export function setOnFacetNavigate(callback) {
+  onFacetNavigate = callback;
+}
 
 // Map facet IDs to column patterns for color lookup
 const FACET_COLUMNS = {
@@ -27,7 +44,7 @@ const FACET_COLUMNS = {
   'breakdown-push-invalidation': 'request.headers.x_push_invalidation',
   'breakdown-content-length': 'response.headers.content_length',
   'breakdown-location': 'response.headers.location',
-  'breakdown-time-elapsed': 'cdn.time_elapsed_msec'
+  'breakdown-time-elapsed': 'cdn.time_elapsed_msec',
 };
 
 // Aliases for facets (beyond the h3 title)
@@ -55,15 +72,15 @@ const FACET_ALIASES = {
   'breakdown-push-invalidation': ['purge', 'invalidate'],
   'breakdown-content-length': ['size', 'bytes', 'length'],
   'breakdown-location': ['redirect', '301', '302', 'location header'],
-  'breakdown-time-elapsed': ['time', 'duration', 'latency', 'ttfb']
+  'breakdown-time-elapsed': ['time', 'duration', 'latency', 'ttfb'],
 };
 
-let paletteState = {
+const paletteState = {
   open: false,
   selectedIndex: 0,
   filteredFacets: [],
-  savedQueries: null,  // Cached saved queries from index.html
-  savedQueriesLoading: false
+  savedQueries: null, // Cached saved queries from index.html
+  savedQueriesLoading: false,
 };
 
 // Extract just the title text from an h3, ignoring child elements like badges
@@ -85,13 +102,14 @@ function getFacetValues(card) {
   const values = [];
   for (const row of rows) {
     // Skip "(other)" rows
-    if (row.classList.contains('other-row')) continue;
-    const dimCell = row.querySelector('td.dim');
-    if (dimCell) {
-      // Get the text content, excluding any badges/prefixes
-      const text = dimCell.textContent.trim();
-      if (text && text !== '(other)') {
-        values.push(text.toLowerCase());
+    if (!row.classList.contains('other-row')) {
+      const dimCell = row.querySelector('td.dim');
+      if (dimCell) {
+        // Get the text content, excluding any badges/prefixes
+        const text = dimCell.textContent.trim();
+        if (text && text !== '(other)') {
+          values.push(text.toLowerCase());
+        }
       }
     }
   }
@@ -101,8 +119,8 @@ function getFacetValues(card) {
 // Get all facets with their searchable text
 function getAllFacets() {
   const cards = [...document.querySelectorAll('.breakdown-card')];
-  return cards.map(card => {
-    const id = card.id;
+  return cards.map((card) => {
+    const { id } = card;
     const h3 = card.querySelector('h3');
     const title = extractTitleText(h3);
     const dataAlias = card.dataset.alias || '';
@@ -117,7 +135,7 @@ function getAllFacets() {
       title.toLowerCase(),
       id.replace('breakdown-', '').replace(/-/g, ' ').toLowerCase(),
       dataAlias.toLowerCase(),
-      ...aliases.map(a => a.toLowerCase())
+      ...aliases.map((a) => a.toLowerCase()),
     ].filter(Boolean);
 
     // Value terms - lower priority, only used for searching
@@ -129,15 +147,15 @@ function getAllFacets() {
       primaryTerms,
       valueTerms,
       isHidden,
-      element: card
+      element: card,
     };
   });
 }
 
 // Fuzzy match: check if all query chars appear in order in target
-function fuzzyMatch(query, target) {
-  query = query.toLowerCase();
-  target = target.toLowerCase();
+function fuzzyMatch(queryStr, targetStr) {
+  const query = queryStr.toLowerCase();
+  const target = targetStr.toLowerCase();
 
   // Exact match gets highest score
   if (query === target) {
@@ -152,19 +170,19 @@ function fuzzyMatch(query, target) {
   // Check if target contains query as substring (word match)
   const substringIdx = target.indexOf(query);
   if (substringIdx !== -1) {
-    const positions = [...Array(query.length).keys()].map(i => i + substringIdx);
+    const positions = [...Array(query.length).keys()].map((i) => i + substringIdx);
     // Higher score if it's at a word boundary
     const atWordStart = substringIdx === 0 || /[\s\-_.]/.test(target[substringIdx - 1]);
     return { score: 300 + (atWordStart ? 100 : 0) + query.length * 5, positions };
   }
 
   let queryIdx = 0;
-  let matchPositions = [];
+  const matchPositions = [];
 
-  for (let i = 0; i < target.length && queryIdx < query.length; i++) {
+  for (let i = 0; i < target.length && queryIdx < query.length; i += 1) {
     if (target[i] === query[queryIdx]) {
       matchPositions.push(i);
-      queryIdx++;
+      queryIdx += 1;
     }
   }
 
@@ -172,7 +190,7 @@ function fuzzyMatch(query, target) {
 
   // Score: prefer matches at word starts and consecutive chars
   let score = 0;
-  for (let i = 0; i < matchPositions.length; i++) {
+  for (let i = 0; i < matchPositions.length; i += 1) {
     const pos = matchPositions[i];
     // Bonus for match at start
     if (pos === 0) score += 10;
@@ -215,38 +233,38 @@ async function loadSavedQueries() {
 
       for (const item of items) {
         const link = item.querySelector('a');
-        if (!link) continue;
+        if (link) {
+          const href = link.getAttribute('href');
+          // Process only dashboard links with valid hrefs
+          if (href && href.includes('dashboard.html')) {
+            const titleEl = link.querySelector('.title');
+            const descEl = link.querySelector('.description');
 
-        const href = link.getAttribute('href');
-        // Skip non-dashboard links and empty hrefs
-        if (!href || !href.includes('dashboard.html')) continue;
+            // Extract text without badges
+            let title = titleEl?.textContent || '';
+            // Remove badge text from title
+            const badge = titleEl?.querySelector('.badge');
+            if (badge) {
+              title = title.replace(badge.textContent, '').trim();
+            }
 
-        const titleEl = link.querySelector('.title');
-        const descEl = link.querySelector('.description');
+            const description = descEl?.textContent || '';
 
-        // Extract text without badges
-        let title = titleEl?.textContent || '';
-        // Remove badge text from title
-        const badge = titleEl?.querySelector('.badge');
-        if (badge) {
-          title = title.replace(badge.textContent, '').trim();
-        }
-
-        const description = descEl?.textContent || '';
-
-        if (title) {
-          queries.push({
-            type: 'query',
-            title,
-            description,
-            section: sectionTitle,
-            href,
-            searchTerms: [
-              title.toLowerCase(),
-              description.toLowerCase(),
-              sectionTitle.toLowerCase()
-            ].filter(Boolean)
-          });
+            if (title) {
+              queries.push({
+                type: 'query',
+                title,
+                description,
+                section: sectionTitle,
+                href,
+                searchTerms: [
+                  title.toLowerCase(),
+                  description.toLowerCase(),
+                  sectionTitle.toLowerCase(),
+                ].filter(Boolean),
+              });
+            }
+          }
         }
       }
     }
@@ -268,20 +286,20 @@ function filterFacets(query, savedQueries = []) {
 
   if (!query.trim()) {
     // No query: show all visible facets, then hidden ones, then saved queries
-    const visible = facets.filter(f => !f.isHidden);
-    const hidden = facets.filter(f => f.isHidden);
-    const facetResults = [...visible, ...hidden].map(f => ({
+    const visible = facets.filter((f) => !f.isHidden);
+    const hidden = facets.filter((f) => f.isHidden);
+    const facetResults = [...visible, ...hidden].map((f) => ({
       type: 'facet',
       facet: f,
       match: null,
-      matchedValue: null
+      matchedValue: null,
     }));
 
     // Add saved queries section
-    const queryResults = savedQueries.map(q => ({
+    const queryResults = savedQueries.map((q) => ({
       type: 'query',
       query: q,
-      match: null
+      match: null,
     }));
 
     return [...facetResults, ...queryResults];
@@ -328,7 +346,9 @@ function filterFacets(query, savedQueries = []) {
     }
 
     if (bestMatch) {
-      results.push({ type: 'facet', facet, match: bestMatch, matchedValue });
+      results.push({
+        type: 'facet', facet, match: bestMatch, matchedValue,
+      });
     }
   }
 
@@ -436,13 +456,6 @@ function renderList(results) {
   }
 }
 
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // Open the palette
 export async function openFacetPalette() {
   const dialog = document.getElementById('facetPalette');
@@ -483,7 +496,9 @@ function navigateToFacet(facetId, matchedValue = null) {
 
   // Update keyboard navigation state to focus this facet
   // Pass matchedValue to pre-select that row
-  setFocusedFacet(facetId, matchedValue);
+  if (onFacetNavigate) {
+    onFacetNavigate(facetId, matchedValue);
+  }
 
   // Scroll to the facet
   facet.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -540,6 +555,9 @@ function handleKeyDown(e) {
       e.preventDefault();
       closeFacetPalette();
       break;
+    default:
+      // No action for other keys
+      break;
   }
 }
 
@@ -547,7 +565,7 @@ function handleKeyDown(e) {
 function handleListClick(e) {
   const item = e.target.closest('.palette-item');
   if (item) {
-    const index = parseInt(item.dataset.index);
+    const index = parseInt(item.dataset.index, 10);
     const result = paletteState.filteredFacets[index];
     if (result) {
       if (result.type === 'facet') {
