@@ -755,6 +755,8 @@ export function setupChartNavigation(callback) {
   container.addEventListener('mouseleave', () => {
     scrubberLine.classList.remove('visible');
     scrubberStatusBar.classList.remove('visible');
+    hideReleaseTooltip();
+    canvas.style.cursor = '';
   });
 
   container.addEventListener('mousemove', (e) => {
@@ -762,6 +764,18 @@ export function setupChartNavigation(callback) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     updateScrubber(x, y);
+
+    // Ship tooltip on hover (handled here since nav overlay captures canvas events)
+    const ship = getShipAtPoint(getShipPositions(), x, y);
+    if (ship) {
+      showReleaseTooltip(ship.release, e.clientX, e.clientY);
+      canvas.style.cursor = 'pointer';
+    } else {
+      hideReleaseTooltip();
+      // Restore cursor based on anomaly hover state
+      const anomaly = getAnomalyAtX(x);
+      canvas.style.cursor = anomaly ? 'pointer' : '';
+    }
   });
 
   // Drag selection for time range zoom
@@ -942,32 +956,6 @@ export function setupChartNavigation(callback) {
   navOverlay.addEventListener('mouseleave', () => {
     navOverlay.classList.remove('over-anomaly');
     navOverlay.classList.remove('over-ship');
-  });
-
-  // Ship tooltip on hover
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const ship = getShipAtPoint(getShipPositions(), x, y);
-
-    if (ship) {
-      // Convert canvas coordinates to page coordinates
-      const pageX = e.clientX;
-      const pageY = e.clientY;
-      showReleaseTooltip(ship.release, pageX, pageY);
-      canvas.style.cursor = 'pointer';
-    } else {
-      hideReleaseTooltip();
-      // Restore cursor based on anomaly hover state
-      const anomaly = getAnomalyAtX(x);
-      canvas.style.cursor = anomaly ? 'pointer' : '';
-    }
-  });
-
-  canvas.addEventListener('mouseleave', () => {
-    hideReleaseTooltip();
-    canvas.style.cursor = '';
   });
 }
 
