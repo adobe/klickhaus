@@ -19,5 +19,8 @@
     "analytics",
     "dashboard"
   ],
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {
+    "puppeteer-core": "24.35.0"
+  }
 }

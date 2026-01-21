@@ -15,6 +15,53 @@ npm start
 
 This starts a dev server with auto-reload at http://localhost:5391/dashboard.html.
 
+## Browser Debugging
+
+For UI testing and automation, use the `web-debug` skill with Puppeteer.
+
+### Setup
+
+1. Load the skill: `/web-debug` or ask Claude to "load the web-debug skill"
+2. Start Chrome with remote debugging on port 9222
+3. Create debug scripts in the `debug/` folder (gitignored)
+
+### Minimal Login Script
+
+```javascript
+// debug/session.mjs
+import puppeteer from 'puppeteer-core';
+
+const browser = await puppeteer.connect({
+  browserURL: 'http://localhost:9222'
+});
+
+const pages = await browser.pages();
+let page = pages.find(p => p.url().includes('localhost:5391')) || await browser.newPage();
+await page.setViewport({ width: 1400, height: 900 });
+
+await page.goto('http://localhost:5391/dashboard.html', {
+  waitUntil: 'networkidle2',
+  timeout: 30000
+});
+
+// Log in (credentials in README.local.md)
+await page.$eval('#username', el => el.value = '');
+await page.type('#username', 'USERNAME');
+await page.$eval('#password', el => el.value = '');
+await page.type('#password', 'PASSWORD');
+await page.click('#loginForm button[type="submit"]');
+
+await new Promise(r => setTimeout(r, 2000));  // Wait for render
+
+// ... your debug code here ...
+
+await browser.disconnect();
+```
+
+### Credentials
+
+Dashboard login credentials are in `README.local.md` under the Users table. Use a read-only user (e.g., `lars` or `david_query`) for testing.
+
 ## Database Connection
 
 ```bash
