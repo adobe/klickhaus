@@ -56,6 +56,9 @@ export function renderBreakdownTable(
   summaryColor,
   modeToggle,
   isContinuous,
+  filterCol,
+  filterValueFn,
+  filterOp,
 ) {
   const card = document.getElementById(id);
   // Store original title in data attribute, or read from h3 if first render
@@ -195,22 +198,28 @@ export function renderBreakdownTable(
       dimContent = `${colorIndicator}${formattedDim}`;
     }
 
+    // Compute filter attributes (may differ from display col/value for grouped facets)
+    const actualFilterCol = filterCol || col;
+    const actualFilterValue = filterValueFn ? filterValueFn(row.dim || '') : (row.dim || '');
+    const actualFilterOp = filterOp || '=';
+    const filterAttrs = `data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-filter-col="${escapeHtml(actualFilterCol)}" data-filter-value="${escapeHtml(actualFilterValue)}" data-filter-op="${escapeHtml(actualFilterOp)}"`;
+
     // Determine button actions based on current filter state
     const filterBtn = isIncluded
-      ? `<button class="action-btn" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}">Clear</button>`
-      : `<button class="action-btn" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="false">Filter</button>`;
+      ? `<button class="action-btn" data-action="remove-filter-value" ${filterAttrs}>Clear</button>`
+      : `<button class="action-btn" data-action="add-filter" ${filterAttrs} data-exclude="false">Filter</button>`;
     const excludeBtn = isExcluded
-      ? `<button class="action-btn" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}">Clear</button>`
-      : `<button class="action-btn exclude" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="true">Exclude</button>`;
+      ? `<button class="action-btn" data-action="remove-filter-value" ${filterAttrs}>Clear</button>`
+      : `<button class="action-btn exclude" data-action="add-filter" ${filterAttrs} data-exclude="true">Exclude</button>`;
 
     // Mobile action buttons (shown on tap) - using Unicode symbols
     // ▼ for filter, × for exclude, ✓ for clear
     const mobileFilterBtn = isIncluded
-      ? `<button class="mobile-action-btn active" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" title="Remove filter">✓</button>`
-      : `<button class="mobile-action-btn" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="false" title="Filter to this value">▼</button>`;
+      ? `<button class="mobile-action-btn active" data-action="remove-filter-value" ${filterAttrs} title="Remove filter">✓</button>`
+      : `<button class="mobile-action-btn" data-action="add-filter" ${filterAttrs} data-exclude="false" title="Filter to this value">▼</button>`;
     const mobileExcludeBtn = isExcluded
-      ? `<button class="mobile-action-btn exclude active" data-action="remove-filter-value" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" title="Remove exclusion">✓</button>`
-      : `<button class="mobile-action-btn exclude" data-action="add-filter" data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-exclude="true" title="Exclude this value">×</button>`;
+      ? `<button class="mobile-action-btn exclude active" data-action="remove-filter-value" ${filterAttrs} title="Remove exclusion">✓</button>`
+      : `<button class="mobile-action-btn exclude" data-action="add-filter" ${filterAttrs} data-exclude="true" title="Exclude this value">×</button>`;
 
     const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
     const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');

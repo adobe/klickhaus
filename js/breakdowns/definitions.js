@@ -48,7 +48,15 @@ export const allBreakdowns = [
   },
   { id: 'breakdown-content-types', col: COLUMN_DEFS.contentType.facetCol, modeToggle: 'contentTypeMode' },
   { id: 'breakdown-status', col: COLUMN_DEFS.status.facetCol, modeToggle: 'contentTypeMode' },
-  { id: 'breakdown-errors', col: COLUMN_DEFS.error.facetCol, extraFilter: "AND `response.headers.x_error` != ''" },
+  {
+    id: 'breakdown-errors',
+    col: COLUMN_DEFS.errorGrouped.facetCol,
+    filterCol: '`response.headers.x_error`',
+    // Convert grouped display value to LIKE pattern (replace /... with %)
+    filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%'),
+    filterOp: 'LIKE',
+    extraFilter: "AND `response.headers.x_error` != ''",
+  },
   {
     id: 'breakdown-cache', col: COLUMN_DEFS.cacheStatus.facetCol, summaryCountIf: "upper(`cdn.cache_status`) LIKE 'HIT%'", summaryLabel: 'cache efficiency',
   },

@@ -62,11 +62,21 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   card.classList.add('updating');
 
   // Support dynamic col expressions that depend on topN
-  const col = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+  let col = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
+  // When there's an active LIKE filter for this breakdown, switch to raw column
+  // to show decomposed individual values instead of grouped ones
+  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
+    && state.filters.some((f) => f.col === col);
+  if (hasActiveFilter) {
+    col = b.filterCol;
+  }
 
   const extra = b.extraFilter || '';
   // Get filters excluding this facet's column to show all values for active facets
-  const facetFilters = getFacetFiltersExcluding(col);
+  // Use the original grouped col for filter exclusion check
+  const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+  const facetFilters = getFacetFiltersExcluding(originalCol);
   // Add summary countIf if defined for this breakdown
   const summaryCol = b.summaryCountIf ? `,\n      countIf(${b.summaryCountIf}) as summary_cnt` : '';
 
@@ -131,6 +141,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       });
     }
 
+    // When showing decomposed values, don't pass filter transformation -
+    // clicking individual values should use exact match, not LIKE pattern
     renderBreakdownTable(
       b.id,
       data,
@@ -147,6 +159,9 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       b.summaryColor,
       b.modeToggle,
       !!b.getExpectedLabels,
+      hasActiveFilter ? null : b.filterCol,
+      hasActiveFilter ? null : b.filterValueFn,
+      hasActiveFilter ? null : b.filterOp,
     );
   } catch (err) {
     console.error(`Breakdown error (${b.id}):`, err);

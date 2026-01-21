@@ -12,7 +12,7 @@
 /**
  * @typedef {Object} ActionHandlers
  * @property {(col: string) => void} togglePinnedColumn
- * @property {(col: string, value: string, exclude: boolean) => void} addFilter
+ * @property {Function} addFilter - (col, value, exclude, filterCol?, filterValue?, filterOp?)
  * @property {(index: number) => void} removeFilter
  * @property {(col: string, value: string) => void} removeFilterByValue
  * @property {(col: string) => void} clearFiltersForColumn
@@ -48,6 +48,9 @@ export function initActionHandlers(handlers) {
           target.dataset.col || '',
           target.dataset.value || '',
           target.dataset.exclude === 'true',
+          target.dataset.filterCol,
+          target.dataset.filterValue,
+          target.dataset.filterOp,
         );
         break;
       }

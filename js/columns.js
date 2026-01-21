@@ -87,6 +87,11 @@ export const COLUMN_DEFS = {
     facetCol: '`response.headers.x_error`',
     label: 'Error',
   },
+  errorGrouped: {
+    logKey: 'response.headers.x_error',
+    facetCol: "REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...')",
+    label: 'Error (grouped)',
+  },
   clientIp: {
     logKey: 'client.ip',
     facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",

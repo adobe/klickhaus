@@ -89,16 +89,29 @@ export function clearAllFilters() {
   if (loadDashboard) loadDashboard();
 }
 
-export function addFilter(col, value, exclude, skipReload = false) {
+export function addFilter(col, value, exclude, filterCol, filterValue, filterOp, skipReload) {
   // Remove existing filter for same col+value
   state.filters = state.filters.filter((f) => !(f.col === col && f.value === value));
 
-  // Look up breakdown to get filterCol and filterValueFn if defined
-  const breakdown = allBreakdowns.find((b) => b.col === col);
   const filter = { col, value, exclude };
-  if (breakdown?.filterCol) {
-    filter.filterCol = breakdown.filterCol;
-    filter.filterValue = breakdown.filterValueFn ? breakdown.filterValueFn(value) : value;
+
+  // Use passed filter parameters if provided, otherwise look up from breakdown definition
+  if (filterCol) {
+    filter.filterCol = filterCol;
+    filter.filterValue = filterValue ?? value;
+    if (filterOp && filterOp !== '=') {
+      filter.filterOp = filterOp;
+    }
+  } else {
+    // Fallback: look up breakdown to get filterCol and filterValueFn if defined
+    const breakdown = allBreakdowns.find((b) => b.col === col);
+    if (breakdown?.filterCol) {
+      filter.filterCol = breakdown.filterCol;
+      filter.filterValue = breakdown.filterValueFn ? breakdown.filterValueFn(value) : value;
+      if (breakdown.filterOp) {
+        filter.filterOp = breakdown.filterOp;
+      }
+    }
   }
 
   state.filters.push(filter);

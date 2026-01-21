@@ -365,7 +365,7 @@ export function zoomToAnomalyByRank(rank) {
     if (values) {
       for (const value of values) {
         // Skip reload - we'll reload once after setting time range
-        addFilter(STATUS_RANGE_COL, value, false, true);
+        addFilter(STATUS_RANGE_COL, value, false, undefined, undefined, undefined, true);
       }
     }
   }

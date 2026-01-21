@@ -153,12 +153,13 @@ export function loadStateFromURL() {
     try {
       const filters = JSON.parse(params.get('filters'));
       if (Array.isArray(filters)) {
-        // Preserve filterCol and filterValue if present (for ASN integer filtering)
+        // Preserve filterCol, filterValue, filterOp if present (for grouped/LIKE filtering)
         state.filters = filters.filter((f) => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
           .map((f) => {
             const filter = { col: f.col, value: f.value, exclude: f.exclude };
             if (f.filterCol) filter.filterCol = f.filterCol;
             if (f.filterValue !== undefined) filter.filterValue = f.filterValue;
+            if (f.filterOp) filter.filterOp = f.filterOp;
             return filter;
           });
       }

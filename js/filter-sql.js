@@ -16,13 +16,20 @@
  * @property {boolean} exclude - Whether filter is exclusion.
  * @property {string} [filterCol] - Optional override column for SQL filtering.
  * @property {string|number} [filterValue] - Optional override value for SQL filtering.
+ * @property {'=' | 'LIKE'} [filterOp] - Comparison operator (default: '=').
+ */
+
+/**
+ * @typedef {Object} FilterEntry
+ * @property {string|number} value
+ * @property {'=' | 'LIKE'} op
  */
 
 /**
  * @typedef {Object} FilterGroup
  * @property {string} sqlCol
- * @property {(string|number)[]} includes
- * @property {(string|number)[]} excludes
+ * @property {FilterEntry[]} includes
+ * @property {FilterEntry[]} excludes
  */
 
 /**
@@ -36,13 +43,15 @@ export function buildFilterMap(filters) {
   for (const filter of filters) {
     const sqlCol = filter.filterCol || filter.col;
     const sqlValue = filter.filterValue ?? filter.value;
+    const sqlOp = filter.filterOp || '=';
     if (!byColumn[sqlCol]) {
       byColumn[sqlCol] = { sqlCol, includes: [], excludes: [] };
     }
+    const entry = { value: sqlValue, op: sqlOp };
     if (filter.exclude) {
-      byColumn[sqlCol].excludes.push(sqlValue);
+      byColumn[sqlCol].excludes.push(entry);
     } else {
-      byColumn[sqlCol].includes.push(sqlValue);
+      byColumn[sqlCol].includes.push(entry);
     }
   }
   return byColumn;
@@ -66,21 +75,24 @@ export function compileFilters(filters) {
     const { sqlCol, includes, excludes } = group;
 
     if (includes.length > 0) {
-      const includeParts = includes.map((value) => {
+      const includeParts = includes.map((entry) => {
+        const { value, op } = entry;
         const isNumeric = typeof value === 'number';
         const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
         const comparison = isNumeric ? escaped : `'${escaped}'`;
-        return `${sqlCol} = ${comparison}`;
+        return `${sqlCol} ${op} ${comparison}`;
       });
       parts.push(includeParts.length === 1 ? includeParts[0] : `(${includeParts.join(' OR ')})`);
     }
 
     if (excludes.length > 0) {
-      const excludeParts = excludes.map((value) => {
+      const excludeParts = excludes.map((entry) => {
+        const { value, op } = entry;
         const isNumeric = typeof value === 'number';
         const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
         const comparison = isNumeric ? escaped : `'${escaped}'`;
-        return `${sqlCol} != ${comparison}`;
+        const notOp = op === 'LIKE' ? 'NOT LIKE' : '!=';
+        return `${sqlCol} ${notOp} ${comparison}`;
       });
       parts.push(excludeParts.join(' AND '));
     }
@@ -107,14 +119,16 @@ export function isFilterSuperset(current, cached) {
     const currentGroup = current[sqlCol];
     if (!currentGroup) return false;
 
-    const currentIncludes = new Set(currentGroup.includes.map(String));
-    const currentExcludes = new Set(currentGroup.excludes.map(String));
+    // Create string keys for comparison (value + op)
+    const entryKey = (e) => `${e.value}|${e.op}`;
+    const currentIncludes = new Set(currentGroup.includes.map(entryKey));
+    const currentExcludes = new Set(currentGroup.excludes.map(entryKey));
 
-    for (const value of cachedGroup.includes || []) {
-      if (!currentIncludes.has(String(value))) return false;
+    for (const entry of cachedGroup.includes || []) {
+      if (!currentIncludes.has(entryKey(entry))) return false;
     }
-    for (const value of cachedGroup.excludes || []) {
-      if (!currentExcludes.has(String(value))) return false;
+    for (const entry of cachedGroup.excludes || []) {
+      if (!currentExcludes.has(entryKey(entry))) return false;
     }
   }
   return true;
