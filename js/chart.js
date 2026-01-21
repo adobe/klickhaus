@@ -724,7 +724,7 @@ export function setupChartNavigation(callback) {
       const maxLeft = statusWidth - innerWidth - statusPadding;
 
       // Ease function: smoothly transition from edge-clamped to centered
-      const edgeZone = innerWidth / 2 + padding;
+      const edgeZone = innerWidth / 2 + statusPadding;
       let finalLeft;
 
       if (x < edgeZone) {
@@ -742,7 +742,7 @@ export function setupChartNavigation(callback) {
 
       // Clamp to valid range
       finalLeft = Math.max(minLeft, Math.min(maxLeft, finalLeft));
-      inner.style.marginLeft = `${finalLeft - padding}px`;
+      inner.style.marginLeft = `${finalLeft - statusPadding}px`;
     }
   }
 
