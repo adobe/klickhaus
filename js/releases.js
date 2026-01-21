@@ -83,6 +83,43 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
     ctx.restore();
   }
 
+  // Draw a wrench icon for config changes
+  function drawWrench(x, y, color, size = 8) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-Math.PI / 4); // Rotate -45 degrees
+
+    const s = size;
+    const headRadius = s * 0.55;
+    const handleWidth = s * 0.35;
+    const handleLength = s * 1.2;
+    const hexRadius = s * 0.38;
+
+    // Draw handle (rectangle) and head (circle)
+    ctx.beginPath();
+    ctx.rect(-handleWidth / 2, -handleLength + headRadius, handleWidth, handleLength);
+    ctx.arc(0, -handleLength + headRadius, headRadius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Cut out hexagon for nut opening (on diagonal, towards top edge of head)
+    const hexCenterX = 0;
+    const hexCenterY = -handleLength + headRadius - headRadius * 0.5;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (Math.PI / 3) * i - Math.PI / 6;
+      const hx = hexCenterX + Math.cos(angle) * hexRadius;
+      const hy = hexCenterY + Math.sin(angle) * hexRadius;
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   for (const release of releases) {
     const publishedTime = new Date(release.published).getTime();
     const xRatio = (publishedTime - startTime) / timeRange;
@@ -91,20 +128,28 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
     // Draw at the very top of the chart
     const y = 10;
 
-    // Determine release type from semver:
-    // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch (green)
-    const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
-    let shipColor = cssVar('--status-ok') || '#12b76a'; // Default: patch (green)
-    if (versionMatch) {
-      const [, , minor, patch] = versionMatch;
-      if (minor === '0' && patch === '0') {
-        shipColor = cssVar('--status-server-error') || '#f04438'; // Breaking (red)
-      } else if (patch === '0') {
-        shipColor = cssVar('--status-client-error') || '#f79009'; // Feature (yellow)
-      }
-    }
+    // Check if this is a config change (certificate rotation) vs code release
+    const isConfigChange = release.repo === 'aem-certificate-rotation';
 
-    drawShip(x, y, shipColor);
+    if (isConfigChange) {
+      // Config changes get a wrench icon in a neutral color
+      const configColor = cssVar('--text-secondary') || '#667085';
+      drawWrench(x, y, configColor);
+    } else {
+      // Determine release type from semver:
+      // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch (green)
+      const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
+      let shipColor = cssVar('--status-ok') || '#12b76a'; // Default: patch (green)
+      if (versionMatch) {
+        const [, , minor, patch] = versionMatch;
+        if (minor === '0' && patch === '0') {
+          shipColor = cssVar('--status-server-error') || '#f04438'; // Breaking (red)
+        } else if (patch === '0') {
+          shipColor = cssVar('--status-client-error') || '#f79009'; // Feature (yellow)
+        }
+      }
+      drawShip(x, y, shipColor);
+    }
 
     // Store position for tooltip hit-testing
     shipPositions.push({

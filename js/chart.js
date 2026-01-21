@@ -685,19 +685,26 @@ export function setupChartNavigation(callback) {
     const ship = getShipNearX(x);
     if (ship) {
       const { release } = ship;
-      // Determine release type from semver:
-      // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch
-      const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
-      let releaseType = 'patch';
-      if (versionMatch) {
-        const [, , minor, patch] = versionMatch;
-        if (minor === '0' && patch === '0') {
-          releaseType = 'breaking';
-        } else if (patch === '0') {
-          releaseType = 'feature';
+      const isConfigChange = release.repo === 'aem-certificate-rotation';
+
+      if (isConfigChange) {
+        // Config change - show with config styling
+        row2Parts.push(`<span class="scrubber-release scrubber-release-config">Config: ${release.repo}</span>`);
+      } else {
+        // Determine release type from semver:
+        // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch
+        const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
+        let releaseType = 'patch';
+        if (versionMatch) {
+          const [, , minor, patch] = versionMatch;
+          if (minor === '0' && patch === '0') {
+            releaseType = 'breaking';
+          } else if (patch === '0') {
+            releaseType = 'feature';
+          }
         }
+        row2Parts.push(`<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`);
       }
-      row2Parts.push(`<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`);
     }
 
     // Build final content
