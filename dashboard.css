@@ -1093,22 +1093,6 @@ main {
   background: var(--status-server-error);
 }
 
-.speed-indicator.slowest {
-  box-shadow: 0 0 6px 2px currentColor;
-}
-
-.speed-indicator.slowest.fast {
-  box-shadow: 0 0 6px 2px var(--status-ok);
-}
-
-.speed-indicator.slowest.medium {
-  box-shadow: 0 0 6px 2px var(--status-client-error);
-}
-
-.speed-indicator.slowest.slow {
-  box-shadow: 0 0 6px 2px var(--status-server-error);
-}
-
 /* Clickable speed indicator */
 .speed-indicator[role="button"] {
   cursor: pointer;

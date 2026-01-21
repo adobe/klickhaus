@@ -162,12 +162,10 @@ export async function loadAllBreakdowns() {
   await Promise.all(allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter)));
 }
 
-// Mark the slowest facet with a glow
+// Mark the slowest facet in the toolbar timer tooltip
 export function markSlowestFacet() {
-  // Remove existing slowest markers
-  document.querySelectorAll('.speed-indicator.slowest').forEach((el) => {
-    el.classList.remove('slowest');
-  });
+  const queryTimerEl = document.getElementById('queryTimer');
+  if (!queryTimerEl) return;
 
   // Find the slowest facet
   let slowestId = null;
@@ -179,13 +177,14 @@ export function markSlowestFacet() {
     }
   }
 
-  // Add slowest class to the indicator
+  // Update the timer's title attribute with slowest facet info
   if (slowestId) {
     const card = document.getElementById(slowestId);
-    const indicator = card?.querySelector('.speed-indicator');
-    if (indicator) {
-      indicator.classList.add('slowest');
-    }
+    // Use stored title to avoid picking up summary tags inside h3
+    const title = card?.dataset.title || slowestId;
+    queryTimerEl.title = `Slowest: ${title} (${Math.round(slowestTime)}ms)`;
+  } else {
+    queryTimerEl.title = '';
   }
 }
 
