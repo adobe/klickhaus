@@ -1,4 +1,14 @@
-// Logs view management
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
 import { query } from './api.js';
@@ -25,9 +35,10 @@ function formatTimestamp(value) {
  * @returns {string[]}
  */
 function getLogColumns(allColumns) {
-  const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
-  const preferred = LOG_COLUMN_ORDER.filter(col => allColumns.includes(col) && !pinned.includes(col));
-  const rest = allColumns.filter(col => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
+  const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
+  const preferred = LOG_COLUMN_ORDER
+    .filter((col) => allColumns.includes(col) && !pinned.includes(col));
+  const rest = allColumns.filter((col) => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
   return [...pinned, ...preferred, ...rest];
 }
 
@@ -92,7 +103,9 @@ function formatLogCell(col, value) {
  * @param {Record<string, number>} [params.pinnedOffsets]
  * @returns {string}
  */
-function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
+function buildLogCellHtml({
+  col, value, pinned, pinnedOffsets,
+}) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col, value);
   const isPinned = pinned.includes(col);
   const leftOffset = isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined
@@ -109,7 +122,7 @@ function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
   if (colorIndicator && facetMapping && value !== null && value !== undefined && value !== '') {
     const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
     className = `${className} clickable`.trim();
-    actionAttrs = ` data-action=\"add-filter\" data-col=\"${escapeHtml(facetMapping.col)}\" data-value=\"${escapeHtml(filterValue)}\" data-exclude=\"false\"`;
+    actionAttrs = ` data-action="add-filter" data-col="${escapeHtml(facetMapping.col)}" data-value="${escapeHtml(filterValue)}" data-exclude="false"`;
   }
 
   return `<td class="${className}" style="${leftOffset}" title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</td>`;
@@ -125,10 +138,14 @@ function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
  * @param {Record<string, number>} [params.pinnedOffsets]
  * @returns {string}
  */
-function buildLogRowHtml({ row, columns, rowIdx, pinned, pinnedOffsets }) {
+function buildLogRowHtml({
+  row, columns, rowIdx, pinned, pinnedOffsets,
+}) {
   let html = `<tr data-row-idx="${rowIdx}">`;
   for (const col of columns) {
-    html += buildLogCellHtml({ col, value: row[col], pinned, pinnedOffsets });
+    html += buildLogCellHtml({
+      col, value: row[col], pinned, pinnedOffsets,
+    });
   }
   html += '</tr>';
   return html;
@@ -149,23 +166,25 @@ function updatePinnedOffsets(container, pinned) {
     const pinnedWidths = [];
     let cumLeft = 0;
 
-    for (let i = 0; i < pinned.length; i++) {
+    for (let i = 0; i < pinned.length; i += 1) {
       pinnedWidths.push(cumLeft);
       cumLeft += headerCells[i].offsetWidth;
     }
 
-    headerCells.forEach((th, idx) => {
+    headerCells.forEach((headerCell, idx) => {
       if (idx < pinned.length) {
-        th.style.left = pinnedWidths[idx] + 'px';
+        const th = headerCell;
+        th.style.left = `${pinnedWidths[idx]}px`;
       }
     });
 
     const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
+    rows.forEach((row) => {
       const cells = row.querySelectorAll('td');
-      cells.forEach((td, idx) => {
+      cells.forEach((cell, idx) => {
         if (idx < pinned.length) {
-          td.style.left = pinnedWidths[idx] + 'px';
+          const td = cell;
+          td.style.left = `${pinnedWidths[idx]}px`;
         }
       });
     });
@@ -183,6 +202,224 @@ let logsOffset = 0;
 let hasMoreLogs = true;
 let loadingMore = false;
 
+// Show brief "Copied!" feedback
+function showCopyFeedback() {
+  let feedback = document.getElementById('copy-feedback');
+  if (!feedback) {
+    feedback = document.createElement('div');
+    feedback.id = 'copy-feedback';
+    feedback.textContent = 'Copied to clipboard';
+    feedback.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: var(--bg);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.2s;
+    `;
+    document.body.appendChild(feedback);
+  }
+  feedback.style.opacity = '1';
+  setTimeout(() => {
+    feedback.style.opacity = '0';
+  }, 1500);
+}
+
+// Copy row data as JSON when clicking on row background
+export function copyLogRow(rowIdx) {
+  const row = state.logsData[rowIdx];
+  if (!row) return;
+
+  // Convert flat dot notation to nested object
+  const nested = {};
+  for (const [key, value] of Object.entries(row)) {
+    // Skip empty values
+    if (value !== null && value !== undefined && value !== '') {
+      const parts = key.split('.');
+      let current = nested;
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        if (!current[parts[i]]) {
+          current[parts[i]] = {};
+        }
+        current = current[parts[i]];
+      }
+      current[parts[parts.length - 1]] = value;
+    }
+  }
+
+  const json = JSON.stringify(nested, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    // Brief visual feedback
+    showCopyFeedback();
+  }).catch((err) => {
+    console.error('Failed to copy:', err);
+  });
+}
+
+// Set up click handler for row background clicks
+export function setupLogRowClickHandler() {
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+
+  container.addEventListener('click', (e) => {
+    // Only handle clicks directly on td or tr (not on links, buttons, or spans)
+    const { target } = e;
+    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
+
+    // Don't copy if clicking on a clickable cell (filter action)
+    if (target.classList.contains('clickable')) return;
+
+    // Find the row
+    const row = target.closest('tr');
+    if (!row || !row.dataset.rowIdx) return;
+
+    const rowIdx = parseInt(row.dataset.rowIdx, 10);
+    copyLogRow(rowIdx);
+  });
+}
+
+function renderLogsError(message) {
+  const container = logsView.querySelector('.logs-table-container');
+  container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
+}
+
+// Append rows to existing logs table (for infinite scroll)
+function appendLogsRows(data) {
+  const container = logsView.querySelector('.logs-table-container');
+  const tbody = container.querySelector('.logs-table tbody');
+  if (!tbody || data.length === 0) return;
+
+  // Get columns from existing table header
+  const headerCells = container.querySelectorAll('.logs-table thead th');
+  const columns = Array.from(headerCells).map((th) => th.title || th.textContent);
+
+  // Map short names back to full names
+  const shortToFull = Object.fromEntries(
+    Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full]),
+  );
+
+  const fullColumns = columns.map((col) => shortToFull[col] || col);
+  const pinned = state.pinnedColumns.filter((col) => fullColumns.includes(col));
+
+  // Get starting index from existing rows
+  const existingRows = tbody.querySelectorAll('tr').length;
+
+  let html = '';
+  for (let i = 0; i < data.length; i += 1) {
+    const rowIdx = existingRows + i;
+    html += buildLogRowHtml({
+      row: data[i], columns: fullColumns, rowIdx, pinned,
+    });
+  }
+
+  tbody.insertAdjacentHTML('beforeend', html);
+
+  updatePinnedOffsets(container, pinned);
+}
+
+export function renderLogsTable(data) {
+  const container = logsView.querySelector('.logs-table-container');
+
+  if (data.length === 0) {
+    container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
+    return;
+  }
+
+  // Get all column names from first row
+  const allColumns = Object.keys(data[0]);
+
+  // Sort columns: pinned first, then preferred order, then the rest
+  const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
+  const columns = getLogColumns(allColumns);
+
+  // Calculate left offsets for sticky pinned columns
+  const COL_WIDTH = 120;
+  const pinnedOffsets = getApproxPinnedOffsets(pinned, COL_WIDTH);
+
+  let html = `
+    <table class="logs-table">
+      <thead>
+        <tr>
+          ${columns.map((col) => {
+    const isPinned = pinned.includes(col);
+    const pinnedClass = isPinned ? 'pinned' : '';
+    const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
+    const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
+    const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
+    const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
+    return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
+  }).join('')}
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (let rowIdx = 0; rowIdx < data.length; rowIdx += 1) {
+    html += buildLogRowHtml({
+      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets,
+    });
+  }
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+
+  updatePinnedOffsets(container, pinned);
+}
+
+async function loadMoreLogs() {
+  if (loadingMore || !hasMoreLogs) return;
+  loadingMore = true;
+
+  const timeFilter = getTimeFilter();
+  const hostFilter = getHostFilter();
+  const facetFilters = getFacetFilters();
+
+  const sql = `
+    SELECT *
+    FROM ${DATABASE}.${getTable()}
+    WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+    ORDER BY timestamp DESC
+    LIMIT ${PAGE_SIZE}
+    OFFSET ${logsOffset}
+  `;
+
+  try {
+    const result = await query(sql);
+    if (result.data.length > 0) {
+      state.logsData = [...state.logsData, ...result.data];
+      appendLogsRows(result.data);
+      logsOffset += result.data.length;
+    }
+    // Check if there might be more data
+    hasMoreLogs = result.data.length === PAGE_SIZE;
+  } catch (err) {
+    console.error('Load more logs error:', err);
+  } finally {
+    loadingMore = false;
+  }
+}
+
+function handleLogsScroll() {
+  // Only handle scroll when logs view is visible
+  if (!state.showLogs) return;
+
+  const { scrollHeight } = document.documentElement;
+  const scrollTop = window.scrollY;
+  const clientHeight = window.innerHeight;
+
+  // Load more when scrolled to last 50%
+  const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
+  if (scrollPercent > 0.5 && hasMoreLogs && !loadingMore && !state.logsLoading) {
+    loadMoreLogs();
+  }
+}
+
 export function setLogsElements(view, btn, content) {
   logsView = view;
   logsBtn = btn;
@@ -193,21 +430,6 @@ export function setLogsElements(view, btn, content) {
 
   // Set up click handler for copying row data
   setupLogRowClickHandler();
-}
-
-function handleLogsScroll() {
-  // Only handle scroll when logs view is visible
-  if (!state.showLogs) return;
-
-  const scrollHeight = document.documentElement.scrollHeight;
-  const scrollTop = window.scrollY;
-  const clientHeight = window.innerHeight;
-
-  // Load more when scrolled to last 50%
-  const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
-  if (scrollPercent > 0.5 && hasMoreLogs && !loadingMore && !state.logsLoading) {
-    loadMoreLogs();
-  }
 }
 
 // Register callback for pinned column changes
@@ -282,203 +504,4 @@ export async function loadLogs() {
     state.logsLoading = false;
     container.classList.remove('updating');
   }
-}
-
-async function loadMoreLogs() {
-  if (loadingMore || !hasMoreLogs) return;
-  loadingMore = true;
-
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
-
-  const sql = `
-    SELECT *
-    FROM ${DATABASE}.${getTable()}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters}
-    ORDER BY timestamp DESC
-    LIMIT ${PAGE_SIZE}
-    OFFSET ${logsOffset}
-  `;
-
-  try {
-    const result = await query(sql);
-    if (result.data.length > 0) {
-      state.logsData = [...state.logsData, ...result.data];
-      appendLogsRows(result.data);
-      logsOffset += result.data.length;
-    }
-    // Check if there might be more data
-    hasMoreLogs = result.data.length === PAGE_SIZE;
-  } catch (err) {
-    console.error('Load more logs error:', err);
-  } finally {
-    loadingMore = false;
-  }
-}
-
-export function renderLogsTable(data) {
-  const container = logsView.querySelector('.logs-table-container');
-
-  if (data.length === 0) {
-    container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
-    return;
-  }
-
-  // Get all column names from first row
-  const allColumns = Object.keys(data[0]);
-
-  // Sort columns: pinned first, then preferred order, then the rest
-  const pinned = state.pinnedColumns.filter(col => allColumns.includes(col));
-  const columns = getLogColumns(allColumns);
-
-  // Calculate left offsets for sticky pinned columns
-  const COL_WIDTH = 120;
-  const pinnedOffsets = getApproxPinnedOffsets(pinned, COL_WIDTH);
-
-  let html = `
-    <table class="logs-table">
-      <thead>
-        <tr>
-          ${columns.map((col, idx) => {
-            const isPinned = pinned.includes(col);
-            const pinnedClass = isPinned ? 'pinned' : '';
-            const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
-            const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
-            const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
-            const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
-            return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
-          }).join('')}
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
-    html += buildLogRowHtml({ row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets });
-  }
-
-  html += '</tbody></table>';
-  container.innerHTML = html;
-
-  updatePinnedOffsets(container, pinned);
-}
-
-// Append rows to existing logs table (for infinite scroll)
-function appendLogsRows(data) {
-  const container = logsView.querySelector('.logs-table-container');
-  const tbody = container.querySelector('.logs-table tbody');
-  if (!tbody || data.length === 0) return;
-
-  // Get columns from existing table header
-  const headerCells = container.querySelectorAll('.logs-table thead th');
-  const columns = Array.from(headerCells).map(th => th.title || th.textContent);
-
-  // Map short names back to full names
-  const shortToFull = Object.fromEntries(
-    Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full])
-  );
-
-  const fullColumns = columns.map(col => shortToFull[col] || col);
-  const pinned = state.pinnedColumns.filter(col => fullColumns.includes(col));
-
-  // Get starting index from existing rows
-  const existingRows = tbody.querySelectorAll('tr').length;
-
-  let html = '';
-  for (let i = 0; i < data.length; i++) {
-    const rowIdx = existingRows + i;
-    html += buildLogRowHtml({ row: data[i], columns: fullColumns, rowIdx, pinned });
-  }
-
-  tbody.insertAdjacentHTML('beforeend', html);
-
-  updatePinnedOffsets(container, pinned);
-}
-
-function renderLogsError(message) {
-  const container = logsView.querySelector('.logs-table-container');
-  container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
-}
-
-// Copy row data as JSON when clicking on row background
-export function copyLogRow(rowIdx) {
-  const row = state.logsData[rowIdx];
-  if (!row) return;
-
-  // Convert flat dot notation to nested object
-  const nested = {};
-  for (const [key, value] of Object.entries(row)) {
-    // Skip empty values
-    if (value === null || value === undefined || value === '') continue;
-
-    const parts = key.split('.');
-    let current = nested;
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (!current[parts[i]]) {
-        current[parts[i]] = {};
-      }
-      current = current[parts[i]];
-    }
-    current[parts[parts.length - 1]] = value;
-  }
-
-  const json = JSON.stringify(nested, null, 2);
-  navigator.clipboard.writeText(json).then(() => {
-    // Brief visual feedback
-    showCopyFeedback();
-  }).catch(err => {
-    console.error('Failed to copy:', err);
-  });
-}
-
-// Show brief "Copied!" feedback
-function showCopyFeedback() {
-  let feedback = document.getElementById('copy-feedback');
-  if (!feedback) {
-    feedback = document.createElement('div');
-    feedback.id = 'copy-feedback';
-    feedback.textContent = 'Copied to clipboard';
-    feedback.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--text);
-      color: var(--bg);
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-size: 14px;
-      z-index: 9999;
-      opacity: 0;
-      transition: opacity 0.2s;
-    `;
-    document.body.appendChild(feedback);
-  }
-  feedback.style.opacity = '1';
-  setTimeout(() => {
-    feedback.style.opacity = '0';
-  }, 1500);
-}
-
-// Set up click handler for row background clicks
-export function setupLogRowClickHandler() {
-  const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
-
-  container.addEventListener('click', (e) => {
-    // Only handle clicks directly on td or tr (not on links, buttons, or spans)
-    const target = e.target;
-    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
-
-    // Don't copy if clicking on a clickable cell (filter action)
-    if (target.classList.contains('clickable')) return;
-
-    // Find the row
-    const row = target.closest('tr');
-    if (!row || !row.dataset.rowIdx) return;
-
-    const rowIdx = parseInt(row.dataset.rowIdx);
-    copyLogRow(rowIdx);
-  });
 }

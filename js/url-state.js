@@ -1,9 +1,23 @@
-// URL state management
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { state, loadFacetPrefs } from './state.js';
-import { queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange } from './time.js';
+import {
+  queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange,
+} from './time.js';
 import { renderActiveFilters } from './filters.js';
 import { invalidateInvestigationCache } from './anomaly-investigation.js';
-import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS } from './constants.js';
+import {
+  DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS,
+} from './constants.js';
 
 // DOM elements (set by main.js)
 let elements = {};
@@ -33,13 +47,15 @@ export function saveStateToURL(newAnomalyId = undefined) {
   if (state.contentTypeMode !== 'count') params.set('ctm', state.contentTypeMode);
 
   // Save custom time range or query timestamp
-  if (customTimeRange) {
+  const ctr = customTimeRange();
+  const qts = queryTimestamp();
+  if (ctr) {
     // Custom zoom range: save both start and end
-    params.set('ts', customTimeRange.start.toISOString());
-    params.set('te', customTimeRange.end.toISOString());
-  } else if (queryTimestamp) {
+    params.set('ts', ctr.start.toISOString());
+    params.set('te', ctr.end.toISOString());
+  } else if (qts) {
     // Standard mode: just the reference timestamp
-    params.set('ts', queryTimestamp.toISOString());
+    params.set('ts', qts.toISOString());
   }
 
   // Encode filters as JSON array
@@ -107,7 +123,7 @@ export function loadStateFromURL() {
   }
 
   if (params.has('n')) {
-    const n = parseInt(params.get('n'));
+    const n = parseInt(params.get('n'), 10);
     if (TOP_N_OPTIONS.includes(n)) {
       state.topN = n;
     }
@@ -119,11 +135,11 @@ export function loadStateFromURL() {
 
   if (params.has('ts')) {
     const ts = new Date(params.get('ts'));
-    if (!isNaN(ts.getTime())) {
+    if (!Number.isNaN(ts.getTime())) {
       // Check if this is a custom time range (has both ts and te)
       if (params.has('te')) {
         const te = new Date(params.get('te'));
-        if (!isNaN(te.getTime())) {
+        if (!Number.isNaN(te.getTime())) {
           setCustomTimeRange(ts, te);
         }
       } else {
@@ -138,8 +154,8 @@ export function loadStateFromURL() {
       const filters = JSON.parse(params.get('filters'));
       if (Array.isArray(filters)) {
         // Preserve filterCol and filterValue if present (for ASN integer filtering)
-        state.filters = filters.filter(f => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
-          .map(f => {
+        state.filters = filters.filter((f) => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
+          .map((f) => {
             const filter = { col: f.col, value: f.value, exclude: f.exclude };
             if (f.filterCol) filter.filterCol = f.filterCol;
             if (f.filterValue !== undefined) filter.filterValue = f.filterValue;
@@ -152,7 +168,7 @@ export function loadStateFromURL() {
   }
 
   if (params.has('pinned')) {
-    const pinned = params.get('pinned').split(',').filter(c => c);
+    const pinned = params.get('pinned').split(',').filter((c) => c);
     if (pinned.length > 0) {
       // Override state temporarily without persisting to localStorage
       state.pinnedColumns = pinned;
@@ -161,7 +177,7 @@ export function loadStateFromURL() {
 
   // Hide UI controls (comma-separated: timeRange,topN,host,refresh,logout,logs)
   if (params.has('hide')) {
-    state.hiddenControls = params.get('hide').split(',').filter(c => c);
+    state.hiddenControls = params.get('hide').split(',').filter((c) => c);
   }
 
   // Custom title from URL
@@ -182,16 +198,16 @@ export function loadStateFromURL() {
 
   // Override with URL params if present
   if (params.has('pf')) {
-    state.pinnedFacets = params.get('pf').split(',').filter(f => f);
+    state.pinnedFacets = params.get('pf').split(',').filter((f) => f);
   }
   if (params.has('hf')) {
-    state.hiddenFacets = params.get('hf').split(',').filter(f => f);
+    state.hiddenFacets = params.get('hf').split(',').filter((f) => f);
   }
 }
 
 export function syncUIFromState() {
   // Show "Custom" in dropdown when in custom time range, otherwise show predefined
-  if (customTimeRange) {
+  if (customTimeRange()) {
     elements.timeRangeSelect.value = 'custom';
   } else {
     elements.timeRangeSelect.value = state.timeRange;
@@ -204,7 +220,7 @@ export function syncUIFromState() {
   const titleEl = document.getElementById('dashboardTitle');
   if (state.title) {
     titleEl.textContent = state.title;
-    document.title = state.title + ' - CDN Analytics';
+    document.title = `${state.title} - CDN Analytics`;
   } else {
     titleEl.textContent = 'CDN Analytics';
     document.title = 'CDN Analytics';

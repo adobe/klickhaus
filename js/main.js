@@ -1,23 +1,55 @@
-// Main entry point - CDN Analytics Dashboard
-import { state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange } from './state.js';
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+import {
+  state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange,
+} from './state.js';
 import { setForceRefresh } from './api.js';
-import { setElements, handleLogin, handleLogout, showDashboard, showLogin } from './auth.js';
-import { loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored } from './url-state.js';
-import { queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter } from './time.js';
-import { startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers } from './timer.js';
-import { loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData } from './chart.js';
-import { loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings } from './breakdowns/index.js';
+import {
+  setElements, handleLogin, handleLogout, showDashboard,
+} from './auth.js';
+import {
+  loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored,
+} from './url-state.js';
+import {
+  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter,
+} from './time.js';
+import {
+  startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
+} from './timer.js';
+import {
+  loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
+  renderChart,
+} from './chart.js';
+import {
+  loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings,
+} from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
-import { addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks } from './filters.js';
-import { loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView } from './logs.js';
-import { renderChart } from './chart.js';
+import {
+  addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks,
+} from './filters.js';
+import {
+  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
+} from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
-import { initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId } from './keyboard.js';
+import {
+  initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId,
+} from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
 import { investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
-import { initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition } from './ui/mobile.js';
+import {
+  initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
+} from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
 
 // DOM Elements
@@ -41,86 +73,6 @@ setElements(elements);
 setUrlStateElements(elements);
 setLogsElements(elements.logsView, elements.logsBtn, elements.dashboardContent);
 
-// Set up callback to redraw chart when switching from logs to filters view
-setOnShowFiltersView(() => {
-  if (state.chartData) {
-    renderChart(state.chartData);
-  }
-});
-
-// Set up filter callbacks to avoid circular dependencies
-setFilterCallbacks(saveStateToURL, loadDashboard);
-
-// Set up callback for browser back/forward navigation
-setOnStateRestored(loadDashboard);
-
-// Move facets between pinned/normal/hidden sections based on state
-// If toggledFacetId is provided, update that facet's display state
-function reorderFacets(toggledFacetId = null) {
-  const pinnedSection = document.getElementById('breakdowns-pinned');
-  const normalSection = document.getElementById('breakdowns');
-  const hiddenSection = document.getElementById('breakdowns-hidden');
-
-  // Move each card to its appropriate section
-  document.querySelectorAll('.breakdown-card').forEach(card => {
-    const id = card.id;
-    const isPinned = state.pinnedFacets.includes(id);
-    const isHidden = state.hiddenFacets.includes(id);
-
-    if (isPinned && card.parentElement !== pinnedSection) {
-      pinnedSection.appendChild(card);
-    } else if (isHidden && card.parentElement !== hiddenSection) {
-      hiddenSection.appendChild(card);
-    } else if (!isPinned && !isHidden && card.parentElement !== normalSection) {
-      normalSection.appendChild(card);
-    }
-  });
-
-  saveStateToURL();
-
-  // If a facet was toggled, call loadBreakdown to update its state
-  // (handles both hiding and unhiding)
-  if (toggledFacetId) {
-    const breakdown = allBreakdowns.find(b => b.id === toggledFacetId);
-    if (breakdown) {
-      const timeFilter = getTimeFilter();
-      const hostFilter = getHostFilter();
-      loadBreakdown(breakdown, timeFilter, hostFilter);
-    }
-  }
-}
-
-// Set up callback for facet order changes
-setOnFacetOrderChange(reorderFacets);
-
-// Load Dashboard Data
-async function loadDashboard(refresh = false) {
-  setForceRefresh(refresh);
-  // Only set new timestamp if not already set from URL or if refreshing
-  if (!queryTimestamp || refresh) {
-    setQueryTimestamp(new Date());
-  }
-  saveStateToURL();
-  startQueryTimer();
-  resetFacetTimings();
-
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-
-  // Prioritize based on which view is active
-  if (state.showLogs) {
-    // Logs view is active - load logs first, then dashboard
-    await loadLogs();
-    loadDashboardQueries(timeFilter, hostFilter);
-  } else {
-    // Dashboard view is active - load dashboard first, then logs
-    await loadDashboardQueries(timeFilter, hostFilter);
-    loadLogs();
-  }
-
-  setForceRefresh(false);
-}
-
 // Load dashboard queries (chart and facets)
 async function loadDashboardQueries(timeFilter, hostFilter) {
   // Start loading time series
@@ -130,9 +82,9 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   const focusedFacetId = getFocusedFacetId();
 
   // Start loading all facets in parallel (they manage their own blur state)
-  const facetPromises = allBreakdowns.map(b =>
-    loadBreakdown(b, timeFilter, hostFilter).then(() => {
-      // After each facet completes, check if timer should stop
+  const facetPromises = allBreakdowns.map(
+    (b) => loadBreakdown(b, timeFilter, hostFilter).then(() => {
+    // After each facet completes, check if timer should stop
       if (!hasVisibleUpdatingFacets()) {
         stopQueryTimer();
       }
@@ -142,7 +94,7 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
       }
       // Re-apply cached highlights as each facet loads
       reapplyHighlightsIfCached();
-    })
+    }),
   );
 
   // Wait for time series to complete first
@@ -179,6 +131,86 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   }
 }
 
+// Load Dashboard Data
+async function loadDashboard(refresh = false) {
+  setForceRefresh(refresh);
+  // Only set new timestamp if not already set from URL or if refreshing
+  if (!queryTimestamp() || refresh) {
+    setQueryTimestamp(new Date());
+  }
+  saveStateToURL();
+  startQueryTimer();
+  resetFacetTimings();
+
+  const timeFilter = getTimeFilter();
+  const hostFilter = getHostFilter();
+
+  // Prioritize based on which view is active
+  if (state.showLogs) {
+    // Logs view is active - load logs first, then dashboard
+    await loadLogs();
+    loadDashboardQueries(timeFilter, hostFilter);
+  } else {
+    // Dashboard view is active - load dashboard first, then logs
+    await loadDashboardQueries(timeFilter, hostFilter);
+    loadLogs();
+  }
+
+  setForceRefresh(false);
+}
+
+// Set up callback to redraw chart when switching from logs to filters view
+setOnShowFiltersView(() => {
+  if (state.chartData) {
+    renderChart(state.chartData);
+  }
+});
+
+// Set up filter callbacks to avoid circular dependencies
+setFilterCallbacks(saveStateToURL, loadDashboard);
+
+// Set up callback for browser back/forward navigation
+setOnStateRestored(loadDashboard);
+
+// Move facets between pinned/normal/hidden sections based on state
+// If toggledFacetId is provided, update that facet's display state
+function reorderFacets(toggledFacetId = null) {
+  const pinnedSection = document.getElementById('breakdowns-pinned');
+  const normalSection = document.getElementById('breakdowns');
+  const hiddenSection = document.getElementById('breakdowns-hidden');
+
+  // Move each card to its appropriate section
+  document.querySelectorAll('.breakdown-card').forEach((card) => {
+    const { id } = card;
+    const isPinned = state.pinnedFacets.includes(id);
+    const isHidden = state.hiddenFacets.includes(id);
+
+    if (isPinned && card.parentElement !== pinnedSection) {
+      pinnedSection.appendChild(card);
+    } else if (isHidden && card.parentElement !== hiddenSection) {
+      hiddenSection.appendChild(card);
+    } else if (!isPinned && !isHidden && card.parentElement !== normalSection) {
+      normalSection.appendChild(card);
+    }
+  });
+
+  saveStateToURL();
+
+  // If a facet was toggled, call loadBreakdown to update its state
+  // (handles both hiding and unhiding)
+  if (toggledFacetId) {
+    const breakdown = allBreakdowns.find((b) => b.id === toggledFacetId);
+    if (breakdown) {
+      const timeFilter = getTimeFilter();
+      const hostFilter = getHostFilter();
+      loadBreakdown(breakdown, timeFilter, hostFilter);
+    }
+  }
+}
+
+// Set up callback for facet order changes
+setOnFacetOrderChange(reorderFacets);
+
 // Update keyboard hint for time range to show next option number
 function updateTimeRangeHint() {
   const hint = document.getElementById('timeRangeHint');
@@ -210,7 +242,7 @@ function toggleFacetMode(stateKey) {
   // Find and reload all breakdowns that use this mode toggle
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  const breakdowns = allBreakdowns.filter(b => b.modeToggle === stateKey);
+  const breakdowns = allBreakdowns.filter((b) => b.modeToggle === stateKey);
   for (const breakdown of breakdowns) {
     loadBreakdown(breakdown, timeFilter, hostFilter);
   }
@@ -251,7 +283,7 @@ async function init() {
     toggleFacetHide: toggleHiddenFacet,
     toggleFacetMode,
     closeQuickLinksModal,
-    closeDialog: (el) => el.closest('dialog')?.close()
+    closeDialog: (el) => el.closest('dialog')?.close(),
   });
 
   // Check for stored credentials - show dashboard immediately if they exist
@@ -299,7 +331,7 @@ async function init() {
   updateTimeRangeHint();
 
   elements.topNSelect.addEventListener('change', (e) => {
-    state.topN = parseInt(e.target.value);
+    state.topN = parseInt(e.target.value, 10);
     saveStateToURL();
     loadAllBreakdowns();
   });

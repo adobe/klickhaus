@@ -1,4 +1,14 @@
-// Application state management
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N } from './constants.js';
 
 const storage = (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function')
@@ -6,7 +16,7 @@ const storage = (typeof localStorage !== 'undefined' && typeof localStorage.getI
   : {
     getItem: () => null,
     setItem: () => {},
-    removeItem: () => {}
+    removeItem: () => {},
   };
 
 export const state = {
@@ -14,18 +24,18 @@ export const state = {
   timeRange: DEFAULT_TIME_RANGE,
   hostFilter: '',
   topN: DEFAULT_TOP_N,
-  filters: [],    // [{col: '`request.url`', value: '/foo', exclude: false}]
+  filters: [], // [{col: '`request.url`', value: '/foo', exclude: false}]
   logsData: null,
   logsLoading: false,
   logsReady: false,
   showLogs: false,
   pinnedColumns: JSON.parse(storage.getItem('pinnedColumns') || '[]'),
-  hiddenControls: [],  // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
-  title: '',  // Custom title from URL
-  chartData: null,  // Store chart data for redrawing when view changes
-  contentTypeMode: 'count',  // 'count' or 'bytes' for content-types facet
-  pinnedFacets: [],   // Facet IDs pinned to top
-  hiddenFacets: [],   // Facet IDs hidden at bottom
+  hiddenControls: [], // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
+  title: '', // Custom title from URL
+  chartData: null, // Store chart data for redrawing when view changes
+  contentTypeMode: 'count', // 'count' or 'bytes' for content-types facet
+  pinnedFacets: [], // Facet IDs pinned to top
+  hiddenFacets: [], // Facet IDs hidden at bottom
 };
 
 // Callback for re-rendering logs table when pinned columns change
@@ -72,7 +82,7 @@ function saveFacetPrefs() {
   const key = getFacetPrefsKey();
   storage.setItem(key, JSON.stringify({
     pinned: state.pinnedFacets,
-    hidden: state.hiddenFacets
+    hidden: state.hiddenFacets,
   }));
 }
 

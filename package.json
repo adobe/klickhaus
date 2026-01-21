@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "start": "live-server --port=5391 --open=/ --ignore=scripts,.github,.claude,hars,node_modules --ignorePattern=\"\\\\.md$|package.*\\\\.json$|screenshot\\\\.png$\"",
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@adobe/eslint-config-helix": "^3.0.16",
     "canvas": "3.2.1",
     "live-server": "^1.2.2"
   },

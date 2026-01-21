@@ -1,7 +1,17 @@
-// Keyboard navigation mode for vim-style navigation
-import { state, togglePinnedFacet, toggleHiddenFacet } from './state.js';
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+import { togglePinnedFacet, toggleHiddenFacet } from './state.js';
 import { clearAllFilters, updateHeaderFixed } from './filters.js';
-import { openFacetPalette, isPaletteOpen } from './facet-palette.js';
+import { openFacetPalette, isPaletteOpen, setOnFacetNavigate } from './facet-palette.js';
 import { zoomToAnomaly, zoomToAnomalyByRank, getAnomalyCount } from './chart.js';
 import { zoomOut } from './time.js';
 import { saveStateToURL } from './url-state.js';
@@ -11,7 +21,7 @@ const kbd = {
   active: false,
   facetIndex: 0,
   valueIndex: 0,
-  lastC: 0  // timestamp for cc detection
+  lastC: 0, // timestamp for cc detection
 };
 
 // Optional external callbacks
@@ -29,36 +39,39 @@ function getValues(facet) {
   return [...facet.querySelectorAll('.breakdown-table tr[tabindex]')];
 }
 
-// Activate keyboard mode
-function activateKeyboardMode() {
-  if (kbd.active) return;
-  kbd.active = true;
-  document.body.classList.add('keyboard-mode');
-  updateHeaderFixed();
-
-  // Focus first facet if no focus yet
-  const facets = getFacets();
-  if (facets.length > 0) {
-    kbd.facetIndex = 0;
-    kbd.valueIndex = 0;
-    updateFocus();
-  }
-}
-
-// Deactivate keyboard mode
-function deactivateKeyboardMode() {
-  kbd.active = false;
-  document.body.classList.remove('keyboard-mode');
-  updateHeaderFixed();
-  clearFocusClasses();
-  updateFragment();
-}
-
 // Clear all focus-related classes
 function clearFocusClasses() {
-  document.querySelectorAll('.kbd-focused, .kbd-prev, .kbd-next, .kbd-prev-facet, .kbd-next-facet').forEach(el => {
+  document.querySelectorAll('.kbd-focused, .kbd-prev, .kbd-next, .kbd-prev-facet, .kbd-next-facet').forEach((el) => {
     el.classList.remove('kbd-focused', 'kbd-prev', 'kbd-next', 'kbd-prev-facet', 'kbd-next-facet');
   });
+}
+
+// Update URL fragment with current facet and keyboard state
+function updateFragment() {
+  const facets = getFacets();
+
+  const params = new URLSearchParams();
+
+  // -1 means chart is visible (top of page), otherwise get facet ID
+  if (kbd.facetIndex >= 0 && kbd.facetIndex < facets.length) {
+    const facet = facets[kbd.facetIndex];
+    const facetId = facet?.id?.replace('breakdown-', '') || '';
+    if (facetId) params.set('f', facetId);
+
+    // Also save value index if not 0 (to keep URLs cleaner)
+    if (kbd.valueIndex > 0) {
+      params.set('v', kbd.valueIndex.toString());
+    }
+  }
+  // If facetIndex is -1 (chart), don't set 'f' parameter
+
+  if (kbd.active) params.set('kbd', '1');
+
+  const fragment = params.toString();
+  const newUrl = fragment ? `#${fragment}` : window.location.pathname + window.location.search;
+
+  // Use replaceState to avoid polluting history
+  history.replaceState(null, '', newUrl);
 }
 
 // Update focus display
@@ -113,11 +126,36 @@ function updateFocus() {
   updateFragment();
 }
 
+// Activate keyboard mode
+function activateKeyboardMode() {
+  if (kbd.active) return;
+  kbd.active = true;
+  document.body.classList.add('keyboard-mode');
+  updateHeaderFixed();
+
+  // Focus first facet if no focus yet
+  const facets = getFacets();
+  if (facets.length > 0) {
+    kbd.facetIndex = 0;
+    kbd.valueIndex = 0;
+    updateFocus();
+  }
+}
+
+// Deactivate keyboard mode
+function deactivateKeyboardMode() {
+  kbd.active = false;
+  document.body.classList.remove('keyboard-mode');
+  updateHeaderFixed();
+  clearFocusClasses();
+  updateFragment();
+}
+
 // Navigate between facets (h/l)
 function moveFacet(delta) {
   const facets = getFacets();
   kbd.facetIndex = Math.max(0, Math.min(facets.length - 1, kbd.facetIndex + delta));
-  kbd.valueIndex = 0;  // Reset to first value in new facet
+  kbd.valueIndex = 0; // Reset to first value in new facet
   updateFocus();
 }
 
@@ -130,11 +168,11 @@ function moveValue(delta) {
 
   // Wrap to next/prev facet if at boundary
   if (newIndex < 0 && kbd.facetIndex > 0) {
-    kbd.facetIndex--;
+    kbd.facetIndex -= 1;
     const newValues = getValues(facets[kbd.facetIndex]);
     kbd.valueIndex = newValues.length - 1;
   } else if (newIndex >= values.length && kbd.facetIndex < facets.length - 1) {
-    kbd.facetIndex++;
+    kbd.facetIndex += 1;
     kbd.valueIndex = 0;
   } else {
     kbd.valueIndex = Math.max(0, Math.min(values.length - 1, newIndex));
@@ -219,9 +257,42 @@ function toggleHideCurrentFacet() {
 
 // Zoom to anomaly by number key (1-5)
 function zoomToAnomalyNumber(num) {
-  const rank = parseInt(num);
+  const rank = parseInt(num, 10);
   if (rank >= 1 && rank <= getAnomalyCount()) {
     zoomToAnomalyByRank(rank);
+  }
+}
+
+// Set focused facet by element ID (used by facet palette)
+// Optionally pass a value to pre-select a specific row
+export function setFocusedFacet(facetId, targetValue = null) {
+  const facets = getFacets();
+  const index = facets.findIndex((f) => f.id === facetId);
+  if (index >= 0) {
+    kbd.facetIndex = index;
+    kbd.valueIndex = 0;
+
+    // If a target value is provided, find the row with that value
+    if (targetValue) {
+      const facet = facets[index];
+      const values = getValues(facet);
+      for (let i = 0; i < values.length; i += 1) {
+        const dimCell = values[i].querySelector('td.dim');
+        if (dimCell) {
+          const rowValue = dimCell.textContent.trim().toLowerCase();
+          if (rowValue === targetValue.toLowerCase()) {
+            kbd.valueIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!kbd.active) {
+      activateKeyboardMode();
+    } else {
+      updateFocus();
+    }
   }
 }
 
@@ -229,6 +300,9 @@ function zoomToAnomalyNumber(num) {
 export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}) {
   onToggleFacetMode = toggleFacetMode || null;
   onReloadDashboard = reloadDashboard || null;
+
+  // Register callback to break circular dependency with facet-palette.js
+  setOnFacetNavigate(setFocusedFacet);
 
   // Main keydown handler
   document.addEventListener('keydown', (e) => {
@@ -269,7 +343,7 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
     }
 
     // Handle shortcuts
-    switch(e.key) {
+    switch (e.key) {
       case 'j':
       case 'ArrowDown':
         e.preventDefault();
@@ -376,6 +450,9 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
         e.preventDefault();
         deactivateKeyboardMode();
         break;
+      default:
+        // No action for other keys
+        break;
     }
   });
 
@@ -390,7 +467,9 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
   let recentMouseDown = false;
   document.addEventListener('mousedown', () => {
     recentMouseDown = true;
-    setTimeout(() => { recentMouseDown = false; }, 100);
+    setTimeout(() => {
+      recentMouseDown = false;
+    }, 100);
   }, true);
 
   // Sync state when Tab focuses a row (not click)
@@ -412,7 +491,7 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
       const facetIdx = facets.indexOf(facet);
       if (facetIdx >= 0) {
         kbd.facetIndex = facetIdx;
-        kbd.valueIndex = parseInt(row.dataset.valueIndex) || 0;
+        kbd.valueIndex = parseInt(row.dataset.valueIndex, 10) || 0;
         updateFocus();
       }
     }
@@ -439,69 +518,8 @@ export function getFocusedFacetId() {
   return null;
 }
 
-// Set focused facet by element ID (used by facet palette)
-// Optionally pass a value to pre-select a specific row
-export function setFocusedFacet(facetId, targetValue = null) {
-  const facets = getFacets();
-  const index = facets.findIndex(f => f.id === facetId);
-  if (index >= 0) {
-    kbd.facetIndex = index;
-    kbd.valueIndex = 0;
-
-    // If a target value is provided, find the row with that value
-    if (targetValue) {
-      const facet = facets[index];
-      const values = getValues(facet);
-      for (let i = 0; i < values.length; i++) {
-        const dimCell = values[i].querySelector('td.dim');
-        if (dimCell) {
-          const rowValue = dimCell.textContent.trim().toLowerCase();
-          if (rowValue === targetValue.toLowerCase()) {
-            kbd.valueIndex = i;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!kbd.active) {
-      activateKeyboardMode();
-    } else {
-      updateFocus();
-    }
-  }
-}
-
-// Update URL fragment with current facet and keyboard state
-function updateFragment() {
-  const facets = getFacets();
-
-  const params = new URLSearchParams();
-
-  // -1 means chart is visible (top of page), otherwise get facet ID
-  if (kbd.facetIndex >= 0 && kbd.facetIndex < facets.length) {
-    const facet = facets[kbd.facetIndex];
-    const facetId = facet?.id?.replace('breakdown-', '') || '';
-    if (facetId) params.set('f', facetId);
-
-    // Also save value index if not 0 (to keep URLs cleaner)
-    if (kbd.valueIndex > 0) {
-      params.set('v', kbd.valueIndex.toString());
-    }
-  }
-  // If facetIndex is -1 (chart), don't set 'f' parameter
-
-  if (kbd.active) params.set('kbd', '1');
-
-  const fragment = params.toString();
-  const newUrl = fragment ? `#${fragment}` : window.location.pathname + window.location.search;
-
-  // Use replaceState to avoid polluting history
-  history.replaceState(null, '', newUrl);
-}
-
 // Track visible facets using IntersectionObserver
-let visibleFacets = new Set();
+const visibleFacets = new Set();
 let chartVisible = false;
 let facetObserver = null;
 let chartObserver = null;
@@ -524,7 +542,7 @@ function updateFromIntersection() {
   // Find the topmost visible facet
   const facets = getFacets();
   let topmostIndex = -1;
-  for (let i = 0; i < facets.length; i++) {
+  for (let i = 0; i < facets.length; i += 1) {
     if (visibleFacets.has(facets[i])) {
       topmostIndex = i;
       break;
@@ -545,12 +563,12 @@ function restoreFromFragment() {
 
   const params = new URLSearchParams(hash);
   const facetId = params.get('f');
-  const valueIndex = parseInt(params.get('v')) || 0;
+  const valueIndex = parseInt(params.get('v'), 10) || 0;
   const kbdMode = params.get('kbd') === '1';
 
   if (facetId) {
     const facets = getFacets();
-    const index = facets.findIndex(f => f.id === `breakdown-${facetId}`);
+    const index = facets.findIndex((f) => f.id === `breakdown-${facetId}`);
     if (index >= 0) {
       kbd.facetIndex = index;
       kbd.valueIndex = valueIndex;
@@ -574,13 +592,13 @@ function restoreFromFragment() {
 export function initScrollTracking() {
   // Observer for chart section - triggers when chart enters/leaves viewport top
   chartObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       chartVisible = entry.isIntersecting;
       updateFromIntersection();
     });
   }, {
-    rootMargin: '-70px 0px 0px 0px',  // Account for header
-    threshold: 0.1
+    rootMargin: '-70px 0px 0px 0px', // Account for header
+    threshold: 0.1,
   });
 
   // Observer for facet cards - tight band near scroll-snap position
@@ -588,7 +606,7 @@ export function initScrollTracking() {
   // So snapped card top is at ~86px from viewport top
   // Use a narrow band from 70px to ~20% down to detect only the snapped row
   facetObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       if (entry.isIntersecting) {
         visibleFacets.add(entry.target);
       } else {
@@ -597,8 +615,8 @@ export function initScrollTracking() {
     });
     updateFromIntersection();
   }, {
-    rootMargin: '-86px 0px -80% 0px',  // Narrow band at snap position
-    threshold: 0
+    rootMargin: '-86px 0px -80% 0px', // Narrow band at snap position
+    threshold: 0,
   });
 
   // Observe chart section
@@ -608,7 +626,7 @@ export function initScrollTracking() {
   }
 
   // Observe all facet cards
-  getFacets().forEach(facet => {
+  getFacets().forEach((facet) => {
     facetObserver.observe(facet);
   });
 
@@ -624,7 +642,7 @@ export function refreshFacetObservers() {
 
   // Clear and re-observe
   visibleFacets.clear();
-  getFacets().forEach(facet => {
+  getFacets().forEach((facet) => {
     facetObserver.observe(facet);
   });
 }

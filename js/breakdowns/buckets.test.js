@@ -1,16 +1,30 @@
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels } from './buckets.js';
+import {
+  contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
+} from './buckets.js';
 
 /**
  * Extract boundary values from multiIf conditions
  * @param {string} sql
  * @returns {number[]}
  */
+// eslint-disable-next-line no-unused-vars -- Utility kept for future debugging/tests
 function extractBoundaries(sql) {
   // Match patterns like "col < 1000" or "col = 0"
   const matches = sql.matchAll(/[<>=]+\s*(\d+)/g);
-  return [...matches].map(m => parseInt(m[1]));
+  return [...matches].map((m) => parseInt(m[1], 10));
 }
 
 /**
@@ -21,7 +35,7 @@ function extractBoundaries(sql) {
 function extractBucketLabels(sql) {
   // Match all quoted strings (bucket labels)
   const matches = sql.match(/'[^']+'/g);
-  return matches ? matches.map(m => m.slice(1, -1)) : [];
+  return matches ? matches.map((m) => m.slice(1, -1)) : [];
 }
 
 describe('contentLengthBuckets', () => {
@@ -33,8 +47,11 @@ describe('contentLengthBuckets', () => {
       console.log(`  topN=${n}: got ${labels.length} buckets`);
       console.log(`    labels: ${labels.join(', ')}`);
 
-      assert.strictEqual(labels.length, n,
-        `Expected ${n} buckets, got ${labels.length}: [${labels.join(', ')}]`);
+      assert.strictEqual(
+        labels.length,
+        n,
+        `Expected ${n} buckets, got ${labels.length}: [${labels.join(', ')}]`,
+      );
     });
   }
 
@@ -47,8 +64,10 @@ describe('contentLengthBuckets', () => {
   it('should have ≥ prefix on last bucket', () => {
     const sql = contentLengthBuckets(5);
     const labels = extractBucketLabels(sql);
-    assert.ok(labels[labels.length - 1].startsWith('≥'),
-      `Last bucket should start with ≥, got: ${labels[labels.length - 1]}`);
+    assert.ok(
+      labels[labels.length - 1].startsWith('≥'),
+      `Last bucket should start with ≥, got: ${labels[labels.length - 1]}`,
+    );
   });
 
   it('should have no duplicate labels', () => {
@@ -56,8 +75,11 @@ describe('contentLengthBuckets', () => {
       const sql = contentLengthBuckets(n);
       const labels = extractBucketLabels(sql);
       const unique = new Set(labels);
-      assert.strictEqual(unique.size, labels.length,
-        `Duplicate labels found for n=${n}: [${labels.join(', ')}]`);
+      assert.strictEqual(
+        unique.size,
+        labels.length,
+        `Duplicate labels found for n=${n}: [${labels.join(', ')}]`,
+      );
     }
   });
 });
@@ -68,8 +90,11 @@ describe('getContentLengthLabels', () => {
       const sql = contentLengthBuckets(n);
       const sqlLabels = extractBucketLabels(sql);
       const fnLabels = getContentLengthLabels(n);
-      assert.deepStrictEqual(fnLabels, sqlLabels,
-        `Label mismatch for n=${n}`);
+      assert.deepStrictEqual(
+        fnLabels,
+        sqlLabels,
+        `Label mismatch for n=${n}`,
+      );
     }
   });
 });
@@ -80,8 +105,11 @@ describe('getTimeElapsedLabels', () => {
       const sql = timeElapsedBuckets(n);
       const sqlLabels = extractBucketLabels(sql);
       const fnLabels = getTimeElapsedLabels(n);
-      assert.deepStrictEqual(fnLabels, sqlLabels,
-        `Label mismatch for n=${n}`);
+      assert.deepStrictEqual(
+        fnLabels,
+        sqlLabels,
+        `Label mismatch for n=${n}`,
+      );
     }
   });
 });
@@ -95,23 +123,30 @@ describe('timeElapsedBuckets', () => {
       console.log(`  topN=${n}: got ${labels.length} buckets`);
       console.log(`    labels: ${labels.join(', ')}`);
 
-      assert.strictEqual(labels.length, n,
-        `Expected ${n} buckets, got ${labels.length}: [${labels.join(', ')}]`);
+      assert.strictEqual(
+        labels.length,
+        n,
+        `Expected ${n} buckets, got ${labels.length}: [${labels.join(', ')}]`,
+      );
     });
   }
 
   it('should have < prefix on first bucket', () => {
     const sql = timeElapsedBuckets(5);
     const labels = extractBucketLabels(sql);
-    assert.ok(labels[0].startsWith('<'),
-      `First bucket should start with <, got: ${labels[0]}`);
+    assert.ok(
+      labels[0].startsWith('<'),
+      `First bucket should start with <, got: ${labels[0]}`,
+    );
   });
 
   it('should have ≥ prefix on last bucket', () => {
     const sql = timeElapsedBuckets(5);
     const labels = extractBucketLabels(sql);
-    assert.ok(labels[labels.length - 1].startsWith('≥'),
-      `Last bucket should start with ≥, got: ${labels[labels.length - 1]}`);
+    assert.ok(
+      labels[labels.length - 1].startsWith('≥'),
+      `Last bucket should start with ≥, got: ${labels[labels.length - 1]}`,
+    );
   });
 
   it('should have no duplicate labels', () => {
@@ -119,8 +154,11 @@ describe('timeElapsedBuckets', () => {
       const sql = timeElapsedBuckets(n);
       const labels = extractBucketLabels(sql);
       const unique = new Set(labels);
-      assert.strictEqual(unique.size, labels.length,
-        `Duplicate labels found for n=${n}: [${labels.join(', ')}]`);
+      assert.strictEqual(
+        unique.size,
+        labels.length,
+        `Duplicate labels found for n=${n}: [${labels.join(', ')}]`,
+      );
     }
   });
 });

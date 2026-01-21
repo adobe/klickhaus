@@ -1,20 +1,18 @@
-/**
- * Shared configuration for Cloudflare logpush to ClickHouse
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
  *
- * Required environment variables:
- *   CLICKHOUSE_PASSWORD - Password for logpush_writer user
- *
- * Optional environment variables:
- *   CLICKHOUSE_HOST - ClickHouse host (default: s2p5b8wmt5.eastus2.azure.clickhouse.cloud)
- *   CLICKHOUSE_PORT - ClickHouse port (default: 8443)
- *   CLICKHOUSE_USER - ClickHouse user (default: logpush_writer)
- *   CLICKHOUSE_TABLE - Target table (default: helix_logs_production.cloudflare_http_requests)
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  */
-
 export const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 export const CLICKHOUSE_PORT = process.env.CLICKHOUSE_PORT || 8443;
 export const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER || 'logpush_writer';
-export const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD;
+export const { CLICKHOUSE_PASSWORD } = process.env;
 export const CLICKHOUSE_TABLE = process.env.CLICKHOUSE_TABLE || 'helix_logs_production.cloudflare_http_requests';
 
 /**
@@ -36,7 +34,7 @@ export const ENTERPRISE_ZONES = [
   'hlx.live',
   'hlx.page',
   'hlx-cloudflare.live',
-  'hlx-cloudflare.page'
+  'hlx-cloudflare.page',
 ];
 
 // Full field set - matches Coralogix plus Referer/UserAgent
@@ -123,7 +121,7 @@ export const LOGPUSH_FIELDS = [
   'WorkerStatus',
   'WorkerSubrequest',
   'WorkerSubrequestCount',
-  'WorkerWallTimeUs'
+  'WorkerWallTimeUs',
 ];
 
 // Custom fields for RequestHeaders - superset of all zones
@@ -146,7 +144,7 @@ export const REQUEST_HEADERS = [
   'x-forwarded-for',
   'x-forwarded-host',
   'x-hipaa',
-  'x-push-invalidation'
+  'x-push-invalidation',
 ];
 
 // Custom fields for ResponseHeaders - superset of all zones
@@ -169,7 +167,7 @@ export const RESPONSE_HEADERS = [
   'surrogate-key',
   'vary',
   'x-error',
-  'x-robots-tag'
+  'x-robots-tag',
 ];
 
 /**
@@ -180,9 +178,9 @@ export async function cfApi(endpoint, token, method = 'GET', body = null) {
   const options = {
     method,
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
   };
   if (body) {
     options.body = JSON.stringify(body);
@@ -192,7 +190,7 @@ export async function cfApi(endpoint, token, method = 'GET', body = null) {
   const data = await response.json();
 
   if (!data.success) {
-    const errors = data.errors?.map(e => e.message).join(', ') || 'Unknown error';
+    const errors = data.errors?.map((e) => e.message).join(', ') || 'Unknown error';
     throw new Error(errors);
   }
 
@@ -241,7 +239,7 @@ export function buildJobConfig(zoneName) {
     frequency: 'high',
     output_options: {
       field_names: LOGPUSH_FIELDS,
-      timestamp_format: 'unixnano'
-    }
+      timestamp_format: 'unixnano',
+    },
   };
 }

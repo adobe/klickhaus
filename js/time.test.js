@@ -1,7 +1,21 @@
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { state } from './state.js';
-import { setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange, getTimeFilter, getTimeBucket, getPeriodMs } from './time.js';
+import {
+  setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
+  getTimeFilter, getTimeBucket, getPeriodMs,
+} from './time.js';
 
 beforeEach(() => {
   clearCustomTimeRange();
@@ -22,8 +36,8 @@ describe('time helpers', () => {
     setCustomTimeRange(start, end);
 
     const filter = getTimeFilter();
-    assert.ok(filter.includes("2026-01-20 11:59:30"));
-    assert.ok(filter.includes("2026-01-20 12:02:30"));
+    assert.ok(filter.includes('2026-01-20 11:59:30'));
+    assert.ok(filter.includes('2026-01-20 12:02:30'));
   });
 
   it('uses expected bucket for short custom range', () => {
