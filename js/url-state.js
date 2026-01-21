@@ -213,6 +213,7 @@ export function syncUIFromState() {
     elements.timeRangeSelect.value = state.timeRange;
   }
   elements.topNSelect.value = state.topN;
+  document.body.dataset.topn = state.topN;
   elements.hostFilterInput.value = state.hostFilter;
   renderActiveFilters();
 

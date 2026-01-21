@@ -1257,6 +1257,14 @@ main {
   margin-left: -5px;
 }
 
+/* Minimum height based on topN to prevent layout shift during loading */
+/* Height = h3 (~24px + 8px margin) + rows (~21px each) + padding (32px) */
+body[data-topn="5"] .breakdown-card { min-height: 169px; }
+body[data-topn="10"] .breakdown-card { min-height: 274px; }
+body[data-topn="20"] .breakdown-card { min-height: 484px; }
+body[data-topn="50"] .breakdown-card { min-height: 1114px; }
+body[data-topn="100"] .breakdown-card { min-height: 2164px; }
+
 .breakdown-table tr {
   border-bottom: 1px solid var(--border);
 }

@@ -332,6 +332,7 @@ async function init() {
 
   elements.topNSelect.addEventListener('change', (e) => {
     state.topN = parseInt(e.target.value, 10);
+    document.body.dataset.topn = state.topN;
     saveStateToURL();
     loadAllBreakdowns();
   });
