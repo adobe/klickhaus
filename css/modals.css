@@ -1,0 +1,176 @@
+/*
+ * Modals
+ * Menu button, quick links, keyboard help dialog
+ */
+
+/* Menu Button */
+.menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.menu-btn:hover {
+  background: var(--bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Quick Links Modal */
+#quickLinksModal {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--card-bg);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  width: 400px;
+  max-width: 90vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  margin-right: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+
+@media (max-width: 600px) {
+  #quickLinksModal {
+    width: 100vw;
+    max-width: 100vw;
+  }
+}
+
+#quickLinksModal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+#quickLinksFrame {
+  width: 100%;
+  height: calc(100vh - 57px);
+  border: none;
+  background: var(--bg);
+}
+
+/* Keyboard help dialog */
+#keyboardHelp {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90vw;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
+
+#keyboardHelp::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.keyboard-help-content {
+  padding: 20px;
+}
+
+.keyboard-help-content h2 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.keyboard-help-content h2 button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0;
+  line-height: 1;
+}
+
+.keyboard-help-content h2 button:hover {
+  color: var(--text);
+}
+
+.keyboard-help-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  font-size: 14px;
+}
+
+.keyboard-help-grid kbd {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.keyboard-help-grid .key-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.keyboard-help-grid .key-desc {
+  color: var(--text-secondary);
+}

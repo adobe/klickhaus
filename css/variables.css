@@ -1,0 +1,266 @@
+/*
+ * CSS Custom Properties (Design Tokens)
+ * Color palette, semantic colors, and theme variables
+ */
+
+:root {
+  --primary: #eb1000;
+  --primary-dark: #c40d00;
+  --bg: #f9fafb;
+  --card-bg: #ffffff;
+  --chart-bg: #f3f4f6;
+  --text: #1d2939;
+  --text-secondary: #667085;
+  --border: #e4e7ec;
+  --success: #12b76a;
+  --error: #f04438;
+  --chart-line: #eb1000;
+  --bar-bg: #fce4e4;
+  --status-ok: #12b76a;
+  --status-client-error: #f79009;
+  --status-server-error: #f04438;
+  --input-bg: #ffffff;
+  --filter-tag-bg: #e8f4fd;
+  --filter-tag-border: #b8daff;
+  --filter-tag-color: #004085;
+  --grid-line: #d1d5db;
+  --axis-line: #e4e7ec;
+  --host-delivery: #2563eb;
+  --host-authoring: #7c3aed;
+  --host-customer: #ea580c;
+  --ct-text: #059669;
+  --ct-application: #7c3aed;
+  --ct-image: #0891b2;
+  --ct-video: #dc2626;
+  --ct-font: #ca8a04;
+  --ct-binary: #64748b;
+  --cache-hit: #059669;
+  --cache-miss: #dc2626;
+  --cache-pass: #ca8a04;
+  --cache-dynamic: #7c3aed;
+  --cache-revalidated: #0891b2;
+  --cache-expired: #ea580c;
+  --cache-stale: #d97706;
+  --cache-error: #be123c;
+  --cache-unknown: #64748b;
+  --path-directory: #7c3aed;
+  --path-clean: #2563eb;
+  --path-script: #ca8a04;
+  --path-document: #059669;
+  --path-image: #0891b2;
+  --path-media: #dc2626;
+  --path-font: #9333ea;
+  --path-server: #be123c;
+  --ref-google: #34a853;
+  --ref-adobe: #fa0f00;
+  --ref-aem: #2563eb;
+  --ref-other: #64748b;
+  --ua-windows: #0078d4;
+  --ua-mac: #555555;
+  --ua-linux: #e95420;
+  --ua-ios: #147ce5;
+  --ua-android: #3ddc84;
+  --ua-good-bot: #059669;
+  --ua-bad-bot: #dc2626;
+  --ip-v4: #2563eb;
+  --ip-v6: #7c3aed;
+  --ip-v4-multi: #0891b2;
+  --ip-v6-multi: #a855f7;
+  --ip-bad: #dc2626;
+  /* Request Types - Delivery category (blue, matches --host-delivery for .live) */
+  --rt-pipeline: #2563eb;
+  --rt-static: #3b82f6;
+  --rt-media: #0ea5e9;
+  --rt-rum: #06b6d4;
+  /* Request Types - Pipeline service category (violet, matches --host-authoring for .page) */
+  --rt-html: #7c3aed;
+  --rt-json: #8b5cf6;
+  --rt-md: #a855f7;
+  --rt-robots: #c084fc;
+  /* Request Types - Static service category (teal) */
+  --rt-content: #14b8a6;
+  --rt-code: #0d9488;
+  /* Request Types - Admin service category (orange/amber, 8 types need good range) */
+  --rt-job: #ea580c;
+  --rt-discover: #f97316;
+  --rt-preview: #fb923c;
+  --rt-status: #f59e0b;
+  --rt-sidekick: #d97706;
+  --rt-github-bot: #b45309;
+  --rt-live: #92400e;
+  --rt-auth: #78350f;
+  /* Request Types - Config service category (green) */
+  --rt-admin: #059669;
+  --rt-delivery: #10b981;
+  --rt-config: #64748b;
+  --bt-aws: #22a858;
+  --bt-cloudflare: #f38020;
+  --method-get: #2563eb;
+  --method-post: #059669;
+  --method-put: #ca8a04;
+  --method-patch: #7c3aed;
+  --method-head: #64748b;
+  --method-options: #64748b;
+  --method-delete: #dc2626;
+  --asn-adobe: #fa0f00;
+  --asn-good-cdn: #059669;
+  --asn-bad-cdn: #dc2626;
+  --asn-cloud: #7c3aed;
+  --asn-other: #64748b;
+  --err-redirect: #2563eb;
+  --err-security: #dc2626;
+  --err-contentbus: #ca8a04;
+  --err-storage: #64748b;
+  --err-other: #94a3b8;
+  /* Accept-Encoding */
+  --enc-gzip: #059669;
+  --enc-br: #2563eb;
+  --enc-deflate: #ca8a04;
+  --enc-identity: #64748b;
+  --enc-zstd: #7c3aed;
+  /* Cache-Control (request) */
+  --cc-no-cache: #dc2626;
+  --cc-no-store: #be123c;
+  --cc-max-age: #059669;
+  --cc-other: #64748b;
+  /* BYO CDN */
+  --cdn-fastly: #ff282d;
+  --cdn-akamai: #0096d6;
+  --cdn-cloudfront: #ff9900;
+  --cdn-other: #64748b;
+  /* Redirect Location */
+  --loc-relative: #059669;
+  --loc-absolute: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #ff4136;
+    --primary-dark: #ff6b63;
+    --bg: #0d1117;
+    --card-bg: #161b22;
+    --chart-bg: #0a0e13;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --border: #30363d;
+    --success: #3fb950;
+    --error: #f85149;
+    --chart-line: #ff4136;
+    --bar-bg: #3d1a1a;
+    --status-ok: #3fb950;
+    --status-client-error: #d29922;
+    --status-server-error: #f85149;
+    --input-bg: #0d1117;
+    --filter-tag-bg: #1f3a5f;
+    --filter-tag-border: #388bfd;
+    --filter-tag-color: #79c0ff;
+    --grid-line: #21262d;
+    --axis-line: #30363d;
+    --host-delivery: #60a5fa;
+    --host-authoring: #a78bfa;
+    --host-customer: #fb923c;
+    --ct-text: #34d399;
+    --ct-application: #a78bfa;
+    --ct-image: #22d3ee;
+    --ct-video: #f87171;
+    --ct-font: #facc15;
+    --ct-binary: #94a3b8;
+    --cache-hit: #34d399;
+    --cache-miss: #f87171;
+    --cache-pass: #facc15;
+    --cache-dynamic: #a78bfa;
+    --cache-revalidated: #22d3ee;
+    --cache-expired: #fb923c;
+    --cache-stale: #fbbf24;
+    --cache-error: #fb7185;
+    --cache-unknown: #94a3b8;
+    --path-directory: #a78bfa;
+    --path-clean: #60a5fa;
+    --path-script: #facc15;
+    --path-document: #34d399;
+    --path-image: #22d3ee;
+    --path-media: #f87171;
+    --path-font: #c084fc;
+    --path-server: #fb7185;
+    --ref-google: #81c995;
+    --ref-adobe: #ff6b6b;
+    --ref-aem: #60a5fa;
+    --ref-other: #94a3b8;
+    --ua-windows: #4cc2ff;
+    --ua-mac: #a1a1a1;
+    --ua-linux: #ff7847;
+    --ua-ios: #5ac8fa;
+    --ua-android: #7cfc9f;
+    --ua-good-bot: #34d399;
+    --ua-bad-bot: #f87171;
+    --ip-v4: #60a5fa;
+    --ip-v6: #a78bfa;
+    --ip-v4-multi: #22d3ee;
+    --ip-v6-multi: #c084fc;
+    --ip-bad: #f87171;
+    /* Request Types - Delivery category (blue) */
+    --rt-pipeline: #60a5fa;
+    --rt-static: #93c5fd;
+    --rt-media: #38bdf8;
+    --rt-rum: #22d3ee;
+    /* Request Types - Pipeline service category (violet) */
+    --rt-html: #a78bfa;
+    --rt-json: #c4b5fd;
+    --rt-md: #d8b4fe;
+    --rt-robots: #e9d5ff;
+    /* Request Types - Static service category (teal) */
+    --rt-content: #2dd4bf;
+    --rt-code: #5eead4;
+    /* Request Types - Admin service category (orange/amber) */
+    --rt-job: #fb923c;
+    --rt-discover: #fdba74;
+    --rt-preview: #fed7aa;
+    --rt-status: #fcd34d;
+    --rt-sidekick: #fbbf24;
+    --rt-github-bot: #f59e0b;
+    --rt-live: #d97706;
+    --rt-auth: #b45309;
+    /* Request Types - Config service category (green) */
+    --rt-admin: #34d399;
+    --rt-delivery: #6ee7b7;
+    --rt-config: #94a3b8;
+    --bt-aws: #4ade80;
+    --bt-cloudflare: #f6a560;
+    --method-get: #60a5fa;
+    --method-post: #34d399;
+    --method-put: #facc15;
+    --method-patch: #a78bfa;
+    --method-head: #94a3b8;
+    --method-options: #94a3b8;
+    --method-delete: #f87171;
+    --asn-adobe: #ff6b6b;
+    --asn-good-cdn: #34d399;
+    --asn-bad-cdn: #f87171;
+    --asn-cloud: #a78bfa;
+    --asn-other: #94a3b8;
+    --err-redirect: #60a5fa;
+    --err-security: #f87171;
+    --err-contentbus: #facc15;
+    --err-storage: #94a3b8;
+    --err-other: #cbd5e1;
+    /* Accept-Encoding */
+    --enc-gzip: #34d399;
+    --enc-br: #60a5fa;
+    --enc-deflate: #facc15;
+    --enc-identity: #94a3b8;
+    --enc-zstd: #a78bfa;
+    /* Cache-Control (request) */
+    --cc-no-cache: #f87171;
+    --cc-no-store: #fb7185;
+    --cc-max-age: #34d399;
+    --cc-other: #94a3b8;
+    /* BYO CDN */
+    --cdn-fastly: #ff6b6b;
+    --cdn-akamai: #4cc2ff;
+    --cdn-cloudfront: #ffb347;
+    --cdn-other: #94a3b8;
+    /* Redirect Location */
+    --loc-relative: #34d399;
+    --loc-absolute: #60a5fa;
+  }
+}

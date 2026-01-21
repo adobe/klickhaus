@@ -1,0 +1,240 @@
+/*
+ * Chart
+ * Time series chart, scrubber, navigation, selection overlay
+ */
+
+.chart-section {
+  background: var(--chart-bg);
+  padding: 0;
+  margin: 0 -24px 24px -24px;
+}
+
+@media (max-width: 600px) {
+  .chart-section {
+    margin: 0 -12px 16px -12px;
+    position: relative;
+  }
+}
+
+.chart-container {
+  position: relative;
+  height: 250px;
+}
+
+#chart {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* When dragging, use col-resize cursor */
+.chart-container.dragging #chart {
+  cursor: col-resize;
+}
+
+.chart-section h2 {
+  display: none;
+}
+
+/* Chart navigation overlay */
+.chart-nav-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+}
+
+.chart-nav-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chart-nav-zone:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Hide nav hover when cursor is over an anomaly region or ship */
+.chart-nav-overlay.over-anomaly .chart-nav-zone:hover,
+.chart-nav-overlay.over-ship .chart-nav-zone:hover {
+  opacity: 0;
+  background: transparent;
+}
+
+/* Hide nav overlay entirely when dragging to select time range */
+.chart-container.dragging .chart-nav-overlay .chart-nav-zone {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.chart-nav-overlay.over-anomaly .chart-nav-zone,
+.chart-nav-overlay.over-ship .chart-nav-zone {
+  cursor: pointer;
+}
+
+/* Chart Scrubber */
+.chart-scrubber-line {
+  position: absolute;
+  width: 1px;
+  background: var(--text-secondary);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+
+.chart-scrubber-line.visible {
+  opacity: 0.6;
+}
+
+.chart-scrubber-status {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: var(--chart-bg);
+  display: flex;
+  align-items: flex-start;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  padding: 4px 24px 0;
+}
+
+.chart-scrubber-status-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.chart-scrubber-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-scrubber-status.visible {
+  opacity: 1;
+}
+
+.scrubber-time,
+.scrubber-relative {
+  font-size: 10px;
+}
+
+.scrubber-anomaly {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(240, 68, 56, 0.1);
+  color: var(--status-server-error);
+}
+
+.scrubber-anomaly-yellow {
+  background: rgba(247, 144, 9, 0.1);
+  color: var(--status-client-error);
+}
+
+.scrubber-anomaly-green {
+  background: rgba(18, 183, 106, 0.1);
+  color: var(--status-ok);
+}
+
+.scrubber-release {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.scrubber-release-patch {
+  background: rgba(18, 183, 106, 0.1);
+  color: var(--status-ok);
+}
+
+.scrubber-release-feature {
+  background: rgba(247, 144, 9, 0.1);
+  color: var(--status-client-error);
+}
+
+.scrubber-release-breaking {
+  background: rgba(240, 68, 56, 0.1);
+  color: var(--status-server-error);
+}
+
+.scrubber-release-config {
+  background: rgba(102, 112, 133, 0.1);
+  color: var(--text-secondary);
+}
+
+/* Chart drag selection overlay */
+.chart-selection-overlay {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.2);
+  border-left: 2px solid rgba(59, 130, 246, 0.8);
+  border-right: 2px solid rgba(59, 130, 246, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease, background 0.15s ease;
+  z-index: 5;
+}
+
+.chart-selection-overlay.visible {
+  opacity: 1;
+}
+
+/* When selection is confirmed (drag complete), make it clickable */
+.chart-selection-overlay.confirmed {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.chart-selection-overlay.confirmed:hover {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-selection-overlay {
+    background: rgba(96, 165, 250, 0.25);
+    border-left-color: rgba(96, 165, 250, 0.9);
+    border-right-color: rgba(96, 165, 250, 0.9);
+  }
+  .chart-selection-overlay.confirmed:hover {
+    background: rgba(96, 165, 250, 0.4);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-nav-zone:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.chart-nav-left {
+  flex: 0 0 33%;
+}
+
+.chart-nav-right {
+  flex: 0 0 33%;
+  margin-left: auto;
+}
+
+.chart-nav-arrow {
+  font-size: 48px;
+  color: var(--text-secondary);
+  opacity: 0.3;
+}

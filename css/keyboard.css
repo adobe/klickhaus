@@ -1,0 +1,174 @@
+/*
+ * Keyboard Navigation
+ * Keyboard mode hints, focus states, navigation indicators
+ */
+
+/* Keyboard hint elements - hidden by default */
+.kbd-hint {
+  display: none;
+}
+
+/* Show hints when keyboard mode is active */
+body.keyboard-mode .kbd-hint {
+  display: inline;
+}
+
+/* Keyboard control wrapper for toolbar items */
+.kbd-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Toolbar kbd hints: use opacity to avoid layout shift */
+.kbd-control > kbd.kbd-hint {
+  display: inline;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  padding: 1px 4px;
+  margin-right: -13px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+body.keyboard-mode .kbd-control > kbd.kbd-hint {
+  opacity: 1;
+}
+
+/* Focused facet card gets a blue glow */
+body.keyboard-mode .breakdown-card.kbd-focused {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3), 0 0 16px rgba(59, 130, 246, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  body.keyboard-mode .breakdown-card.kbd-focused {
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.4), 0 0 20px rgba(96, 165, 250, 0.25);
+  }
+}
+
+/* Focused row - show as hovered (with filter/exclude buttons visible) */
+body.keyboard-mode .breakdown-table tr.kbd-focused td.dim {
+  background: var(--bg);
+}
+
+/* Show action buttons on focused row (same as hover) */
+body.keyboard-mode .breakdown-table tr.kbd-focused .count .value {
+  display: none;
+}
+
+body.keyboard-mode .breakdown-table tr.kbd-focused .count .action-btn {
+  display: block;
+}
+
+body.keyboard-mode .breakdown-table tr.kbd-focused .bar .bar-inner {
+  display: none;
+}
+
+body.keyboard-mode .breakdown-table tr.kbd-focused .bar .action-btn {
+  display: block;
+}
+
+/* Adjacent row hints for h/l navigation - positioned in left margin */
+body.keyboard-mode .breakdown-table {
+  position: relative;
+}
+
+body.keyboard-mode .breakdown-table tr.kbd-prev td.dim::before,
+body.keyboard-mode .breakdown-table tr.kbd-next td.dim::before {
+  position: absolute;
+  left: -22px;
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  padding: 1px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: var(--text-secondary);
+}
+
+body.keyboard-mode .breakdown-table tr.kbd-prev td.dim::before {
+  content: 'k';
+}
+
+body.keyboard-mode .breakdown-table tr.kbd-next td.dim::before {
+  content: 'j';
+}
+
+/* Adjacent facet hints for h/l navigation */
+body.keyboard-mode .breakdown-card.kbd-prev-facet,
+body.keyboard-mode .breakdown-card.kbd-next-facet {
+  position: relative;
+}
+
+body.keyboard-mode .breakdown-card.kbd-prev-facet > h3::before,
+body.keyboard-mode .breakdown-card.kbd-next-facet > h3::before {
+  position: absolute;
+  left: -6px;
+  top: 16px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: normal;
+  padding: 1px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: var(--text-secondary);
+}
+
+body.keyboard-mode .breakdown-card.kbd-prev-facet > h3::before {
+  content: 'h';
+}
+
+body.keyboard-mode .breakdown-card.kbd-next-facet > h3::before {
+  content: 'l';
+}
+
+/* (other) row shows ... hint in keyboard mode */
+body.keyboard-mode .other-row td.dim .dim-prefix::after {
+  content: '...';
+}
+
+/* Focus styles for accessibility - no visible outline, background handles it */
+.breakdown-table tr:focus {
+  outline: none;
+}
+
+.breakdown-table tr:focus-visible {
+  outline: none;
+}
+
+/* Hide keyboard mode on mobile/touch devices */
+@media (hover: none), (pointer: coarse) {
+  body.keyboard-mode .kbd-hint {
+    display: none !important;
+  }
+
+  body.keyboard-mode .kbd-control > kbd.kbd-hint {
+    opacity: 0 !important;
+  }
+
+  body.keyboard-mode .breakdown-card.kbd-focused {
+    box-shadow: none;
+  }
+
+  body.keyboard-mode .breakdown-table tr.kbd-focused td {
+    background: transparent;
+  }
+
+  body.keyboard-mode .breakdown-table tr.kbd-prev td.dim::before,
+  body.keyboard-mode .breakdown-table tr.kbd-next td.dim::before,
+  body.keyboard-mode .breakdown-card.kbd-prev-facet h3::before,
+  body.keyboard-mode .breakdown-card.kbd-next-facet h3::before {
+    display: none;
+  }
+}

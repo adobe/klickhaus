@@ -1,0 +1,81 @@
+/*
+ * Investigation Highlights
+ * Anomaly root cause analysis visual indicators
+ */
+
+/* Glow speed indicator if facet has investigation highlights */
+.breakdown-card:has(.investigation-highlight) .speed-indicator {
+  box-shadow: 0 0 6px 2px currentColor;
+}
+
+.breakdown-card:has(.investigation-highlight.investigation-red) .speed-indicator {
+  box-shadow: 0 0 6px 2px var(--status-server-error);
+}
+
+.breakdown-card:has(.investigation-highlight.investigation-yellow) .speed-indicator {
+  box-shadow: 0 0 6px 2px var(--status-client-error);
+}
+
+.breakdown-card:has(.investigation-highlight.investigation-green) .speed-indicator {
+  box-shadow: 0 0 6px 2px var(--status-ok);
+}
+
+.breakdown-card:has(.investigation-highlight.investigation-blue) .speed-indicator {
+  box-shadow: 0 0 6px 2px #3b82f6;
+}
+
+/* Investigation highlight for anomaly root cause dimensions */
+.breakdown-table tr.investigation-highlight td.dim {
+  /* Subtle text glow - semi-transparent for light mode */
+  text-shadow: 0 0 6px rgba(100, 100, 100, .6);
+}
+
+.breakdown-table tr.investigation-highlight.synthetic-row td.dim {
+  /* Override cell opacity so text glow is visible */
+  opacity: 1;
+  text-shadow: 0 0 6px rgba(100, 100, 100, .6);
+}
+
+.breakdown-table tr.investigation-highlight.synthetic-row .dim .dim-prefix {
+  /* Cancel the 0.4 opacity on dim-prefix for highlighted synthetic rows */
+  opacity: 1;
+}
+
+.breakdown-table tr.investigation-highlight .status-color {
+  box-shadow: 0 0 6px 2px currentColor;
+  cursor: help;
+}
+
+/* Pulse animation for the highlight to draw attention */
+@keyframes investigation-pulse {
+  0%, 100% { box-shadow: 0 0 6px 2px currentColor; }
+  50% { box-shadow: 0 0 10px 4px currentColor; }
+}
+
+@keyframes investigation-text-pulse {
+  0%, 100% { text-shadow: 0 0 6px rgba(100, 100, 100, .6); }
+  50% { text-shadow: 0 0 10px rgba(100, 100, 100, .8); }
+}
+
+.breakdown-table tr.investigation-highlight .status-color {
+  animation: investigation-pulse 2s ease-in-out 3;
+  animation-fill-mode: forwards;
+}
+
+.breakdown-table tr.investigation-highlight td.dim {
+  animation: investigation-text-pulse 2s ease-in-out 3;
+  animation-fill-mode: forwards;
+}
+
+/* Dark mode: use currentColor glow instead of light gray */
+@media (prefers-color-scheme: dark) {
+  .breakdown-table tr.investigation-highlight td.dim {
+    text-shadow: 0 0 4px currentColor;
+    animation-name: investigation-text-pulse-dark;
+  }
+
+  @keyframes investigation-text-pulse-dark {
+    0%, 100% { text-shadow: 0 0 4px currentColor; }
+    50% { text-shadow: 0 0 8px currentColor; }
+  }
+}

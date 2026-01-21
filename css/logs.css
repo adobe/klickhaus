@@ -1,0 +1,198 @@
+/*
+ * Logs View
+ * Logs button, logs table, log entries
+ */
+
+/* Logs Button */
+.logs-btn {
+  padding: 8px 24px;
+  font-size: 14px;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logs-btn:hover {
+  background: var(--bg);
+}
+
+.logs-btn.ready {
+  border-color: var(--primary);
+}
+
+.logs-btn.active {
+  background: var(--bg);
+}
+
+/* Logs View */
+#logsView {
+  display: none;
+  padding: 24px;
+}
+
+#logsView.visible {
+  display: block;
+}
+
+#dashboardContent.hidden {
+  display: none;
+}
+
+.logs-table-container {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  transition: filter 0.2s ease-out;
+}
+
+@media (max-width: 600px) {
+  #logsView {
+    padding: 0;
+  }
+
+  .logs-table-container {
+    border: none;
+    border-radius: 0;
+  }
+}
+
+.logs-table-container.updating {
+  filter: blur(2px);
+  opacity: 0.7;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.logs-table th {
+  background: var(--bg);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.logs-table th:hover {
+  background: var(--border);
+}
+
+.logs-table th.pinned,
+.logs-table td.pinned {
+  position: sticky;
+  background: var(--card-bg);
+  z-index: 1;
+}
+
+.logs-table th.pinned {
+  z-index: 2;
+  background: var(--bg);
+}
+
+.logs-table th.pinned::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.logs-table td.pinned {
+  border-right: 2px solid var(--border);
+}
+
+.logs-table th.pinned:last-of-type,
+.logs-table td.pinned:last-of-type {
+  border-right: 2px solid var(--primary);
+}
+
+.logs-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-table td.clickable {
+  cursor: pointer;
+}
+
+.logs-table td.clickable:hover {
+  text-decoration: underline;
+}
+
+.logs-table tbody tr {
+  cursor: copy;
+}
+
+.logs-table tr:hover td {
+  background: var(--bg);
+}
+
+.logs-table tr:last-child td {
+  border-bottom: none;
+}
+
+.logs-table .status-ok {
+  color: var(--status-ok);
+}
+
+.logs-table .status-4xx {
+  color: var(--status-client-error);
+}
+
+.logs-table .status-5xx {
+  color: var(--status-server-error);
+}
+
+.logs-table .timestamp {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.logs-table .log-color {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 1px;
+  vertical-align: middle;
+}
+
+.logs-table .method {
+  font-weight: 600;
+}
+
+.logs-table .url {
+  max-width: 400px;
+}
+
+.logs-table .host {
+  max-width: 200px;
+}
+
+.logs-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: var(--text-secondary);
+}

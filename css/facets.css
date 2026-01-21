@@ -1,0 +1,598 @@
+/*
+ * Facets (Breakdown Cards)
+ * Breakdown tables, cards, speed indicators, filters
+ */
+
+.breakdowns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.breakdown-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  transition: filter 0.2s ease-out, opacity 0.2s ease;
+  position: relative;
+}
+
+@media (max-width: 1400px) {
+  .breakdowns {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1000px) {
+  .breakdowns {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .breakdowns {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* Remove card chrome on mobile - use horizontal separators instead */
+  .breakdown-card {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .breakdown-card:last-child {
+    border-bottom: none;
+  }
+
+  .breakdown-card h3 {
+    margin-bottom: 8px;
+  }
+
+  /* Smaller text on mobile */
+  .breakdown-table {
+    font-size: 12px;
+  }
+
+  .breakdown-table .count {
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .breakdowns {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (min-width: 2200px) {
+  .breakdowns {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 2600px) {
+  .breakdowns {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+.breakdown-card.updating {
+  filter: blur(2px);
+  opacity: 0.7;
+}
+
+.breakdown-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Summary Metric */
+.summary-metric {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--status-ok);
+  background: rgba(18, 183, 106, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.summary-metric.summary-error {
+  color: var(--status-server-error);
+  background: rgba(240, 68, 56, 0.1);
+}
+
+.summary-metric.summary-warning {
+  color: var(--status-client-error);
+  background: rgba(247, 144, 9, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .summary-metric {
+    background: rgba(63, 185, 80, 0.15);
+  }
+  .summary-metric.summary-error {
+    background: rgba(248, 81, 73, 0.15);
+  }
+  .summary-metric.summary-warning {
+    background: rgba(210, 153, 34, 0.15);
+  }
+}
+
+/* Mode toggle button (e.g., Count/Bytes for content-types) */
+.mode-toggle {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-toggle:hover {
+  background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-tertiary));
+  border-color: var(--text-secondary);
+}
+
+.mode-toggle:active {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.mode-toggle.active {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mode-toggle {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  .mode-toggle.active {
+    background: rgba(129, 140, 248, 0.15);
+  }
+}
+
+/* Speed Indicator */
+.speed-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.speed-indicator.fast {
+  background: var(--status-ok);
+}
+
+.speed-indicator.medium {
+  background: var(--status-client-error);
+}
+
+.speed-indicator.slow {
+  background: var(--status-server-error);
+}
+
+/* Clickable speed indicator */
+.speed-indicator[role="button"] {
+  cursor: pointer;
+}
+
+.speed-indicator[role="button"]:hover {
+  transform: scale(1.3);
+}
+
+/* Facet hide button - bottom right corner */
+.facet-hide-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.facet-hide-btn::before {
+  content: '\00d7'; /* Unicode multiplication sign (x) */
+}
+
+.breakdown-card:hover .facet-hide-btn {
+  opacity: 0.5;
+}
+
+.facet-hide-btn:hover {
+  opacity: 1 !important;
+  background: rgba(127, 127, 127, 0.1);
+}
+
+/* Pinned and hidden sections */
+.breakdowns-pinned:empty,
+.breakdowns-hidden:empty {
+  display: none;
+}
+
+.breakdowns-pinned {
+  margin-bottom: 16px;
+}
+
+/* Hidden section - horizontal flow for pills */
+.breakdowns-hidden {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Hidden facet styling - compact pill */
+.breakdown-card.facet-hidden {
+  padding: 6px 10px;
+  opacity: 0.5;
+  border: 1px dashed var(--border);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.breakdown-card.facet-hidden:hover {
+  opacity: 0.8;
+  border-style: solid;
+}
+
+/* Hide content in hidden facets */
+.breakdown-card.facet-hidden .breakdown-table,
+.breakdown-card.facet-hidden .empty,
+.breakdown-card.facet-hidden .loading,
+.breakdown-card.facet-hidden .mode-toggle,
+.breakdown-card.facet-hidden .summary-metric,
+.breakdown-card.facet-hidden .clear-facet-btn,
+.breakdown-card.facet-hidden .speed-indicator {
+  display: none;
+}
+
+/* Compact header for hidden facets */
+.breakdown-card.facet-hidden h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Show hide button as + for hidden facets */
+.breakdown-card.facet-hidden .facet-hide-btn {
+  opacity: 1;
+  position: static;
+  width: 16px;
+  height: 16px;
+  background: var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.breakdown-card.facet-hidden .facet-hide-btn::before {
+  content: '+';
+}
+
+.breakdown-card.facet-hidden .facet-hide-btn:hover {
+  background: var(--status-ok);
+  color: white;
+}
+
+/* Clear Facet Button */
+.clear-facet-btn {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.clear-facet-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Breakdown Table */
+.breakdown-table {
+  width: 100%;
+  font-size: 14px;
+  margin-left: -5px;
+}
+
+/* Minimum height based on topN to prevent layout shift during loading */
+/* Height = h3 (~24px + 8px margin) + rows (~21px each) + padding (32px) */
+body[data-topn="5"] .breakdown-card { min-height: 169px; }
+body[data-topn="10"] .breakdown-card { min-height: 274px; }
+body[data-topn="20"] .breakdown-card { min-height: 484px; }
+body[data-topn="50"] .breakdown-card { min-height: 1114px; }
+body[data-topn="100"] .breakdown-card { min-height: 2164px; }
+
+.breakdown-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown-table tr:last-child {
+  border-bottom: none;
+}
+
+.breakdown-table tr.filter-included .dim {
+  text-decoration: underline;
+  text-decoration-color: var(--text);
+  text-underline-offset: 3px;
+}
+
+.breakdown-table tr.filter-excluded .dim {
+  text-decoration: underline;
+  text-decoration-color: var(--error);
+  text-underline-offset: 3px;
+  opacity: 0.6;
+}
+
+.breakdown-table td {
+  padding: 2px 0;
+  padding-left: 5px;
+}
+
+.breakdown-table .dim {
+  max-width: 180px;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdown-table .dim .status-color {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 1px;
+  vertical-align: middle;
+}
+
+.breakdown-table .dim a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.breakdown-table .dim a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.breakdown-table .dim .dim-prefix {
+  opacity: 0.4;
+}
+
+.breakdown-table .count {
+  text-align: right;
+  font-weight: 500;
+  white-space: nowrap;
+  padding-left: 8px;
+  position: relative;
+  font-family: 'Source Sans', 'Source Sans Pro', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.breakdown-table .count .value {
+  display: block;
+}
+
+.breakdown-table .count .action-btn {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.breakdown-table tr:hover .count .value {
+  display: none;
+}
+
+.breakdown-table tr:hover .count .action-btn {
+  display: block;
+}
+
+.breakdown-table .bar {
+  width: 60px;
+  padding-left: 8px;
+  position: relative;
+}
+
+.breakdown-table .bar-inner {
+  height: 8px;
+  background: var(--bar-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+
+.breakdown-table .bar .action-btn {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+.breakdown-table tr:hover .bar .bar-inner {
+  display: none;
+}
+
+.breakdown-table tr:hover .bar .action-btn {
+  display: block;
+}
+
+.breakdown-table .bar-segment {
+  height: 100%;
+}
+
+.breakdown-table .bar-5xx {
+  background: var(--status-server-error);
+}
+
+.breakdown-table .bar-4xx {
+  background: var(--status-client-error);
+}
+
+.breakdown-table .bar-ok {
+  background: var(--status-ok);
+}
+
+.breakdown-table .bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+.breakdown-table .action-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  cursor: pointer;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.breakdown-table .action-btn:hover {
+  background: var(--bg);
+}
+
+.breakdown-table .action-btn.exclude {
+  color: var(--error);
+}
+
+/* Mobile touch support - tap to reveal action buttons */
+/* Hide mobile actions by default everywhere */
+.breakdown-table .mobile-actions {
+  display: none;
+}
+
+/* On touch screens, use tap-to-reveal pattern */
+@media (hover: none), (pointer: coarse) {
+  /* Disable desktop hover behavior */
+  .breakdown-table tr:hover .count .value,
+  .breakdown-table tr:hover .bar .bar-inner {
+    display: block;
+  }
+
+  .breakdown-table tr:hover .count .action-btn,
+  .breakdown-table tr:hover .bar .action-btn {
+    display: none;
+  }
+
+  /* When row is tapped (touch-active), show mobile actions and hide bar */
+  .breakdown-table tr.touch-active .bar {
+    display: none;
+  }
+
+  .breakdown-table tr.touch-active .mobile-actions {
+    display: table-cell;
+    text-align: right;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .breakdown-table .mobile-action-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    cursor: pointer;
+    color: var(--text);
+    box-sizing: border-box;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* Expanded touch target */
+  .breakdown-table .mobile-action-btn::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+  }
+
+  .breakdown-table .mobile-action-btn:active {
+    background: var(--bg);
+  }
+
+  .breakdown-table .mobile-action-btn.exclude {
+    color: var(--error);
+  }
+
+  .breakdown-table .mobile-action-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .breakdown-table .mobile-action-btn.active.exclude {
+    background: var(--error);
+    border-color: var(--error);
+  }
+}
+
+.breakdown-table tr.other-row > *,
+.breakdown-table tr.synthetic-row > * {
+  opacity: 0.7;
+}
+
+.breakdown-table tr.other-row {
+  cursor: pointer;
+}
+
+.breakdown-table tr.other-row:hover > *,
+.breakdown-table tr.synthetic-row:hover > * {
+  opacity: 1;
+}
+
+.breakdown-table tr.other-row:hover .bar-inner {
+  display: flex;
+}
+
+.breakdown-table .bar-inner.bar-overflow {
+  -webkit-mask-image: linear-gradient(to right, black 60%, transparent 100%);
+  mask-image: linear-gradient(to right, black 60%, transparent 100%);
+}

@@ -1,0 +1,86 @@
+/*
+ * Releases
+ * Release ship tooltip and markers
+ */
+
+.release-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 400px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.release-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.release-tooltip .release-repo {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.release-tooltip .release-tag {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--bg);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.release-tooltip-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.release-tooltip-body {
+  line-height: 1.5;
+  max-height: 150px;
+  overflow-y: auto;
+  word-wrap: break-word;
+}
+
+.release-tooltip-body code {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  padding: 1px 4px;
+  background: var(--bg);
+  border-radius: 3px;
+}
+
+.release-tooltip-body a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.release-tooltip-body a:hover {
+  text-decoration: underline;
+}
+
+.release-tooltip-link {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  pointer-events: auto;
+}
+
+.release-tooltip-link a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.release-tooltip-link a:hover {
+  text-decoration: underline;
+}
