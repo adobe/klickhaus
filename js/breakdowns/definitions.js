@@ -76,7 +76,7 @@ export const allBreakdowns = [
     id: 'breakdown-request-type', col: COLUMN_DEFS.requestType.facetCol, extraFilter: "AND `helix.request_type` != ''", modeToggle: 'contentTypeMode',
   },
   {
-    id: 'breakdown-backend-type', col: COLUMN_DEFS.backendType.facetCol, extraFilter: "AND `helix.backend_type` != ''", modeToggle: 'contentTypeMode',
+    id: 'breakdown-tech-stack', col: COLUMN_DEFS.backendType.facetCol, modeToggle: 'contentTypeMode',
   },
   {
     id: 'breakdown-methods', col: COLUMN_DEFS.method.facetCol, summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning',

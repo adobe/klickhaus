@@ -64,8 +64,8 @@ export const COLUMN_DEFS = {
   backendType: {
     logKey: 'helix.backend_type',
     facetCol: '`helix.backend_type`',
-    label: 'Backend Type',
-    shortLabel: 'backend',
+    label: 'Tech Stack',
+    shortLabel: 'stack',
   },
   forwardedHost: {
     logKey: 'request.headers.x_forwarded_host',

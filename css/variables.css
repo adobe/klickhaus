@@ -93,8 +93,23 @@
   --rt-admin: #059669;
   --rt-delivery: #10b981;
   --rt-config: #64748b;
-  --bt-aws: #22a858;
-  --bt-cloudflare: #f38020;
+  /* Tech Stack - Fastly services (red spectrum) */
+  --ts-fastly-aws: #dc2626;
+  --ts-fastly-cloudflare: #ef4444;
+  --ts-fastly-media: #f87171;
+  --ts-fastly-admin: #b91c1c;
+  --ts-fastly-api: #991b1b;
+  --ts-fastly-config: #fca5a5;
+  --ts-fastly-pipeline: #e11d48;
+  --ts-fastly-static: #f43f5e;
+  --ts-fastly-www: #fb7185;
+  --ts-fastly-forms: #be123c;
+  --ts-fastly-other: #881337;
+  /* Tech Stack - Cloudflare services (orange spectrum) */
+  --ts-cf-workers: #f97316;
+  --ts-cf-r2: #ea580c;
+  --ts-cf-da: #fb923c;
+  --ts-cf-helix: #fdba74;
   --method-get: #2563eb;
   --method-post: #059669;
   --method-put: #ca8a04;
@@ -224,8 +239,23 @@
     --rt-admin: #34d399;
     --rt-delivery: #6ee7b7;
     --rt-config: #94a3b8;
-    --bt-aws: #4ade80;
-    --bt-cloudflare: #f6a560;
+    /* Tech Stack - Fastly services (red spectrum) */
+    --ts-fastly-aws: #f87171;
+    --ts-fastly-cloudflare: #fca5a5;
+    --ts-fastly-media: #fecaca;
+    --ts-fastly-admin: #ef4444;
+    --ts-fastly-api: #dc2626;
+    --ts-fastly-config: #fee2e2;
+    --ts-fastly-pipeline: #fb7185;
+    --ts-fastly-static: #fda4af;
+    --ts-fastly-www: #fecdd3;
+    --ts-fastly-forms: #f43f5e;
+    --ts-fastly-other: #be123c;
+    /* Tech Stack - Cloudflare services (orange spectrum) */
+    --ts-cf-workers: #fb923c;
+    --ts-cf-r2: #fdba74;
+    --ts-cf-da: #fed7aa;
+    --ts-cf-helix: #ffedd5;
     --method-get: #60a5fa;
     --method-post: #34d399;
     --method-put: #facc15;
