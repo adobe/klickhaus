@@ -176,6 +176,90 @@ curl -X PUT "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs/<
 **API Token Requirements:**
 Create a Cloudflare API token with **Zone → Logs → Edit** permission for all relevant zones.
 
+### ClickHouse memory limit exceeded (OOM errors)
+
+**Symptoms:**
+- Dashboard queries fail with `MEMORY_LIMIT_EXCEEDED` errors
+- Error message shows memory usage near or exceeding the limit (e.g., "would use 30.99 GiB, maximum: 28.80 GiB")
+- Queries against `system.query_log` or `system.asynchronous_metric_log` also fail
+
+**Cause:**
+High-volume Fastly log ingestion combined with dashboard queries and ClickHouse Cloud internal monitoring can exceed available memory. With 9 Fastly services sending logs every 5 seconds, memory pressure builds from concurrent INSERT operations.
+
+**Diagnosis:**
+```bash
+# Check current memory usage
+clickhouse client ... --query "
+  SELECT metric, round(value / 1024 / 1024 / 1024, 2) as gb
+  FROM system.asynchronous_metrics
+  WHERE metric IN ('CGroupMemoryTotal', 'CGroupMemoryUsed', 'MemoryResident')"
+
+# Check memory trend over time
+clickhouse client ... --query "
+  SELECT toStartOfMinute(event_time) as minute,
+         round(max(CurrentMetric_MemoryTracking) / 1024/1024/1024, 2) as max_mem_gb
+  FROM system.metric_log
+  WHERE event_time > now() - INTERVAL 30 MINUTE
+  GROUP BY minute ORDER BY minute"
+
+# Check INSERT volume by table
+clickhouse client ... --query "
+  SELECT substring(query, position(query, 'helix_logs_production.') + 22, 40) as tbl,
+         count() as inserts,
+         round(avg(written_rows), 0) as avg_rows
+  FROM system.query_log
+  WHERE event_time > now() - INTERVAL 30 MINUTE
+    AND type = 'QueryFinish'
+    AND query LIKE 'INSERT INTO helix_logs_production.%'
+    AND written_rows > 0
+  GROUP BY tbl ORDER BY inserts DESC
+  SETTINGS max_memory_usage = 500000000"
+```
+
+**Resolution options (in order of impact):**
+
+1. **Increase ClickHouse Cloud memory** (immediate relief):
+   - In ClickHouse Cloud console, increase "Minimum memory per replica"
+   - Recommended: 64 GB for production workloads with high ingestion volume
+
+2. **Increase Fastly logging batch sizes** (reduce INSERT frequency):
+   ```bash
+   # Clone active version, update logging endpoint, activate
+   # For each service, increase max_entries and max_bytes:
+   curl -X PUT -H "Fastly-Key: $FASTLY_TOKEN" \
+     "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/logging/https/Clickhouse" \
+     -d '{"request_max_entries": 100000, "request_max_bytes": 50000000}'
+   ```
+   - `request_max_entries`: 10,000 → 100,000 (10x)
+   - `request_max_bytes`: 5 MB → 50 MB (10x)
+
+3. **Increase Fastly logging period** (fewer flushes per POP):
+   ```bash
+   curl -X PUT -H "Fastly-Key: $FASTLY_TOKEN" \
+     "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/logging/https/Clickhouse" \
+     -d '{"period": 60}'
+   ```
+   - `period`: 5 → 60 seconds (logs delayed up to 60s)
+   - Trade-off: increased latency before logs appear in ClickHouse
+
+**Fastly services with ClickHouse logging:**
+
+| Service | Service ID | Domain |
+|---------|------------|--------|
+| helix5 (main) | In8SInYz3UQGjyG0GPZM42 | *.aem.page, *.aem.live |
+| config | SIDuP3HxleUgBDR3Gi8T24 | config.aem.page |
+| admin | 6a6O21m8WoIIVg5cliw7BW | admin.aem.page |
+| www | 00QRLuuAsVNvsKgNWYVCbb | www.aem.live |
+| API | s2dVksBUsvEKaaYF13wIh6 | api.aem.live |
+| form | UDBDj4zfyNdZEpZApUqhL3 | form.aem.page |
+| pipeline | cHpjIl1WNRu9SFyL1eBSj3 | pipeline.aem-fastly.page |
+| static | ItVEMJu5q2pJE3ejseo0W6 | static.aem.page |
+| media | atG7Eq66bH88LhbNq7Fqq2 | media.aem-fastly.page |
+
+**ClickHouse HTTP insert limits (for reference):**
+- `async_insert_max_data_size`: 100 MB per query
+- `max_insert_block_size`: ~1M rows per block
+
 ## License
 
 MIT
