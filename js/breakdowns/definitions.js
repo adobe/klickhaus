@@ -41,10 +41,10 @@ export const allBreakdowns = [
     id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", summaryCountIf: '`response.status` >= 500', summaryLabel: 'error rate', summaryColor: 'error',
   },
   {
-    id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryLabel: 'live',
+    id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryLabel: 'live', highCardinality: true,
   },
   {
-    id: 'breakdown-forwarded-hosts', col: "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)", linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost, summaryCountIf: "`request.headers.x_forwarded_host` != '' AND `request.headers.x_forwarded_host` != `request.host`", summaryLabel: 'production',
+    id: 'breakdown-forwarded-hosts', col: "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)", linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost, summaryCountIf: "`request.headers.x_forwarded_host` != '' AND `request.headers.x_forwarded_host` != `request.host`", summaryLabel: 'production', highCardinality: true,
   },
   { id: 'breakdown-content-types', col: COLUMN_DEFS.contentType.facetCol, modeToggle: 'contentTypeMode' },
   { id: 'breakdown-status', col: COLUMN_DEFS.status.facetCol, modeToggle: 'contentTypeMode' },
@@ -61,16 +61,16 @@ export const allBreakdowns = [
     id: 'breakdown-cache', col: COLUMN_DEFS.cacheStatus.facetCol, summaryCountIf: "upper(`cdn.cache_status`) LIKE 'HIT%'", summaryLabel: 'cache efficiency',
   },
   {
-    id: 'breakdown-paths', col: COLUMN_DEFS.url.facetCol, linkFn: pathLink, modeToggle: 'contentTypeMode',
+    id: 'breakdown-paths', col: COLUMN_DEFS.url.facetCol, linkFn: pathLink, modeToggle: 'contentTypeMode', highCardinality: true,
   },
   {
-    id: 'breakdown-referers', col: COLUMN_DEFS.referer.facetCol, linkFn: refererLink, dimPrefixes: ['https://', 'http://'],
+    id: 'breakdown-referers', col: COLUMN_DEFS.referer.facetCol, linkFn: refererLink, dimPrefixes: ['https://', 'http://'], highCardinality: true,
   },
   {
-    id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning',
+    id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,
   },
   {
-    id: 'breakdown-ips', col: COLUMN_DEFS.clientIp.facetCol, linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%'", summaryLabel: 'IPv6',
+    id: 'breakdown-ips', col: COLUMN_DEFS.clientIp.facetCol, linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
   },
   {
     id: 'breakdown-request-type', col: COLUMN_DEFS.requestType.facetCol, extraFilter: "AND `helix.request_type` != ''", modeToggle: 'contentTypeMode',

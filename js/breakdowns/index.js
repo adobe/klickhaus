@@ -12,13 +12,46 @@
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
 import { query } from '../api.js';
-import { getTimeFilter, getHostFilter, getTable } from '../time.js';
+import {
+  getTimeFilter, getHostFilter, getTable, getPeriodMs,
+} from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
 
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
+
+// Sampling thresholds: use sampling for high-cardinality facets when time range > 1 hour
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * Get sampling configuration based on facet type and time range
+ * @param {boolean} highCardinality - Whether this facet has high cardinality
+ * @returns {{ sampleClause: string, multiplier: number }} - SQL SAMPLE clause and count multiplier
+ */
+function getSamplingConfig(highCardinality) {
+  if (!highCardinality) {
+    return { sampleClause: '', multiplier: 1 };
+  }
+
+  const periodMs = getPeriodMs();
+
+  // No sampling for time ranges <= 1 hour
+  if (periodMs <= ONE_HOUR_MS) {
+    return { sampleClause: '', multiplier: 1 };
+  }
+
+  // Use 1% sampling for 7d (very large time ranges)
+  // 7d = 604800000ms
+  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
+    return { sampleClause: 'SAMPLE 0.01', multiplier: 100 };
+  }
+
+  // Use 10% sampling for medium time ranges (12h, 24h)
+  // This gives ~3x speedup while maintaining accurate top-K ranking
+  return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
+}
 
 export function resetFacetTimings() {
   Object.keys(facetTimings).forEach((key) => {
@@ -77,26 +110,34 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   // Use the original grouped col for filter exclusion check
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
   const facetFilters = getFacetFiltersExcluding(originalCol);
-  // Add summary countIf if defined for this breakdown
-  const summaryCol = b.summaryCountIf ? `,\n      countIf(${b.summaryCountIf}) as summary_cnt` : '';
 
   // Check for mode toggle (e.g., count vs bytes for content-types)
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
 
+  // Get sampling configuration for high-cardinality facets with large time ranges
+  const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
+  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
+
   // Aggregation functions depend on mode
   // Note: Using `< 400` instead of `>= 100 AND < 400` to match projection definitions
   // (HTTP status codes are always >= 100, so the >= 100 check is redundant)
-  const aggTotal = isBytes ? 'sum(`response.headers.content_length`)' : 'count()';
+  // When sampling, multiply counts to get estimated totals
+  const aggTotal = isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`;
   const aggOk = isBytes
-    ? 'sumIf(`response.headers.content_length`, `response.status` < 400)'
-    : 'countIf(`response.status` < 400)';
+    ? `sumIf(\`response.headers.content_length\`, \`response.status\` < 400)${mult}`
+    : `countIf(\`response.status\` < 400)${mult}`;
   const agg4xx = isBytes
-    ? 'sumIf(`response.headers.content_length`, `response.status` >= 400 AND `response.status` < 500)'
-    : 'countIf(`response.status` >= 400 AND `response.status` < 500)';
+    ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 400 AND \`response.status\` < 500)${mult}`
+    : `countIf(\`response.status\` >= 400 AND \`response.status\` < 500)${mult}`;
   const agg5xx = isBytes
-    ? 'sumIf(`response.headers.content_length`, `response.status` >= 500)'
-    : 'countIf(`response.status` >= 500)';
+    ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 500)${mult}`
+    : `countIf(\`response.status\` >= 500)${mult}`;
+
+  // Summary column also needs multiplier when sampling
+  const summaryColWithMult = b.summaryCountIf
+    ? `,\n      countIf(${b.summaryCountIf})${mult} as summary_cnt`
+    : '';
 
   // Custom orderBy or default to count descending
   const orderBy = b.orderBy || 'cnt DESC';
@@ -106,8 +147,9 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       ${aggTotal} as cnt,
       ${aggOk} as cnt_ok,
       ${agg4xx} as cnt_4xx,
-      ${agg5xx} as cnt_5xx${summaryCol}
+      ${agg5xx} as cnt_5xx${summaryColWithMult}
     FROM ${DATABASE}.${getTable()}
+    ${sampleClause}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
     GROUP BY dim WITH TOTALS
     ORDER BY ${orderBy}
