@@ -10,6 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { query } from './api.js';
+import { parseUTC } from './chart-state.js';
 
 // Get releases within a time range from ClickHouse
 export async function getReleasesInRange(startTime, endTime) {
@@ -36,8 +37,8 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
   if (!releases || releases.length === 0 || !data || data.length < 2) return [];
 
   const { padding, chartWidth } = chartDimensions;
-  const startTime = new Date(data[0].t).getTime();
-  const endTime = new Date(data[data.length - 1].t).getTime();
+  const startTime = parseUTC(data[0].t).getTime();
+  const endTime = parseUTC(data[data.length - 1].t).getTime();
   const timeRange = endTime - startTime;
 
   // Get CSS variables for theming
@@ -121,7 +122,7 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
   }
 
   for (const release of releases) {
-    const publishedTime = new Date(release.published).getTime();
+    const publishedTime = parseUTC(release.published).getTime();
     const xRatio = (publishedTime - startTime) / timeRange;
     const x = padding.left + (chartWidth * xRatio);
 
@@ -227,7 +228,7 @@ function formatReleaseNotes(body) {
 // Show tooltip for a release
 export function showReleaseTooltip(release, x, y) {
   const tooltip = ensureTooltip();
-  const published = new Date(release.published);
+  const published = parseUTC(release.published);
   const timeStr = published.toLocaleString([], {
     year: 'numeric',
     month: 'short',

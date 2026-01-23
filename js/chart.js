@@ -190,7 +190,7 @@ export function renderChart(data) {
   for (const i of tickIndices) {
     if (i < data.length) {
       let x = padding.left + ((chartWidth * i) / (data.length - 1));
-      const time = new Date(data[i].t);
+      const time = parseUTC(data[i].t);
       let label = time.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
@@ -296,7 +296,7 @@ export function renderChart(data) {
   // Detect and highlight up to 5 anomaly regions (spikes or dips)
   // Skip anomaly detection for time ranges less than 5 minutes
   const timeRangeMs = data.length >= 2
-    ? new Date(data[data.length - 1].t) - new Date(data[0].t)
+    ? parseUTC(data[data.length - 1].t) - parseUTC(data[0].t)
     : 0;
   const minTimeRangeMs = 5 * 60 * 1000; // 5 minutes
   const steps = timeRangeMs >= minTimeRangeMs ? detectSteps(series, 5) : [];
@@ -304,8 +304,8 @@ export function renderChart(data) {
   // Store detected steps for investigation (with additional metadata)
   const stepsWithTime = steps.map((s) => ({
     ...s,
-    startTime: data[s.startIndex]?.t ? new Date(data[s.startIndex].t) : null,
-    endTime: data[s.endIndex]?.t ? new Date(data[s.endIndex].t) : null,
+    startTime: data[s.startIndex]?.t ? parseUTC(data[s.startIndex].t) : null,
+    endTime: data[s.endIndex]?.t ? parseUTC(data[s.endIndex].t) : null,
   }));
   setDetectedSteps(stepsWithTime);
 
@@ -339,8 +339,8 @@ export function renderChart(data) {
       : endX + bandPadding;
 
     // Store anomaly bounds for click detection and zoom
-    const startTime = new Date(data[step.startIndex].t);
-    const endTime = new Date(data[step.endIndex].t);
+    const startTime = parseUTC(data[step.startIndex].t);
+    const endTime = parseUTC(data[step.endIndex].t);
     addAnomalyBounds({
       left: bandLeft,
       right: bandRight,
@@ -505,8 +505,8 @@ export function renderChart(data) {
   }
 
   // Fetch and render release ships asynchronously
-  const startTime = new Date(data[0].t);
-  const endTime = new Date(data[data.length - 1].t);
+  const startTime = parseUTC(data[0].t);
+  const endTime = parseUTC(data[data.length - 1].t);
   getReleasesInRange(startTime, endTime).then((releases) => {
     if (releases.length > 0) {
       const chartDimensions = {
@@ -906,8 +906,8 @@ export function setupChartNavigation(callback) {
       // Trigger investigation for the selected time range
       const chartData = getLastChartData();
       if (chartData && chartData.length >= 2) {
-        const fullStart = new Date(chartData[0].t);
-        const fullEnd = new Date(chartData[chartData.length - 1].t);
+        const fullStart = parseUTC(chartData[0].t);
+        const fullEnd = parseUTC(chartData[chartData.length - 1].t);
         investigateTimeRange(startTime, endTime, fullStart, fullEnd);
       }
     } else {

@@ -18,6 +18,7 @@
 import { getTimeFilter } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
+import { parseUTC } from './chart-state.js';
 import {
   CACHE_TOP_N,
   HIGHLIGHT_TOP_N,
@@ -391,8 +392,8 @@ export async function investigateAnomalies(anomalies, chartData) {
     console.log('No chart data for investigation');
     return [];
   }
-  const fullStart = new Date(chartData[0].t);
-  const fullEnd = new Date(chartData[chartData.length - 1].t);
+  const fullStart = parseUTC(chartData[0].t);
+  const fullEnd = parseUTC(chartData[chartData.length - 1].t);
 
   // Select facets to investigate
   const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',

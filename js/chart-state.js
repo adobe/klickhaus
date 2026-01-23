@@ -239,8 +239,8 @@ export function getMostRecentTimeRange() {
   // Last 20% of the timeline
   const startIdx = Math.floor(len * 0.8);
   return {
-    start: new Date(lastChartData[startIdx].t),
-    end: new Date(lastChartData[len - 1].t),
+    start: parseUTC(lastChartData[startIdx].t),
+    end: parseUTC(lastChartData[len - 1].t),
   };
 }
 
