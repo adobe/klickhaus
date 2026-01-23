@@ -50,7 +50,21 @@ export function showLogin() {
 
 export function handleLogout() {
   state.credentials = null;
+
+  // Clear all session-related localStorage entries
   localStorage.removeItem('clickhouse_credentials');
+  localStorage.removeItem('hostAutocompleteSuggestions');
+
+  // Clear all investigation caches (keys starting with 'anomaly_investigation_')
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('anomaly_investigation_')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+
   showLogin();
 }
 
