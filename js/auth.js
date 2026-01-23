@@ -24,6 +24,9 @@ export async function handleLogin(e) {
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
 
+  // Clear any stale stored credentials before attempting login
+  // User input always takes precedence
+  localStorage.removeItem('clickhouse_credentials');
   state.credentials = { user: username, password };
 
   try {
