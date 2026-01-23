@@ -15,6 +15,7 @@ import { openFacetPalette, isPaletteOpen, setOnFacetNavigate } from './facet-pal
 import { zoomToAnomaly, zoomToAnomalyByRank, getAnomalyCount } from './chart.js';
 import { zoomOut } from './time.js';
 import { saveStateToURL } from './url-state.js';
+import { openFacetSearch } from './ui/facet-search.js';
 
 // Keyboard navigation state
 const kbd = {
@@ -255,6 +256,23 @@ function toggleHideCurrentFacet() {
   }
 }
 
+// Open facet search for current facet
+function openFacetSearchForCurrentFacet() {
+  const facet = document.querySelector('.breakdown-card.kbd-focused');
+  if (!facet) return;
+
+  // Find the search link which contains all the needed data attributes
+  const searchLink = facet.querySelector('.facet-search-link[data-action="open-facet-search"]');
+  if (searchLink) {
+    openFacetSearch(
+      searchLink.dataset.col || '',
+      searchLink.dataset.facetId || '',
+      searchLink.dataset.filterCol || '',
+      searchLink.dataset.title || '',
+    );
+  }
+}
+
 // Zoom to anomaly by number key (1-5)
 function zoomToAnomalyNumber(num) {
   const rank = parseInt(num, 10);
@@ -404,6 +422,10 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
       case 'r':
         e.preventDefault();
         document.getElementById('refreshBtn').click();
+        break;
+      case 's':
+        e.preventDefault();
+        openFacetSearchForCurrentFacet();
         break;
       case 'f':
         e.preventDefault();

@@ -18,6 +18,7 @@ import {
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
+import { getFiltersForColumn } from '../filters.js';
 
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
@@ -181,6 +182,52 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
           dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0,
         };
       });
+    }
+
+    // Fetch filtered values that aren't in topN results
+    // This ensures filtered/excluded values are always visible in the facet
+    const filtersForCol = getFiltersForColumn(originalCol);
+    if (filtersForCol.length > 0 && !b.getExpectedLabels) {
+      const existingDims = new Set(data.map((row) => row.dim));
+      const missingFilterValues = filtersForCol
+        .map((f) => f.value)
+        .filter((v) => v !== '' && !existingDims.has(v));
+
+      if (missingFilterValues.length > 0) {
+        // Build query for missing values
+        const searchCol = b.filterCol || col;
+        const valuesList = missingFilterValues
+          .map((v) => `'${v.replace(/'/g, "''")}'`)
+          .join(', ');
+
+        const missingValuesSql = `
+          SELECT
+            ${col} as dim,
+            ${isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`} as cnt,
+            ${aggOk} as cnt_ok,
+            ${agg4xx} as cnt_4xx,
+            ${agg5xx} as cnt_5xx
+          FROM ${DATABASE}.${getTable()}
+          ${sampleClause}
+          WHERE ${timeFilter} ${hostFilter} ${extra}
+            AND ${searchCol} IN (${valuesList})
+          GROUP BY dim
+        `;
+
+        try {
+          const missingResult = await query(missingValuesSql);
+          if (missingResult.data && missingResult.data.length > 0) {
+            // Mark these rows as filtered values and append them
+            const markedRows = missingResult.data.map((row) => ({
+              ...row,
+              isFilteredValue: true,
+            }));
+            data = [...data, ...markedRows];
+          }
+        } catch (err) {
+          // Silently ignore errors fetching filtered values
+        }
+      }
     }
 
     // When showing decomposed values, don't pass filter transformation -

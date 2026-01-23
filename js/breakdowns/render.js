@@ -163,13 +163,18 @@ export function renderBreakdownTable(
     const activeFilter = columnFilters.find((f) => f.value === (row.dim || ''));
     const isIncluded = activeFilter && !activeFilter.exclude;
     const isExcluded = activeFilter && activeFilter.exclude;
+    // Check if this row was added because it's a filtered value not in topN
+    const isFilteredValue = row.isFilteredValue === true;
     let filterClass = '';
     if (isIncluded) {
       filterClass = 'filter-included';
     } else if (isExcluded) {
       filterClass = 'filter-excluded';
     }
-    const rowClass = isSynthetic ? `synthetic-row ${filterClass}` : filterClass;
+    if (isFilteredValue) {
+      filterClass += ' filtered-value-row';
+    }
+    const rowClass = isSynthetic ? `synthetic-row ${filterClass}` : filterClass.trim();
 
     // Build dimension cell content - with optional link and dimmed prefix
     // Synthetic buckets like (same), (empty) don't get links
@@ -270,9 +275,15 @@ export function renderBreakdownTable(
     const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
     const overflowClass = isOverflow ? ' bar-overflow' : '';
 
+    // Build data attributes for facet search link
+    const actualFilterCol = filterCol || col;
+    const searchAttrs = `data-col="${escapeHtml(col)}" data-facet-id="${escapeHtml(id)}" data-filter-col="${escapeHtml(actualFilterCol)}" data-title="${escapeHtml(title)}"`;
+
     html += `
-      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" data-action="increase-topn" title="Click to show top ${nextN}">
-        <td class="dim"><span class="dim-prefix">(other)</span></td>
+      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" title="Click to show top ${nextN}">
+        <td class="dim">
+          <span class="dim-prefix">(<a href="#" class="other-link" data-action="increase-topn">other</a>/<a href="#" class="facet-search-link" data-action="open-facet-search" ${searchAttrs}>search</a>)</span>
+        </td>
         <td class="count">
           <span class="value">${valueFormatter(cnt)}</span>
         </td>
