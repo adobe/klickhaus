@@ -306,7 +306,8 @@ export function cleanupOldCaches() {
 }
 
 /**
- * Build a time filter SQL clause for a specific time window
+ * Build a time filter SQL clause for a specific time window.
+ * Uses minute-aligned timestamps to enable projection usage.
  * @param {Date} start - Window start time
  * @param {Date} end - Window end time
  * @returns {string} SQL WHERE clause
@@ -314,7 +315,8 @@ export function cleanupOldCaches() {
 export function buildTimeFilter(start, end) {
   const startIso = start.toISOString().replace('T', ' ').slice(0, 19);
   const endIso = end.toISOString().replace('T', ' ').slice(0, 19);
-  return `timestamp BETWEEN toDateTime('${startIso}') AND toDateTime('${endIso}')`;
+  // Use minute-aligned filtering to enable projection usage (up to 1 minute imprecision)
+  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
 }
 
 /**
@@ -336,7 +338,38 @@ export function getCategoryFilter(category) {
 }
 
 /**
- * Query a single facet comparing anomaly window vs baseline
+ * Build minute-aligned time filter for inner projection query
+ * @param {Date} start - Window start time
+ * @param {Date} end - Window end time
+ * @returns {string} SQL condition for minute column
+ */
+function buildMinuteFilter(start, end) {
+  const startIso = start.toISOString().replace('T', ' ').slice(0, 19);
+  const endIso = end.toISOString().replace('T', ' ').slice(0, 19);
+  return `minute BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
+}
+
+/**
+ * Get the category count column based on anomaly category
+ * @param {string} category - 'red' (5xx), 'yellow' (4xx), or 'green' (2xx/3xx)
+ * @returns {string} Column expression for category count
+ */
+function getCategoryCountExpr(category) {
+  switch (category) {
+    case 'red':
+      return 'cnt_5xx';
+    case 'yellow':
+      return 'cnt_4xx';
+    case 'green':
+      return 'cnt_ok';
+    default:
+      return 'cnt';
+  }
+}
+
+/**
+ * Query a single facet comparing anomaly window vs baseline.
+ * Uses two-level aggregation to leverage minute-level projections.
  * @param {Object} breakdown - Breakdown definition
  * @param {Object} anomaly - Detected anomaly with time bounds
  * @param {Date} fullStart - Full time range start
@@ -351,23 +384,35 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
   const extra = breakdown.extraFilter || '';
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
-  const categoryFilter = getCategoryFilter(anomaly.category);
+  const catCountExpr = getCategoryCountExpr(anomaly.category);
 
-  // Query for anomaly window counts
-  const anomalyFilter = buildTimeFilter(anomaly.startTime, anomaly.endTime);
+  // Minute-aligned filters for anomaly window detection in outer query
+  const anomalyMinuteFilter = buildMinuteFilter(anomaly.startTime, anomaly.endTime);
 
-  // Single query that calculates counts for both windows
-  // We get BOTH category-filtered AND total counts to calculate share changes
+  // Two-level aggregation:
+  // 1. Inner query: aggregate by (minute, dim) with status counts - uses projection
+  // 2. Outer query: sum across minutes, splitting anomaly vs baseline windows
   const sql = `
     SELECT
-      ${col} as dim,
-      countIf(${anomalyFilter} AND ${categoryFilter}) as anomaly_cat_cnt,
-      countIf(NOT (${anomalyFilter}) AND ${categoryFilter}) as baseline_cat_cnt,
-      countIf(${anomalyFilter}) as anomaly_total_cnt,
-      countIf(NOT (${anomalyFilter})) as baseline_total_cnt
-    FROM ${DATABASE}.${getTable()}
-    WHERE (${buildTimeFilter(fullStart, fullEnd)})
-      ${hostFilter} ${facetFilters} ${extra}
+      dim,
+      sumIf(cat_cnt, ${anomalyMinuteFilter}) as anomaly_cat_cnt,
+      sumIf(cat_cnt, NOT (${anomalyMinuteFilter})) as baseline_cat_cnt,
+      sumIf(cnt, ${anomalyMinuteFilter}) as anomaly_total_cnt,
+      sumIf(cnt, NOT (${anomalyMinuteFilter})) as baseline_total_cnt
+    FROM (
+      SELECT
+        toStartOfMinute(timestamp) as minute,
+        ${col} as dim,
+        count() as cnt,
+        countIf(\`response.status\` < 400) as cnt_ok,
+        countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
+        countIf(\`response.status\` >= 500) as cnt_5xx,
+        ${catCountExpr} as cat_cnt
+      FROM ${DATABASE}.${getTable()}
+      WHERE ${buildTimeFilter(fullStart, fullEnd)}
+        ${hostFilter} ${facetFilters} ${extra}
+      GROUP BY minute, dim
+    )
     GROUP BY dim
     HAVING anomaly_cat_cnt > 0 OR baseline_cat_cnt > 0
     ORDER BY anomaly_cat_cnt DESC
@@ -461,8 +506,9 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
 }
 
 /**
- * Query a facet for selection investigation (compares selection vs rest of time range)
- * Looks at error rates (like anomaly investigation) to find dimensions with changed behavior
+ * Query a facet for selection investigation (compares selection vs rest of time range).
+ * Uses two-level aggregation to leverage minute-level projections.
+ * Looks at error rates to find dimensions with changed behavior.
  * @param {Object} breakdown - Breakdown definition
  * @param {Object} selection - Selection with startTime/endTime
  * @param {Date} fullStart - Full time range start
@@ -478,20 +524,31 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
 
-  // Query for selection window counts - includes error breakdown
-  const selectionFilter = buildTimeFilter(selection.startTime, selection.endTime);
+  // Minute-aligned filter for selection window detection in outer query
+  const selectionMinuteFilter = buildMinuteFilter(selection.startTime, selection.endTime);
 
-  // Query comparing selection vs baseline with error counts
+  // Two-level aggregation:
+  // 1. Inner query: aggregate by (minute, dim) with status counts - uses projection
+  // 2. Outer query: sum across minutes, splitting selection vs baseline windows
   const sql = `
     SELECT
-      ${col} as dim,
-      countIf(${selectionFilter}) as selection_cnt,
-      countIf(NOT (${selectionFilter})) as baseline_cnt,
-      countIf(${selectionFilter} AND \`response.status\` >= 400) as selection_err_cnt,
-      countIf(NOT (${selectionFilter}) AND \`response.status\` >= 400) as baseline_err_cnt
-    FROM ${DATABASE}.${getTable()}
-    WHERE (${buildTimeFilter(fullStart, fullEnd)})
-      ${hostFilter} ${facetFilters} ${extra}
+      dim,
+      sumIf(cnt, ${selectionMinuteFilter}) as selection_cnt,
+      sumIf(cnt, NOT (${selectionMinuteFilter})) as baseline_cnt,
+      sumIf(cnt_4xx + cnt_5xx, ${selectionMinuteFilter}) as selection_err_cnt,
+      sumIf(cnt_4xx + cnt_5xx, NOT (${selectionMinuteFilter})) as baseline_err_cnt
+    FROM (
+      SELECT
+        toStartOfMinute(timestamp) as minute,
+        ${col} as dim,
+        count() as cnt,
+        countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
+        countIf(\`response.status\` >= 500) as cnt_5xx
+      FROM ${DATABASE}.${getTable()}
+      WHERE ${buildTimeFilter(fullStart, fullEnd)}
+        ${hostFilter} ${facetFilters} ${extra}
+      GROUP BY minute, dim
+    )
     GROUP BY dim
     HAVING selection_cnt > 0 OR baseline_cnt > 0
     ORDER BY selection_cnt DESC
