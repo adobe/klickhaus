@@ -306,6 +306,26 @@ export function cleanupOldCaches() {
 }
 
 /**
+ * Clear all investigation caches from localStorage
+ */
+export function clearAllInvestigationCaches() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('anomaly_investigation_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+    // eslint-disable-next-line no-console
+    console.log(`Cleared ${keysToRemove.length} investigation caches from localStorage`);
+  } catch (_e) {
+    // Ignore cleanup errors
+  }
+}
+
+/**
  * Build a time filter SQL clause for a specific time window.
  * Uses minute-aligned timestamps to enable projection usage.
  * @param {Date} start - Window start time

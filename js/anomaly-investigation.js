@@ -29,6 +29,7 @@ import {
   loadCachedInvestigation,
   saveCachedInvestigation,
   cleanupOldCaches,
+  clearAllInvestigationCaches,
   investigateFacet,
   investigateFacetForSelection,
 } from './investigation-data.js';
@@ -507,7 +508,7 @@ export function getHighlightedDimensions(facetId) {
 }
 
 /**
- * Invalidate the investigation cache (call when time range changes)
+ * Invalidate the investigation cache (call when time range changes or refresh is clicked)
  */
 export function invalidateInvestigationCache() {
   currentCacheKey = null;
@@ -515,6 +516,8 @@ export function invalidateInvestigationCache() {
   lastInvestigationResults = [];
   cachedTopContributors = null;
   clearHighlights();
+  // Also clear localStorage caches to ensure fresh investigation on next load
+  clearAllInvestigationCaches();
 }
 
 /**

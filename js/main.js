@@ -45,7 +45,9 @@ import {
   initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId,
 } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
-import { investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation } from './anomaly-investigation.js';
+import {
+  investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation, invalidateInvestigationCache,
+} from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
   initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
@@ -134,6 +136,10 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
 // Load Dashboard Data
 async function loadDashboard(refresh = false) {
   setForceRefresh(refresh);
+  // Clear investigation cache on refresh to ensure fresh results
+  if (refresh) {
+    invalidateInvestigationCache();
+  }
   // Only set new timestamp if not already set from URL or if refreshing
   if (!queryTimestamp() || refresh) {
     setQueryTimestamp(new Date());
