@@ -22,6 +22,7 @@
  * @property {(modeKey: string) => void} toggleFacetMode
  * @property {() => void} closeQuickLinksModal
  * @property {(el: HTMLElement) => void} closeDialog
+ * @property {Function} openFacetSearch - (col, facetId, filterCol, title)
  */
 
 /**
@@ -100,6 +101,17 @@ export function initActionHandlers(handlers) {
       case 'close-dialog': {
         event.stopPropagation();
         handlers.closeDialog?.(target);
+        break;
+      }
+      case 'open-facet-search': {
+        event.preventDefault();
+        event.stopPropagation();
+        handlers.openFacetSearch?.(
+          target.dataset.col || '',
+          target.dataset.facetId || '',
+          target.dataset.filterCol || '',
+          target.dataset.title || '',
+        );
         break;
       }
       default:

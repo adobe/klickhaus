@@ -45,6 +45,7 @@ import {
   initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId,
 } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
+import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import {
   investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation, invalidateInvestigationCache,
 } from './anomaly-investigation.js';
@@ -272,6 +273,7 @@ async function init() {
   // Initialize keyboard navigation and scroll tracking
   initKeyboardNavigation({ toggleFacetMode, reloadDashboard: loadDashboard });
   initFacetPalette();
+  initFacetSearch({ addFilter, loadDashboard });
   initScrollTracking();
 
   // Set up chart navigation
@@ -290,6 +292,7 @@ async function init() {
     toggleFacetMode,
     closeQuickLinksModal,
     closeDialog: (el) => el.closest('dialog')?.close(),
+    openFacetSearch,
   });
 
   // Check for stored credentials - show dashboard immediately if they exist
