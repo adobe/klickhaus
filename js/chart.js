@@ -57,6 +57,7 @@ import {
   getShipNearX,
   hexToRgba,
   roundToNice,
+  parseUTC,
 } from './chart-state.js';
 
 // Re-export state functions for external use
@@ -463,8 +464,8 @@ export function renderChart(data) {
   const pendingSelection = getPendingSelection();
   if (pendingSelection) {
     const { startTime: selStart, endTime: selEnd } = pendingSelection;
-    const dataStart = new Date(data[0].t);
-    const dataEnd = new Date(data[data.length - 1].t);
+    const dataStart = parseUTC(data[0].t);
+    const dataEnd = parseUTC(data[data.length - 1].t);
     const timeRange = dataEnd - dataStart;
 
     if (timeRange > 0) {
