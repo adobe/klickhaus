@@ -48,7 +48,7 @@
 }
 
 .chart-nav-zone {
-  flex: 1;
+  flex: 0 0 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -225,12 +225,12 @@
 }
 
 .chart-nav-left {
-  flex: 0 0 33%;
+  /* 20px width set on .chart-nav-zone */
 }
 
 .chart-nav-right {
-  flex: 0 0 33%;
   margin-left: auto;
+  /* 20px width set on .chart-nav-zone */
 }
 
 .chart-nav-arrow {
