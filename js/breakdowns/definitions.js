@@ -38,7 +38,7 @@ export function formatForwardedHost(dim) {
 
 export const allBreakdowns = [
   {
-    id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", summaryCountIf: '`response.status` >= 500', summaryLabel: 'error rate', summaryColor: 'error',
+    id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", summaryCountIf: '`response.status` >= 500', summaryLabel: 'error rate', summaryColor: 'error', modeToggle: 'contentTypeMode',
   },
   {
     id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryLabel: 'live', highCardinality: true,
