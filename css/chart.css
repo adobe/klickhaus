@@ -48,7 +48,7 @@
 }
 
 .chart-nav-zone {
-  flex: 1;
+  flex: 0 0 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -60,7 +60,7 @@
 
 .chart-nav-zone:hover {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 /* Hide nav hover when cursor is over an anomaly region or ship */
@@ -220,21 +220,24 @@
 
 @media (prefers-color-scheme: dark) {
   .chart-nav-zone:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.08);
   }
 }
 
 .chart-nav-left {
-  flex: 0 0 33%;
+  /* 20px width set on .chart-nav-zone */
 }
 
 .chart-nav-right {
-  flex: 0 0 33%;
   margin-left: auto;
+  /* 20px width set on .chart-nav-zone */
 }
 
 .chart-nav-arrow {
-  font-size: 48px;
+  font-size: 24px;
   color: var(--text-secondary);
-  opacity: 0.3;
+  opacity: 0.7;
+  line-height: 1;
+  display: flex;
+  align-items: center;
 }
