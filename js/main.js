@@ -410,5 +410,17 @@ initMobileFiltersPosition();
 updateTimeRangeLabels(elements.timeRangeSelect);
 window.addEventListener('resize', () => updateTimeRangeLabels(elements.timeRangeSelect));
 
+// Redraw chart on window resize to prevent stretching
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    const lastData = getLastChartData();
+    if (lastData) {
+      renderChart(lastData);
+    }
+  }, 100); // Debounce to avoid excessive redraws during resize
+});
+
 // Expose only for chart.js double-tap without inline handlers
 window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
