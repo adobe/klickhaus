@@ -66,15 +66,16 @@ const elements = {
   hostFilterInput: document.getElementById('hostFilter'),
   refreshBtn: document.getElementById('refreshBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
-  logsBtn: document.getElementById('logsBtn'),
+  viewToggleBtn: document.getElementById('viewToggleBtn'),
   logsView: document.getElementById('logsView'),
+  filtersView: document.getElementById('filtersView'),
   dashboardContent: document.getElementById('dashboardContent'),
 };
 
 // Pass elements to modules that need them
 setElements(elements);
 setUrlStateElements(elements);
-setLogsElements(elements.logsView, elements.logsBtn, elements.dashboardContent);
+setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
 
 // Load dashboard queries (chart and facets)
 async function loadDashboardQueries(timeFilter, hostFilter) {
@@ -380,7 +381,7 @@ async function init() {
     }
   });
 
-  elements.logsBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
+  elements.viewToggleBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
 
   // Listen for login success event from auth.js
   window.addEventListener('login-success', () => {

@@ -30,8 +30,7 @@ body.header-fixed header {
   z-index: 100;
 }
 
-body.header-fixed main,
-body.header-fixed #logsView {
+body.header-fixed main {
   padding-top: 70px;
 }
 
@@ -51,10 +50,6 @@ body.header-fixed #logsView {
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
   mask-image: linear-gradient(to right, black 90%, transparent 100%);
-}
-
-.header-center {
-  flex-shrink: 0;
 }
 
 .header-right {
@@ -97,9 +92,8 @@ header h1 {
     display: none;
   }
 
-  /* Flatten header on mobile: menu | hostFilter | timeRange | Logs | logout */
+  /* Flatten header on mobile: menu | hostFilter | timeRange | more */
   .header-left,
-  .header-center,
   .header-right {
     display: contents;
   }
@@ -111,9 +105,8 @@ header h1 {
 
   #menuBtn { order: 1; }
   #hostFilter { order: 2; flex: 1; min-width: 0; width: auto; }
-  #logsBtn { order: 3; }
-  #timeRange { order: 4; flex: 1; min-width: 0; width: auto; }
-  #logoutBtn { order: 5; }
+  #timeRange { order: 3; flex: 1; min-width: 0; width: auto; }
+  #moreBtn { order: 4; }
 
   /* Hide these on mobile */
   #topN,
@@ -147,27 +140,6 @@ header h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-
-  /* First button (menu) touches left edge */
-  header .menu-btn {
-    margin-left: -12px;
-    padding-left: 12px;
-    padding-right: 10px;
-    width: auto;
-    border-left: none;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-  }
-
-  /* Last button (logout) touches right edge */
-  header #logoutBtn {
-    margin-right: -12px;
-    padding-right: 12px;
-    padding-left: 10px;
-    border-right: none;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
   }
 }
 

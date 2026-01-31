@@ -228,11 +228,15 @@ export function syncUIFromState() {
     document.title = 'CDN Analytics';
   }
 
+  // Update view toggle based on state
   if (state.showLogs) {
     elements.logsView.classList.add('visible');
-    elements.dashboardContent.classList.add('hidden');
-    elements.logsBtn.classList.add('active');
-    elements.logsBtn.textContent = 'Filters';
+    elements.filtersView.classList.remove('visible');
+    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+  } else {
+    elements.logsView.classList.remove('visible');
+    elements.filtersView.classList.add('visible');
+    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
   }
 
   // Apply hidden controls from URL
@@ -252,7 +256,7 @@ export function syncUIFromState() {
     elements.logoutBtn.style.display = 'none';
   }
   if (state.hiddenControls.includes('logs')) {
-    elements.logsBtn.style.display = 'none';
+    elements.viewToggleBtn.style.display = 'none';
   }
 }
 
