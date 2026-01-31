@@ -258,6 +258,7 @@ export function copyLogRow(rowIdx) {
     // Brief visual feedback
     showCopyFeedback();
   }).catch((err) => {
+    // eslint-disable-next-line no-console
     console.error('Failed to copy:', err);
   });
 }
@@ -399,6 +400,7 @@ async function loadMoreLogs() {
     // Check if there might be more data
     hasMoreLogs = result.data.length === PAGE_SIZE;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Load more logs error:', err);
   } finally {
     loadingMore = false;
@@ -498,6 +500,7 @@ export async function loadLogs() {
     hasMoreLogs = result.data.length === PAGE_SIZE;
     logsOffset = result.data.length;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Logs error:', err);
     renderLogsError(err.message);
   } finally {

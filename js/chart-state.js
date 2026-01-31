@@ -230,6 +230,21 @@ export function getDetectedAnomalies() {
 }
 
 /**
+ * Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
+ * @param {string|Date} timestamp - Timestamp to parse
+ * @returns {Date} Parsed date
+ */
+export function parseUTC(timestamp) {
+  const str = String(timestamp);
+  // If already has Z suffix, parse directly
+  if (str.endsWith('Z')) {
+    return new Date(str);
+  }
+  // Otherwise, normalize and append Z to treat as UTC
+  return new Date(`${str.replace(' ', 'T')}Z`);
+}
+
+/**
  * Get the time range for the most recent section (last 20% of timeline)
  * @returns {Object|null} Time range { start, end } or null
  */
@@ -256,21 +271,6 @@ export function getAnomalyAtX(x) {
     }
   }
   return null;
-}
-
-/**
- * Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
- * @param {string|Date} timestamp - Timestamp to parse
- * @returns {Date} Parsed date
- */
-export function parseUTC(timestamp) {
-  const str = String(timestamp);
-  // If already has Z suffix, parse directly
-  if (str.endsWith('Z')) {
-    return new Date(str);
-  }
-  // Otherwise, normalize and append Z to treat as UTC
-  return new Date(`${str.replace(' ', 'T')}Z`);
 }
 
 /**

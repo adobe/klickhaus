@@ -44,7 +44,9 @@ describe('contentLengthBuckets', () => {
       const sql = contentLengthBuckets(n);
       const labels = extractBucketLabels(sql);
 
+      // eslint-disable-next-line no-console
       console.log(`  topN=${n}: got ${labels.length} buckets`);
+      // eslint-disable-next-line no-console
       console.log(`    labels: ${labels.join(', ')}`);
 
       assert.strictEqual(
@@ -120,7 +122,9 @@ describe('timeElapsedBuckets', () => {
       const sql = timeElapsedBuckets(n);
       const labels = extractBucketLabels(sql);
 
+      // eslint-disable-next-line no-console
       console.log(`  topN=${n}: got ${labels.length} buckets`);
+      // eslint-disable-next-line no-console
       console.log(`    labels: ${labels.join(', ')}`);
 
       assert.strictEqual(

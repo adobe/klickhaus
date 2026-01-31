@@ -253,6 +253,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       hasActiveFilter ? null : b.filterOp,
     );
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, err.message);
   } finally {

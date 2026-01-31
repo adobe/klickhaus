@@ -86,6 +86,7 @@ export async function loadHostAutocomplete() {
 
     populateHostDatalist(hosts);
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Failed to load host autocomplete:', err);
   }
 }

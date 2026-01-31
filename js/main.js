@@ -17,7 +17,8 @@ import {
   setElements, handleLogin, handleLogout, showDashboard,
 } from './auth.js';
 import {
-  loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored,
+  loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements,
+  setOnStateRestored, setOnBeforeRestore,
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter,
@@ -47,7 +48,8 @@ import {
 import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import {
-  investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation, invalidateInvestigationCache,
+  investigateAnomalies, reapplyHighlightsIfCached,
+  hasCachedInvestigation, invalidateInvestigationCache,
 } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
@@ -176,7 +178,8 @@ setOnShowFiltersView(() => {
 // Set up filter callbacks to avoid circular dependencies
 setFilterCallbacks(saveStateToURL, loadDashboard);
 
-// Set up callback for browser back/forward navigation
+// Set up callbacks for browser back/forward navigation
+setOnBeforeRestore(() => invalidateInvestigationCache());
 setOnStateRestored(loadDashboard);
 
 // Move facets between pinned/normal/hidden sections based on state
@@ -313,6 +316,7 @@ async function init() {
     } catch (err) {
       // Invalid JSON in localStorage, clear it
       localStorage.removeItem('clickhouse_credentials');
+      // eslint-disable-next-line no-console
       console.log('Invalid credentials in localStorage');
     }
   }
