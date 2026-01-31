@@ -2,6 +2,41 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Naming Conventions
+
+This project enforces strict naming conventions via ESLint rules. All contributions must follow these patterns:
+
+### Variables and Functions
+- **Style**: camelCase
+- **Examples**: `userData`, `fetchLogs`, `handleClick`, `isValid`
+- **Enforced by**: `camelcase` ESLint rule
+
+### Constants
+- **Style**: SCREAMING_SNAKE_CASE for module-level constants
+- **Examples**: `TIME_RANGES`, `DEFAULT_TOP_N`, `API_BASE_URL`
+- **Enforced by**: `camelcase` ESLint rule with SCREAMING_SNAKE_CASE allowed
+
+### Classes and Constructors
+- **Style**: PascalCase
+- **Examples**: `DataProcessor`, `ChartRenderer`, `FilterManager`
+- **Enforced by**: `new-cap` ESLint rule
+
+### File Names
+- **Style**: kebab-case for JavaScript files
+- **Examples**: `url-state.js`, `facet-search.js`, `step-detection.js`
+- **Exception**: Test files append `.test.js` suffix
+
+### Private Members
+- **Style**: Underscore prefix allowed only after `this`
+- **Examples**: `this._internalState`, `this._cache`
+- **Enforced by**: `no-underscore-dangle` ESLint rule
+
+### DOM Element IDs and Classes
+- **Style**: camelCase for IDs, kebab-case for CSS classes
+- **Examples**: `id="loginForm"`, `class="dashboard-content"`
+
+Run `npm run lint` to verify naming conventions are followed.
+
 ## Overview
 
 This repository contains ClickHouse queries and tooling for CDN log analytics. It unifies HTTP request logs from Cloudflare and Fastly into a single analytics table for Adobe Experience Manager (AEM) Edge Delivery Services (formerly Helix).
