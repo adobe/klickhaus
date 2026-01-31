@@ -107,21 +107,6 @@ export function getTimeBucket() {
   return TIME_RANGES[state.timeRange]?.bucket;
 }
 
-export function getTimeBucketStep() {
-  if (timeState.customTimeRange) {
-    const durationMs = timeState.customTimeRange.end - timeState.customTimeRange.start;
-    const durationMinutes = durationMs / 60000;
-
-    if (durationMinutes <= 15) return 'INTERVAL 5 SECOND';
-    if (durationMinutes <= 60) return 'INTERVAL 10 SECOND';
-    if (durationMinutes <= 720) return 'INTERVAL 1 MINUTE';
-    if (durationMinutes <= 1440) return 'INTERVAL 5 MINUTE';
-    return 'INTERVAL 10 MINUTE';
-  }
-
-  return TIME_RANGES[state.timeRange]?.step;
-}
-
 export function getTimeFilter() {
   // For custom time range, use explicit start/end timestamps
   if (timeState.customTimeRange) {

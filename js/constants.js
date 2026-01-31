@@ -18,7 +18,6 @@
  * @property {string} interval - ClickHouse interval literal.
  * @property {string} bucket - ClickHouse bucket expression.
  * @property {number} periodMs - Duration in milliseconds.
- * @property {string} step - ClickHouse interval for WITH FILL STEP.
  * @property {number} cacheTtl - Query cache TTL in seconds.
  */
 
@@ -32,7 +31,6 @@ export const TIME_RANGES = {
     shortLabel: '15m',
     interval: 'INTERVAL 15 MINUTE',
     bucket: 'toStartOfInterval(timestamp, INTERVAL 5 SECOND)',
-    step: 'INTERVAL 5 SECOND',
     periodMs: 15 * 60 * 1000,
     cacheTtl: 60,
   },
@@ -41,7 +39,6 @@ export const TIME_RANGES = {
     shortLabel: '1h',
     interval: 'INTERVAL 1 HOUR',
     bucket: 'toStartOfInterval(timestamp, INTERVAL 10 SECOND)',
-    step: 'INTERVAL 10 SECOND',
     periodMs: 60 * 60 * 1000,
     cacheTtl: 300,
   },
@@ -50,7 +47,6 @@ export const TIME_RANGES = {
     shortLabel: '12h',
     interval: 'INTERVAL 12 HOUR',
     bucket: 'toStartOfMinute(timestamp)',
-    step: 'INTERVAL 1 MINUTE',
     periodMs: 12 * 60 * 60 * 1000,
     cacheTtl: 600,
   },
@@ -59,7 +55,6 @@ export const TIME_RANGES = {
     shortLabel: '24h',
     interval: 'INTERVAL 24 HOUR',
     bucket: 'toStartOfFiveMinutes(timestamp)',
-    step: 'INTERVAL 5 MINUTE',
     periodMs: 24 * 60 * 60 * 1000,
     cacheTtl: 900,
   },
@@ -68,7 +63,6 @@ export const TIME_RANGES = {
     shortLabel: '7d',
     interval: 'INTERVAL 7 DAY',
     bucket: 'toStartOfTenMinutes(timestamp)',
-    step: 'INTERVAL 10 MINUTE',
     periodMs: 7 * 24 * 60 * 60 * 1000,
     cacheTtl: 1800,
   },

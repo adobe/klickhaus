@@ -25,7 +25,6 @@ import {
   getHostFilter,
   getTable,
   getTimeBucket,
-  getTimeBucketStep,
   getTimeFilter,
   setCustomTimeRange,
 } from './time.js';
@@ -57,7 +56,9 @@ import {
   zoomToAnomalyByRank,
   getShipNearX,
   hexToRgba,
+  roundToNice,
   parseUTC,
+  getBucketIntervalMs,
 } from './chart-state.js';
 
 // Re-export state functions for external use
@@ -135,9 +136,23 @@ export function renderChart(data) {
   const totals = data.map((_, i) => series.ok[i] + series.client[i] + series.server[i]);
   const dataMax = Math.max(...totals);
   const minValue = 0;
-
-  // Round up to a multiple of 4 so all 4 grid lines land on whole numbers
-  const maxValue = Math.max(4, Math.ceil(Math.ceil(dataMax) / 4) * 4);
+  
+  // Adjust maxValue to be a nice round number that divides evenly by 4
+  // This ensures all grid lines land on whole numbers
+  let maxValue;
+  if (dataMax === 0) {
+    maxValue = 4; // Minimum scale
+  } else {
+    // Round up to next value that divides evenly by 4
+    const candidateMax = Math.ceil(dataMax);
+    if (candidateMax <= 4) {
+      maxValue = 4;
+    } else if (candidateMax % 4 === 0) {
+      maxValue = candidateMax;
+    } else {
+      maxValue = Math.ceil(candidateMax / 4) * 4;
+    }
+  }
 
   // Colors from CSS variables
   const okColor = cssVar('--status-ok');
@@ -159,6 +174,11 @@ export function renderChart(data) {
   ctx.moveTo(padding.left, height - padding.bottom);
   ctx.lineTo(width - padding.right, height - padding.bottom);
   ctx.stroke();
+
+  // Y axis labels (inside chart, above grid lines, skip zero)
+  ctx.fillStyle = cssVar('--text-secondary');
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
 
   // Y axis labels (inside chart, above grid lines, skip zero)
   ctx.fillStyle = cssVar('--text-secondary');
@@ -968,12 +988,64 @@ export function setupChartNavigation(callback) {
   });
 }
 
+/**
+ * Fill in missing time buckets with zero values
+ * @param {Array} data - Chart data with potential gaps
+ * @param {number} bucketMs - Bucket interval in milliseconds
+ * @returns {Array} Data with all buckets filled
+ */
+function fillMissingBuckets(data, bucketMs) {
+  if (data.length < 2) return data;
+
+  const filled = [];
+  const parseTime = (t) => {
+    const str = String(t);
+    // If already has Z suffix, parse directly
+    if (str.endsWith('Z')) {
+      return new Date(str).getTime();
+    }
+    // Otherwise, normalize and append Z to treat as UTC
+    return new Date(`${str.replace(' ', 'T')}Z`).getTime();
+  };
+
+  const formatTime = (timestamp) => {
+    const d = new Date(timestamp);
+    return d.toISOString().replace('T', ' ').slice(0, 19);
+  };
+
+  for (let i = 0; i < data.length; i += 1) {
+    filled.push(data[i]);
+
+    // Check if there's a gap to the next data point
+    if (i < data.length - 1) {
+      const currentTime = parseTime(data[i].t);
+      const nextTime = parseTime(data[i + 1].t);
+      const gap = nextTime - currentTime;
+
+      // If gap is larger than one bucket, fill with zeros
+      if (gap > bucketMs * 1.5) {
+        let fillTime = currentTime + bucketMs;
+        while (fillTime < nextTime) {
+          filled.push({
+            t: formatTime(fillTime),
+            cnt_ok: '0',
+            cnt_4xx: '0',
+            cnt_5xx: '0',
+          });
+          fillTime += bucketMs;
+        }
+      }
+    }
+  }
+
+  return filled;
+}
+
 export async function loadTimeSeries() {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
   const bucket = getTimeBucket();
-  const step = getTimeBucketStep();
 
   const sql = `
     SELECT
@@ -984,13 +1056,16 @@ export async function loadTimeSeries() {
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters}
     GROUP BY t
-    ORDER BY t WITH FILL STEP ${step}
+    ORDER BY t
   `;
 
   try {
     const result = await query(sql);
-    state.chartData = result.data;
-    renderChart(result.data);
+    // Get bucket interval and fill missing buckets with zeros
+    const bucketMs = getBucketIntervalMs();
+    const filledData = fillMissingBuckets(result.data, bucketMs);
+    state.chartData = filledData;
+    renderChart(filledData);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Chart error:', err);
