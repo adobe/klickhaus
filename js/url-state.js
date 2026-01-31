@@ -14,7 +14,6 @@ import {
   queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange,
 } from './time.js';
 import { renderActiveFilters } from './filters.js';
-import { invalidateInvestigationCache } from './anomaly-investigation.js';
 import {
   DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS,
 } from './constants.js';
@@ -27,6 +26,13 @@ let lastSavedURL = null;
 
 // Callback to reload dashboard (set by main.js)
 let onStateRestored = null;
+
+// Callback to run before restoring state (e.g., invalidate caches)
+let onBeforeRestore = null;
+
+export function setOnBeforeRestore(callback) {
+  onBeforeRestore = callback;
+}
 
 export function setOnStateRestored(callback) {
   onStateRestored = callback;
@@ -164,6 +170,7 @@ export function loadStateFromURL() {
           });
       }
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error('Failed to parse filters from URL:', e);
     }
   }
@@ -267,8 +274,8 @@ window.addEventListener('popstate', () => {
   // Clear custom time range before loading (will be restored if in URL)
   clearCustomTimeRange();
 
-  // Clear investigation cache - anomalies will be re-detected for new time range
-  invalidateInvestigationCache();
+  // Clear caches before restoring state (e.g., investigation cache)
+  if (onBeforeRestore) onBeforeRestore();
 
   // Reload state from the new URL
   loadStateFromURL();

@@ -27,6 +27,7 @@ export async function getReleasesInRange(startTime, endTime) {
     const result = await query(sql, { cacheTtl: 300 });
     return result.data || [];
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Failed to fetch releases:', err);
     return [];
   }
