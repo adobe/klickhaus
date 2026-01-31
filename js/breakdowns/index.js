@@ -159,7 +159,10 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
   const startTime = performance.now();
   try {
-    const result = await query(sql);
+    // Disable query cache for status facets due to intermittent projection mismatch
+    // causing 10x discrepancies (see CLAUDE.md projections section)
+    const skipCache = b.id === 'breakdown-status-range' || b.id === 'breakdown-status';
+    const result = await query(sql, { skipCache });
     // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result.networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
