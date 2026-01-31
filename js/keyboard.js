@@ -454,11 +454,15 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
         break;
       case '+':
       case '=': // Unshifted + on most keyboards
+        // Don't override browser zoom (Cmd/Ctrl + +)
+        if (e.metaKey || e.ctrlKey) return;
         e.preventDefault();
         // Zoom in: to most prominent anomaly, or most recent section if none
         zoomToAnomaly();
         break;
       case '-':
+        // Don't override browser zoom (Cmd/Ctrl + -)
+        if (e.metaKey || e.ctrlKey) return;
         e.preventDefault();
         // Zoom out: expand to next larger predefined period
         if (zoomOut()) {
