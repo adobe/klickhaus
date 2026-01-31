@@ -1,0 +1,133 @@
+# Deploy PR preview to GCS and post preview URL as PR comment
+name: Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Authenticate to GCS
+        run: |
+          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+
+      - name: Deploy preview to GCS
+        run: |
+          gsutil -m rsync -r -d \
+            -x 'node_modules/|\.git/|\.github/|debug/|hars/|scripts/|.*\.local\.md|\.env.*|package-lock\.json|screenshot\.png' \
+            . gs://klickhaus-previews/preview/pr-${{ github.event.pull_request.number }}/
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/gcp-key.json
+
+      - name: Post or update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = `https://klickhaus.aemstatus.net/preview/pr-${prNumber}/dashboard.html`;
+            const marker = '<!-- preview-deploy -->';
+            const body = [
+              marker,
+              `### Preview deployment`,
+              '',
+              `Preview is live at: ${previewUrl}`,
+              '',
+              `_Updated for commit ${context.sha.substring(0, 7)}_`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Authenticate to GCS
+        run: |
+          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+
+      - name: Delete preview from GCS
+        run: |
+          gsutil -m rm -r \
+            gs://klickhaus-previews/preview/pr-${{ github.event.pull_request.number }}/ \
+            || true
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/gcp-key.json
+
+      - name: Update PR comment (preview removed)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const marker = '<!-- preview-deploy -->';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              const body = [
+                marker,
+                `### Preview deployment`,
+                '',
+                `Preview for this PR has been removed.`,
+              ].join('\n');
+
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            }
