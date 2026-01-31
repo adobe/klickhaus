@@ -1,0 +1,23 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the CDN Analytics Dashboard
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: Describe the feature and why it would be useful.
+      placeholder: |
+        I'd like to be able to...
+        
+        This would help because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or mockups
+      description: Drag and drop any screenshots, mockups, or examples that illustrate your idea.
+      placeholder: Paste or drag images here...
