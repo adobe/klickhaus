@@ -27,31 +27,34 @@ export const facetTimings = {};
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
 /**
- * Get sampling configuration based on facet type and time range
+ * Get sampling configuration based on facet type and time range.
+ * Uses WHERE-based sampling on the sample_hash column instead of
+ * SAMPLE BY, allowing aggregate projections for faster queries.
  * @param {boolean} highCardinality - Whether this facet has high cardinality
- * @returns {{ sampleClause: string, multiplier: number }} - SQL SAMPLE clause and count multiplier
+ * @returns {{ sampleFilter: string, multiplier: number }}
+ *   SQL WHERE condition and count multiplier
  */
 function getSamplingConfig(highCardinality) {
   if (!highCardinality) {
-    return { sampleClause: '', multiplier: 1 };
+    return { sampleFilter: '', multiplier: 1 };
   }
 
   const periodMs = getPeriodMs();
 
   // No sampling for time ranges <= 1 hour
   if (periodMs <= ONE_HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
+    return { sampleFilter: '', multiplier: 1 };
   }
 
   // Use 1% sampling for 7d (very large time ranges)
   // 7d = 604800000ms
   if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
-    return { sampleClause: 'SAMPLE 0.01', multiplier: 100 };
+    return { sampleFilter: 'AND sample_hash % 100 < 1', multiplier: 100 };
   }
 
   // Use 10% sampling for medium time ranges (12h, 24h)
   // This gives ~3x speedup while maintaining accurate top-K ranking
-  return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
+  return { sampleFilter: 'AND sample_hash % 10 < 1', multiplier: 10 };
 }
 
 export function resetFacetTimings() {
@@ -117,7 +120,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   const isBytes = mode === 'bytes';
 
   // Get sampling configuration for high-cardinality facets with large time ranges
-  const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
+  const { sampleFilter, multiplier } = getSamplingConfig(b.highCardinality);
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   // Aggregation functions depend on mode
@@ -150,8 +153,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       ${agg4xx} as cnt_4xx,
       ${agg5xx} as cnt_5xx${summaryColWithMult}
     FROM ${DATABASE}.${getTable()}
-    ${sampleClause}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
+    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra} ${sampleFilter}
     GROUP BY dim WITH TOTALS
     ORDER BY ${orderBy}
     LIMIT ${state.topN}
@@ -159,10 +161,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
   const startTime = performance.now();
   try {
-    // Disable query cache for status facets due to intermittent projection mismatch
-    // causing 10x discrepancies (see CLAUDE.md projections section)
-    const skipCache = b.id === 'breakdown-status-range' || b.id === 'breakdown-status';
-    const result = await query(sql, { skipCache });
+    const result = await query(sql);
     // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result.networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
@@ -211,9 +210,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
             ${agg4xx} as cnt_4xx,
             ${agg5xx} as cnt_5xx
           FROM ${DATABASE}.${getTable()}
-          ${sampleClause}
           WHERE ${timeFilter} ${hostFilter} ${extra}
-            AND ${searchCol} IN (${valuesList})
+            AND ${searchCol} IN (${valuesList}) ${sampleFilter}
           GROUP BY dim
         `;
 

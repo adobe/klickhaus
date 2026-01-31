@@ -151,7 +151,7 @@ If you add new tail workers that make outbound requests to external services, ad
 
 **Partitioning**: Daily (`toDate(timestamp)`) for efficient data management and faster queries.
 
-**Sampling**: `SAMPLE BY sample_hash` for approximate queries on large datasets.
+**Sampling**: `SAMPLE BY` was removed to enable aggregate projection usage. For approximate queries on large datasets, use WHERE-based sampling: `AND sample_hash % 10 < 1` (10%) or `AND sample_hash % 100 < 1` (1%). The `sample_hash` column (`MATERIALIZED cityHash64(timestamp, client.ip)`) is still available.
 
 **TTL**: 2 weeks
 
@@ -176,46 +176,50 @@ These skip indexes accelerate queries by excluding granules that definitely don'
 
 #### Projections (Pre-aggregated Facets)
 
-The table has projections for all dashboard facets, enabling sub-second GROUP BY queries. Each projection pre-aggregates data by hour and facet value with status code breakdowns.
+The table has projections for all dashboard facets, enabling sub-second GROUP BY queries. Each projection pre-aggregates data by minute and facet value with status code breakdowns.
+
+**Important**: Projections require that `SAMPLE BY` is NOT set on the table (removed Jan 2026). The time filter must use `toStartOfMinute(timestamp)` (not raw `timestamp`) for the optimizer to select the projection.
 
 | Projection | Facet Column | Dashboard Use |
 |------------|--------------|---------------|
-| `proj_facet_url` | `request.url` | Top paths |
-| `proj_facet_user_agent` | `request.headers.user_agent` | User agents |
-| `proj_facet_referer` | `request.headers.referer` | Referrers |
-| `proj_facet_x_forwarded_host` | `request.headers.x_forwarded_host` | Origin hostnames |
-| `proj_facet_x_error` | `response.headers.x_error` | Error messages |
-| `proj_facet_host` | `request.host` | Edge hostnames |
-| `proj_facet_method` | `request.method` | HTTP methods |
-| `proj_facet_datacenter` | `cdn.datacenter` | Edge locations |
-| `proj_facet_request_type` | `helix.request_type` | AEM request types |
-| `proj_facet_backend_type` | `helix.backend_type` | Backend types |
-| `proj_facet_content_type` | `response.headers.content_type` | Content types |
-| `proj_facet_cache_status` | `upper(cdn.cache_status)` | Cache status |
-| `proj_facet_client_ip` | `if(x_forwarded_for != '', x_forwarded_for, client.ip)` | Client IPs |
-| `proj_facet_status_range` | `concat(intDiv(response.status, 100), 'xx')` | Status ranges (2xx, 4xx) |
-| `proj_facet_status` | `toString(response.status)` | HTTP status codes |
-| `proj_facet_asn` | `concat(client.asn, ' - ', client.name)` | ASN breakdown (legacy) |
-| `proj_facet_asn_num` | `client.asn` | ASN breakdown (v2, integer-based) |
+| `proj_minute_url` | `request.url` | Top paths |
+| `proj_minute_user_agent` | `request.headers.user_agent` | User agents |
+| `proj_minute_referer` | `request.headers.referer` | Referrers |
+| `proj_minute_x_forwarded_host` | `request.headers.x_forwarded_host` | Origin hostnames |
+| `proj_minute_x_error` | `response.headers.x_error` | Error messages |
+| `proj_minute_x_error_grouped` | `replaceRegexpAll(response.headers.x_error, ...)` | Grouped errors |
+| `proj_minute_host` | `request.host` | Edge hostnames |
+| `proj_minute_method` | `request.method` | HTTP methods |
+| `proj_minute_datacenter` | `cdn.datacenter` | Edge locations |
+| `proj_minute_request_type` | `helix.request_type` | AEM request types |
+| `proj_minute_backend_type` | `helix.backend_type` | Backend types |
+| `proj_minute_content_type` | `response.headers.content_type` | Content types |
+| `proj_minute_cache_status` | `upper(cdn.cache_status)` | Cache status |
+| `proj_minute_client_ip` | `if(x_forwarded_for != '', x_forwarded_for, client.ip)` | Client IPs |
+| `proj_minute_status_range` | `concat(toString(intDiv(response.status, 100)), 'xx')` | Status ranges |
+| `proj_minute_status` | `toString(response.status)` | HTTP status codes |
+| `proj_minute_asn` | `client.asn` | ASN breakdown |
+| `proj_minute_time_elapsed` | `multiIf(cdn.time_elapsed_msec < 5, ...)` | Response time buckets |
+| `proj_minute_content_length` | `multiIf(response.headers.content_length ...)` | Size buckets |
 
-Projections are automatically used by ClickHouse when the query matches the projection's GROUP BY. Dashboard facet queries that previously took 8-15s now complete in <1s.
+Projections are automatically used by ClickHouse when the query matches the projection's GROUP BY. Dashboard facet queries complete in <100ms instead of 500-800ms.
 
 To add a new projection:
 ```sql
 ALTER TABLE helix_logs_production.cdn_requests_v2
-ADD PROJECTION proj_facet_example (
+ADD PROJECTION proj_minute_example (
     SELECT
-        toStartOfHour(timestamp) as hour,
+        toStartOfMinute(timestamp) as minute,
         `column.name`,
         count() as cnt,
         countIf(`response.status` < 400) as cnt_ok,
         countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
         countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `column.name`
+    GROUP BY minute, `column.name`
 );
 -- Materialize for existing data (runs in background)
 ALTER TABLE helix_logs_production.cdn_requests_v2
-MATERIALIZE PROJECTION proj_facet_example;
+MATERIALIZE PROJECTION proj_minute_example;
 ```
 
 #### Column Groups
