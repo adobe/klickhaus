@@ -17,25 +17,26 @@ import { recommended } from '@adobe/eslint-config-helix';
  *
  * This project enforces consistent naming conventions:
  * - Variables and functions: camelCase (e.g., myFunction, userData)
- * - Constants: camelCase or SCREAMING_SNAKE_CASE for true constants
+ * - Constants: SCREAMING_SNAKE_CASE (e.g., MAX_SIZE, DEFAULT_TIMEOUT)
  * - Classes/Constructors: PascalCase (e.g., MyClass)
  * - File names: kebab-case (e.g., my-component.js)
  * - Private identifiers: prefix with underscore allowed after 'this'
  *
  * These conventions are enforced via ESLint rules:
- * - 'camelcase': Enforces camelCase for identifiers
+ * - 'camelcase': Enforces camelCase for identifiers (with SCREAMING_SNAKE_CASE allowed)
  * - 'new-cap': Enforces PascalCase for constructors
  * - 'no-underscore-dangle': Controls underscore prefix usage
- * - 'id-match': Validates identifier patterns
  */
 const namingConventionRules = {
   // Enforce camelCase naming for variables and functions
   // Properties are excluded to allow object literals with external APIs
+  // SCREAMING_SNAKE_CASE is allowed for constants (e.g., TIME_RANGES, DEFAULT_TOP_N)
   camelcase: ['error', {
     properties: 'never',
     ignoreDestructuring: false,
     ignoreImports: false,
     ignoreGlobals: false,
+    allow: ['^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'],
   }],
 
   // Enforce PascalCase for constructor functions and classes
@@ -59,14 +60,6 @@ const namingConventionRules = {
       '__ow_body',
       '__ow_query',
     ],
-  }],
-
-  // Enforce identifier patterns for consistency
-  // Allows: camelCase, PascalCase, SCREAMING_SNAKE_CASE, and single underscore
-  'id-match': ['error', '^[a-zA-Z_$][a-zA-Z0-9_$]*$', {
-    properties: false,
-    onlyDeclarations: true,
-    ignoreDestructuring: true,
   }],
 
   // Require function expressions to have names for better debugging

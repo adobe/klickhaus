@@ -12,8 +12,9 @@ This project enforces strict naming conventions via ESLint rules. All contributi
 - **Enforced by**: `camelcase` ESLint rule
 
 ### Constants
-- **Style**: camelCase or SCREAMING_SNAKE_CASE for true constants
-- **Examples**: `maxRetries`, `DEFAULT_TIMEOUT`, `API_BASE_URL`
+- **Style**: SCREAMING_SNAKE_CASE for module-level constants
+- **Examples**: `TIME_RANGES`, `DEFAULT_TOP_N`, `API_BASE_URL`
+- **Enforced by**: `camelcase` ESLint rule with SCREAMING_SNAKE_CASE allowed
 
 ### Classes and Constructors
 - **Style**: PascalCase
