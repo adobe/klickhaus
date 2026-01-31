@@ -1,0 +1,85 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the CDN Analytics Dashboard
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe what you'd like to see added to the dashboard.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like.
+      placeholder: Describe the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve? What use case does it enable?
+      placeholder: |
+        I want to be able to...
+        Currently, I have to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution or how you'd like this to work.
+      placeholder: Describe your ideal solution...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the system would this feature affect?
+      options:
+        - Dashboard UI
+        - Charts/Visualization
+        - New Facet/Breakdown
+        - ClickHouse Queries/Performance
+        - Authentication/Access Control
+        - Logs View
+        - URL Parameters/Sharing
+        - User Management
+        - Data Pipeline/Ingestion
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to your workflow?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Important for my use case
+        - Critical blocker
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or workarounds you've considered.
+      placeholder: Describe any alternatives...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or examples that would help explain the feature.
+      placeholder: Add any other context here...
