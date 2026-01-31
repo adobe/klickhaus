@@ -77,7 +77,8 @@ export function initPullToRefresh(refresh) {
 
   const indicator = document.createElement('div');
   indicator.className = 'pull-to-refresh';
-  indicator.innerHTML = '<span class="pull-arrow">↻</span><span class="pull-text">Pull to refresh</span>';
+  indicator.innerHTML =
+    '<span class="pull-arrow">↻</span><span class="pull-text">Pull to refresh</span>';
   const breakdowns = document.querySelector('.breakdowns');
   if (breakdowns) {
     breakdowns.parentNode.insertBefore(indicator, breakdowns);
@@ -87,43 +88,56 @@ export function initPullToRefresh(refresh) {
   let isPulling = false;
   const threshold = 80;
 
-  document.addEventListener('touchstart', (e) => {
-    if (window.scrollY === 0) {
-      touchStartY = e.touches[0].clientY;
-      isPulling = true;
-    }
-  }, { passive: true });
+  document.addEventListener(
+    'touchstart',
+    (e) => {
+      if (window.scrollY === 0) {
+        touchStartY = e.touches[0].clientY;
+        isPulling = true;
+      }
+    },
+    { passive: true },
+  );
 
-  document.addEventListener('touchmove', (e) => {
-    if (!isPulling) return;
-    const touchY = e.touches[0].clientY;
-    const pullDistance = touchY - touchStartY;
+  document.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!isPulling) return;
+      const touchY = e.touches[0].clientY;
+      const pullDistance = touchY - touchStartY;
 
-    if (pullDistance > 0 && window.scrollY === 0) {
-      indicator.classList.add('visible');
-      indicator.querySelector('.pull-text').textContent = pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
-    } else {
-      indicator.classList.remove('visible');
-    }
-  }, { passive: true });
+      if (pullDistance > 0 && window.scrollY === 0) {
+        indicator.classList.add('visible');
+        indicator.querySelector('.pull-text').textContent =
+          pullDistance > threshold ? 'Release to refresh' : 'Pull to refresh';
+      } else {
+        indicator.classList.remove('visible');
+      }
+    },
+    { passive: true },
+  );
 
-  document.addEventListener('touchend', async (e) => {
-    if (!isPulling) return;
-    const touchEndY = e.changedTouches[0].clientY;
-    const pullDistance = touchEndY - touchStartY;
+  document.addEventListener(
+    'touchend',
+    async (e) => {
+      if (!isPulling) return;
+      const touchEndY = e.changedTouches[0].clientY;
+      const pullDistance = touchEndY - touchStartY;
 
-    if (pullDistance > threshold && window.scrollY === 0) {
-      indicator.classList.add('refreshing');
-      indicator.querySelector('.pull-text').textContent = 'Refreshing...';
-      await refresh();
-      indicator.classList.remove('visible', 'refreshing');
-    } else {
-      indicator.classList.remove('visible');
-    }
+      if (pullDistance > threshold && window.scrollY === 0) {
+        indicator.classList.add('refreshing');
+        indicator.querySelector('.pull-text').textContent = 'Refreshing...';
+        await refresh();
+        indicator.classList.remove('visible', 'refreshing');
+      } else {
+        indicator.classList.remove('visible');
+      }
 
-    isPulling = false;
-    touchStartY = 0;
-  }, { passive: true });
+      isPulling = false;
+      touchStartY = 0;
+    },
+    { passive: true },
+  );
 }
 
 /**

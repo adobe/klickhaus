@@ -10,48 +10,83 @@
  * governing permissions and limitations under the License.
  */
 import {
-  state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange,
+  state,
+  togglePinnedColumn,
+  togglePinnedFacet,
+  toggleHiddenFacet,
+  setOnFacetOrderChange,
 } from './state.js';
 import { setForceRefresh } from './api.js';
+import { setElements, handleLogin, handleLogout, showDashboard } from './auth.js';
 import {
-  setElements, handleLogin, handleLogout, showDashboard,
-} from './auth.js';
-import {
-  loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored,
+  loadStateFromURL,
+  saveStateToURL,
+  syncUIFromState,
+  setUrlStateElements,
+  setOnStateRestored,
 } from './url-state.js';
 import {
-  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter,
+  queryTimestamp,
+  setQueryTimestamp,
+  clearCustomTimeRange,
+  getTimeFilter,
+  getHostFilter,
 } from './time.js';
 import {
-  startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
+  startQueryTimer,
+  stopQueryTimer,
+  hasVisibleUpdatingFacets,
+  initFacetObservers,
 } from './timer.js';
 import {
-  loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
+  loadTimeSeries,
+  setupChartNavigation,
+  getDetectedAnomalies,
+  getLastChartData,
   renderChart,
 } from './chart.js';
 import {
-  loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings,
+  loadAllBreakdowns,
+  loadBreakdown,
+  allBreakdowns,
+  markSlowestFacet,
+  resetFacetTimings,
 } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import {
-  addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks,
+  addFilter,
+  removeFilter,
+  removeFilterByValue,
+  clearFiltersForColumn,
+  setFilterCallbacks,
 } from './filters.js';
-import {
-  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
-} from './logs.js';
+import { loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView } from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import {
-  initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId,
+  initKeyboardNavigation,
+  restoreKeyboardFocus,
+  initScrollTracking,
+  getFocusedFacetId,
 } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import {
-  investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation, invalidateInvestigationCache,
+  investigateAnomalies,
+  reapplyHighlightsIfCached,
+  hasCachedInvestigation,
+  invalidateInvestigationCache,
 } from './anomaly-investigation.js';
-import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
-  initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
+  populateTimeRangeSelect,
+  populateTopNSelect,
+  updateTimeRangeLabels,
+} from './ui/selects.js';
+import {
+  initHostFilterDoubleTap,
+  initMobileTouchSupport,
+  initPullToRefresh,
+  initMobileFiltersPosition,
 } from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
 
@@ -85,9 +120,9 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   const focusedFacetId = getFocusedFacetId();
 
   // Start loading all facets in parallel (they manage their own blur state)
-  const facetPromises = allBreakdowns.map(
-    (b) => loadBreakdown(b, timeFilter, hostFilter).then(() => {
-    // After each facet completes, check if timer should stop
+  const facetPromises = allBreakdowns.map((b) =>
+    loadBreakdown(b, timeFilter, hostFilter).then(() => {
+      // After each facet completes, check if timer should stop
       if (!hasVisibleUpdatingFacets()) {
         stopQueryTimer();
       }

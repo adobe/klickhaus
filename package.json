@@ -6,12 +6,16 @@
   "scripts": {
     "start": "live-server --port=5391 --open=/ --ignore=scripts,.github,.claude,hars,node_modules --ignorePattern=\"\\\\.md$|package.*\\\\.json$|screenshot\\\\.png$\"",
     "test": "node --test",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@adobe/eslint-config-helix": "^3.0.16",
     "canvas": "3.2.1",
-    "live-server": "^1.2.2"
+    "eslint-config-prettier": "^10.1.8",
+    "live-server": "^1.2.2",
+    "prettier": "^3.8.1"
   },
   "keywords": [
     "clickhouse",

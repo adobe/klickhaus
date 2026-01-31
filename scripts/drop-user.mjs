@@ -38,7 +38,7 @@ async function query(sql, adminUser, adminPassword) {
 }
 
 async function main() {
-  const [,, adminUser, adminPassword, username] = process.argv;
+  const [, , adminUser, adminPassword, username] = process.argv;
 
   if (!adminUser || !adminPassword || !username) {
     console.error('Usage: node drop-user.mjs <admin-user> <admin-password> <username>');

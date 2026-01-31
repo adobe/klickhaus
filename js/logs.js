@@ -36,8 +36,9 @@ function formatTimestamp(value) {
  */
 function getLogColumns(allColumns) {
   const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
-  const preferred = LOG_COLUMN_ORDER
-    .filter((col) => allColumns.includes(col) && !pinned.includes(col));
+  const preferred = LOG_COLUMN_ORDER.filter(
+    (col) => allColumns.includes(col) && !pinned.includes(col),
+  );
   const rest = allColumns.filter((col) => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
   return [...pinned, ...preferred, ...rest];
 }
@@ -103,14 +104,13 @@ function formatLogCell(col, value) {
  * @param {Record<string, number>} [params.pinnedOffsets]
  * @returns {string}
  */
-function buildLogCellHtml({
-  col, value, pinned, pinnedOffsets,
-}) {
+function buildLogCellHtml({ col, value, pinned, pinnedOffsets }) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col, value);
   const isPinned = pinned.includes(col);
-  const leftOffset = isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined
-    ? `left: ${pinnedOffsets[col]}px;`
-    : '';
+  const leftOffset =
+    isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined
+      ? `left: ${pinnedOffsets[col]}px;`
+      : '';
 
   let className = cellClass;
   if (isPinned) className = `${className} pinned`.trim();
@@ -138,13 +138,14 @@ function buildLogCellHtml({
  * @param {Record<string, number>} [params.pinnedOffsets]
  * @returns {string}
  */
-function buildLogRowHtml({
-  row, columns, rowIdx, pinned, pinnedOffsets,
-}) {
+function buildLogRowHtml({ row, columns, rowIdx, pinned, pinnedOffsets }) {
   let html = `<tr data-row-idx="${rowIdx}">`;
   for (const col of columns) {
     html += buildLogCellHtml({
-      col, value: row[col], pinned, pinnedOffsets,
+      col,
+      value: row[col],
+      pinned,
+      pinnedOffsets,
     });
   }
   html += '</tr>';
@@ -254,12 +255,15 @@ export function copyLogRow(rowIdx) {
   }
 
   const json = JSON.stringify(nested, null, 2);
-  navigator.clipboard.writeText(json).then(() => {
-    // Brief visual feedback
-    showCopyFeedback();
-  }).catch((err) => {
-    console.error('Failed to copy:', err);
-  });
+  navigator.clipboard
+    .writeText(json)
+    .then(() => {
+      // Brief visual feedback
+      showCopyFeedback();
+    })
+    .catch((err) => {
+      console.error('Failed to copy:', err);
+    });
 }
 
 // Set up click handler for row background clicks
@@ -314,7 +318,10 @@ function appendLogsRows(data) {
   for (let i = 0; i < data.length; i += 1) {
     const rowIdx = existingRows + i;
     html += buildLogRowHtml({
-      row: data[i], columns: fullColumns, rowIdx, pinned,
+      row: data[i],
+      columns: fullColumns,
+      rowIdx,
+      pinned,
     });
   }
 
@@ -327,7 +334,8 @@ export function renderLogsTable(data) {
   const container = logsView.querySelector('.logs-table-container');
 
   if (data.length === 0) {
-    container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
+    container.innerHTML =
+      '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
     return;
   }
 
@@ -346,15 +354,17 @@ export function renderLogsTable(data) {
     <table class="logs-table">
       <thead>
         <tr>
-          ${columns.map((col) => {
-    const isPinned = pinned.includes(col);
-    const pinnedClass = isPinned ? 'pinned' : '';
-    const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
-    const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
-    const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
-    const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
-    return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
-  }).join('')}
+          ${columns
+            .map((col) => {
+              const isPinned = pinned.includes(col);
+              const pinnedClass = isPinned ? 'pinned' : '';
+              const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
+              const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
+              const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
+              const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
+              return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
+            })
+            .join('')}
         </tr>
       </thead>
       <tbody>
@@ -362,7 +372,11 @@ export function renderLogsTable(data) {
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx += 1) {
     html += buildLogRowHtml({
-      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets,
+      row: data[rowIdx],
+      columns,
+      rowIdx,
+      pinned,
+      pinnedOffsets,
     });
   }
 

@@ -33,7 +33,11 @@ describe('compileFilters', () => {
   it('uses numeric comparison when filterValue is a number', () => {
     const filters = [
       {
-        col: "concat(toString(`client.asn`), ' ', dictGet('asn', 'name', `client.asn`))", value: '15169 Google', exclude: false, filterCol: '`client.asn`', filterValue: 15169,
+        col: "concat(toString(`client.asn`), ' ', dictGet('asn', 'name', `client.asn`))",
+        value: '15169 Google',
+        exclude: false,
+        filterCol: '`client.asn`',
+        filterValue: 15169,
       },
     ];
     const { sql } = compileFilters(filters);
@@ -53,7 +57,9 @@ describe('isFilterSuperset', () => {
   });
 
   it('requires cached filters to be present in current', () => {
-    const cached = compileFilters([{ col: '`request.host`', value: 'example.com', exclude: false }]).map;
+    const cached = compileFilters([
+      { col: '`request.host`', value: 'example.com', exclude: false },
+    ]).map;
     const current = compileFilters([
       { col: '`request.host`', value: 'example.com', exclude: false },
       { col: '`request.method`', value: 'GET', exclude: false },
@@ -62,8 +68,12 @@ describe('isFilterSuperset', () => {
   });
 
   it('fails when cached exclude is missing', () => {
-    const cached = compileFilters([{ col: '`request.host`', value: 'example.com', exclude: true }]).map;
-    const current = compileFilters([{ col: '`request.host`', value: 'example.com', exclude: false }]).map;
+    const cached = compileFilters([
+      { col: '`request.host`', value: 'example.com', exclude: true },
+    ]).map;
+    const current = compileFilters([
+      { col: '`request.host`', value: 'example.com', exclude: false },
+    ]).map;
     assert.strictEqual(isFilterSuperset(current, cached), false);
   });
 });

@@ -40,7 +40,12 @@ export function pathLink(val) {
     return `https://${hostFilter.value}${val}`;
   }
   // Check for forwarded host filter (take first host if comma-separated)
-  const fwdHostFilter = state.filters.find((f) => f.col === "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)" && !f.exclude);
+  const fwdHostFilter = state.filters.find(
+    (f) =>
+      f.col ===
+        "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)" &&
+      !f.exclude,
+  );
   if (fwdHostFilter && fwdHostFilter.value !== '(same)') {
     const firstHost = fwdHostFilter.value.split(',')[0].trim();
     return `https://${firstHost}${val}`;

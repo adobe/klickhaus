@@ -59,7 +59,11 @@ const IAM_BINDINGS = [
 function run(cmd, options = {}) {
   console.log(`$ ${cmd}`);
   try {
-    const result = execSync(cmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], ...options });
+    const result = execSync(cmd, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      ...options,
+    });
     if (result.trim()) console.log(result.trim());
     return result;
   } catch (err) {
@@ -69,7 +73,7 @@ function run(cmd, options = {}) {
 }
 
 async function main() {
-  const [,, serviceId] = process.argv;
+  const [, , serviceId] = process.argv;
 
   if (!serviceId) {
     console.error('Usage: node create-bucket.mjs <fastly-service-id>');
@@ -132,10 +136,14 @@ async function main() {
   // 6. Verify configuration
   console.log('\n=== Bucket created successfully ===\n');
   console.log('Configuration:');
-  run(`gcloud storage buckets describe ${bucketUrl} --format="table(name,location,public_access_prevention,soft_delete_policy.retentionDurationSeconds)"`);
+  run(
+    `gcloud storage buckets describe ${bucketUrl} --format="table(name,location,public_access_prevention,soft_delete_policy.retentionDurationSeconds)"`,
+  );
 
   console.log('\nIAM Policy:');
-  run(`gcloud storage buckets get-iam-policy ${bucketUrl} --format="table(bindings.role,bindings.members)"`);
+  run(
+    `gcloud storage buckets get-iam-policy ${bucketUrl} --format="table(bindings.role,bindings.members)"`,
+  );
 
   console.log(`\n${'='.repeat(60)}`);
   console.log('NEXT STEPS: Configure Fastly Logging');

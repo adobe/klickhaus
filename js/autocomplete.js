@@ -70,7 +70,10 @@ export async function loadHostAutocomplete() {
     // Add forwarded hosts (split comma-separated values)
     for (const row of forwardedHostsResult.data) {
       if (row.host) {
-        const hosts = row.host.split(',').map((h) => h.trim()).filter((h) => h);
+        const hosts = row.host
+          .split(',')
+          .map((h) => h.trim())
+          .filter((h) => h);
         hosts.forEach((h) => hostSet.add(h));
       }
     }
@@ -79,10 +82,13 @@ export async function loadHostAutocomplete() {
     const hosts = Array.from(hostSet).sort().slice(0, 200);
 
     // Cache in localStorage
-    localStorage.setItem(HOST_CACHE_KEY, JSON.stringify({
-      hosts,
-      timestamp: Date.now(),
-    }));
+    localStorage.setItem(
+      HOST_CACHE_KEY,
+      JSON.stringify({
+        hosts,
+        timestamp: Date.now(),
+      }),
+    );
 
     populateHostDatalist(hosts);
   } catch (err) {

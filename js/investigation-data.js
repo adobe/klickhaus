@@ -31,53 +31,248 @@ export const HIGHLIGHT_TOP_N = 3;
 
 // Car-themed word lists for generating stable IDs
 const CAR_ADJECTIVES = [
-  'alpine', 'azure', 'blazing', 'bold', 'brilliant', 'chrome', 'classic',
-  'coastal', 'cosmic', 'crimson', 'crystal', 'daring', 'dazzling', 'dusty',
-  'electric', 'elegant', 'ember', 'emerald', 'fierce', 'fiery', 'flash',
-  'forest', 'frozen', 'gentle', 'gilded', 'gleaming', 'golden', 'granite',
-  'hidden', 'highland', 'icy', 'ivory', 'jade', 'jet', 'lunar', 'marble',
-  'midnight', 'misty', 'moonlit', 'neon', 'noble', 'obsidian', 'ocean',
-  'onyx', 'opulent', 'pearl', 'phantom', 'polar', 'pristine', 'radiant',
-  'raven', 'royal', 'ruby', 'rustic', 'sable', 'sapphire', 'scarlet',
-  'shadow', 'silent', 'silver', 'sleek', 'smoky', 'solar', 'sonic',
-  'speedy', 'starlit', 'steel', 'storm', 'sunset', 'swift', 'teal',
-  'thunder', 'titan', 'turbo', 'twilight', 'velvet', 'vintage', 'violet',
-  'wild', 'winter', 'zephyr',
+  'alpine',
+  'azure',
+  'blazing',
+  'bold',
+  'brilliant',
+  'chrome',
+  'classic',
+  'coastal',
+  'cosmic',
+  'crimson',
+  'crystal',
+  'daring',
+  'dazzling',
+  'dusty',
+  'electric',
+  'elegant',
+  'ember',
+  'emerald',
+  'fierce',
+  'fiery',
+  'flash',
+  'forest',
+  'frozen',
+  'gentle',
+  'gilded',
+  'gleaming',
+  'golden',
+  'granite',
+  'hidden',
+  'highland',
+  'icy',
+  'ivory',
+  'jade',
+  'jet',
+  'lunar',
+  'marble',
+  'midnight',
+  'misty',
+  'moonlit',
+  'neon',
+  'noble',
+  'obsidian',
+  'ocean',
+  'onyx',
+  'opulent',
+  'pearl',
+  'phantom',
+  'polar',
+  'pristine',
+  'radiant',
+  'raven',
+  'royal',
+  'ruby',
+  'rustic',
+  'sable',
+  'sapphire',
+  'scarlet',
+  'shadow',
+  'silent',
+  'silver',
+  'sleek',
+  'smoky',
+  'solar',
+  'sonic',
+  'speedy',
+  'starlit',
+  'steel',
+  'storm',
+  'sunset',
+  'swift',
+  'teal',
+  'thunder',
+  'titan',
+  'turbo',
+  'twilight',
+  'velvet',
+  'vintage',
+  'violet',
+  'wild',
+  'winter',
+  'zephyr',
 ];
 
 // Car colors organized by severity for anomaly ID generation
 const CAR_COLORS_RED = [
-  'burgundy', 'cardinal', 'carmine', 'cerise', 'cherry', 'claret', 'coral',
-  'cranberry', 'crimson', 'garnet', 'magenta', 'maroon', 'raspberry', 'rose',
-  'ruby', 'russet', 'rust', 'scarlet', 'vermillion', 'wine',
+  'burgundy',
+  'cardinal',
+  'carmine',
+  'cerise',
+  'cherry',
+  'claret',
+  'coral',
+  'cranberry',
+  'crimson',
+  'garnet',
+  'magenta',
+  'maroon',
+  'raspberry',
+  'rose',
+  'ruby',
+  'russet',
+  'rust',
+  'scarlet',
+  'vermillion',
+  'wine',
 ];
 
 const CAR_COLORS_ORANGE = [
-  'amber', 'apricot', 'bronze', 'burnt', 'butterscotch', 'caramel', 'carrot',
-  'cinnamon', 'copper', 'flame', 'ginger', 'gold', 'honey', 'marigold',
-  'melon', 'ochre', 'orange', 'papaya', 'peach', 'pumpkin', 'saffron',
-  'sand', 'sienna', 'tan', 'tangerine', 'tawny', 'topaz', 'yellow',
+  'amber',
+  'apricot',
+  'bronze',
+  'burnt',
+  'butterscotch',
+  'caramel',
+  'carrot',
+  'cinnamon',
+  'copper',
+  'flame',
+  'ginger',
+  'gold',
+  'honey',
+  'marigold',
+  'melon',
+  'ochre',
+  'orange',
+  'papaya',
+  'peach',
+  'pumpkin',
+  'saffron',
+  'sand',
+  'sienna',
+  'tan',
+  'tangerine',
+  'tawny',
+  'topaz',
+  'yellow',
 ];
 
 const CAR_COLORS_COOL = [
-  'aqua', 'azure', 'blue', 'cerulean', 'chartreuse', 'cobalt', 'cyan',
-  'emerald', 'forest', 'green', 'hunter', 'indigo', 'jade', 'lagoon',
-  'lime', 'mint', 'navy', 'olive', 'pacific', 'pine', 'sage', 'seafoam',
-  'spruce', 'teal', 'turquoise', 'verdant', 'viridian',
+  'aqua',
+  'azure',
+  'blue',
+  'cerulean',
+  'chartreuse',
+  'cobalt',
+  'cyan',
+  'emerald',
+  'forest',
+  'green',
+  'hunter',
+  'indigo',
+  'jade',
+  'lagoon',
+  'lime',
+  'mint',
+  'navy',
+  'olive',
+  'pacific',
+  'pine',
+  'sage',
+  'seafoam',
+  'spruce',
+  'teal',
+  'turquoise',
+  'verdant',
+  'viridian',
 ];
 
 const CAR_MODELS = [
-  'accord', 'alpine', 'beetle', 'boxster', 'bronco', 'camaro', 'camry',
-  'cayenne', 'challenger', 'charger', 'civic', 'cobra', 'continental',
-  'corolla', 'corvette', 'defender', 'elantra', 'escort', 'explorer',
-  'firebird', 'focus', 'frontier', 'fury', 'galaxie', 'giulia', 'gto',
-  'impala', 'jetta', 'lancer', 'landcruiser', 'maverick', 'miata', 'monte',
-  'mustang', 'navigator', 'nova', 'outback', 'panda', 'pantera', 'passat',
-  'pathfinder', 'pinto', 'porsche', 'prelude', 'prius', 'quattro', 'rabbit',
-  'ranger', 'raptor', 'roadster', 'safari', 'scirocco', 'senna', 'shelby',
-  'sierra', 'skyline', 'solara', 'sonata', 'spark', 'spider', 'stingray',
-  'supra', 'tacoma', 'tempest', 'tercel', 'thunderbird', 'tiguan', 'torino',
-  'tundra', 'vantage', 'viper', 'wrangler', 'zephyr',
+  'accord',
+  'alpine',
+  'beetle',
+  'boxster',
+  'bronco',
+  'camaro',
+  'camry',
+  'cayenne',
+  'challenger',
+  'charger',
+  'civic',
+  'cobra',
+  'continental',
+  'corolla',
+  'corvette',
+  'defender',
+  'elantra',
+  'escort',
+  'explorer',
+  'firebird',
+  'focus',
+  'frontier',
+  'fury',
+  'galaxie',
+  'giulia',
+  'gto',
+  'impala',
+  'jetta',
+  'lancer',
+  'landcruiser',
+  'maverick',
+  'miata',
+  'monte',
+  'mustang',
+  'navigator',
+  'nova',
+  'outback',
+  'panda',
+  'pantera',
+  'passat',
+  'pathfinder',
+  'pinto',
+  'porsche',
+  'prelude',
+  'prius',
+  'quattro',
+  'rabbit',
+  'ranger',
+  'raptor',
+  'roadster',
+  'safari',
+  'scirocco',
+  'senna',
+  'shelby',
+  'sierra',
+  'skyline',
+  'solara',
+  'sonata',
+  'spark',
+  'spider',
+  'stingray',
+  'supra',
+  'tacoma',
+  'tempest',
+  'tercel',
+  'thunderbird',
+  'tiguan',
+  'torino',
+  'tundra',
+  'vantage',
+  'viper',
+  'wrangler',
+  'zephyr',
 ];
 
 /**
@@ -90,7 +285,7 @@ function simpleHash(str) {
   for (let i = 0; i < str.length; i += 1) {
     const char = str.charCodeAt(i);
     // eslint-disable-next-line no-bitwise
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     // eslint-disable-next-line no-bitwise
     hash |= 0; // Convert to 32-bit integer
   }
@@ -121,7 +316,13 @@ function roundToMinute(date) {
  * @param {string} category - Anomaly category: 'red' (5xx), 'yellow' (4xx), or 'green' (2xx/3xx)
  * @returns {string} Car-themed ID like "opulent-crimson-miata"
  */
-export function generateAnomalyId(baseTimeRange, baseFilters, anomalyStart, anomalyEnd, category = 'green') {
+export function generateAnomalyId(
+  baseTimeRange,
+  baseFilters,
+  anomalyStart,
+  anomalyEnd,
+  category = 'green',
+) {
   // Create a stable string from the inputs (round timestamps to minute for cache stability)
   const inputStr = [
     baseTimeRange,
@@ -148,9 +349,8 @@ export function generateAnomalyId(baseTimeRange, baseFilters, anomalyStart, anom
   // Use different parts of the hash to select words
   const adjIdx = hash % CAR_ADJECTIVES.length;
   const colorIdx = Math.floor(hash / CAR_ADJECTIVES.length) % colorList.length;
-  const modelIdx = Math.floor(
-    hash / (CAR_ADJECTIVES.length * colorList.length),
-  ) % CAR_MODELS.length;
+  const modelIdx =
+    Math.floor(hash / (CAR_ADJECTIVES.length * colorList.length)) % CAR_MODELS.length;
 
   return `${CAR_ADJECTIVES[adjIdx]}-${colorList[colorIdx]}-${CAR_MODELS[modelIdx]}`;
 }
@@ -211,7 +411,9 @@ export function isCacheEligible(cachedContext) {
   const currentFilterCount = Object.keys(current.filterMap).length;
   if (currentFilterCount > cachedFilterCount) {
     // eslint-disable-next-line no-console
-    console.log(`Cache eligible: drilled in (${cachedFilterCount} → ${currentFilterCount} filters)`);
+    console.log(
+      `Cache eligible: drilled in (${cachedFilterCount} → ${currentFilterCount} filters)`,
+    );
   } else {
     // eslint-disable-next-line no-console
     console.log('Cache eligible: same context');
@@ -272,12 +474,15 @@ export function loadCachedInvestigation(cacheKey) {
 export function saveCachedInvestigation(cacheKey, data) {
   try {
     const context = getQueryContext();
-    localStorage.setItem(`anomaly_investigation_${cacheKey}`, JSON.stringify({
-      ...data,
-      context,
-      version: CACHE_VERSION,
-      timestamp: Date.now(),
-    }));
+    localStorage.setItem(
+      `anomaly_investigation_${cacheKey}`,
+      JSON.stringify({
+        ...data,
+        context,
+        version: CACHE_VERSION,
+        timestamp: Date.now(),
+      }),
+    );
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('Failed to cache investigation:', e);
@@ -397,9 +602,7 @@ function getCategoryCountExpr(category) {
  * @returns {Promise<Array>} Facet values with change analysis
  */
 export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
-  const col = typeof breakdown.col === 'function'
-    ? breakdown.col(state.topN)
-    : breakdown.col;
+  const col = typeof breakdown.col === 'function' ? breakdown.col(state.topN) : breakdown.col;
 
   const extra = breakdown.extraFilter || '';
   const hostFilter = getHostFilter();
@@ -444,7 +647,7 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
 
     // Calculate anomaly and baseline durations in ms
     const anomalyDurationMs = anomaly.endTime - anomaly.startTime;
-    const baselineDurationMs = (fullEnd - fullStart) - anomalyDurationMs;
+    const baselineDurationMs = fullEnd - fullStart - anomalyDurationMs;
 
     // Normalize to rate per minute for fair comparison
     const anomalyMinutes = anomalyDurationMs / 60000;
@@ -480,22 +683,16 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
       }
 
       // Calculate share of category during anomaly vs baseline
-      const anomalyShare = totalAnomalyCatCnt > 0
-        ? (anomalyCatCnt / totalAnomalyCatCnt) * 100
-        : 0;
-      const baselineShare = totalBaselineCatCnt > 0
-        ? (baselineCatCnt / totalBaselineCatCnt) * 100
-        : 0;
+      const anomalyShare = totalAnomalyCatCnt > 0 ? (anomalyCatCnt / totalAnomalyCatCnt) * 100 : 0;
+      const baselineShare =
+        totalBaselineCatCnt > 0 ? (baselineCatCnt / totalBaselineCatCnt) * 100 : 0;
       // Positive = over-represented during anomaly
       const shareChange = anomalyShare - baselineShare;
 
       // Calculate error rate for this dimension (category errors / total requests)
-      const anomalyErrorRate = anomalyTotalCnt > 0
-        ? (anomalyCatCnt / anomalyTotalCnt) * 100
-        : 0;
-      const baselineErrorRate = baselineTotalCnt > 0
-        ? (baselineCatCnt / baselineTotalCnt) * 100
-        : 0;
+      const anomalyErrorRate = anomalyTotalCnt > 0 ? (anomalyCatCnt / anomalyTotalCnt) * 100 : 0;
+      const baselineErrorRate =
+        baselineTotalCnt > 0 ? (baselineCatCnt / baselineTotalCnt) * 100 : 0;
       const errorRateChange = anomalyErrorRate - baselineErrorRate;
 
       return {
@@ -536,9 +733,7 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
  * @returns {Promise<Array>} Facet values with change analysis
  */
 export async function investigateFacetForSelection(breakdown, selection, fullStart, fullEnd) {
-  const col = typeof breakdown.col === 'function'
-    ? breakdown.col(state.topN)
-    : breakdown.col;
+  const col = typeof breakdown.col === 'function' ? breakdown.col(state.topN) : breakdown.col;
 
   const extra = breakdown.extraFilter || '';
   const hostFilter = getHostFilter();
@@ -580,7 +775,7 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
 
     // Calculate durations for rate normalization
     const selectionDurationMs = selection.endTime - selection.startTime;
-    const baselineDurationMs = (fullEnd - fullStart) - selectionDurationMs;
+    const baselineDurationMs = fullEnd - fullStart - selectionDurationMs;
     const selectionMinutes = selectionDurationMs / 60000;
     const baselineMinutes = baselineDurationMs / 60000;
 
@@ -627,12 +822,10 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
       const shareChange = selectionShare - baselineShare;
 
       // Calculate error share during selection vs baseline
-      const selectionErrShare = totalSelectionErrCnt > 0
-        ? (selectionErrCnt / totalSelectionErrCnt) * 100
-        : 0;
-      const baselineErrShare = totalBaselineErrCnt > 0
-        ? (baselineErrCnt / totalBaselineErrCnt) * 100
-        : 0;
+      const selectionErrShare =
+        totalSelectionErrCnt > 0 ? (selectionErrCnt / totalSelectionErrCnt) * 100 : 0;
+      const baselineErrShare =
+        totalBaselineErrCnt > 0 ? (baselineErrCnt / totalBaselineErrCnt) * 100 : 0;
       const errShareChange = selectionErrShare - baselineErrShare;
 
       // Calculate error rate change for this dimension
@@ -660,9 +853,10 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
     const filtered = analyzed
       .filter((r) => {
         const hasVolume = r.selectionRate > 0.5 || r.baselineRate > 0.5;
-        const hasSignificantChange = Math.abs(r.shareChange) > 5
-          || Math.abs(r.errShareChange) > 5
-          || Math.abs(r.errRateChange) > 5;
+        const hasSignificantChange =
+          Math.abs(r.shareChange) > 5 ||
+          Math.abs(r.errShareChange) > 5 ||
+          Math.abs(r.errRateChange) > 5;
         return hasVolume && hasSignificantChange;
       })
       .map((r) => ({
@@ -674,8 +868,10 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
           Math.abs(r.errRateChange),
         ),
         // Keep the actual change value with the largest magnitude for tooltip
-        shareChange: [r.shareChange, r.errShareChange, r.errRateChange]
-          .reduce((max, v) => (Math.abs(v) > Math.abs(max) ? v : max), 0),
+        shareChange: [r.shareChange, r.errShareChange, r.errRateChange].reduce(
+          (max, v) => (Math.abs(v) > Math.abs(max) ? v : max),
+          0,
+        ),
       }))
       .sort((a, b) => b.maxChange - a.maxChange)
       .slice(0, 5);
@@ -697,8 +893,8 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
       const top = sorted[0];
       // eslint-disable-next-line no-console
       console.log(
-        `  ${breakdown.id}: ${analyzed.length} dims, `
-        + `top share=${top?.shareChange}pp, errShare=${top?.errShareChange}pp`,
+        `  ${breakdown.id}: ${analyzed.length} dims, ` +
+          `top share=${top?.shareChange}pp, errShare=${top?.errShareChange}pp`,
       );
     }
 

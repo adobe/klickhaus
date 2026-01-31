@@ -94,12 +94,14 @@ export const COLUMN_DEFS = {
   },
   clientIp: {
     logKey: 'client.ip',
-    facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
+    facetCol:
+      "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
     label: 'Client IP',
   },
   forwardedFor: {
     logKey: 'request.headers.x_forwarded_for',
-    facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
+    facetCol:
+      "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
     label: 'Forwarded For',
   },
   accept: {

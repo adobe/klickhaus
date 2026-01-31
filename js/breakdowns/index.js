@@ -12,9 +12,7 @@
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
 import { query } from '../api.js';
-import {
-  getTimeFilter, getHostFilter, getTable, getPeriodMs,
-} from '../time.js';
+import { getTimeFilter, getHostFilter, getTable, getPeriodMs } from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
@@ -100,8 +98,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
   // When there's an active LIKE filter for this breakdown, switch to raw column
   // to show decomposed individual values instead of grouped ones
-  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
-    && state.filters.some((f) => f.col === col);
+  const hasActiveFilter =
+    b.filterOp === 'LIKE' && b.filterCol && state.filters.some((f) => f.col === col);
   if (hasActiveFilter) {
     col = b.filterCol;
   }
@@ -161,12 +159,13 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
   try {
     const result = await query(sql);
     // Prefer actual network time from Resource Timing API, fallback to wall clock
-    const elapsed = result.networkTime ?? (performance.now() - startTime);
+    const elapsed = result.networkTime ?? performance.now() - startTime;
     facetTimings[b.id] = elapsed; // Track timing for slowest detection
     // Calculate summary ratio from totals if summaryCountIf is defined
-    const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
-      ? parseInt(result.totals.summary_cnt, 10) / parseInt(result.totals.cnt, 10)
-      : null;
+    const summaryRatio =
+      b.summaryCountIf && result.totals && result.totals.cnt > 0
+        ? parseInt(result.totals.summary_cnt, 10) / parseInt(result.totals.cnt, 10)
+        : null;
 
     // Fill in missing buckets for continuous range facets (e.g., content-length, time-elapsed)
     let { data } = result;
@@ -179,7 +178,11 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
         }
         // Create empty bucket row
         return {
-          dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0,
+          dim: label,
+          cnt: 0,
+          cnt_ok: 0,
+          cnt_4xx: 0,
+          cnt_5xx: 0,
         };
       });
     }
@@ -196,9 +199,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       if (missingFilterValues.length > 0) {
         // Build query for missing values
         const searchCol = b.filterCol || col;
-        const valuesList = missingFilterValues
-          .map((v) => `'${v.replace(/'/g, "''")}'`)
-          .join(', ');
+        const valuesList = missingFilterValues.map((v) => `'${v.replace(/'/g, "''")}'`).join(', ');
 
         const missingValuesSql = `
           SELECT

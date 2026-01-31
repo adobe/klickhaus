@@ -38,10 +38,11 @@ function renderResults() {
     return;
   }
 
-  container.innerHTML = searchResults.map((row, i) => {
-    const dim = row.dim || '(empty)';
-    const selectedClass = i === selectedIndex ? ' selected' : '';
-    return `
+  container.innerHTML = searchResults
+    .map((row, i) => {
+      const dim = row.dim || '(empty)';
+      const selectedClass = i === selectedIndex ? ' selected' : '';
+      return `
       <div class="facet-search-item${selectedClass}" data-index="${i}" role="option" aria-selected="${i === selectedIndex}">
         <span class="facet-search-value" title="${escapeHtml(dim)}">${escapeHtml(dim)}</span>
         <span class="facet-search-count">${formatNumber(row.cnt)}</span>
@@ -51,7 +52,8 @@ function renderResults() {
         </span>
       </div>
     `;
-  }).join('');
+    })
+    .join('');
 }
 
 /**

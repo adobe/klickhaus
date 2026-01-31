@@ -122,11 +122,11 @@ export function detectStep(series) {
   const successBaseline = median(validSuccessScores);
 
   // Calculate deviations from baseline (as percentage)
-  const errorDeviations = errorScores.map(
-    (v) => (errorBaseline > 0 ? (v - errorBaseline) / errorBaseline : 0),
+  const errorDeviations = errorScores.map((v) =>
+    errorBaseline > 0 ? (v - errorBaseline) / errorBaseline : 0,
   );
-  const successDeviations = successScores.map(
-    (v) => (successBaseline > 0 ? (v - successBaseline) / successBaseline : 0),
+  const successDeviations = successScores.map((v) =>
+    successBaseline > 0 ? (v - successBaseline) / successBaseline : 0,
   );
 
   // Calculate standard deviations for adaptive thresholds
@@ -143,11 +143,29 @@ export function detectStep(series) {
 
   // Find anomaly regions
   // Error spikes: values above baseline (bad)
-  const errorSpikeRegions = findAnomalyRegions(errorDeviations, errorThreshold, 'above', startMargin, endMargin);
+  const errorSpikeRegions = findAnomalyRegions(
+    errorDeviations,
+    errorThreshold,
+    'above',
+    startMargin,
+    endMargin,
+  );
   // Success drops: values below baseline (bad)
-  const successDropRegions = findAnomalyRegions(successDeviations, successThreshold, 'below', startMargin, endMargin);
+  const successDropRegions = findAnomalyRegions(
+    successDeviations,
+    successThreshold,
+    'below',
+    startMargin,
+    endMargin,
+  );
   // Success spikes: values above baseline (notable but not urgent)
-  const successSpikeRegions = findAnomalyRegions(successDeviations, successThreshold, 'above', startMargin, endMargin);
+  const successSpikeRegions = findAnomalyRegions(
+    successDeviations,
+    successThreshold,
+    'above',
+    startMargin,
+    endMargin,
+  );
 
   // Importance weights for different anomaly types
   const weights = {
@@ -192,7 +210,7 @@ export function detectStep(series) {
   }
 
   // Pick the highest scored anomaly
-  const winner = candidates.reduce((best, c) => ((!best || c.score > best.score) ? c : best), null);
+  const winner = candidates.reduce((best, c) => (!best || c.score > best.score ? c : best), null);
 
   return {
     startIndex: winner.start,
@@ -240,14 +258,14 @@ export function detectSteps(series, maxCount = 5) {
   const redBaseline = median(redScores.slice(startMargin, len - endMargin));
 
   // Calculate deviations from baseline (as ratio)
-  const greenDeviations = greenScores.map(
-    (v) => (greenBaseline > 0 ? (v - greenBaseline) / greenBaseline : 0),
+  const greenDeviations = greenScores.map((v) =>
+    greenBaseline > 0 ? (v - greenBaseline) / greenBaseline : 0,
   );
-  const yellowDeviations = yellowScores.map(
-    (v) => (yellowBaseline > 0 ? (v - yellowBaseline) / yellowBaseline : 0),
+  const yellowDeviations = yellowScores.map((v) =>
+    yellowBaseline > 0 ? (v - yellowBaseline) / yellowBaseline : 0,
   );
-  const redDeviations = redScores.map(
-    (v) => (redBaseline > 0 ? (v - redBaseline) / redBaseline : 0),
+  const redDeviations = redScores.map((v) =>
+    redBaseline > 0 ? (v - redBaseline) / redBaseline : 0,
   );
 
   // Calculate standard deviations for adaptive thresholds
@@ -266,12 +284,48 @@ export function detectSteps(series, maxCount = 5) {
   const redThreshold = redSigma;
 
   // Find anomaly regions for each category and direction
-  const redSpikeRegions = findAnomalyRegions(redDeviations, redThreshold, 'above', startMargin, endMargin);
-  const redDropRegions = findAnomalyRegions(redDeviations, redThreshold, 'below', startMargin, endMargin);
-  const yellowSpikeRegions = findAnomalyRegions(yellowDeviations, yellowThreshold, 'above', startMargin, endMargin);
-  const yellowDropRegions = findAnomalyRegions(yellowDeviations, yellowThreshold, 'below', startMargin, endMargin);
-  const greenSpikeRegions = findAnomalyRegions(greenDeviations, greenThreshold, 'above', startMargin, endMargin);
-  const greenDropRegions = findAnomalyRegions(greenDeviations, greenThreshold, 'below', startMargin, endMargin);
+  const redSpikeRegions = findAnomalyRegions(
+    redDeviations,
+    redThreshold,
+    'above',
+    startMargin,
+    endMargin,
+  );
+  const redDropRegions = findAnomalyRegions(
+    redDeviations,
+    redThreshold,
+    'below',
+    startMargin,
+    endMargin,
+  );
+  const yellowSpikeRegions = findAnomalyRegions(
+    yellowDeviations,
+    yellowThreshold,
+    'above',
+    startMargin,
+    endMargin,
+  );
+  const yellowDropRegions = findAnomalyRegions(
+    yellowDeviations,
+    yellowThreshold,
+    'below',
+    startMargin,
+    endMargin,
+  );
+  const greenSpikeRegions = findAnomalyRegions(
+    greenDeviations,
+    greenThreshold,
+    'above',
+    startMargin,
+    endMargin,
+  );
+  const greenDropRegions = findAnomalyRegions(
+    greenDeviations,
+    greenThreshold,
+    'below',
+    startMargin,
+    endMargin,
+  );
 
   // Importance weights - prioritize spikes and green drops over red/yellow drops
   const weights = {

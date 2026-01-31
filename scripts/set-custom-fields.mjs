@@ -83,7 +83,7 @@ function compareHeaders(current, target) {
 }
 
 async function main() {
-  const [,, apiToken, specificZone] = process.argv;
+  const [, , apiToken, specificZone] = process.argv;
 
   if (!apiToken) {
     console.error('Usage: node set-custom-fields.mjs <cloudflare-api-token> [zone-id-or-name]');
@@ -92,7 +92,9 @@ async function main() {
 
   const zonesToUpdate = specificZone ? [specificZone] : ENTERPRISE_ZONES;
 
-  console.log(`Target: ${REQUEST_HEADERS.length} request headers, ${RESPONSE_HEADERS.length} response headers\n`);
+  console.log(
+    `Target: ${REQUEST_HEADERS.length} request headers, ${RESPONSE_HEADERS.length} response headers\n`,
+  );
 
   for (const zoneName of zonesToUpdate) {
     try {
@@ -116,8 +118,11 @@ async function main() {
 
       console.log(`Current: ${currentReqCount} request, ${currentRespCount} response`);
 
-      const alreadyUpToDate = reqDiff.missing.length === 0 && reqDiff.extra.length === 0
-          && respDiff.missing.length === 0 && respDiff.extra.length === 0;
+      const alreadyUpToDate =
+        reqDiff.missing.length === 0 &&
+        reqDiff.extra.length === 0 &&
+        respDiff.missing.length === 0 &&
+        respDiff.extra.length === 0;
 
       if (alreadyUpToDate) {
         console.log('Already up to date');

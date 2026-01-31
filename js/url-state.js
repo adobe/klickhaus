@@ -11,13 +11,15 @@
  */
 import { state, loadFacetPrefs } from './state.js';
 import {
-  queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange,
+  queryTimestamp,
+  setQueryTimestamp,
+  customTimeRange,
+  setCustomTimeRange,
+  clearCustomTimeRange,
 } from './time.js';
 import { renderActiveFilters } from './filters.js';
 import { invalidateInvestigationCache } from './anomaly-investigation.js';
-import {
-  DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS,
-} from './constants.js';
+import { DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS } from './constants.js';
 
 // DOM elements (set by main.js)
 let elements = {};
@@ -154,7 +156,8 @@ export function loadStateFromURL() {
       const filters = JSON.parse(params.get('filters'));
       if (Array.isArray(filters)) {
         // Preserve filterCol, filterValue, filterOp if present (for grouped/LIKE filtering)
-        state.filters = filters.filter((f) => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
+        state.filters = filters
+          .filter((f) => f.col && typeof f.value === 'string' && typeof f.exclude === 'boolean')
           .map((f) => {
             const filter = { col: f.col, value: f.value, exclude: f.exclude };
             if (f.filterCol) filter.filterCol = f.filterCol;
@@ -169,7 +172,10 @@ export function loadStateFromURL() {
   }
 
   if (params.has('pinned')) {
-    const pinned = params.get('pinned').split(',').filter((c) => c);
+    const pinned = params
+      .get('pinned')
+      .split(',')
+      .filter((c) => c);
     if (pinned.length > 0) {
       // Override state temporarily without persisting to localStorage
       state.pinnedColumns = pinned;
@@ -178,7 +184,10 @@ export function loadStateFromURL() {
 
   // Hide UI controls (comma-separated: timeRange,topN,host,refresh,logout,logs)
   if (params.has('hide')) {
-    state.hiddenControls = params.get('hide').split(',').filter((c) => c);
+    state.hiddenControls = params
+      .get('hide')
+      .split(',')
+      .filter((c) => c);
   }
 
   // Custom title from URL
@@ -199,10 +208,16 @@ export function loadStateFromURL() {
 
   // Override with URL params if present
   if (params.has('pf')) {
-    state.pinnedFacets = params.get('pf').split(',').filter((f) => f);
+    state.pinnedFacets = params
+      .get('pf')
+      .split(',')
+      .filter((f) => f);
   }
   if (params.has('hf')) {
-    state.hiddenFacets = params.get('hf').split(',').filter((f) => f);
+    state.hiddenFacets = params
+      .get('hf')
+      .split(',')
+      .filter((f) => f);
   }
 }
 

@@ -16,12 +16,7 @@
  */
 
 import { addFilter } from './filters.js';
-import {
-  getPeriodMs,
-  queryTimestamp,
-  setCustomTimeRange,
-  setQueryTimestamp,
-} from './time.js';
+import { getPeriodMs, queryTimestamp, setCustomTimeRange, setQueryTimestamp } from './time.js';
 import { saveStateToURL } from './url-state.js';
 
 // Status range column for filtering

@@ -158,7 +158,13 @@ export const colorRules = {
       if (!value) return '';
       const a = String(value).toLowerCase();
       if (a.includes('adobe')) return 'var(--asn-adobe)';
-      if (a.includes('fastly') || a.includes('akamai') || a.includes('cloudflare') || a.includes('amazon')) return 'var(--asn-good-cdn)';
+      if (
+        a.includes('fastly') ||
+        a.includes('akamai') ||
+        a.includes('cloudflare') ||
+        a.includes('amazon')
+      )
+        return 'var(--asn-good-cdn)';
       if (a.includes('zscaler') || a.includes('incapsula')) return 'var(--asn-bad-cdn)';
       if (a.includes('microsoft') || a.includes('google')) return 'var(--asn-cloud)';
       return 'var(--asn-other)';
@@ -171,7 +177,13 @@ export const colorRules = {
       if (!value) return '';
       const e = value.toLowerCase();
       if (e === 'moved') return 'var(--err-redirect)';
-      if (e.includes('not allowed') || e.includes('access') || e.includes('illegal') || e.includes('unsupported')) return 'var(--err-security)';
+      if (
+        e.includes('not allowed') ||
+        e.includes('access') ||
+        e.includes('illegal') ||
+        e.includes('unsupported')
+      )
+        return 'var(--err-security)';
       if (e.includes('content-bus') || e.includes('failed to load')) return 'var(--err-contentbus)';
       if (e.includes('s3:') || e.includes('r2:')) return 'var(--err-storage)';
       return 'var(--err-other)';
@@ -221,7 +233,8 @@ export const colorRules = {
       if (!value) return '';
       const r = value.toLowerCase();
       if (r.includes('google.com')) return 'var(--ref-google)';
-      if (r.includes('adobe.com') || r.includes('adobe.net') || r.includes('adobeaemcloud.com')) return 'var(--ref-adobe)';
+      if (r.includes('adobe.com') || r.includes('adobe.net') || r.includes('adobeaemcloud.com'))
+        return 'var(--ref-adobe)';
       if (r.includes('.live') || r.includes('.page')) return 'var(--ref-aem)';
       return 'var(--ref-other)';
     },
@@ -239,7 +252,8 @@ export const colorRules = {
       const ext = lastSegment.slice(dotIndex + 1);
       if (['js', 'mjs', 'json', 'css', 'map'].includes(ext)) return 'var(--path-script)';
       if (['html', 'htm', 'pdf', 'txt', 'xml'].includes(ext)) return 'var(--path-document)';
-      if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico'].includes(ext)) return 'var(--path-image)';
+      if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico'].includes(ext))
+        return 'var(--path-image)';
       if (['mp4', 'webm', 'mov', 'mp3', 'wav', 'ogg'].includes(ext)) return 'var(--path-media)';
       if (['woff', 'woff2', 'ttf', 'otf', 'eot'].includes(ext)) return 'var(--path-font)';
       if (['php', 'asp', 'aspx', 'cgi', 'jsp'].includes(ext)) return 'var(--path-server)';

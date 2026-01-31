@@ -124,7 +124,7 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
   for (const release of releases) {
     const publishedTime = parseUTC(release.published).getTime();
     const xRatio = (publishedTime - startTime) / timeRange;
-    const x = padding.left + (chartWidth * xRatio);
+    const x = padding.left + chartWidth * xRatio;
 
     // Draw at the very top of the chart
     const y = 10;
@@ -191,10 +191,7 @@ function formatReleaseNotes(body) {
     html = html.replace(/https?:\/\/[^\s<]+/g, '');
 
     // Escape HTML
-    html = html
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     // Headings (must be at start of line)
     // Skip h1 entirely - redundant with tooltip header

@@ -69,10 +69,12 @@ async function query(sql, adminUser, adminPassword) {
 }
 
 async function main() {
-  const [,, adminUser, adminPassword, newUsername, providedPassword] = process.argv;
+  const [, , adminUser, adminPassword, newUsername, providedPassword] = process.argv;
 
   if (!adminUser || !adminPassword || !newUsername) {
-    console.error('Usage: node add-user.mjs <admin-user> <admin-password> <new-username> [password]');
+    console.error(
+      'Usage: node add-user.mjs <admin-user> <admin-password> <new-username> [password]',
+    );
     process.exit(1);
   }
 

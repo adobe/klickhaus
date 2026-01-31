@@ -153,7 +153,9 @@ function applyHighlightsFromContributors(contributors) {
             row.classList.add('investigation-highlight', `investigation-${c.category}`);
             highlightedCount += 1;
             // eslint-disable-next-line no-console
-            console.log(`  Highlighted #${highlightedCount}: ${c.facetId} = "${c.dim}" (+${c.shareChange}pp)`);
+            console.log(
+              `  Highlighted #${highlightedCount}: ${c.facetId} = "${c.dim}" (+${c.shareChange}pp)`,
+            );
             const statusColor = row.querySelector('.status-color');
             if (statusColor) {
               statusColor.title = `+${c.shareChange}pp share of #${c.rank} ${c.anomalyId}`;
@@ -294,7 +296,9 @@ export async function investigateAnomalies(anomalies, chartData) {
   // Generate cache key for current context
   const cacheKey = generateCacheKey();
   // eslint-disable-next-line no-console
-  console.log(`Investigation cache key: ${cacheKey} (${window.location.pathname}${window.location.search})`);
+  console.log(
+    `Investigation cache key: ${cacheKey} (${window.location.pathname}${window.location.search})`,
+  );
 
   // Check if we have cached results for this context (memory cache)
   // Must also verify context eligibility (drill-in allowed, drill-out not)
@@ -320,7 +324,9 @@ export async function investigateAnomalies(anomalies, chartData) {
       }
       // Not enough highlights visible after drill-down, need fresh investigation
       // eslint-disable-next-line no-console
-      console.log(`Only ${highlightCount}/${HIGHLIGHT_TOP_N} highlighted from memory cache, fetching fresh candidates`);
+      console.log(
+        `Only ${highlightCount}/${HIGHLIGHT_TOP_N} highlighted from memory cache, fetching fresh candidates`,
+      );
       currentCacheKey = null;
       currentCacheContext = null;
       // Fall through to fresh investigation
@@ -371,7 +377,9 @@ export async function investigateAnomalies(anomalies, chartData) {
       return lastInvestigationResults;
     }
     // eslint-disable-next-line no-console
-    console.log(`Only ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlighted, fetching fresh candidates`);
+    console.log(
+      `Only ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlighted, fetching fresh candidates`,
+    );
     // Clear stale cache data before fresh investigation
     currentCacheKey = null;
     currentCacheContext = null;
@@ -397,10 +405,21 @@ export async function investigateAnomalies(anomalies, chartData) {
   const fullEnd = parseUTC(chartData[chartData.length - 1].t);
 
   // Select facets to investigate
-  const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
-    'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-    'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
-    'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
+  const facetsToInvestigate = allBreakdowns.filter((b) =>
+    [
+      'breakdown-hosts',
+      'breakdown-forwarded-hosts',
+      'breakdown-paths',
+      'breakdown-errors',
+      'breakdown-user-agents',
+      'breakdown-ips',
+      'breakdown-asn',
+      'breakdown-datacenters',
+      'breakdown-cache',
+      'breakdown-content-types',
+      'breakdown-backend-type',
+    ].includes(b.id),
+  );
 
   // Helper to process a single facet investigation
   const processFacetInvestigation = async (breakdown, anomaly, anomalyId, result) => {
@@ -453,8 +472,8 @@ export async function investigateAnomalies(anomalies, chartData) {
     storeAnomalyIdOnStep(anomaly.rank, anomalyId);
 
     // Launch all facet investigations in parallel with callbacks
-    const facetPromises = facetsToInvestigate.map(
-      (breakdown) => processFacetInvestigation(breakdown, anomaly, anomalyId, result),
+    const facetPromises = facetsToInvestigate.map((breakdown) =>
+      processFacetInvestigation(breakdown, anomaly, anomalyId, result),
     );
 
     // Wait for all facets for this anomaly to complete before moving to next
@@ -612,7 +631,9 @@ function applySelectionHighlights(contributors) {
           appliedCount += 1;
           const sign = c.shareChange >= 0 ? '+' : '';
           // eslint-disable-next-line no-console
-          console.log(`  ✓ Highlighted #${appliedCount}: ${c.facetId} = "${c.dim}" (${sign}${c.shareChange}pp)`);
+          console.log(
+            `  ✓ Highlighted #${appliedCount}: ${c.facetId} = "${c.dim}" (${sign}${c.shareChange}pp)`,
+          );
         }
       }
     }
@@ -640,10 +661,21 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
   clearSelectionHighlights();
 
   // Select facets to investigate (same as anomaly investigation)
-  const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
-    'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-    'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
-    'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
+  const facetsToInvestigate = allBreakdowns.filter((b) =>
+    [
+      'breakdown-hosts',
+      'breakdown-forwarded-hosts',
+      'breakdown-paths',
+      'breakdown-errors',
+      'breakdown-user-agents',
+      'breakdown-ips',
+      'breakdown-asn',
+      'breakdown-datacenters',
+      'breakdown-cache',
+      'breakdown-content-types',
+      'breakdown-backend-type',
+    ].includes(b.id),
+  );
 
   // Create a pseudo-anomaly object for the investigateFacet function
   // Use 'blue' as a special category that investigates ALL traffic (not filtered by status)
@@ -693,8 +725,8 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
 
   // eslint-disable-next-line no-console
   console.log(
-    `Selection investigation found ${selectionContributors.length} contributors,`
-    + ` will highlight first ${HIGHLIGHT_TOP_N} found in DOM`,
+    `Selection investigation found ${selectionContributors.length} contributors,` +
+      ` will highlight first ${HIGHLIGHT_TOP_N} found in DOM`,
   );
 
   applySelectionHighlights(sorted);

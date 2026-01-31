@@ -13,8 +13,12 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { state } from './state.js';
 import {
-  setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
-  getTimeFilter, getTimeBucket, getPeriodMs,
+  setQueryTimestamp,
+  setCustomTimeRange,
+  clearCustomTimeRange,
+  getTimeFilter,
+  getTimeBucket,
+  getPeriodMs,
 } from './time.js';
 
 beforeEach(() => {

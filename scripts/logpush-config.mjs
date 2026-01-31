@@ -9,11 +9,13 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-export const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
+export const CLICKHOUSE_HOST =
+  process.env.CLICKHOUSE_HOST || 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 export const CLICKHOUSE_PORT = process.env.CLICKHOUSE_PORT || 8443;
 export const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER || 'logpush_writer';
 export const { CLICKHOUSE_PASSWORD } = process.env;
-export const CLICKHOUSE_TABLE = process.env.CLICKHOUSE_TABLE || 'helix_logs_production.cloudflare_http_requests';
+export const CLICKHOUSE_TABLE =
+  process.env.CLICKHOUSE_TABLE || 'helix_logs_production.cloudflare_http_requests';
 
 /**
  * Validate that ClickHouse credentials are available (call before using ClickHouse functions)

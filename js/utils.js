@@ -28,6 +28,7 @@ export function isSyntheticBucket(value) {
   // Exact match: (same), (empty), (other), etc.
   if (value.startsWith('(') && value.endsWith(')')) return true;
   // Contains synthetic pattern: "0 (empty)", etc.
-  if (value.includes('(empty)') || value.includes('(other)') || value.includes('(same)')) return true;
+  if (value.includes('(empty)') || value.includes('(other)') || value.includes('(same)'))
+    return true;
   return false;
 }

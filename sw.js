@@ -41,13 +41,14 @@ const STATIC_ASSETS = [
   '/icons/icon-512.png',
   '/icons/icon-180.png',
   '/icons/icon-32.png',
-  '/icons/icon-16.png'
+  '/icons/icon-16.png',
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches
+      .open(CACHE_NAME)
       .then((cache) => {
         console.log('[SW] Caching static assets');
         return cache.addAll(STATIC_ASSETS);
@@ -55,14 +56,15 @@ self.addEventListener('install', (event) => {
       .then(() => {
         // Activate immediately without waiting
         return self.skipWaiting();
-      })
+      }),
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
+    caches
+      .keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
@@ -70,13 +72,13 @@ self.addEventListener('activate', (event) => {
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
-            })
+            }),
         );
       })
       .then(() => {
         // Take control of all pages immediately
         return self.clients.claim();
-      })
+      }),
   );
 });
 
@@ -106,14 +108,15 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => caches.match(event.request)),
     );
     return;
   }
 
   // For same-origin requests, use cache-first strategy
   event.respondWith(
-    caches.match(event.request)
+    caches
+      .match(event.request)
       .then((cachedResponse) => {
         if (cachedResponse) {
           // Return cached version, but also update cache in background
@@ -130,36 +133,34 @@ self.addEventListener('fetch', (event) => {
         if (event.request.headers.get('Accept')?.includes('text/html')) {
           return new Response(
             '<!DOCTYPE html><html><head><title>Offline</title></head>' +
-            '<body style="font-family:system-ui;text-align:center;padding:50px">' +
-            '<h1>You are offline</h1>' +
-            '<p>CDN Analytics requires a network connection.</p>' +
-            '<button onclick="location.reload()">Retry</button>' +
-            '</body></html>',
-            { headers: { 'Content-Type': 'text/html' } }
+              '<body style="font-family:system-ui;text-align:center;padding:50px">' +
+              '<h1>You are offline</h1>' +
+              '<p>CDN Analytics requires a network connection.</p>' +
+              '<button onclick="location.reload()">Retry</button>' +
+              '</body></html>',
+            { headers: { 'Content-Type': 'text/html' } },
           );
         }
         return new Response('Offline', { status: 503 });
-      })
+      }),
   );
 });
 
 // Helper: Fetch and update cache
 function fetchAndCache(request) {
-  return fetch(request)
-    .then((response) => {
-      // Only cache successful responses
-      if (!response || response.status !== 200 || response.type !== 'basic') {
-        return response;
-      }
-
-      // Clone the response since it can only be consumed once
-      const responseToCache = response.clone();
-
-      caches.open(CACHE_NAME)
-        .then((cache) => {
-          cache.put(request, responseToCache);
-        });
-
+  return fetch(request).then((response) => {
+    // Only cache successful responses
+    if (!response || response.status !== 200 || response.type !== 'basic') {
       return response;
+    }
+
+    // Clone the response since it can only be consumed once
+    const responseToCache = response.clone();
+
+    caches.open(CACHE_NAME).then((cache) => {
+      cache.put(request, responseToCache);
     });
+
+    return response;
+  });
 }

@@ -30,7 +30,11 @@ import {
 } from './time.js';
 import { saveStateToURL } from './url-state.js';
 import {
-  getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
+  getReleasesInRange,
+  renderReleaseShips,
+  getShipAtPoint,
+  showReleaseTooltip,
+  hideReleaseTooltip,
 } from './releases.js';
 import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 import {
@@ -99,7 +103,10 @@ export function renderChart(data) {
   const { width } = rect;
   const { height } = rect;
   const padding = {
-    top: 20, right: 0, bottom: 40, left: 0,
+    top: 20,
+    right: 0,
+    bottom: 40,
+    left: 0,
   };
   const labelInset = 24; // Match main element padding for alignment with breakdowns
   const chartWidth = width - padding.left - padding.right;
@@ -107,7 +114,11 @@ export function renderChart(data) {
 
   // Store layout for scrubber
   setChartLayout({
-    width, height, padding, chartWidth, chartHeight,
+    width,
+    height,
+    padding,
+    chartWidth,
+    chartHeight,
   });
 
   // Clear
@@ -165,8 +176,8 @@ export function renderChart(data) {
   for (let i = 1; i <= 4; i += 1) {
     const rawVal = minValue + (maxValue - minValue) * (i / 4);
     // Keep top value exact, round others to nice numbers
-    const val = (i === 4) ? Math.round(rawVal) : roundToNice(rawVal);
-    const y = height - padding.bottom - ((chartHeight * i) / 4);
+    const val = i === 4 ? Math.round(rawVal) : roundToNice(rawVal);
+    const y = height - padding.bottom - (chartHeight * i) / 4;
 
     // Grid line
     ctx.strokeStyle = cssVar('--grid-line');
@@ -189,7 +200,7 @@ export function renderChart(data) {
 
   for (const i of tickIndices) {
     if (i < data.length) {
-      let x = padding.left + ((chartWidth * i) / (data.length - 1));
+      let x = padding.left + (chartWidth * i) / (data.length - 1);
       const time = parseUTC(data[i].t);
       let label = time.toLocaleTimeString([], {
         hour: '2-digit',
@@ -212,8 +223,8 @@ export function renderChart(data) {
   }
 
   // Helper function to get Y coordinate
-  const getY = (value) => height - padding.bottom - ((chartHeight * value) / (maxValue || 1));
-  const getX = (idx) => padding.left + ((chartWidth * idx) / (data.length - 1 || 1));
+  const getY = (value) => height - padding.bottom - (chartHeight * value) / (maxValue || 1);
+  const getX = (idx) => padding.left + (chartWidth * idx) / (data.length - 1 || 1);
 
   // Calculate cumulative values for stacking (reversed order: 5xx at bottom)
   const stackedServer = series.server.slice();
@@ -295,9 +306,8 @@ export function renderChart(data) {
 
   // Detect and highlight up to 5 anomaly regions (spikes or dips)
   // Skip anomaly detection for time ranges less than 5 minutes
-  const timeRangeMs = data.length >= 2
-    ? parseUTC(data[data.length - 1].t) - parseUTC(data[0].t)
-    : 0;
+  const timeRangeMs =
+    data.length >= 2 ? parseUTC(data[data.length - 1].t) - parseUTC(data[0].t) : 0;
   const minTimeRangeMs = 5 * 60 * 1000; // 5 minutes
   const steps = timeRangeMs >= minTimeRangeMs ? detectSteps(series, 5) : [];
 
@@ -312,17 +322,19 @@ export function renderChart(data) {
   // Debug: show detected anomalies in console
   if (steps.length > 0) {
     // eslint-disable-next-line no-console
-    console.table(steps.map((s) => ({
-      rank: s.rank,
-      type: s.type,
-      category: s.category,
-      startIndex: s.startIndex,
-      endIndex: s.endIndex,
-      startTime: data[s.startIndex]?.t,
-      endTime: data[s.endIndex]?.t,
-      magnitude: `${Math.round(s.magnitude * 100)}%`,
-      score: s.score.toFixed(2),
-    })));
+    console.table(
+      steps.map((s) => ({
+        rank: s.rank,
+        type: s.type,
+        category: s.category,
+        startIndex: s.startIndex,
+        endIndex: s.endIndex,
+        startTime: data[s.startIndex]?.t,
+        endTime: data[s.endIndex]?.t,
+        magnitude: `${Math.round(s.magnitude * 100)}%`,
+        score: s.score.toFixed(2),
+      })),
+    );
   }
 
   for (const step of steps) {
@@ -334,9 +346,7 @@ export function renderChart(data) {
     // Calculate band edges with padding on both sides
     const bandPadding = minBandWidth / 2;
     const bandLeft = startX - bandPadding;
-    const bandRight = step.startIndex === step.endIndex
-      ? startX + bandPadding
-      : endX + bandPadding;
+    const bandRight = step.startIndex === step.endIndex ? startX + bandPadding : endX + bandPadding;
 
     // Store anomaly bounds for click detection and zoom
     const startTime = parseUTC(data[step.startIndex].t);
@@ -446,9 +456,10 @@ export function renderChart(data) {
     let magnitudeLabel;
     if (step.magnitude >= 1) {
       const multiplier = step.magnitude;
-      magnitudeLabel = multiplier >= 10
-        ? `${Math.round(multiplier)}x`
-        : `${multiplier.toFixed(1).replace(/\.0$/, '')}x`;
+      magnitudeLabel =
+        multiplier >= 10
+          ? `${Math.round(multiplier)}x`
+          : `${multiplier.toFixed(1).replace(/\.0$/, '')}x`;
     } else {
       magnitudeLabel = `${Math.round(step.magnitude * 100)}%`;
     }
@@ -507,20 +518,25 @@ export function renderChart(data) {
   // Fetch and render release ships asynchronously
   const startTime = parseUTC(data[0].t);
   const endTime = parseUTC(data[data.length - 1].t);
-  getReleasesInRange(startTime, endTime).then((releases) => {
-    if (releases.length > 0) {
-      const chartDimensions = {
-        width, height, padding, chartWidth,
-      };
-      setShipPositions(renderReleaseShips(ctx, releases, data, chartDimensions));
-    } else {
+  getReleasesInRange(startTime, endTime)
+    .then((releases) => {
+      if (releases.length > 0) {
+        const chartDimensions = {
+          width,
+          height,
+          padding,
+          chartWidth,
+        };
+        setShipPositions(renderReleaseShips(ctx, releases, data, chartDimensions));
+      } else {
+        setShipPositions(null);
+      }
+    })
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to render releases:', err);
       setShipPositions(null);
-    }
-  }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('Failed to render releases:', err);
-    setShipPositions(null);
-  });
+    });
 }
 
 export function setupChartNavigation(callback) {
@@ -598,37 +614,49 @@ export function setupChartNavigation(callback) {
   let touchStartX = null;
   const minSwipeDistance = 50;
 
-  container.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].clientX;
-  }, { passive: true });
+  container.addEventListener(
+    'touchstart',
+    (e) => {
+      touchStartX = e.touches[0].clientX;
+    },
+    { passive: true },
+  );
 
-  container.addEventListener('touchend', (e) => {
-    if (touchStartX === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const deltaX = touchEndX - touchStartX;
-    touchStartX = null;
+  container.addEventListener(
+    'touchend',
+    (e) => {
+      if (touchStartX === null) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
+      touchStartX = null;
 
-    if (Math.abs(deltaX) >= minSwipeDistance) {
-      // Swipe right = go back in time, swipe left = go forward
-      navigateTime(deltaX > 0 ? -2 / 3 : 2 / 3);
-    }
-  }, { passive: true });
+      if (Math.abs(deltaX) >= minSwipeDistance) {
+        // Swipe right = go back in time, swipe left = go forward
+        navigateTime(deltaX > 0 ? -2 / 3 : 2 / 3);
+      }
+    },
+    { passive: true },
+  );
 
   // Double-tap to toggle logs
   let lastTap = 0;
-  container.addEventListener('touchend', (_) => {
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTap;
-    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-      // Double tap detected
-      if (typeof window.toggleLogsViewMobile === 'function') {
-        window.toggleLogsViewMobile();
+  container.addEventListener(
+    'touchend',
+    (_) => {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTap;
+      if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+        // Double tap detected
+        if (typeof window.toggleLogsViewMobile === 'function') {
+          window.toggleLogsViewMobile();
+        }
+        lastTap = 0;
+      } else {
+        lastTap = now;
       }
-      lastTap = 0;
-    } else {
-      lastTap = now;
-    }
-  }, { passive: true });
+    },
+    { passive: true },
+  );
 
   // Update scrubber position and content
   function updateScrubber(x, _) {
@@ -673,13 +701,16 @@ export function setupChartNavigation(callback) {
       else if (step?.category === 'yellow') categoryLabel = '4xx';
       let magnitudeLabel;
       if (step?.magnitude >= 1) {
-        magnitudeLabel = step.magnitude >= 10
-          ? `${Math.round(step.magnitude)}x`
-          : `${step.magnitude.toFixed(1).replace(/\.0$/, '')}x`;
+        magnitudeLabel =
+          step.magnitude >= 10
+            ? `${Math.round(step.magnitude)}x`
+            : `${step.magnitude.toFixed(1).replace(/\.0$/, '')}x`;
       } else {
         magnitudeLabel = `${Math.round((step?.magnitude || 0) * 100)}%`;
       }
-      row2Parts.push(`<span class="scrubber-anomaly scrubber-anomaly-${step?.category || 'red'}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`);
+      row2Parts.push(
+        `<span class="scrubber-anomaly scrubber-anomaly-${step?.category || 'red'}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`,
+      );
     }
 
     // Check for ship (with padding)
@@ -690,7 +721,9 @@ export function setupChartNavigation(callback) {
 
       if (isConfigChange) {
         // Config change - show with config styling
-        row2Parts.push(`<span class="scrubber-release scrubber-release-config">Config: ${release.repo}</span>`);
+        row2Parts.push(
+          `<span class="scrubber-release scrubber-release-config">Config: ${release.repo}</span>`,
+        );
       } else {
         // Determine release type from semver:
         // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch
@@ -704,7 +737,9 @@ export function setupChartNavigation(callback) {
             releaseType = 'feature';
           }
         }
-        row2Parts.push(`<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`);
+        row2Parts.push(
+          `<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`,
+        );
       }
     }
 
@@ -862,8 +897,7 @@ export function setupChartNavigation(callback) {
       // It was a click, not a drag - check for anomaly or clear selection
       if (getPendingSelection()) {
         // Don't clear if clicking on the selection overlay itself
-        const isOverlayClick = e.target === selectionOverlay
-          || selectionOverlay.contains(e.target);
+        const isOverlayClick = e.target === selectionOverlay || selectionOverlay.contains(e.target);
         if (isOverlayClick) {
           return;
         }

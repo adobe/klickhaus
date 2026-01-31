@@ -12,7 +12,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
-  contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
+  contentLengthBuckets,
+  timeElapsedBuckets,
+  getContentLengthLabels,
+  getTimeElapsedLabels,
 } from './buckets.js';
 
 /**
@@ -90,11 +93,7 @@ describe('getContentLengthLabels', () => {
       const sql = contentLengthBuckets(n);
       const sqlLabels = extractBucketLabels(sql);
       const fnLabels = getContentLengthLabels(n);
-      assert.deepStrictEqual(
-        fnLabels,
-        sqlLabels,
-        `Label mismatch for n=${n}`,
-      );
+      assert.deepStrictEqual(fnLabels, sqlLabels, `Label mismatch for n=${n}`);
     }
   });
 });
@@ -105,11 +104,7 @@ describe('getTimeElapsedLabels', () => {
       const sql = timeElapsedBuckets(n);
       const sqlLabels = extractBucketLabels(sql);
       const fnLabels = getTimeElapsedLabels(n);
-      assert.deepStrictEqual(
-        fnLabels,
-        sqlLabels,
-        `Label mismatch for n=${n}`,
-      );
+      assert.deepStrictEqual(fnLabels, sqlLabels, `Label mismatch for n=${n}`);
     }
   });
 });
@@ -134,10 +129,7 @@ describe('timeElapsedBuckets', () => {
   it('should have < prefix on first bucket', () => {
     const sql = timeElapsedBuckets(5);
     const labels = extractBucketLabels(sql);
-    assert.ok(
-      labels[0].startsWith('<'),
-      `First bucket should start with <, got: ${labels[0]}`,
-    );
+    assert.ok(labels[0].startsWith('<'), `First bucket should start with <, got: ${labels[0]}`);
   });
 
   it('should have ≥ prefix on last bucket', () => {

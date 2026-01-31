@@ -11,6 +11,7 @@
  */
 import globals from 'globals';
 import { recommended } from '@adobe/eslint-config-helix';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default [
   {
@@ -21,6 +22,7 @@ export default [
     files: ['js/**/*.js', 'scripts/**/*.mjs'],
     rules: {
       ...recommended.rules,
+      ...eslintConfigPrettier.rules,
       'max-lines': ['error', { max: 1000 }],
     },
   },

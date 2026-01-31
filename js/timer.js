@@ -19,24 +19,27 @@ const queryTimerEl = document.getElementById('queryTimer');
 // Track visible facets with IntersectionObserver
 export const visibleFacets = new Set();
 
-const facetObserver = new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
-    if (entry.isIntersecting) {
-      visibleFacets.add(entry.target.id);
-    } else {
-      visibleFacets.delete(entry.target.id);
-    }
-  });
-}, { rootMargin: '50px' });
+const facetObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        visibleFacets.add(entry.target.id);
+      } else {
+        visibleFacets.delete(entry.target.id);
+      }
+    });
+  },
+  { rootMargin: '50px' },
+);
 
 // Check if element is in viewport
 function isInViewport(el) {
   const rect = el.getBoundingClientRect();
   return (
-    rect.top < (window.innerHeight || document.documentElement.clientHeight) + 50
-    && rect.bottom > -50
-    && rect.left < (window.innerWidth || document.documentElement.clientWidth) + 50
-    && rect.right > -50
+    rect.top < (window.innerHeight || document.documentElement.clientHeight) + 50 &&
+    rect.bottom > -50 &&
+    rect.left < (window.innerWidth || document.documentElement.clientWidth) + 50 &&
+    rect.right > -50
   );
 }
 

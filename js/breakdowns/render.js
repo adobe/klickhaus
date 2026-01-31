@@ -97,9 +97,10 @@ export function renderBreakdownTable(
 
   // Summary metric display (e.g., "87% efficiency")
   const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
-  const summaryHtml = (summaryRatio !== null && summaryLabel)
-    ? `<span class="summary-metric${summaryColorClass}" title="${(summaryRatio * 100).toFixed(1)}% ${summaryLabel}">${Math.round(summaryRatio * 100)}%</span>`
-    : '';
+  const summaryHtml =
+    summaryRatio !== null && summaryLabel
+      ? `<span class="summary-metric${summaryColorClass}" title="${(summaryRatio * 100).toFixed(1)}% ${summaryLabel}">${Math.round(summaryRatio * 100)}%</span>`
+      : '';
 
   if (data.length === 0) {
     let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
@@ -120,12 +121,14 @@ export function renderBreakdownTable(
     cnt_4xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_4xx, 10) || 0), 0),
     cnt_5xx: data.reduce((sum, d) => sum + (parseInt(d.cnt_5xx, 10) || 0), 0),
   };
-  const otherRow = totals ? {
-    cnt: parseInt(totals.cnt, 10) - topKSum.cnt,
-    cnt_ok: (parseInt(totals.cnt_ok, 10) || 0) - topKSum.cnt_ok,
-    cnt_4xx: (parseInt(totals.cnt_4xx, 10) || 0) - topKSum.cnt_4xx,
-    cnt_5xx: (parseInt(totals.cnt_5xx, 10) || 0) - topKSum.cnt_5xx,
-  } : null;
+  const otherRow = totals
+    ? {
+        cnt: parseInt(totals.cnt, 10) - topKSum.cnt,
+        cnt_ok: (parseInt(totals.cnt_ok, 10) || 0) - topKSum.cnt_ok,
+        cnt_4xx: (parseInt(totals.cnt_4xx, 10) || 0) - topKSum.cnt_4xx,
+        cnt_5xx: (parseInt(totals.cnt_5xx, 10) || 0) - topKSum.cnt_5xx,
+      }
+    : null;
   const hasOther = otherRow && otherRow.cnt > 0 && getNextTopN();
 
   // Exclude synthetic buckets like (same), (empty) from maxCount calculation
@@ -151,7 +154,7 @@ export function renderBreakdownTable(
 
     // For synthetic buckets, cap bar at 100% and always show fading gradient
     // to visually distinguish them from real dimension values
-    const barWidth = (isSynthetic && cnt > maxCount) ? 100 : (cnt / maxCount) * 100;
+    const barWidth = isSynthetic && cnt > maxCount ? 100 : (cnt / maxCount) * 100;
     const overflowClass = isSynthetic ? ' bar-overflow' : '';
 
     // Calculate percentages within this row (for stacked segments)
@@ -205,7 +208,7 @@ export function renderBreakdownTable(
 
     // Compute filter attributes (may differ from display col/value for grouped facets)
     const actualFilterCol = filterCol || col;
-    const actualFilterValue = filterValueFn ? filterValueFn(row.dim || '') : (row.dim || '');
+    const actualFilterValue = filterValueFn ? filterValueFn(row.dim || '') : row.dim || '';
     const actualFilterOp = filterOp || '=';
     const filterAttrs = `data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-filter-col="${escapeHtml(actualFilterCol)}" data-filter-value="${escapeHtml(actualFilterValue)}" data-filter-op="${escapeHtml(actualFilterOp)}"`;
 

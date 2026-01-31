@@ -45,12 +45,9 @@ async function createLogpushJob(token, zoneId, zoneName) {
   const jobConfig = buildJobConfig(zoneName);
 
   // First, get ownership challenge
-  const ownershipData = await cfApi(
-    `/zones/${zoneId}/logpush/ownership`,
-    token,
-    'POST',
-    { destination_conf: jobConfig.destination_conf },
-  );
+  const ownershipData = await cfApi(`/zones/${zoneId}/logpush/ownership`, token, 'POST', {
+    destination_conf: jobConfig.destination_conf,
+  });
 
   // For ClickHouse HTTP destination, we need to validate ownership
   if (ownershipData.result?.token) {
@@ -62,7 +59,7 @@ async function createLogpushJob(token, zoneId, zoneName) {
 }
 
 async function main() {
-  const [,, apiToken, zoneIdOrName] = process.argv;
+  const [, , apiToken, zoneIdOrName] = process.argv;
 
   if (!apiToken || !zoneIdOrName) {
     console.error('Usage: node add-logpush.mjs <cloudflare-api-token> <zone-id-or-name>');
@@ -90,7 +87,9 @@ async function main() {
 
     // Check for existing ClickHouse logpush
     const existingJobs = await getExistingLogpushJobs(apiToken, zoneId);
-    const clickhouseJob = existingJobs.find((j) => j.destination_conf?.includes('clickhouse.cloud'));
+    const clickhouseJob = existingJobs.find((j) =>
+      j.destination_conf?.includes('clickhouse.cloud'),
+    );
 
     if (clickhouseJob) {
       console.log(`\nExisting ClickHouse logpush job found: ${clickhouseJob.id}`);

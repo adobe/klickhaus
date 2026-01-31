@@ -45,7 +45,7 @@ async function updateLogpushJob(token, zoneId, jobId, zoneName) {
 }
 
 async function main() {
-  const [,, apiToken, specificZone] = process.argv;
+  const [, , apiToken, specificZone] = process.argv;
 
   if (!apiToken) {
     console.error('Usage: node update-logpush.mjs <cloudflare-api-token> [zone-id-or-name]');
@@ -76,7 +76,9 @@ async function main() {
           console.log('Updating...');
           // eslint-disable-next-line no-await-in-loop -- Sequential API calls for rate limiting
           const updated = await updateLogpushJob(apiToken, zoneId, job.id, zoneName);
-          console.log(`Updated! New field count: ${updated.output_options?.field_names?.length || 0}`);
+          console.log(
+            `Updated! New field count: ${updated.output_options?.field_names?.length || 0}`,
+          );
         }
       }
     } catch (err) {

@@ -130,11 +130,7 @@ describe('detectStep', () => {
           'success',
           'Should not highlight 2xx spike - green spikes are good!',
         );
-        assert.notStrictEqual(
-          result.type,
-          'spike',
-          'Should not be a spike in success traffic',
-        );
+        assert.notStrictEqual(result.type, 'spike', 'Should not be a spike in success traffic');
       }
     }
   });
@@ -200,11 +196,7 @@ describe('detectStep', () => {
     const result = detectStep(series);
 
     assert.ok(result, 'Should detect something');
-    assert.strictEqual(
-      result.category,
-      'error',
-      'Should prioritize error spike over success drop',
-    );
+    assert.strictEqual(result.category, 'error', 'Should prioritize error spike over success drop');
 
     console.log('Detected (prioritized):', result);
   });

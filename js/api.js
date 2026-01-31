@@ -64,7 +64,11 @@ export async function query(sql, { cacheTtl: initialCacheTtl = null, skipCache =
   if (!response.ok) {
     const text = await response.text();
     // Check for authentication errors (401 or auth-related message)
-    if (response.status === 401 || text.includes('Authentication failed') || text.includes('REQUIRED_PASSWORD')) {
+    if (
+      response.status === 401 ||
+      text.includes('Authentication failed') ||
+      text.includes('REQUIRED_PASSWORD')
+    ) {
       window.dispatchEvent(authErrorEvent);
     }
     throw new Error(text);

@@ -29,7 +29,7 @@ const MASKABLE_SIZES = [512];
 
 function drawIcon(ctx, size, isMaskable = false) {
   const padding = isMaskable ? size * 0.1 : size * 0.15;
-  const innerSize = size - (padding * 2);
+  const innerSize = size - padding * 2;
 
   // Background
   ctx.fillStyle = THEME_COLOR;
@@ -57,7 +57,7 @@ function drawIcon(ctx, size, isMaskable = false) {
   const heights = [0.4, 0.7, 0.5, 0.9];
 
   heights.forEach((h, i) => {
-    const x = startX + (i * (barWidth + barSpacing));
+    const x = startX + i * (barWidth + barSpacing);
     const barHeight = innerSize * h;
     const y = baseY - barHeight;
 
