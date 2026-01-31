@@ -63,25 +63,20 @@
         <h1><span id="dashboardTitle">CDN Analytics</span> <span id="queryTimer" class="query-timer"></span></h1>
         <div id="activeFilters"></div>
       </div>
-      <div class="header-center">
-        <span class="kbd-control"><kbd class="kbd-hint">t</kbd><button id="logsBtn" class="logs-btn">Logs</button></span>
-      </div>
       <div class="header-right">
         <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange"></select></span>
         <select id="topN"></select>
         <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off"></span>
         <datalist id="hostSuggestions"></datalist>
-        <span class="kbd-control"><kbd class="kbd-hint">r</kbd><button id="refreshBtn" class="btn btn-secondary"><span class="btn-icon">↻</span><span class="btn-text">Refresh</span></button></span>
-        <button id="logoutBtn" class="btn btn-secondary"><span class="btn-icon">⏻</span><span class="btn-text">Logout</span></button>
+        <button id="moreBtn" class="menu-btn" title="More actions">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.5"/>
+            <circle cx="10" cy="10" r="1.5"/>
+            <circle cx="10" cy="16" r="1.5"/>
+          </svg>
+        </button>
       </div>
     </header>
-
-    <!-- Logs View -->
-    <div id="logsView">
-      <div class="logs-table-container">
-        <div class="logs-loading"><div class="spinner"></div>Loading logs...</div>
-      </div>
-    </div>
 
     <main id="dashboardContent">
       <!-- Time Series Chart -->
@@ -92,9 +87,11 @@
         </div>
       </section>
 
-      <!-- Breakdown Tables -->
-      <section class="breakdowns breakdowns-pinned" id="breakdowns-pinned"></section>
-      <section class="breakdowns" id="breakdowns">
+      <!-- Filters View (Breakdowns) -->
+      <div id="filtersView" class="visible">
+        <!-- Breakdown Tables -->
+        <section class="breakdowns breakdowns-pinned" id="breakdowns-pinned"></section>
+        <section class="breakdowns" id="breakdowns">
         <div class="breakdown-card" id="breakdown-status-range">
           <h3>Status Range</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
@@ -193,6 +190,14 @@
         </div>
       </section>
       <section class="breakdowns breakdowns-hidden" id="breakdowns-hidden"></section>
+      </div>
+
+      <!-- Logs View -->
+      <div id="logsView">
+        <div class="logs-table-container">
+          <div class="logs-loading"><div class="spinner"></div>Loading logs...</div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -203,6 +208,22 @@
       <button class="modal-close" data-action="close-quick-links">&times;</button>
     </div>
     <iframe id="quickLinksFrame" src="index.html"></iframe>
+  </dialog>
+
+  <!-- More Actions Menu -->
+  <dialog id="moreMenu" class="dropdown-menu">
+    <button id="viewToggleBtn" class="menu-item" data-kbd="t">
+      <span class="menu-item-label">View Logs</span>
+      <kbd class="menu-item-kbd">t</kbd>
+    </button>
+    <button id="refreshBtn" class="menu-item" data-kbd="r">
+      <span class="menu-item-label">Refresh</span>
+      <kbd class="menu-item-kbd">r</kbd>
+    </button>
+    <div class="menu-divider"></div>
+    <button id="logoutBtn" class="menu-item">
+      <span class="menu-item-label">Logout</span>
+    </button>
   </dialog>
 
   <!-- Keyboard Help Dialog -->

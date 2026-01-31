@@ -193,8 +193,8 @@ function updatePinnedOffsets(container, pinned) {
 
 // DOM elements (set by main.js)
 let logsView = null;
-let logsBtn = null;
-let dashboardContent = null;
+let viewToggleBtn = null;
+let filtersView = null;
 
 // Pagination state
 const PAGE_SIZE = 500;
@@ -422,10 +422,10 @@ function handleLogsScroll() {
   }
 }
 
-export function setLogsElements(view, btn, content) {
+export function setLogsElements(view, toggleBtn, filtersViewEl) {
   logsView = view;
-  logsBtn = btn;
-  dashboardContent = content;
+  viewToggleBtn = toggleBtn;
+  filtersView = filtersViewEl;
 
   // Set up scroll listener for infinite scroll on window
   window.addEventListener('scroll', handleLogsScroll);
@@ -448,14 +448,12 @@ export function toggleLogsView(saveStateToURL) {
   state.showLogs = !state.showLogs;
   if (state.showLogs) {
     logsView.classList.add('visible');
-    dashboardContent.classList.add('hidden');
-    logsBtn.classList.add('active');
-    logsBtn.textContent = 'Filters';
+    filtersView.classList.remove('visible');
+    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
   } else {
     logsView.classList.remove('visible');
-    dashboardContent.classList.remove('hidden');
-    logsBtn.classList.remove('active');
-    logsBtn.textContent = 'Logs';
+    filtersView.classList.add('visible');
+    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
     // Redraw chart after view becomes visible
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());
@@ -468,7 +466,6 @@ export async function loadLogs() {
   if (state.logsLoading) return;
   state.logsLoading = true;
   state.logsReady = false;
-  logsBtn.classList.remove('ready');
 
   // Reset pagination state
   logsOffset = 0;
@@ -495,7 +492,6 @@ export async function loadLogs() {
     state.logsData = result.data;
     renderLogsTable(result.data);
     state.logsReady = true;
-    logsBtn.classList.add('ready');
     // Check if there might be more data
     hasMoreLogs = result.data.length === PAGE_SIZE;
     logsOffset = result.data.length;
