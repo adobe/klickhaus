@@ -22,6 +22,12 @@ export default [
     rules: {
       ...recommended.rules,
       'max-lines': ['error', { max: 1000 }],
+      // Tech debt tracking: warn on TODO/FIXME comments
+      // Use TODO(ISSUE-123) format to link to tracking issues
+      'no-warning-comments': ['warn', {
+        terms: ['todo', 'fixme', 'hack', 'xxx', 'bug'],
+        location: 'start',
+      }],
     },
   },
   {
