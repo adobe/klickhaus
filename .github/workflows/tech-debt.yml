@@ -38,10 +38,9 @@ jobs:
           echo "Scanning for TODO, FIXME, HACK, XXX, and BUG comments..." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Run eslint and capture output
+          # Run eslint and capture output (ignore exit code, we just want the output)
           set +e
           LINT_OUTPUT=$(npm run lint -- --format stylish 2>&1)
-          LINT_EXIT=$?
           set -e
           
           # Filter for warning comments
@@ -64,10 +63,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Search for TODO/FIXME patterns in source files
+          # Note: --exclude-dir options must come before the search path
           set +e
           TODOS=$(grep -rn --include="*.js" --include="*.mjs" --include="*.ts" --include="*.html" --include="*.css" \
-            -E "(TODO|FIXME|HACK|XXX|BUG)(\([^)]+\))?:" . \
-            --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=coverage 2>/dev/null || true)
+            --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=coverage \
+            -E "(TODO|FIXME|HACK|XXX|BUG)(\([^)]+\))?:" . 2>/dev/null || true)
           set -e
           
           if [ -n "$TODOS" ]; then
