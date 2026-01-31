@@ -21,7 +21,11 @@ import {
   queryTimestamp,
   setCustomTimeRange,
   setQueryTimestamp,
+  customTimeRange,
+  isCustomTimeRange,
 } from './time.js';
+import { TIME_RANGES } from './constants.js';
+import { state } from './state.js';
 import { saveStateToURL } from './url-state.js';
 
 // Status range column for filtering
@@ -431,10 +435,12 @@ export function hexToRgba(hex, alpha) {
 /**
  * Round value to nice number for axis labels
  * @param {number} val - Value to round
- * @returns {number} Rounded nice number
+ * @returns {number} Rounded nice number (always an integer)
  */
 export function roundToNice(val) {
   if (val === 0) return 0;
+  if (val < 1) return Math.ceil(val); // Always round up to at least 1
+  
   const magnitude = 10 ** Math.floor(Math.log10(val));
   const normalized = val / magnitude;
   let nice;
@@ -443,5 +449,53 @@ export function roundToNice(val) {
   else if (normalized <= 3.5) nice = 2.5;
   else if (normalized <= 7.5) nice = 5;
   else nice = 10;
-  return nice * magnitude;
+  
+  const result = nice * magnitude;
+  
+  // If the result is less than 10, always return an integer
+  // This ensures small scales (1, 2, 3, etc.) never have decimals like 2.5
+  if (result < 10) {
+    return Math.round(result);
+  }
+  
+  return result;
+}
+
+/**
+ * Get the bucket interval in milliseconds based on current time range
+ * @returns {number} Bucket interval in milliseconds
+ */
+export function getBucketIntervalMs() {
+  // For custom time range, calculate based on duration
+  if (isCustomTimeRange()) {
+    const range = customTimeRange();
+    const durationMs = range.end - range.start;
+    const durationMinutes = durationMs / 60000;
+
+    // Match bucket sizes from time.js getTimeBucket()
+    if (durationMinutes <= 15) {
+      return 5 * 1000; // 5 seconds
+    } else if (durationMinutes <= 60) {
+      return 10 * 1000; // 10 seconds
+    } else if (durationMinutes <= 720) {
+      return 60 * 1000; // 1 minute
+    } else if (durationMinutes <= 1440) {
+      return 5 * 60 * 1000; // 5 minutes
+    } else {
+      return 10 * 60 * 1000; // 10 minutes
+    }
+  }
+
+  // For predefined time ranges, extract from bucket expression
+  const timeRange = TIME_RANGES[state.timeRange];
+  if (!timeRange) return 60 * 1000; // Default to 1 minute
+
+  const bucket = timeRange.bucket;
+  if (bucket.includes('5 SECOND')) return 5 * 1000;
+  if (bucket.includes('10 SECOND')) return 10 * 1000;
+  if (bucket.includes('toStartOfMinute')) return 60 * 1000;
+  if (bucket.includes('toStartOfFiveMinutes')) return 5 * 60 * 1000;
+  if (bucket.includes('toStartOfTenMinutes')) return 10 * 60 * 1000;
+
+  return 60 * 1000; // Default fallback
 }
