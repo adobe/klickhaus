@@ -279,8 +279,19 @@ export function getAnomalyAtX(x) {
  * @returns {Date|null} Time at position or null
  */
 export function getTimeAtX(x) {
-  if (!chartLayout || !lastChartData || lastChartData.length < 2) return null;
-  const { padding, chartWidth } = chartLayout;
+  if (!chartLayout) return null;
+  const { padding, chartWidth, intendedStartTime, intendedEndTime } = chartLayout;
+  
+  // Use intended time range if available (respects user's selected range)
+  if (intendedStartTime && intendedEndTime) {
+    const xRatio = (x - padding.left) / chartWidth;
+    if (xRatio < 0 || xRatio > 1) return null;
+    const time = new Date(intendedStartTime + xRatio * (intendedEndTime - intendedStartTime));
+    return time;
+  }
+  
+  // Fallback to data bounds (legacy behavior)
+  if (!lastChartData || lastChartData.length < 2) return null;
   const xRatio = (x - padding.left) / chartWidth;
   if (xRatio < 0 || xRatio > 1) return null;
 

@@ -145,6 +145,30 @@ export function getHostFilter() {
   return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
 }
 
+// Get start time for WITH FILL FROM clause
+export function getTimeRangeStart() {
+  if (timeState.customTimeRange) {
+    const startIso = timeState.customTimeRange.start.toISOString().replace('T', ' ').slice(0, 19);
+    return `toDateTime('${startIso}')`;
+  }
+
+  const ts = timeState.queryTimestamp || new Date();
+  const isoTimestamp = ts.toISOString().replace('T', ' ').slice(0, 19);
+  return `toDateTime('${isoTimestamp}') - ${getInterval()}`;
+}
+
+// Get end time for WITH FILL TO clause
+export function getTimeRangeEnd() {
+  if (timeState.customTimeRange) {
+    const endIso = timeState.customTimeRange.end.toISOString().replace('T', ' ').slice(0, 19);
+    return `toDateTime('${endIso}')`;
+  }
+
+  const ts = timeState.queryTimestamp || new Date();
+  const isoTimestamp = ts.toISOString().replace('T', ' ').slice(0, 19);
+  return `toDateTime('${isoTimestamp}')`;
+}
+
 // Get period duration in milliseconds
 export function getPeriodMs() {
   if (timeState.customTimeRange) {

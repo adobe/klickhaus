@@ -34,13 +34,27 @@ export async function getReleasesInRange(startTime, endTime) {
 }
 
 // Render ship symbols on the chart canvas
-export function renderReleaseShips(ctx, releases, data, chartDimensions) {
-  if (!releases || releases.length === 0 || !data || data.length < 2) return [];
+export function renderReleaseShips(ctx, releases, data, chartDimensions, timeRange = null) {
+  if (!releases || releases.length === 0) return [];
 
   const { padding, chartWidth } = chartDimensions;
-  const startTime = parseUTC(data[0].t).getTime();
-  const endTime = parseUTC(data[data.length - 1].t).getTime();
-  const timeRange = endTime - startTime;
+  
+  // Use provided time range (intended) or fall back to data bounds
+  let startTime;
+  let endTime;
+  let timeRangeMs;
+  
+  if (timeRange) {
+    startTime = timeRange.start;
+    endTime = timeRange.end;
+    timeRangeMs = endTime - startTime;
+  } else if (data && data.length >= 2) {
+    startTime = parseUTC(data[0].t).getTime();
+    endTime = parseUTC(data[data.length - 1].t).getTime();
+    timeRangeMs = endTime - startTime;
+  } else {
+    return [];
+  }
 
   // Get CSS variables for theming
   const styles = getComputedStyle(document.documentElement);
@@ -124,7 +138,7 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions) {
 
   for (const release of releases) {
     const publishedTime = parseUTC(release.published).getTime();
-    const xRatio = (publishedTime - startTime) / timeRange;
+    const xRatio = (publishedTime - startTime) / timeRangeMs;
     const x = padding.left + (chartWidth * xRatio);
 
     // Draw at the very top of the chart

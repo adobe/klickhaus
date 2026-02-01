@@ -28,6 +28,11 @@ import {
   getTimeBucketStep,
   getTimeFilter,
   setCustomTimeRange,
+  getCustomTimeRange,
+  queryTimestamp,
+  getInterval,
+  getTimeRangeStart,
+  getTimeRangeEnd,
 } from './time.js';
 import { saveStateToURL } from './url-state.js';
 import {
@@ -105,11 +110,6 @@ export function renderChart(data) {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Store layout for scrubber
-  setChartLayout({
-    width, height, padding, chartWidth, chartHeight,
-  });
-
   // Clear
   ctx.clearRect(0, 0, width, height);
 
@@ -123,6 +123,48 @@ export function renderChart(data) {
     ctx.fillText('No data', width / 2, height / 2);
     return;
   }
+
+  // Calculate the intended time range (what the user requested)
+  // This ensures the chart always shows the full range, even with sparse data
+  let intendedStartTime;
+  let intendedEndTime;
+  
+  const customRange = getCustomTimeRange();
+  if (customRange) {
+    // User selected a custom time range
+    intendedStartTime = customRange.start.getTime();
+    intendedEndTime = customRange.end.getTime();
+  } else {
+    // User selected a predefined time range (15m, 1h, etc.)
+    const ts = queryTimestamp() || new Date();
+    const interval = getInterval();
+    // Parse interval like "INTERVAL 1 HOUR" to get milliseconds
+    const match = interval.match(/INTERVAL (\d+) (\w+)/);
+    if (match) {
+      const [, amount, unit] = match;
+      const multipliers = {
+        SECOND: 1000,
+        MINUTE: 60 * 1000,
+        HOUR: 60 * 60 * 1000,
+        DAY: 24 * 60 * 60 * 1000,
+      };
+      const periodMs = parseInt(amount, 10) * multipliers[unit];
+      intendedEndTime = ts.getTime();
+      intendedStartTime = intendedEndTime - periodMs;
+    } else {
+      // Fallback to data bounds if we can't parse interval
+      intendedStartTime = parseUTC(data[0].t).getTime();
+      intendedEndTime = parseUTC(data[data.length - 1].t).getTime();
+    }
+  }
+  
+  const intendedTimeRange = intendedEndTime - intendedStartTime;
+
+  // Store layout for scrubber (including intended time range)
+  setChartLayout({
+    width, height, padding, chartWidth, chartHeight,
+    intendedStartTime, intendedEndTime,
+  });
 
   // Parse data into stacked values
   const series = {
@@ -190,8 +232,8 @@ export function renderChart(data) {
 
   for (const i of tickIndices) {
     if (i < data.length) {
-      let x = padding.left + ((chartWidth * i) / (data.length - 1));
       const time = parseUTC(data[i].t);
+      const x = padding.left + ((time.getTime() - intendedStartTime) / intendedTimeRange) * chartWidth;
       let label = time.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
@@ -200,21 +242,25 @@ export function renderChart(data) {
       // Align first label left, last label right, others center
       if (i === 0) {
         ctx.textAlign = 'left';
-        x += labelInset;
+        ctx.fillText(label, padding.left + labelInset, height - padding.bottom + 20);
       } else if (i === data.length - 1) {
         ctx.textAlign = 'right';
-        x -= labelInset;
         label += ' (UTC)';
+        ctx.fillText(label, width - padding.right - labelInset, height - padding.bottom + 20);
       } else {
         ctx.textAlign = 'center';
+        ctx.fillText(label, x, height - padding.bottom + 20);
       }
-      ctx.fillText(label, x, height - padding.bottom + 20);
     }
   }
 
   // Helper function to get Y coordinate
   const getY = (value) => height - padding.bottom - ((chartHeight * value) / (maxValue || 1));
-  const getX = (idx) => padding.left + ((chartWidth * idx) / (data.length - 1 || 1));
+  // Helper function to get X coordinate based on timestamp (time-based, not index-based)
+  const getX = (idx) => {
+    const time = parseUTC(data[idx].t);
+    return padding.left + ((time.getTime() - intendedStartTime) / intendedTimeRange) * chartWidth;
+  };
 
   // Calculate cumulative values for stacking (reversed order: 5xx at bottom)
   const stackedServer = series.server.slice();
@@ -465,14 +511,11 @@ export function renderChart(data) {
   const pendingSelection = getPendingSelection();
   if (pendingSelection) {
     const { startTime: selStart, endTime: selEnd } = pendingSelection;
-    const dataStart = parseUTC(data[0].t);
-    const dataEnd = parseUTC(data[data.length - 1].t);
-    const timeRange = dataEnd - dataStart;
 
-    if (timeRange > 0) {
-      // Convert selection times to x coordinates
-      const selStartX = padding.left + ((selStart - dataStart) / timeRange) * chartWidth;
-      const selEndX = padding.left + ((selEnd - dataStart) / timeRange) * chartWidth;
+    if (intendedTimeRange > 0) {
+      // Convert selection times to x coordinates using intended time range
+      const selStartX = padding.left + ((selStart - intendedStartTime) / intendedTimeRange) * chartWidth;
+      const selEndX = padding.left + ((selEnd - intendedStartTime) / intendedTimeRange) * chartWidth;
 
       // Clamp to chart bounds
       const bandLeft = Math.max(padding.left, Math.min(selStartX, selEndX));
@@ -506,14 +549,15 @@ export function renderChart(data) {
   }
 
   // Fetch and render release ships asynchronously
-  const startTime = parseUTC(data[0].t);
-  const endTime = parseUTC(data[data.length - 1].t);
-  getReleasesInRange(startTime, endTime).then((releases) => {
+  // Use intended time range (not just data bounds) for ship positioning
+  getReleasesInRange(intendedStartTime, intendedEndTime).then((releases) => {
     if (releases.length > 0) {
       const chartDimensions = {
         width, height, padding, chartWidth,
       };
-      setShipPositions(renderReleaseShips(ctx, releases, data, chartDimensions));
+      // Pass intended time range for correct positioning with sparse data
+      const timeRange = { start: intendedStartTime, end: intendedEndTime };
+      setShipPositions(renderReleaseShips(ctx, releases, data, chartDimensions, timeRange));
     } else {
       setShipPositions(null);
     }
@@ -974,6 +1018,8 @@ export async function loadTimeSeries() {
   const facetFilters = getFacetFilters();
   const bucket = getTimeBucket();
   const step = getTimeBucketStep();
+  const rangeStart = getTimeRangeStart();
+  const rangeEnd = getTimeRangeEnd();
 
   const sql = `
     SELECT
@@ -984,7 +1030,7 @@ export async function loadTimeSeries() {
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters}
     GROUP BY t
-    ORDER BY t WITH FILL STEP ${step}
+    ORDER BY t WITH FILL FROM ${rangeStart} TO ${rangeEnd} STEP ${step}
   `;
 
   try {
