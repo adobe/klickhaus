@@ -344,19 +344,6 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   border-bottom: none;
 }
 
-.breakdown-table tr.filter-included .dim {
-  text-decoration: underline;
-  text-decoration-color: var(--text);
-  text-underline-offset: 3px;
-}
-
-.breakdown-table tr.filter-excluded .dim {
-  text-decoration: underline;
-  text-decoration-color: var(--error);
-  text-underline-offset: 3px;
-  opacity: 0.6;
-}
-
 /* Filtered values shown outside of topN - subtle separator */
 .breakdown-table tr.filtered-value-row:first-of-type {
   border-top: 1px dashed var(--border);
@@ -380,6 +367,49 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   overflow-x: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Clickable dimension cells for filter cycling */
+.breakdown-table .dim.dim-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Filter tag indicators - inverted style */
+.breakdown-table .filter-tag-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  color: white;
+  font-weight: 500;
+}
+
+.breakdown-table .filter-tag-indicator.active {
+  /* Background set inline from status color, defaults to var(--text) */
+}
+
+.breakdown-table .filter-tag-indicator.exclude {
+  /* Background set inline from status color, defaults to var(--text) */
+  opacity: 0.6;
+}
+
+.breakdown-table .filter-tag-indicator .filter-icon {
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.breakdown-table .dim.dim-clickable:hover .filter-tag-indicator {
+  transform: scale(1.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  .breakdown-table .filter-tag-indicator {
+    /* Keep colors vibrant in dark mode */
+  }
 }
 
 .breakdown-table .dim .status-color {
@@ -419,20 +449,9 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   display: block;
 }
 
+/* Remove old action buttons - now using clickable dim cells */
 .breakdown-table .count .action-btn {
   display: none;
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-}
-
-.breakdown-table tr:hover .count .value {
-  display: none;
-}
-
-.breakdown-table tr:hover .count .action-btn {
-  display: block;
 }
 
 .breakdown-table .bar {
@@ -449,20 +468,9 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   display: flex;
 }
 
+/* Remove old action buttons - now using clickable dim cells */
 .breakdown-table .bar .action-btn {
   display: none;
-  position: absolute;
-  top: 50%;
-  left: 8px;
-  transform: translateY(-50%);
-}
-
-.breakdown-table tr:hover .bar .bar-inner {
-  display: none;
-}
-
-.breakdown-table tr:hover .bar .action-btn {
-  display: block;
 }
 
 .breakdown-table .bar-segment {
@@ -487,104 +495,13 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   border-radius: 4px;
 }
 
-.breakdown-table .action-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  cursor: pointer;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.breakdown-table .action-btn:hover {
-  background: var(--bg);
-}
-
-.breakdown-table .action-btn.exclude {
-  color: var(--error);
-}
-
-/* Mobile touch support - tap to reveal action buttons */
-/* Hide mobile actions by default everywhere */
-.breakdown-table .mobile-actions {
-  display: none;
-}
-
-/* On touch screens, use tap-to-reveal pattern */
+/* Mobile touch support - use clickable dim cells everywhere */
 @media (hover: none), (pointer: coarse) {
-  /* Disable desktop hover behavior */
-  .breakdown-table tr:hover .count .value,
-  .breakdown-table tr:hover .bar .bar-inner {
-    display: block;
-  }
-
-  .breakdown-table tr:hover .count .action-btn,
-  .breakdown-table tr:hover .bar .action-btn {
-    display: none;
-  }
-
-  /* When row is tapped (touch-active), show mobile actions and hide bar */
-  .breakdown-table tr.touch-active .bar {
-    display: none;
-  }
-
-  .breakdown-table tr.touch-active .mobile-actions {
-    display: table-cell;
-    text-align: right;
-    white-space: nowrap;
-    vertical-align: middle;
-  }
-
-  .breakdown-table .mobile-action-btn {
-    position: relative;
-    display: inline-flex;
+  /* Ensure tap targets are large enough on mobile */
+  .breakdown-table .dim.dim-clickable {
+    min-height: 44px;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1;
-    border-radius: 3px;
-    border: 1px solid var(--border);
-    background: var(--card-bg);
-    cursor: pointer;
-    color: var(--text);
-    box-sizing: border-box;
-    margin-left: 6px;
-    vertical-align: middle;
-  }
-
-  /* Expanded touch target */
-  .breakdown-table .mobile-action-btn::before {
-    content: '';
-    position: absolute;
-    top: -10px;
-    left: -10px;
-    right: -10px;
-    bottom: -10px;
-  }
-
-  .breakdown-table .mobile-action-btn:active {
-    background: var(--bg);
-  }
-
-  .breakdown-table .mobile-action-btn.exclude {
-    color: var(--error);
-  }
-
-  .breakdown-table .mobile-action-btn.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-  }
-
-  .breakdown-table .mobile-action-btn.active.exclude {
-    background: var(--error);
-    border-color: var(--error);
   }
 }
 
