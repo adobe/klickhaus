@@ -279,11 +279,20 @@ export function getAnomalyAtX(x) {
  * @returns {Date|null} Time at position or null
  */
 export function getTimeAtX(x) {
-  if (!chartLayout || !lastChartData || lastChartData.length < 2) return null;
-  const { padding, chartWidth } = chartLayout;
+  if (!chartLayout) return null;
+  const {
+    padding, chartWidth, intendedStartTime, intendedEndTime,
+  } = chartLayout;
   const xRatio = (x - padding.left) / chartWidth;
   if (xRatio < 0 || xRatio > 1) return null;
 
+  if (Number.isFinite(intendedStartTime)
+    && Number.isFinite(intendedEndTime)
+    && intendedEndTime > intendedStartTime) {
+    return new Date(intendedStartTime + xRatio * (intendedEndTime - intendedStartTime));
+  }
+
+  if (!lastChartData || lastChartData.length < 2) return null;
   const startTime = parseUTC(lastChartData[0].t).getTime();
   const endTime = parseUTC(lastChartData[lastChartData.length - 1].t).getTime();
   const time = new Date(startTime + xRatio * (endTime - startTime));
