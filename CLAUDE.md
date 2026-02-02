@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+When opening pull requests, use the GitHub PR template in `.github/pull_request_template.md` and fill out the Summary, Testing Done, and Checklist sections.
+
 ## Naming Conventions
 
 This project enforces strict naming conventions via ESLint rules. All contributions must follow these patterns:
