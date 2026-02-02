@@ -3,13 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CDN Analytics</title>
-  <link rel="canonical" href="https://klickhaus.aemstatus.net/dashboard.html">
+  <title>Delivery Dashboard - CDN Analytics</title>
+  <link rel="canonical" href="https://klickhaus.aemstatus.net/delivery.html">
 
-  <!-- Favicon Icons -->
+  <!-- PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Delivery Dashboard">
+  <meta name="theme-color" content="#4a90d9">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- Manifest & Icons -->
+  <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
 
   <link rel="stylesheet" href="dashboard.css">
 </head>
@@ -17,8 +32,8 @@
   <!-- Login Form -->
   <div id="login">
     <div class="login-card">
-      <h1>CDN Analytics</h1>
-      <p>Sign in to view your analytics dashboard</p>
+      <h1>Delivery Dashboard</h1>
+      <p>Sign in to view delivery analytics</p>
       <div id="loginError" class="error-message"></div>
       <form id="loginForm">
         <div class="form-group">
@@ -45,7 +60,7 @@
             <rect y="15" width="20" height="2" rx="1"/>
           </svg>
         </button>
-        <h1><span id="dashboardTitle">CDN Analytics</span> <span id="queryTimer" class="query-timer"></span></h1>
+        <h1><span id="dashboardTitle">Delivery Dashboard</span> <span id="queryTimer" class="query-timer"></span></h1>
         <div id="activeFilters"></div>
       </div>
       <div class="header-right">
@@ -77,6 +92,7 @@
         <!-- Breakdown Tables -->
         <section class="breakdowns breakdowns-pinned" id="breakdowns-pinned"></section>
         <section class="breakdowns" id="breakdowns">
+        <!-- Core Delivery Facets (visible by default) -->
         <div class="breakdown-card" id="breakdown-status-range">
           <h3>Status Range</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
@@ -90,9 +106,32 @@
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-forwarded-hosts">
-          <h3>Forwarded Hosts</h3>
+          <h3>Forwarded Hosts (XFH)</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
+        <div class="breakdown-card" id="breakdown-errors">
+          <h3>X-Error</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-paths">
+          <h3>Paths</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-user-agents">
+          <h3>User Agents</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-tech-stack">
+          <h3>Tech Stack</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-byo-cdn">
+          <h3>BYO CDN Type</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        </section>
+        <section class="breakdowns breakdowns-hidden" id="breakdowns-hidden">
+        <!-- Additional Facets (hidden by default, easy to add) -->
         <div class="breakdown-card" id="breakdown-content-types">
           <h3>Content Types</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
@@ -101,24 +140,12 @@
           <h3>Status Codes</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
-        <div class="breakdown-card" id="breakdown-errors">
-          <h3>Errors</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
         <div class="breakdown-card" id="breakdown-cache">
           <h3>Cache Status</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
-        <div class="breakdown-card" id="breakdown-paths">
-          <h3>Paths</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
         <div class="breakdown-card" id="breakdown-referers">
           <h3>Referers</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-user-agents">
-          <h3>User Agents</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-ips">
@@ -127,10 +154,6 @@
         </div>
         <div class="breakdown-card" id="breakdown-request-type">
           <h3>Request Types</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-tech-stack">
-          <h3>Tech Stack</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-methods">
@@ -157,10 +180,6 @@
           <h3>Cache-Control (Req)</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
-        <div class="breakdown-card" id="breakdown-byo-cdn">
-          <h3>BYO CDN Type</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
         <div class="breakdown-card" id="breakdown-push-invalidation">
           <h3>Push Invalidation</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
@@ -178,7 +197,6 @@
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
       </section>
-      <section class="breakdowns breakdowns-hidden" id="breakdowns-hidden"></section>
       </div>
 
       <!-- Logs View -->
@@ -254,7 +272,7 @@
         <div class="key-desc">Go to facet (quick navigation)</div>
 
         <div class="key-group"><kbd>r</kbd></div>
-        <div class="key-desc">Refresh data</div>
+        <div class="key-desc">Refresh data</kbd>
 
         <div class="key-group"><kbd>f</kbd></div>
         <div class="key-desc">Focus host filter</div>
@@ -283,17 +301,6 @@
     </div>
   </dialog>
 
-  <!-- Log Detail Modal -->
-  <dialog id="logDetailModal" role="dialog" aria-labelledby="logDetailTitle">
-    <div class="log-detail-header">
-      <h2 id="logDetailTitle">Log Entry Details</h2>
-      <button class="modal-close" data-action="close-log-detail">&times;</button>
-    </div>
-    <div class="log-detail-content">
-      <table class="log-detail-table" id="logDetailTable"></table>
-    </div>
-  </dialog>
-
   <!-- Facet Command Palette (VS Code-style goto) -->
   <dialog id="facetPalette" role="dialog" aria-labelledby="facetPaletteTitle">
     <div class="palette-header">
@@ -311,6 +318,6 @@
     <div id="facetSearchResults" role="listbox" aria-label="Search results"></div>
   </dialog>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/delivery-main.js"></script>
 </body>
 </html>

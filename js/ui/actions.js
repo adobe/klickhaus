@@ -23,6 +23,7 @@
  * @property {() => void} closeQuickLinksModal
  * @property {(el: HTMLElement) => void} closeDialog
  * @property {Function} openFacetSearch - (col, facetId, filterCol, title)
+ * @property {(facetId: string) => Promise<void>} copyFacetTsv
  */
 
 /**
@@ -112,6 +113,11 @@ export function initActionHandlers(handlers) {
           target.dataset.filterCol || '',
           target.dataset.title || '',
         );
+        break;
+      }
+      case 'copy-facet-tsv': {
+        event.stopPropagation();
+        handlers.copyFacetTsv?.(target.dataset.facet || '');
         break;
       }
       default:

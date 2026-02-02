@@ -1022,7 +1022,7 @@ export async function loadTimeSeries() {
       countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
       countIf(\`response.status\` >= 500) as cnt_5xx
     FROM ${DATABASE}.${getTable()}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${state.additionalWhereClause}
     GROUP BY t
     ORDER BY t WITH FILL FROM ${rangeStart} TO ${rangeEnd} STEP ${step}
   `;

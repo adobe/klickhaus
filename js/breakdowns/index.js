@@ -151,7 +151,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       ${agg5xx} as cnt_5xx${summaryColWithMult}
     FROM ${DATABASE}.${getTable()}
     ${sampleClause}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra}
+    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra} ${state.additionalWhereClause}
     GROUP BY dim WITH TOTALS
     ORDER BY ${orderBy}
     LIMIT ${state.topN}
@@ -209,7 +209,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
             ${agg5xx} as cnt_5xx
           FROM ${DATABASE}.${getTable()}
           ${sampleClause}
-          WHERE ${timeFilter} ${hostFilter} ${extra}
+          WHERE ${timeFilter} ${hostFilter} ${extra} ${state.additionalWhereClause}
             AND ${searchCol} IN (${valuesList})
           GROUP BY dim
         `;

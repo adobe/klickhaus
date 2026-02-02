@@ -18,6 +18,7 @@ A real-time analytics dashboard for CDN log analysis, built with ClickHouse and 
   - HTTP methods and datacenters
   - ASN (Autonomous System Numbers)
 - **Interactive filtering** - Click to filter or exclude any dimension value
+- **Copy to spreadsheet** - Copy any facet's data as TSV with one click (copy button) for analysis in Excel/Sheets
 - **Flexible time ranges** - Last hour, 12 hours, 24 hours, or 7 days
 - **Dark mode support** - Automatic theme based on system preference
 - **Query caching** - Intelligent cache TTLs based on time range
@@ -43,10 +44,75 @@ Both CDN sources use direct HTTP logging to ClickHouse with async inserts for hi
 
 ## Usage
 
+### General Dashboard
+
 1. Open `dashboard.html` in a browser (or visit [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/), fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/))
 2. Log in with your ClickHouse credentials
 3. Use the time range selector and host filter to narrow down results
 4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
+
+### Delivery Dashboard
+
+A focused dashboard for core delivery monitoring is available at `delivery.html`:
+
+**Data Scope:**
+- Shows delivery traffic with backend services automatically excluded (hard-coded, not visible as filters)
+- **Excluded hosts** (backend/admin/RUM/docs services - 15 total):
+  - `config.aem.page`
+  - `pipeline.aem-fastly.page`
+  - `config.aem-cloudflare.page`
+  - `admin.hlx.page`
+  - `media.aem-fastly.page`
+  - `admin.da.live`
+  - `static.aem-fastly.page`
+  - `rum.aem.page`
+  - `rum.hlx.page`
+  - `content.da.live`
+  - `da.live`
+  - `b4adf6cfdac0918eb6aa5ad033da0747.r2.cloudflarestorage.com`
+  - `docs.da.live`
+  - `rum.aem-cloudflare.page`
+  - `translate.da.live`
+- Primary focus: Fastly helix5 service (*.aem.live, *.aem.page) and Cloudflare zones (aem.live, aem.page)
+- Filter by `source` facet to see Fastly vs Cloudflare traffic
+- Exclusions cannot be removed (hard-coded in queries for focused delivery view)
+
+**Default Facets (visible out-of-the-box):**
+- Status Range (2xx, 4xx, 5xx)
+- Source (Fastly vs Cloudflare)
+- Hostname
+- Forwarded Hosts (XFH) - origin hostnames
+- X-Error messages
+- Paths
+- User Agents
+- Tech Stack (backend type)
+- BYO CDN Type
+
+**Additional Facets (hidden by default):**
+All other facets from the main dashboard are available but hidden. Use the `d` keyboard shortcut on any facet to show/hide it, or press `g` to open the facet palette for quick navigation.
+
+The delivery dashboard uses localStorage to remember your facet preferences per dashboard (pinned, visible, hidden facets are saved separately from the main dashboard).
+
+### Copy Facet Data to Spreadsheet
+
+Each facet has a copy button in the header that copies the data as Tab-Separated Values (TSV):
+
+**Usage:**
+1. Click the "copy" button on any facet
+2. Paste into Excel, Google Sheets, or any spreadsheet app
+3. Data includes columns: Value, Count, OK (2xx/3xx), 4xx, 5xx
+
+**Features:**
+- Copies visible data rows (respects current topN setting)
+- Preserves numeric values for calculations
+- Works with both count and bytes mode
+- Shows ✓ feedback on successful copy
+
+This is useful for:
+- Creating reports and presentations
+- Deeper analysis in spreadsheet tools
+- Sharing data with team members
+- Historical comparisons
 
 ## URL Parameters
 

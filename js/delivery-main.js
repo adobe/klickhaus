@@ -9,6 +9,31 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+
+/**
+ * Delivery Dashboard Main Entry Point
+ *
+ * This is a focused delivery dashboard for monitoring core delivery traffic.
+ * 
+ * Data Scope:
+ * - Core delivery traffic (*.aem.live, *.aem.page user-facing endpoints)
+ * - Excludes 15 backend/admin/docs/RUM services (hard-coded in queries)
+ * - Users can add additional filters but cannot remove hard-coded exclusions
+ *
+ * Default visible facets:
+ * - Status Range
+ * - Source (CDN)
+ * - Hostname
+ * - Forwarded Hosts (XFH)
+ * - X-Error
+ * - Paths
+ * - User Agents
+ * - Tech Stack
+ * - BYO CDN Type
+ *
+ * All other facets are hidden by default but can be shown using the 'd' keyboard shortcut.
+ */
+
 import {
   state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange,
 } from './state.js';
@@ -21,8 +46,7 @@ import {
   setOnStateRestored, setOnBeforeRestore,
 } from './url-state.js';
 import {
-  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter,
+  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -59,6 +83,71 @@ import {
 } from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
 
+// Delivery Dashboard Configuration
+// The delivery dashboard shows core delivery traffic, excluding backend/admin services.
+// These exclusions are hard-coded in queries and not visible as user filters.
+
+// Excluded hosts (backend services, admin, RUM)
+const EXCLUDED_DELIVERY_HOSTS = [
+  'config.aem.page',
+  'pipeline.aem-fastly.page',
+  'config.aem-cloudflare.page',
+  'admin.hlx.page',
+  'media.aem-fastly.page',
+  'admin.da.live',
+  'static.aem-fastly.page',
+  'rum.aem.page',
+  'rum.hlx.page',
+  'content.da.live',
+  'da.live',
+  'b4adf6cfdac0918eb6aa5ad033da0747.r2.cloudflarestorage.com',
+  'docs.da.live',
+  'rum.aem-cloudflare.page',
+  'translate.da.live',
+];
+
+/**
+ * Get SQL WHERE clause for delivery dashboard host exclusions
+ * @returns {string} SQL WHERE clause to exclude backend hosts
+ */
+export function getDeliveryExclusionFilter() {
+  const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');
+  return `AND \`request.host\` NOT IN (${excludedList})`;
+}
+
+// Facets visible by default in delivery dashboard
+const DEFAULT_VISIBLE_FACETS = [
+  'breakdown-status-range',
+  'breakdown-source',
+  'breakdown-hosts',
+  'breakdown-forwarded-hosts',
+  'breakdown-errors',
+  'breakdown-paths',
+  'breakdown-user-agents',
+  'breakdown-tech-stack',
+  'breakdown-byo-cdn',
+];
+
+// All other facets (hidden by default, can be shown with 'd' keyboard shortcut)
+const DEFAULT_HIDDEN_FACETS = [
+  'breakdown-content-types',
+  'breakdown-status',
+  'breakdown-cache',
+  'breakdown-referers',
+  'breakdown-ips',
+  'breakdown-request-type',
+  'breakdown-methods',
+  'breakdown-datacenters',
+  'breakdown-asn',
+  'breakdown-accept',
+  'breakdown-accept-encoding',
+  'breakdown-req-cache-control',
+  'breakdown-push-invalidation',
+  'breakdown-content-length',
+  'breakdown-location',
+  'breakdown-time-elapsed',
+];
+
 // DOM Elements
 const elements = {
   loginSection: document.getElementById('login'),
@@ -80,6 +169,26 @@ const elements = {
 setElements(elements);
 setUrlStateElements(elements);
 setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
+
+// Initialize delivery-specific configuration
+function initDeliveryConfig() {
+  // Set title if not already set from URL
+  if (!state.title) {
+    state.title = 'Delivery';
+  }
+
+  // Set hard-coded exclusion filter for all queries
+  state.additionalWhereClause = getDeliveryExclusionFilter();
+}
+
+// Initialize facet visibility for delivery dashboard
+function initDeliveryFacets() {
+  // Only set defaults if user hasn't customized facets for this dashboard
+  const hasCustomPrefs = localStorage.getItem('facetPrefs_Delivery');
+  if (!hasCustomPrefs) {
+    state.hiddenFacets = [...DEFAULT_HIDDEN_FACETS];
+  }
+}
 
 // Load dashboard queries (chart and facets)
 async function loadDashboardQueries(timeFilter, hostFilter) {
@@ -139,17 +248,6 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   }
 }
 
-// Update keyboard hint for time range to show next option number
-function updateTimeRangeHint() {
-  const hint = document.getElementById('timeRangeHint');
-  const select = document.getElementById('timeRange');
-  if (!hint || !select) return;
-
-  // Show next option number (wraps to 1 if at last option)
-  const nextIndex = (select.selectedIndex + 1) % select.options.length;
-  hint.textContent = nextIndex + 1;
-}
-
 // Load Dashboard Data
 async function loadDashboard(refresh = false) {
   setForceRefresh(refresh);
@@ -162,15 +260,6 @@ async function loadDashboard(refresh = false) {
     setQueryTimestamp(new Date());
   }
   saveStateToURL();
-
-  // Sync time range dropdown with current state (custom zoom vs preset)
-  if (isCustomTimeRange()) {
-    elements.timeRangeSelect.value = 'custom';
-  } else {
-    elements.timeRangeSelect.value = state.timeRange;
-  }
-  updateTimeRangeHint();
-
   startQueryTimer();
   resetFacetTimings();
 
@@ -244,6 +333,17 @@ function reorderFacets(toggledFacetId = null) {
 // Set up callback for facet order changes
 setOnFacetOrderChange(reorderFacets);
 
+// Update keyboard hint for time range to show next option number
+function updateTimeRangeHint() {
+  const hint = document.getElementById('timeRangeHint');
+  const select = document.getElementById('timeRange');
+  if (!hint || !select) return;
+
+  // Show next option number (wraps to 1 if at last option)
+  const nextIndex = (select.selectedIndex + 1) % select.options.length;
+  hint.textContent = nextIndex + 1;
+}
+
 // Increase topN and reload breakdowns
 function increaseTopN() {
   const next = getNextTopN();
@@ -274,6 +374,10 @@ function toggleFacetMode(stateKey) {
 async function init() {
   // Load state from URL first
   loadStateFromURL();
+
+  // Initialize delivery-specific configuration
+  initDeliveryConfig();
+  initDeliveryFacets();
 
   // Populate select options from constants
   populateTimeRangeSelect(elements.timeRangeSelect);

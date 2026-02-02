@@ -41,6 +41,9 @@ export const allBreakdowns = [
     id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", summaryCountIf: '`response.status` >= 500', summaryLabel: 'error rate', summaryColor: 'error',
   },
   {
+    id: 'breakdown-source', col: '`source`', summaryCountIf: "`source` = 'fastly'", summaryLabel: 'fastly',
+  },
+  {
     id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryLabel: 'live', highCardinality: true,
   },
   {

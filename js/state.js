@@ -36,6 +36,7 @@ export const state = {
   contentTypeMode: 'count', // 'count' or 'bytes' for content-types facet
   pinnedFacets: [], // Facet IDs pinned to top
   hiddenFacets: [], // Facet IDs hidden at bottom
+  additionalWhereClause: '', // Additional WHERE clause for queries (e.g., delivery exclusions)
 };
 
 // Callback for re-rendering logs table when pinned columns change
