@@ -22,7 +22,13 @@
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js');
+      const { hostname, pathname } = window.location;
+      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+      const isPreviewPath = pathname.includes('/preview/');
+
+      if (!isLocalhost && !isPreviewPath) {
+        navigator.serviceWorker.register('/sw.js');
+      }
     }
   </script>
 
