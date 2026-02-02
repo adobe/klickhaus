@@ -231,6 +231,170 @@ function showCopyFeedback() {
   }, 1500);
 }
 
+// Log detail modal element
+let logDetailModal = null;
+
+/**
+ * Group columns by their prefix for organized display.
+ * @param {string[]} columns
+ * @returns {Map<string, string[]>}
+ */
+function groupColumnsByPrefix(columns) {
+  const groups = new Map();
+  const groupOrder = ['', 'request', 'response', 'cdn', 'client', 'helix'];
+
+  // Initialize groups in order
+  for (const prefix of groupOrder) {
+    groups.set(prefix, []);
+  }
+
+  for (const col of columns) {
+    const dotIndex = col.indexOf('.');
+    const prefix = dotIndex > -1 ? col.substring(0, dotIndex) : '';
+    if (!groups.has(prefix)) {
+      groups.set(prefix, []);
+    }
+    groups.get(prefix).push(col);
+  }
+
+  return groups;
+}
+
+/**
+ * Format a value for display in the detail modal.
+ * @param {string} col
+ * @param {unknown} value
+ * @returns {{ html: string, className: string }}
+ */
+function formatDetailValue(col, value) {
+  if (value === null || value === undefined || value === '') {
+    return { html: '(empty)', className: 'empty-value' };
+  }
+
+  let className = '';
+  let displayValue = '';
+
+  if (col === 'timestamp') {
+    const date = new Date(value);
+    displayValue = date.toLocaleString();
+  } else if (col === 'response.status') {
+    const status = parseInt(value, 10);
+    displayValue = String(status);
+    if (status >= 500) className = 'status-5xx';
+    else if (status >= 400) className = 'status-4xx';
+    else className = 'status-ok';
+  } else if (col === 'response.body_size') {
+    displayValue = formatBytes(parseInt(value, 10));
+  } else if (typeof value === 'object') {
+    displayValue = JSON.stringify(value, null, 2);
+  } else {
+    displayValue = String(value);
+  }
+
+  const color = getColorForColumn(col, value);
+  const colorIndicator = color ? `<span class="log-color" style="background:${color}"></span>` : '';
+
+  return { html: colorIndicator + escapeHtml(displayValue), className };
+}
+
+/**
+ * Get display name for a column group.
+ * @param {string} prefix
+ * @returns {string}
+ */
+function getGroupDisplayName(prefix) {
+  const names = {
+    '': 'Core',
+    request: 'Request',
+    response: 'Response',
+    cdn: 'CDN',
+    client: 'Client',
+    helix: 'Helix',
+  };
+  return names[prefix] || prefix.charAt(0).toUpperCase() + prefix.slice(1);
+}
+
+/**
+ * Render log detail modal content.
+ * @param {Object} row
+ */
+function renderLogDetailContent(row) {
+  const table = document.getElementById('logDetailTable');
+  if (!table) return;
+
+  const columns = Object.keys(row);
+  const groups = groupColumnsByPrefix(columns);
+
+  let html = '';
+
+  for (const [prefix, cols] of groups) {
+    if (cols.length > 0) {
+      html += '<tbody class="log-detail-group">';
+      html += `<tr><td colspan="2" class="log-detail-group-title">${getGroupDisplayName(prefix)}</td></tr>`;
+
+      for (const col of cols) {
+        const value = row[col];
+        const { html: valueHtml, className } = formatDetailValue(col, value);
+        const displayCol = col.includes('.') ? col.split('.').slice(1).join('.') : col;
+        html += `<tr>
+        <th title="${escapeHtml(col)}">${escapeHtml(displayCol)}</th>
+        <td class="${className}">${valueHtml}</td>
+      </tr>`;
+      }
+
+      html += '</tbody>';
+    }
+  }
+
+  table.innerHTML = html;
+}
+
+/**
+ * Close the log detail modal.
+ */
+export function closeLogDetailModal() {
+  if (logDetailModal) {
+    logDetailModal.close();
+  }
+}
+
+/**
+ * Open log detail modal for a row.
+ * @param {number} rowIdx
+ */
+export function openLogDetailModal(rowIdx) {
+  const row = state.logsData[rowIdx];
+  if (!row) return;
+
+  if (!logDetailModal) {
+    logDetailModal = document.getElementById('logDetailModal');
+    if (!logDetailModal) return;
+
+    // Close on backdrop click
+    logDetailModal.addEventListener('click', (e) => {
+      if (e.target === logDetailModal) {
+        closeLogDetailModal();
+      }
+    });
+
+    // Close on Escape
+    logDetailModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeLogDetailModal();
+      }
+    });
+
+    // Close button handler
+    const closeBtn = logDetailModal.querySelector('[data-action="close-log-detail"]');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeLogDetailModal);
+    }
+  }
+
+  renderLogDetailContent(row);
+  logDetailModal.showModal();
+}
+
 // Copy row data as JSON when clicking on row background
 export function copyLogRow(rowIdx) {
   const row = state.logsData[rowIdx];
@@ -273,7 +437,7 @@ export function setupLogRowClickHandler() {
     const { target } = e;
     if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
 
-    // Don't copy if clicking on a clickable cell (filter action)
+    // Don't open modal if clicking on a clickable cell (filter action)
     if (target.classList.contains('clickable')) return;
 
     // Find the row
@@ -281,7 +445,7 @@ export function setupLogRowClickHandler() {
     if (!row || !row.dataset.rowIdx) return;
 
     const rowIdx = parseInt(row.dataset.rowIdx, 10);
-    copyLogRow(rowIdx);
+    openLogDetailModal(rowIdx);
   });
 }
 
