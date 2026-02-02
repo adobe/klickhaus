@@ -27,7 +27,7 @@ jobs:
           echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > /tmp/gcp-key.json
           gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
           gsutil -m rsync -r -d \
-            -x 'node_modules/|\.git/|\.github/' \
+            -x 'node_modules/|\.git/|\.github/|debug/|hars/|scripts/|sql/|\.claude/|\.yolo/|.*\.local\.md|\.env.*|package-lock\.json|screenshot\.png|.*\.test\.js|eslint\.config\.js|knip\.json|\.jscpd\.json|\.releaserc\.json|renovate\.json|\.gitignore|AGENTS\.md|VIEW_MIGRATION\.md|CLAUDE\.md|README\.md' \
             . gs://klickhaus-static
           rm /tmp/gcp-key.json
 

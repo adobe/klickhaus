@@ -1,6 +1,6 @@
 /**
  * Service Worker for CDN Analytics PWA
- * Cache-first strategy for static assets, network-only for API calls
+ * Network-first strategy for all assets, with cache fallback for offline use
  */
 
 const CACHE_NAME = 'cdn-analytics-v1';
@@ -80,7 +80,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - cache-first for static, network-only for API
+// Fetch event - network-first for all same-origin requests
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -94,72 +94,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // In development (localhost), use network-first to see changes immediately
-  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Update cache in background
-          if (response && response.status === 200 && response.type === 'basic') {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // For same-origin requests, use cache-first strategy
+  // Network-first: always try to fetch fresh content, fall back to cache
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          // Return cached version, but also update cache in background
-          fetchAndCache(event.request);
-          return cachedResponse;
+    fetch(event.request)
+      .then((response) => {
+        // Cache successful responses for offline fallback
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }
-
-        // Not in cache, fetch from network
-        return fetchAndCache(event.request);
+        return response;
       })
       .catch(() => {
-        // Network failed and not in cache
-        // Return a simple offline message for HTML pages
-        if (event.request.headers.get('Accept')?.includes('text/html')) {
-          return new Response(
-            '<!DOCTYPE html><html><head><title>Offline</title></head>' +
-            '<body style="font-family:system-ui;text-align:center;padding:50px">' +
-            '<h1>You are offline</h1>' +
-            '<p>CDN Analytics requires a network connection.</p>' +
-            '<button onclick="location.reload()">Retry</button>' +
-            '</body></html>',
-            { headers: { 'Content-Type': 'text/html' } }
-          );
-        }
-        return new Response('Offline', { status: 503 });
+        // Network failed — try cache fallback
+        return caches.match(event.request)
+          .then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Not in cache either — return offline message for HTML pages
+            if (event.request.headers.get('Accept')?.includes('text/html')) {
+              return new Response(
+                '<!DOCTYPE html><html><head><title>Offline</title></head>' +
+                '<body style="font-family:system-ui;text-align:center;padding:50px">' +
+                '<h1>You are offline</h1>' +
+                '<p>CDN Analytics requires a network connection.</p>' +
+                '<button onclick="location.reload()">Retry</button>' +
+                '</body></html>',
+                { headers: { 'Content-Type': 'text/html' } }
+              );
+            }
+            return new Response('Offline', { status: 503 });
+          });
       })
   );
 });
-
-// Helper: Fetch and update cache
-function fetchAndCache(request) {
-  return fetch(request)
-    .then((response) => {
-      // Only cache successful responses
-      if (!response || response.status !== 200 || response.type !== 'basic') {
-        return response;
-      }
-
-      // Clone the response since it can only be consumed once
-      const responseToCache = response.clone();
-
-      caches.open(CACHE_NAME)
-        .then((cache) => {
-          cache.put(request, responseToCache);
-        });
-
-      return response;
-    });
-}
