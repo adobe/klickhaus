@@ -85,6 +85,10 @@ function updateRowFilterStyling(col, value) {
   document.querySelectorAll('.breakdown-card .breakdown-table tr[data-dim]').forEach((row) => {
     if (row.dataset.dim !== value) return;
 
+    // Only update rows belonging to this facet column
+    const dimCell = row.querySelector('td.dim');
+    if (dimCell?.dataset.col !== col) return;
+
     const filter = state.filters.find((f) => f.col === col && f.value === value);
     const isIncluded = filter && !filter.exclude;
     const isExcluded = filter && filter.exclude;
@@ -101,7 +105,6 @@ function updateRowFilterStyling(col, value) {
     tag.classList.toggle('exclude', !!isExcluded);
 
     // Update background from stored color
-    const dimCell = row.querySelector('td.dim');
     const bgColor = dimCell?.dataset.bgColor || 'var(--text)';
     tag.style.background = (isIncluded || isExcluded) ? bgColor : '';
 

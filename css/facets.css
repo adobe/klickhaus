@@ -453,10 +453,9 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   opacity: 0.6;
 }
 
-/* Disable links in active/exclude filter state */
+/* Style links in active/exclude filter state (navigation blocked via JS) */
 .breakdown-table .filter-tag-indicator.active a,
 .breakdown-table .filter-tag-indicator.exclude a {
-  pointer-events: none;
   color: inherit;
   text-decoration: none;
 }

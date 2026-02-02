@@ -245,7 +245,7 @@ export function renderBreakdownTable(
 
     const indicatorSlot = `<span class="filter-indicator-slot"><span class="filter-icon">${iconChar}</span>${colorIndicator}</span>`;
     const textHtml = linkUrl
-      ? `<a href="${linkUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${formattedDim}</a>`
+      ? `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`
       : formattedDim;
     const filterTag = `<span class="filter-tag-indicator${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`;
 

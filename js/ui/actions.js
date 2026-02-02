@@ -14,7 +14,8 @@
  * @property {(col: string) => void} togglePinnedColumn
  * @property {Function} addFilter - (col, value, exclude, filterCol?, filterValue?, filterOp?)
  * @property {(index: number) => void} removeFilter
- * @property {(col: string, value: string) => void} removeFilterByValue
+ * @property {(col: string, value: string, skipReload?: boolean) => void} removeFilterByValue
+ * @property {(col: string, value: string) => Object|undefined} getFilterForValue
  * @property {(col: string) => void} clearFiltersForColumn
  * @property {() => void} increaseTopN
  * @property {(facetId: string) => void} toggleFacetPin
@@ -32,6 +33,13 @@
  */
 export function initActionHandlers(handlers) {
   document.addEventListener('click', (event) => {
+    // Let links inside unfiltered filter tags navigate normally
+    if (event.target.closest('.filter-tag-indicator:not(.active):not(.exclude) a')) return;
+    // Block link navigation inside active/excluded filter tags
+    if (event.target.closest('.filter-tag-indicator.active a, .filter-tag-indicator.exclude a')) {
+      event.preventDefault();
+    }
+
     const target = event.target.closest('[data-action]');
     if (!target) return;
 
