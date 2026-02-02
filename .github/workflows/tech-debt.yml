@@ -1,0 +1,86 @@
+# Tech Debt Tracking Workflow
+# Scans for TODO/FIXME comments and reports them as technical debt markers
+name: Tech Debt Scanner
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    # Weekly scan on Mondays at 9am UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan-tech-debt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint tech debt check
+        run: |
+          echo "## Tech Debt Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Scanning for TODO, FIXME, HACK, XXX, and BUG comments..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run eslint and capture output (ignore exit code, we just want the output)
+          set +e
+          LINT_OUTPUT=$(npm run lint -- --format stylish 2>&1)
+          set -e
+          
+          # Filter for warning comments
+          WARNING_COMMENTS=$(echo "$LINT_OUTPUT" | grep -E "(todo|fixme|hack|xxx|bug)" || true)
+          
+          if [ -n "$WARNING_COMMENTS" ]; then
+            echo "### Warning Comments Found" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$WARNING_COMMENTS" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### No Warning Comments Found" >> $GITHUB_STEP_SUMMARY
+            echo "No TODO/FIXME/HACK/XXX/BUG comments detected." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Scan for TODO comments
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### All TODO/FIXME Comments in Codebase" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Search for TODO/FIXME patterns in source files
+          # Note: --exclude-dir options must come before the search path
+          set +e
+          TODOS=$(grep -rn --include="*.js" --include="*.mjs" --include="*.ts" --include="*.html" --include="*.css" \
+            --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=coverage \
+            -E "(TODO|FIXME|HACK|XXX|BUG)(\([^)]+\))?:" . 2>/dev/null || true)
+          set -e
+          
+          if [ -n "$TODOS" ]; then
+            TODO_COUNT=$(echo "$TODOS" | wc -l)
+            echo "Found **$TODO_COUNT** tech debt markers:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$TODOS" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Recommendation**: Link TODOs to tracking issues using format \`TODO(ISSUE-123): description\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No TODO/FIXME comments found in source files." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Always succeed - this is for tracking, not blocking
+          exit 0

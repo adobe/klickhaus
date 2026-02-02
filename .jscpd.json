@@ -1,0 +1,19 @@
+{
+  "threshold": 5,
+  "reporters": ["html", "console"],
+  "ignore": [
+    "node_modules/**",
+    "coverage/**",
+    "dist/**",
+    "hars/**",
+    "debug/**",
+    "**/*.test.js",
+    "**/*.min.js"
+  ],
+  "format": ["javascript"],
+  "absolute": true,
+  "gitignore": true,
+  "minLines": 10,
+  "minTokens": 50,
+  "output": "report/jscpd"
+}

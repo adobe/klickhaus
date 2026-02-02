@@ -273,6 +273,7 @@ async function loadSavedQueries() {
     paletteState.savedQueriesLoading = false;
     return queries;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.warn('Failed to load saved queries:', err);
     paletteState.savedQueriesLoading = false;
     paletteState.savedQueries = [];
@@ -584,6 +585,7 @@ export function initFacetPalette() {
   const dialog = document.getElementById('facetPalette');
 
   if (!input || !list || !dialog) {
+    // eslint-disable-next-line no-console
     console.warn('Facet palette elements not found');
     return;
   }

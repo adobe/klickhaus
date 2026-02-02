@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "js/main.js",
+    "sw.js",
+    "scripts/*.mjs",
+    "eslint.config.js"
+  ],
+  "project": [
+    "js/**/*.js",
+    "scripts/**/*.mjs"
+  ],
+  "ignore": [
+    "js/**/*.test.js"
+  ],
+  "ignoreDependencies": [
+    "live-server"
+  ],
+  "ignoreBinaries": [
+    "eslint"
+  ]
+}

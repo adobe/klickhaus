@@ -1,3 +1,17 @@
 *.local.md
 node_modules/
-package-lock.json
+
+# OS files
+.DS_Store
+
+# IDE configs
+.idea/
+.vscode/
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Generated reports
+report/

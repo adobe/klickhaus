@@ -230,6 +230,21 @@ export function getDetectedAnomalies() {
 }
 
 /**
+ * Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
+ * @param {string|Date} timestamp - Timestamp to parse
+ * @returns {Date} Parsed date
+ */
+export function parseUTC(timestamp) {
+  const str = String(timestamp);
+  // If already has Z suffix, parse directly
+  if (str.endsWith('Z')) {
+    return new Date(str);
+  }
+  // Otherwise, normalize and append Z to treat as UTC
+  return new Date(`${str.replace(' ', 'T')}Z`);
+}
+
+/**
  * Get the time range for the most recent section (last 20% of timeline)
  * @returns {Object|null} Time range { start, end } or null
  */
@@ -256,21 +271,6 @@ export function getAnomalyAtX(x) {
     }
   }
   return null;
-}
-
-/**
- * Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
- * @param {string|Date} timestamp - Timestamp to parse
- * @returns {Date} Parsed date
- */
-export function parseUTC(timestamp) {
-  const str = String(timestamp);
-  // If already has Z suffix, parse directly
-  if (str.endsWith('Z')) {
-    return new Date(str);
-  }
-  // Otherwise, normalize and append Z to treat as UTC
-  return new Date(`${str.replace(' ', 'T')}Z`);
 }
 
 /**
@@ -431,10 +431,12 @@ export function hexToRgba(hex, alpha) {
 /**
  * Round value to nice number for axis labels
  * @param {number} val - Value to round
- * @returns {number} Rounded nice number
+ * @returns {number} Rounded nice number (always an integer)
  */
 export function roundToNice(val) {
   if (val === 0) return 0;
+  if (val < 1) return Math.ceil(val);
+
   const magnitude = 10 ** Math.floor(Math.log10(val));
   const normalized = val / magnitude;
   let nice;
@@ -443,5 +445,14 @@ export function roundToNice(val) {
   else if (normalized <= 3.5) nice = 2.5;
   else if (normalized <= 7.5) nice = 5;
   else nice = 10;
-  return nice * magnitude;
+
+  const result = nice * magnitude;
+
+  // If the result is less than 10, always return an integer
+  // This ensures small scales (1, 2, 3, etc.) never have decimals like 2.5
+  if (result < 10) {
+    return Math.round(result);
+  }
+
+  return result;
 }

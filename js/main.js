@@ -17,7 +17,8 @@ import {
   setElements, handleLogin, handleLogout, showDashboard,
 } from './auth.js';
 import {
-  loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements, setOnStateRestored,
+  loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements,
+  setOnStateRestored, setOnBeforeRestore,
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter,
@@ -47,7 +48,8 @@ import {
 import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import {
-  investigateAnomalies, reapplyHighlightsIfCached, hasCachedInvestigation, invalidateInvestigationCache,
+  investigateAnomalies, reapplyHighlightsIfCached,
+  hasCachedInvestigation, invalidateInvestigationCache,
 } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
@@ -66,15 +68,16 @@ const elements = {
   hostFilterInput: document.getElementById('hostFilter'),
   refreshBtn: document.getElementById('refreshBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
-  logsBtn: document.getElementById('logsBtn'),
+  viewToggleBtn: document.getElementById('viewToggleBtn'),
   logsView: document.getElementById('logsView'),
+  filtersView: document.getElementById('filtersView'),
   dashboardContent: document.getElementById('dashboardContent'),
 };
 
 // Pass elements to modules that need them
 setElements(elements);
 setUrlStateElements(elements);
-setLogsElements(elements.logsView, elements.logsBtn, elements.dashboardContent);
+setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
 
 // Load dashboard queries (chart and facets)
 async function loadDashboardQueries(timeFilter, hostFilter) {
@@ -176,7 +179,8 @@ setOnShowFiltersView(() => {
 // Set up filter callbacks to avoid circular dependencies
 setFilterCallbacks(saveStateToURL, loadDashboard);
 
-// Set up callback for browser back/forward navigation
+// Set up callbacks for browser back/forward navigation
+setOnBeforeRestore(() => invalidateInvestigationCache());
 setOnStateRestored(loadDashboard);
 
 // Move facets between pinned/normal/hidden sections based on state
@@ -313,6 +317,7 @@ async function init() {
     } catch (err) {
       // Invalid JSON in localStorage, clear it
       localStorage.removeItem('clickhouse_credentials');
+      // eslint-disable-next-line no-console
       console.log('Invalid credentials in localStorage');
     }
   }
@@ -380,7 +385,7 @@ async function init() {
     }
   });
 
-  elements.logsBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
+  elements.viewToggleBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
 
   // Listen for login success event from auth.js
   window.addEventListener('login-success', () => {
@@ -405,6 +410,18 @@ initMobileFiltersPosition();
 // Responsive time range labels
 updateTimeRangeLabels(elements.timeRangeSelect);
 window.addEventListener('resize', () => updateTimeRangeLabels(elements.timeRangeSelect));
+
+// Redraw chart on window resize to prevent stretching
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    const lastData = getLastChartData();
+    if (lastData) {
+      renderChart(lastData);
+    }
+  }, 100); // Debounce to avoid excessive redraws during resize
+});
 
 // Expose only for chart.js double-tap without inline handlers
 window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);

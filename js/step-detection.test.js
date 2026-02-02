@@ -114,6 +114,7 @@ describe('detectStep', () => {
     // The spike starts at index 8 (21:12) where 4xx jumps from 12309 to 28932
     assert.strictEqual(result.startIndex, 8, 'Spike should start at index 8');
 
+    // eslint-disable-next-line no-console
     console.log('Detected step:', result);
   });
 
@@ -178,6 +179,7 @@ describe('detectStep', () => {
     assert.strictEqual(result.category, 'success', 'Should be in success category');
     assert.strictEqual(result.startIndex, 5, 'Drop should be at index 5');
 
+    // eslint-disable-next-line no-console
     console.log('Detected drop:', result);
   });
 
@@ -206,6 +208,7 @@ describe('detectStep', () => {
       'Should prioritize error spike over success drop',
     );
 
+    // eslint-disable-next-line no-console
     console.log('Detected (prioritized):', result);
   });
 
@@ -244,6 +247,7 @@ describe('CDN operational requirements', () => {
     // Green spikes can be highlighted if there's nothing more important
     if (result && result.category === 'success' && result.type === 'spike') {
       // This is acceptable - green spikes are low priority but can be shown
+      // eslint-disable-next-line no-console
       console.log('Green spike detected (low priority):', result);
     }
   });

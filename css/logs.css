@@ -1,44 +1,22 @@
 /*
  * Logs View
- * Logs button, logs table, log entries
+ * Logs table, log entries
  */
 
-/* Logs Button */
-.logs-btn {
-  padding: 8px 24px;
-  font-size: 14px;
-  background: var(--card-bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.logs-btn:hover {
-  background: var(--bg);
-}
-
-.logs-btn.ready {
-  border-color: var(--primary);
-}
-
-.logs-btn.active {
-  background: var(--bg);
-}
-
-/* Logs View */
+/* Filters and Logs Views */
+#filtersView,
 #logsView {
   display: none;
-  padding: 24px;
 }
 
+#filtersView.visible,
 #logsView.visible {
   display: block;
 }
 
-#dashboardContent.hidden {
-  display: none;
+/* Logs View */
+#logsView {
+  padding: 16px 0 24px 0;
 }
 
 .logs-table-container {
@@ -140,7 +118,7 @@
 }
 
 .logs-table tbody tr {
-  cursor: copy;
+  cursor: pointer;
 }
 
 .logs-table tr:hover td {

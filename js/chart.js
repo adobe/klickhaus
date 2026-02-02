@@ -25,6 +25,7 @@ import {
   getHostFilter,
   getTable,
   getTimeBucket,
+  getTimeBucketStep,
   getTimeFilter,
   setCustomTimeRange,
 } from './time.js';
@@ -56,7 +57,6 @@ import {
   zoomToAnomalyByRank,
   getShipNearX,
   hexToRgba,
-  roundToNice,
   parseUTC,
 } from './chart-state.js';
 
@@ -133,8 +133,11 @@ export function renderChart(data) {
 
   // Calculate stacked totals for max value
   const totals = data.map((_, i) => series.ok[i] + series.client[i] + series.server[i]);
-  const maxValue = Math.max(...totals);
+  const dataMax = Math.max(...totals);
   const minValue = 0;
+
+  // Round up to a multiple of 4 so all 4 grid lines land on whole numbers
+  const maxValue = Math.max(4, Math.ceil(Math.ceil(dataMax) / 4) * 4);
 
   // Colors from CSS variables
   const okColor = cssVar('--status-ok');
@@ -163,9 +166,7 @@ export function renderChart(data) {
   ctx.textAlign = 'left';
 
   for (let i = 1; i <= 4; i += 1) {
-    const rawVal = minValue + (maxValue - minValue) * (i / 4);
-    // Keep top value exact, round others to nice numbers
-    const val = (i === 4) ? Math.round(rawVal) : roundToNice(rawVal);
+    const val = minValue + (maxValue - minValue) * (i / 4);
     const y = height - padding.bottom - ((chartHeight * i) / 4);
 
     // Grid line
@@ -175,7 +176,7 @@ export function renderChart(data) {
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
 
-    // Label inside chart, above grid line
+    // Label inside chart, above grid line (val is already a whole number)
     ctx.fillStyle = cssVar('--text-secondary');
     ctx.fillText(formatNumber(val), padding.left + labelInset, y - 4);
   }
@@ -972,6 +973,7 @@ export async function loadTimeSeries() {
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
   const bucket = getTimeBucket();
+  const step = getTimeBucketStep();
 
   const sql = `
     SELECT
@@ -982,7 +984,7 @@ export async function loadTimeSeries() {
     FROM ${DATABASE}.${getTable()}
     WHERE ${timeFilter} ${hostFilter} ${facetFilters}
     GROUP BY t
-    ORDER BY t
+    ORDER BY t WITH FILL STEP ${step}
   `;
 
   try {
