@@ -413,10 +413,8 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
 .breakdown-table .filter-indicator-slot {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   width: 11px;
   flex-shrink: 0;
-  overflow: hidden;
 }
 
 /* Icon: hidden by default, shown in active/exclude states */
