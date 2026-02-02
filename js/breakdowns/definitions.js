@@ -44,7 +44,7 @@ export const allBreakdowns = [
     id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryLabel: 'live', highCardinality: true,
   },
   {
-    id: 'breakdown-forwarded-hosts', col: "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)", linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost, summaryCountIf: "`request.headers.x_forwarded_host` != '' AND `request.headers.x_forwarded_host` != `request.host`", summaryLabel: 'production', highCardinality: true,
+    id: 'breakdown-forwarded-hosts', col: "`request.headers.x_forwarded_host`", linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost, summaryCountIf: "`request.headers.x_forwarded_host` != ''", summaryLabel: 'production', highCardinality: true,
   },
   { id: 'breakdown-content-types', col: COLUMN_DEFS.contentType.facetCol, modeToggle: 'contentTypeMode' },
   { id: 'breakdown-status', col: COLUMN_DEFS.status.facetCol, modeToggle: 'contentTypeMode' },
