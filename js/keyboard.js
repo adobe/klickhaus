@@ -434,7 +434,7 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
         break;
       case 't':
         e.preventDefault();
-        document.getElementById('logsBtn').click();
+        document.getElementById('viewToggleBtn').click();
         break;
       case '1':
       case '2':
