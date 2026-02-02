@@ -15,6 +15,7 @@ import { state } from './state.js';
 import {
   setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
   getTimeFilter, getTimeBucket, getPeriodMs,
+  getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
 } from './time.js';
 
 beforeEach(() => {
@@ -26,8 +27,8 @@ beforeEach(() => {
 describe('time helpers', () => {
   it('builds deterministic time filter for standard range', () => {
     const filter = getTimeFilter();
-    assert.ok(filter.includes("toDateTime('2026-01-20 12:34:56')"));
-    assert.ok(filter.includes('INTERVAL 1 HOUR'));
+    assert.ok(filter.includes("toDateTime('2026-01-20 11:34:00')"));
+    assert.ok(filter.includes("toDateTime('2026-01-20 12:34:00')"));
   });
 
   it('rounds custom time range to minute boundaries and enforces min window', () => {
@@ -36,8 +37,8 @@ describe('time helpers', () => {
     setCustomTimeRange(start, end);
 
     const filter = getTimeFilter();
-    assert.ok(filter.includes('2026-01-20 11:59:30'));
-    assert.ok(filter.includes('2026-01-20 12:02:30'));
+    assert.ok(filter.includes('2026-01-20 11:59:00'));
+    assert.ok(filter.includes('2026-01-20 12:02:00'));
   });
 
   it('uses expected bucket for short custom range', () => {
@@ -46,6 +47,23 @@ describe('time helpers', () => {
     setCustomTimeRange(start, end);
     const bucket = getTimeBucket();
     assert.strictEqual(bucket, 'toStartOfInterval(timestamp, INTERVAL 5 SECOND)');
+  });
+
+  it('aligns fill bounds for standard range to bucket step', () => {
+    const { start, end } = getTimeRangeBounds();
+    assert.strictEqual(start.toISOString(), '2026-01-20T11:34:00.000Z');
+    assert.strictEqual(end.toISOString(), '2026-01-20T12:34:50.000Z');
+    assert.ok(getTimeRangeStart().includes("2026-01-20 11:34:00"));
+    assert.ok(getTimeRangeEnd().includes("2026-01-20 12:34:50"));
+  });
+
+  it('aligns fill bounds for custom range to bucket step', () => {
+    const start = new Date('2026-01-20T12:00:10Z');
+    const end = new Date('2026-01-20T12:01:20Z');
+    setCustomTimeRange(start, end);
+    const bounds = getTimeRangeBounds();
+    assert.strictEqual(bounds.start.toISOString(), '2026-01-20T11:59:00.000Z');
+    assert.strictEqual(bounds.end.toISOString(), '2026-01-20T12:02:55.000Z');
   });
 
   it('returns correct period in ms for current range', () => {

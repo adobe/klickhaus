@@ -18,6 +18,68 @@ const timeState = {
   customTimeRange: null, // { start: Date, end: Date }
 };
 
+const SECOND_MS = 1000;
+const MINUTE_MS = 60 * SECOND_MS;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+function floorToInterval(date, intervalMs) {
+  return new Date(Math.floor(date.getTime() / intervalMs) * intervalMs);
+}
+
+function parseIntervalToMs(interval) {
+  const match = interval.match(/INTERVAL\s+(\d+)\s+(\w+)/i);
+  if (!match) return MINUTE_MS;
+  const amount = parseInt(match[1], 10);
+  const unit = match[2].toUpperCase().replace(/S$/, '');
+  const multipliers = {
+    SECOND: SECOND_MS,
+    MINUTE: MINUTE_MS,
+    HOUR: HOUR_MS,
+    DAY: DAY_MS,
+  };
+  return amount * (multipliers[unit] || MINUTE_MS);
+}
+
+function formatSqlDateTime(date) {
+  return date.toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function getSelectedRange() {
+  if (timeState.customTimeRange) {
+    return {
+      start: new Date(timeState.customTimeRange.start),
+      end: new Date(timeState.customTimeRange.end),
+    };
+  }
+
+  const end = timeState.queryTimestamp || new Date();
+  const start = new Date(end.getTime() - getPeriodMs());
+  return { start, end };
+}
+
+function getTimeFilterBounds() {
+  const { start, end } = getSelectedRange();
+  return {
+    start: floorToInterval(start, MINUTE_MS),
+    end: floorToInterval(end, MINUTE_MS),
+  };
+}
+
+function getFillBounds() {
+  const { start, end } = getTimeFilterBounds();
+  const stepMs = parseIntervalToMs(getTimeBucketStep());
+  const alignedStart = floorToInterval(start, stepMs);
+  const endInclusive = new Date(end.getTime() + MINUTE_MS - 1);
+  const alignedEnd = floorToInterval(endInclusive, stepMs);
+
+  return {
+    start: alignedStart,
+    end: alignedEnd,
+    stepMs,
+  };
+}
+
 // Getter functions for time state
 export function queryTimestamp() {
   return timeState.queryTimestamp;
@@ -123,26 +185,34 @@ export function getTimeBucketStep() {
 }
 
 export function getTimeFilter() {
-  // For custom time range, use explicit start/end timestamps
-  if (timeState.customTimeRange) {
-    const startIso = timeState.customTimeRange.start.toISOString().replace('T', ' ').slice(0, 19);
-    const endIso = timeState.customTimeRange.end.toISOString().replace('T', ' ').slice(0, 19);
-    return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
-  }
-
-  // Use fixed timestamp instead of now() for deterministic/cacheable queries
-  const ts = timeState.queryTimestamp || new Date();
-  // Format as 'YYYY-MM-DD HH:MM:SS' (no milliseconds)
-  const isoTimestamp = ts.toISOString().replace('T', ' ').slice(0, 19);
-  // Use minute-aligned filtering to enable projection usage
-  // This gives up to 1 minute of imprecision but enables 10-100x faster queries
-  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${isoTimestamp}') - ${getInterval()}) AND toStartOfMinute(toDateTime('${isoTimestamp}'))`;
+  const { start, end } = getTimeFilterBounds();
+  const startIso = formatSqlDateTime(start);
+  const endIso = formatSqlDateTime(end);
+  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
 }
 
 export function getHostFilter() {
   if (!state.hostFilter) return '';
   const escaped = state.hostFilter.replace(/'/g, "\\'");
   return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
+}
+
+// Get aligned time range for chart rendering and WITH FILL bounds
+export function getTimeRangeBounds() {
+  const { start, end } = getFillBounds();
+  return { start, end };
+}
+
+// Get start time for WITH FILL FROM clause
+export function getTimeRangeStart() {
+  const { start } = getFillBounds();
+  return `toDateTime('${formatSqlDateTime(start)}')`;
+}
+
+// Get end time for WITH FILL TO clause
+export function getTimeRangeEnd() {
+  const { end } = getFillBounds();
+  return `toDateTime('${formatSqlDateTime(end)}')`;
 }
 
 // Get period duration in milliseconds
