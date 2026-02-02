@@ -463,8 +463,8 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   text-decoration: none;
 }
 
-.breakdown-table .dim.dim-clickable:hover .filter-tag-indicator {
-  transform: scale(1.02);
+.breakdown-table .dim.dim-clickable:hover {
+  background: var(--bg);
 }
 
 .breakdown-table .dim a {
