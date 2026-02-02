@@ -118,7 +118,7 @@
 }
 
 .logs-table tbody tr {
-  cursor: copy;
+  cursor: pointer;
 }
 
 .logs-table tr:hover td {
