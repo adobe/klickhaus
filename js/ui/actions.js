@@ -46,10 +46,12 @@ export function initActionHandlers(handlers) {
       }
       case 'add-filter': {
         event.stopPropagation();
+        // Shift+click skips straight to exclude
+        const exclude = event.shiftKey || target.dataset.exclude === 'true';
         handlers.addFilter?.(
           target.dataset.col || '',
           target.dataset.value || '',
-          target.dataset.exclude === 'true',
+          exclude,
           target.dataset.filterCol,
           target.dataset.filterValue,
           target.dataset.filterOp,
