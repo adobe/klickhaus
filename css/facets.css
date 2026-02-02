@@ -399,50 +399,72 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   user-select: none;
 }
 
-/* Filter tag indicators - inverted style */
+/* Filter tag container - consistent sizing in all states to prevent layout shift */
 .breakdown-table .filter-tag-indicator {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 2px 7px;
   border-radius: 4px;
-  transition: all 0.15s ease;
-  color: white;
-  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.breakdown-table .filter-tag-indicator.active {
-  /* Background set inline from status color, defaults to var(--text) */
+/* Indicator slot: fixed width, shows icon OR color bar */
+.breakdown-table .filter-indicator-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.breakdown-table .filter-tag-indicator.exclude {
-  /* Background set inline from status color, defaults to var(--text) */
-  opacity: 0.6;
-}
-
-.breakdown-table .filter-tag-indicator .filter-icon {
+/* Icon: hidden by default, shown in active/exclude states */
+.breakdown-table .filter-icon {
+  display: none;
   font-size: 11px;
   font-weight: bold;
   line-height: 1;
 }
 
-.breakdown-table .dim.dim-clickable:hover .filter-tag-indicator {
-  transform: scale(1.02);
-}
-
-@media (prefers-color-scheme: dark) {
-  .breakdown-table .filter-tag-indicator {
-    /* Keep colors vibrant in dark mode */
-  }
-}
-
-.breakdown-table .dim .status-color {
+/* Color bar inside indicator slot */
+.breakdown-table .filter-indicator-slot .status-color {
   display: inline-block;
   width: 3px;
   height: 12px;
-  margin-right: 6px;
   border-radius: 1px;
-  vertical-align: middle;
+}
+
+/* Active/exclude states: colored background, white text, show icon, hide color bar */
+.breakdown-table .filter-tag-indicator.active,
+.breakdown-table .filter-tag-indicator.exclude {
+  color: white;
+}
+
+.breakdown-table .filter-tag-indicator.active .filter-icon,
+.breakdown-table .filter-tag-indicator.exclude .filter-icon {
+  display: inline;
+}
+
+.breakdown-table .filter-tag-indicator.active .status-color,
+.breakdown-table .filter-tag-indicator.exclude .status-color {
+  display: none;
+}
+
+.breakdown-table .filter-tag-indicator.exclude {
+  opacity: 0.6;
+}
+
+/* Disable links in active/exclude filter state */
+.breakdown-table .filter-tag-indicator.active a,
+.breakdown-table .filter-tag-indicator.exclude a {
+  pointer-events: none;
+  color: inherit;
+  text-decoration: none;
+}
+
+.breakdown-table .dim.dim-clickable:hover .filter-tag-indicator {
+  transform: scale(1.02);
 }
 
 .breakdown-table .dim a {
@@ -473,10 +495,6 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   display: block;
 }
 
-/* Remove old action buttons - now using clickable dim cells */
-.breakdown-table .count .action-btn {
-  display: none;
-}
 
 .breakdown-table .bar {
   width: 60px;
@@ -492,10 +510,6 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   display: flex;
 }
 
-/* Remove old action buttons - now using clickable dim cells */
-.breakdown-table .bar .action-btn {
-  display: none;
-}
 
 .breakdown-table .bar-segment {
   height: 100%;

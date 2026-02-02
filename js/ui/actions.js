@@ -46,37 +46,14 @@ export function initActionHandlers(handlers) {
       }
       case 'add-filter': {
         event.stopPropagation();
-        // Check if this is a cycling action from dim cell
-        const col = target.dataset.col || '';
-        const value = target.dataset.value || '';
-        const isExclude = target.dataset.exclude === 'true';
-        
-        // If clicked on an included filter, switch to exclude
-        // If clicked on an excluded filter, it should be handled by remove-filter-value
-        // Otherwise, add as include filter
-        const existingFilter = handlers.getFilterForValue?.(col, value);
-        if (existingFilter && !existingFilter.exclude && !isExclude) {
-          // Switch from include to exclude
-          handlers.removeFilterByValue?.(col, value);
-          handlers.addFilter?.(
-            col,
-            value,
-            true, // exclude
-            target.dataset.filterCol,
-            target.dataset.filterValue,
-            target.dataset.filterOp,
-          );
-        } else {
-          // Add new filter
-          handlers.addFilter?.(
-            col,
-            value,
-            isExclude,
-            target.dataset.filterCol,
-            target.dataset.filterValue,
-            target.dataset.filterOp,
-          );
-        }
+        handlers.addFilter?.(
+          target.dataset.col || '',
+          target.dataset.value || '',
+          target.dataset.exclude === 'true',
+          target.dataset.filterCol,
+          target.dataset.filterValue,
+          target.dataset.filterOp,
+        );
         break;
       }
       case 'remove-filter': {
@@ -91,27 +68,22 @@ export function initActionHandlers(handlers) {
         event.stopPropagation();
         const col = target.dataset.col || '';
         const value = target.dataset.value || '';
-        const isExclude = target.dataset.exclude === 'true';
-        
-        // If this is an exclude filter being removed, cycle to none
-        // If this is an include filter being removed, cycle to exclude
+
+        // Cycle: include → exclude → none
         const existingFilter = handlers.getFilterForValue?.(col, value);
-        if (existingFilter && existingFilter.exclude) {
-          // Remove exclude filter (cycle to none)
-          handlers.removeFilterByValue?.(col, value);
-        } else if (existingFilter && !existingFilter.exclude) {
-          // Switch from include to exclude
-          handlers.removeFilterByValue?.(col, value);
+        if (existingFilter && !existingFilter.exclude) {
+          // Include → Exclude: remove then add as exclude in a single reload
+          handlers.removeFilterByValue?.(col, value, true);
           handlers.addFilter?.(
             col,
             value,
-            true, // exclude
+            true,
             target.dataset.filterCol,
             target.dataset.filterValue,
             target.dataset.filterOp,
           );
         } else {
-          // Fallback: just remove
+          // Exclude → None (or fallback)
           handlers.removeFilterByValue?.(col, value);
         }
         break;
