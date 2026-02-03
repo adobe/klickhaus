@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+// Service worker intentionally left empty.
+// The dashboard no longer uses offline caching or PWA behavior.
+=======
 /**
  * Service Worker for CDN Analytics PWA
  * Network-first strategy for all assets, with cache fallback for offline use
@@ -129,3 +133,4 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+>>>>>>> origin/main
