@@ -56,16 +56,16 @@ export function renderActiveFilters() {
   }
   container.innerHTML = state.filters.map((f, i) => {
     let label;
+    const facetTitle = getFacetTitle(f.col) || 'Empty';
     if (f.value === '') {
       // Empty value - show facet name with ! prefix
-      const facetTitle = getFacetTitle(f.col) || 'Empty';
       label = f.exclude ? `NOT !${facetTitle}` : `!${facetTitle}`;
     } else {
       label = f.exclude ? `NOT ${f.value}` : f.value;
     }
     // Get color indicator using unified color system
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
-    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${i}">${colorIndicator}${escapeHtml(label)}</span>`;
+    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${i}" title="${facetTitle}">${colorIndicator}${escapeHtml(label)}</span>`;
   }).join('');
   updateHeaderFixed();
 }
