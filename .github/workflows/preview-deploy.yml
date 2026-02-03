@@ -34,7 +34,7 @@ jobs:
 
       - name: Deploy preview to GCS
         run: |
-          gsutil -m rsync -r -d \
+          gsutil -m -h "Cache-Control:no-cache, no-store" rsync -r -d \
             -x 'node_modules/|\.git/|\.github/|debug/|hars/|scripts/|.*\.local\.md|\.env.*|package-lock\.json|screenshot\.png' \
             . gs://klickhaus-previews/preview/pr-${{ github.event.pull_request.number }}/
 
