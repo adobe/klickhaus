@@ -18,12 +18,14 @@ import { escapeHtml } from '../utils.js';
  * @param {boolean} params.exclude - Whether filter is an exclusion
  * @param {number} params.index - Filter index
  * @param {string} params.colorIndicator - Color indicator HTML
+ * @param {string} [params.title] - Tooltip title
  * @returns {string} HTML string
  */
 export function renderFilterTag({
-  label, exclude, index, colorIndicator,
+  label, exclude, index, colorIndicator, title,
 }) {
-  return `<span class="filter-tag ${exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${index}">${colorIndicator}${escapeHtml(label)}</span>`;
+  const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+  return `<span class="filter-tag ${exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${index}"${titleAttr}>${colorIndicator}${escapeHtml(label)}</span>`;
 }
 
 /**
@@ -37,5 +39,6 @@ export function renderFilterTags(filters) {
     exclude: f.exclude,
     index: i,
     colorIndicator: f.colorIndicator,
+    title: f.title,
   })).join('');
 }

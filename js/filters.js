@@ -56,14 +56,17 @@ export function renderActiveFilters() {
   }
   const filterData = state.filters.map((f) => {
     let label;
+    const facetTitle = getFacetTitle(f.col) || 'Empty';
     if (f.value === '') {
-      const facetTitle = getFacetTitle(f.col) || 'Empty';
+      // Empty value - show facet name with ! prefix
       label = f.exclude ? `NOT !${facetTitle}` : `!${facetTitle}`;
     } else {
       label = f.exclude ? `NOT ${f.value}` : f.value;
     }
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
-    return { label, exclude: f.exclude, colorIndicator };
+    return {
+      label, exclude: f.exclude, colorIndicator, title: facetTitle,
+    };
   });
   container.innerHTML = renderFilterTags(filterData);
   updateHeaderFixed();
