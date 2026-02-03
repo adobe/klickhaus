@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-const SQL_BASE_PATH = '/sql/queries';
+const SQL_BASE_PATH = new URL('../sql/queries', import.meta.url).pathname;
 const templateCache = new Map();
 
 /**
