@@ -9,8 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { describe, it, beforeEach } from 'node:test';
-import assert from 'node:assert';
+import { assert } from 'chai';
 import { state } from './state.js';
 import {
   setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
@@ -53,8 +52,8 @@ describe('time helpers', () => {
     const { start, end } = getTimeRangeBounds();
     assert.strictEqual(start.toISOString(), '2026-01-20T11:34:00.000Z');
     assert.strictEqual(end.toISOString(), '2026-01-20T12:34:50.000Z');
-    assert.ok(getTimeRangeStart().includes("2026-01-20 11:34:00"));
-    assert.ok(getTimeRangeEnd().includes("2026-01-20 12:34:50"));
+    assert.ok(getTimeRangeStart().includes('2026-01-20 11:34:00'));
+    assert.ok(getTimeRangeEnd().includes('2026-01-20 12:34:50'));
   });
 
   it('aligns fill bounds for custom range to bucket step', () => {

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "live-server --port=5391 --open=/ --ignore=scripts,.github,.claude,hars,node_modules --ignorePattern=\"\\\\.md$|package.*\\\\.json$|screenshot\\.png$\"",
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=84",
+    "test": "web-test-runner",
     "lint": "eslint .",
     "dead-code": "knip",
     "cpd": "jscpd js/ scripts/",
@@ -14,7 +14,11 @@
   },
   "devDependencies": {
     "@adobe/eslint-config-helix": "^3.0.16",
+    "@playwright/cli": "^0.0.62",
+    "@web/test-runner": "^0.20.2",
+    "@web/test-runner-playwright": "^0.11.1",
     "canvas": "3.2.1",
+    "chai": "^6.2.2",
     "husky": "^9.1.7",
     "jscpd": "^4.0.5",
     "knip": "^5.82.1",

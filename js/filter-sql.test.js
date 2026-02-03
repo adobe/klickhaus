@@ -9,8 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import { assert } from 'chai';
 import { compileFilters, isFilterSuperset } from './filter-sql.js';
 
 describe('compileFilters', () => {
