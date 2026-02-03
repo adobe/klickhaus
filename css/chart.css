@@ -48,14 +48,24 @@
 }
 
 .chart-nav-zone {
-  flex: 0 0 20px;
+  flex: 0 0 60px;
   display: flex;
   align-items: center;
-  justify-content: center;
   pointer-events: auto;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s;
+}
+
+.chart-nav-left {
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+
+.chart-nav-right {
+  justify-content: flex-end;
+  padding-right: 8px;
+  margin-left: auto;
 }
 
 .chart-nav-zone:hover {
@@ -224,20 +234,12 @@
   }
 }
 
-.chart-nav-left {
-  /* 20px width set on .chart-nav-zone */
-}
-
-.chart-nav-right {
-  margin-left: auto;
-  /* 20px width set on .chart-nav-zone */
-}
-
 .chart-nav-arrow {
-  font-size: 24px;
+  font-size: 18px;
   color: var(--text-secondary);
   opacity: 0.7;
   line-height: 1;
   display: flex;
   align-items: center;
 }
+
