@@ -72,8 +72,8 @@ npm start
 # Open the dashboard and explore
 playwright-cli open http://localhost:5391/dashboard.html
 playwright-cli snapshot
-playwright-cli fill e3 "lars"
-playwright-cli fill e5 "q4t59nO6By#Ap17q"
+playwright-cli fill e3 "<username>"
+playwright-cli fill e5 "<password>"
 playwright-cli click e7
 playwright-cli snapshot
 playwright-cli screenshot
