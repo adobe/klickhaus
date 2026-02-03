@@ -143,6 +143,30 @@
   transition: all 0.15s ease;
 }
 
+/* Copy facet button */
+.copy-facet-btn {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.copy-facet-btn:hover {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.copy-facet-btn:active {
+  transform: scale(0.95);
+}
+
 .mode-toggle:hover {
   background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-tertiary));
   border-color: var(--text-secondary);

@@ -95,6 +95,9 @@ export function renderBreakdownTable(
     ? `<button class="mode-toggle${isBytes ? ' active' : ''}" data-action="toggle-facet-mode" data-mode="${escapeHtml(modeToggle)}" title="Toggle between request count and bytes transferred">${isBytes ? 'B' : '#'}</button>`
     : '';
 
+  // Copy to clipboard button (TSV format for spreadsheets)
+  const copyBtnHtml = `<button class="copy-facet-btn" data-action="copy-facet-tsv" data-facet="${escapeHtml(id)}" title="Copy data as TSV (paste into spreadsheet)">copy</button>`;
+
   // Summary metric display (e.g., "87% efficiency")
   const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
   const summaryHtml = (summaryRatio !== null && summaryLabel)
@@ -112,6 +115,25 @@ export function renderBreakdownTable(
     card.classList.remove('facet-hidden');
     return;
   }
+
+  // Store data on card for copy functionality (stored as JSON for easy access)
+  card.dataset.facetData = JSON.stringify({
+    title,
+    data: data.map((row) => ({
+      dim: row.dim || '(empty)',
+      cnt: parseInt(row.cnt, 10),
+      cnt_ok: parseInt(row.cnt_ok, 10) || 0,
+      cnt_4xx: parseInt(row.cnt_4xx, 10) || 0,
+      cnt_5xx: parseInt(row.cnt_5xx, 10) || 0,
+    })),
+    totals: totals ? {
+      cnt: parseInt(totals.cnt, 10),
+      cnt_ok: parseInt(totals.cnt_ok, 10) || 0,
+      cnt_4xx: parseInt(totals.cnt_4xx, 10) || 0,
+      cnt_5xx: parseInt(totals.cnt_5xx, 10) || 0,
+    } : null,
+    mode: isBytes ? 'bytes' : 'count',
+  });
 
   // Calculate "Other" from totals
   const topKSum = {
@@ -133,7 +155,7 @@ export function renderBreakdownTable(
   const realData = data.filter((d) => !isSyntheticBucket(d.dim));
   const maxCount = realData.length > 0 ? Math.max(...realData.map((d) => parseInt(d.cnt, 10))) : 1;
 
-  let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
+  let html = `<h3>${speedIndicator}${title}${copyBtnHtml}${modeToggleHtml}${summaryHtml}`;
   if (hasFilters) {
     html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
   }

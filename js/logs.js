@@ -548,7 +548,7 @@ async function loadMoreLogs() {
   const sql = `
     SELECT *
     FROM ${DATABASE}.${getTable()}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${state.additionalWhereClause}
     ORDER BY timestamp DESC
     LIMIT ${PAGE_SIZE}
     OFFSET ${logsOffset}
@@ -646,7 +646,7 @@ export async function loadLogs() {
   const sql = `
     SELECT *
     FROM ${DATABASE}.${getTable()}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters}
+    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${state.additionalWhereClause}
     ORDER BY timestamp DESC
     LIMIT ${PAGE_SIZE}
   `;

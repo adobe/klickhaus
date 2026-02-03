@@ -18,6 +18,7 @@ A real-time analytics dashboard for CDN log analysis, built with ClickHouse and 
   - HTTP methods and datacenters
   - ASN (Autonomous System Numbers)
 - **Interactive filtering** - Click to filter or exclude any dimension value
+- **Copy to spreadsheet** - Copy any facet's data as TSV with one click (copy button) for analysis in Excel/Sheets
 - **Flexible time ranges** - Last hour, 12 hours, 24 hours, or 7 days
 - **Dark mode support** - Automatic theme based on system preference
 - **Query caching** - Intelligent cache TTLs based on time range
@@ -43,10 +44,20 @@ Both CDN sources use direct HTTP logging to ClickHouse with async inserts for hi
 
 ## Usage
 
+### General Dashboard
+
 1. Open `dashboard.html` in a browser (or visit [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/), fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/))
 2. Log in with your ClickHouse credentials
 3. Use the time range selector and host filter to narrow down results
 4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
+
+### Delivery Dashboard
+
+A focused dashboard for core delivery monitoring is available at `delivery.html`. It excludes backend, admin, RUM, and docs services (15 hosts) via hard-coded SQL filters, showing only user-facing delivery traffic. All main dashboard facets are available; a curated subset is shown by default. See `js/delivery-main.js` for the exclusion list.
+
+### Copy Facet Data
+
+Click the "copy" button on any facet header to copy its data as TSV. Paste directly into Excel, Google Sheets, or Numbers.
 
 ## URL Parameters
 
