@@ -21,10 +21,16 @@ globalThis.document = {
           facetData: JSON.stringify({
             title: 'Test Facet',
             data: [
-              { dim: 'value1', cnt: 100, cnt_ok: 90, cnt_4xx: 5, cnt_5xx: 5 },
-              { dim: 'value2', cnt: 50, cnt_ok: 48, cnt_4xx: 1, cnt_5xx: 1 },
+              {
+                dim: 'value1', cnt: 100, cnt_ok: 90, cnt_4xx: 5, cnt_5xx: 5,
+              },
+              {
+                dim: 'value2', cnt: 50, cnt_ok: 48, cnt_4xx: 1, cnt_5xx: 1,
+              },
             ],
-            totals: { cnt: 150, cnt_ok: 138, cnt_4xx: 6, cnt_5xx: 6 },
+            totals: {
+              cnt: 150, cnt_ok: 138, cnt_4xx: 6, cnt_5xx: 6,
+            },
             mode: 'count',
           }),
         },
@@ -40,9 +46,13 @@ globalThis.document = {
           facetData: JSON.stringify({
             title: 'Bytes Facet',
             data: [
-              { dim: 'large.jpg', cnt: 1048576, cnt_ok: 1048576, cnt_4xx: 0, cnt_5xx: 0 },
+              {
+                dim: 'large.jpg', cnt: 1048576, cnt_ok: 1048576, cnt_4xx: 0, cnt_5xx: 0,
+              },
             ],
-            totals: { cnt: 1048576, cnt_ok: 1048576, cnt_4xx: 0, cnt_5xx: 0 },
+            totals: {
+              cnt: 1048576, cnt_ok: 1048576, cnt_4xx: 0, cnt_5xx: 0,
+            },
             mode: 'bytes',
           }),
         },
@@ -107,7 +117,9 @@ describe('copyFacetAsTsv', () => {
             facetData: JSON.stringify({
               title: 'Empty Test',
               data: [
-                { dim: '', cnt: 10, cnt_ok: 10, cnt_4xx: 0, cnt_5xx: 0 },
+                {
+                  dim: '', cnt: 10, cnt_ok: 10, cnt_4xx: 0, cnt_5xx: 0,
+                },
               ],
               mode: 'count',
             }),

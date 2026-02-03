@@ -11,6 +11,25 @@
  */
 
 /**
+ * Show visual feedback for copy operation
+ * @param {HTMLElement} card - The facet card element
+ * @param {boolean} success - Whether copy succeeded
+ */
+function showCopyFeedback(card, success) {
+  const btn = card.querySelector('[data-action="copy-facet-tsv"]');
+  if (!btn) return;
+
+  const originalText = btn.textContent;
+  btn.textContent = success ? '\u2713' : '\u2717';
+  btn.style.color = success ? 'var(--status-ok)' : 'var(--error)';
+
+  setTimeout(() => {
+    btn.textContent = originalText;
+    btn.style.color = '';
+  }, 1500);
+}
+
+/**
  * Copy facet data as TSV (Tab-Separated Values) for pasting into spreadsheets
  * @param {string} facetId - The facet card ID (e.g., 'breakdown-hosts')
  * @returns {Promise<boolean>} - True if copy succeeded, false otherwise
@@ -23,64 +42,29 @@ export async function copyFacetAsTsv(facetId) {
 
   try {
     const facetData = JSON.parse(card.dataset.facetData);
-    const { title, data, mode } = facetData;
+    const { data } = facetData;
 
     // Build TSV with headers
     const headers = ['Value', 'Count', 'OK (2xx/3xx)', '4xx', '5xx'];
     const rows = [headers];
 
-    // Add data rows
     for (const row of data) {
       rows.push([
         row.dim || '(empty)',
-        mode === 'bytes' ? formatBytesForExport(row.cnt) : row.cnt.toString(),
-        mode === 'bytes' ? formatBytesForExport(row.cnt_ok) : row.cnt_ok.toString(),
-        mode === 'bytes' ? formatBytesForExport(row.cnt_4xx) : row.cnt_4xx.toString(),
-        mode === 'bytes' ? formatBytesForExport(row.cnt_5xx) : row.cnt_5xx.toString(),
+        row.cnt.toString(),
+        row.cnt_ok.toString(),
+        row.cnt_4xx.toString(),
+        row.cnt_5xx.toString(),
       ]);
     }
 
-    // Convert to TSV format (tab-separated)
     const tsv = rows.map((row) => row.join('\t')).join('\n');
-
-    // Copy to clipboard
     await navigator.clipboard.writeText(tsv);
-
-    // Show success feedback
     showCopyFeedback(card, true);
     return true;
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('Failed to copy facet data:', err);
     showCopyFeedback(card, false);
     return false;
   }
-}
-
-/**
- * Format bytes for export (keep as raw number for spreadsheet calculations)
- * @param {number} bytes
- * @returns {string}
- */
-function formatBytesForExport(bytes) {
-  return bytes.toString();
-}
-
-/**
- * Show visual feedback for copy operation
- * @param {HTMLElement} card - The facet card element
- * @param {boolean} success - Whether copy succeeded
- */
-function showCopyFeedback(card, success) {
-  const btn = card.querySelector('[data-action="copy-facet-tsv"]');
-  if (!btn) return;
-
-  const originalText = btn.textContent;
-  btn.textContent = success ? '✓' : '✗';
-  btn.style.color = success ? 'var(--status-ok)' : 'var(--error)';
-
-  setTimeout(() => {
-    btn.textContent = originalText;
-    btn.style.color = '';
-  }, 1500);
 }

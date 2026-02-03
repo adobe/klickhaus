@@ -53,66 +53,11 @@ Both CDN sources use direct HTTP logging to ClickHouse with async inserts for hi
 
 ### Delivery Dashboard
 
-A focused dashboard for core delivery monitoring is available at `delivery.html`:
+A focused dashboard for core delivery monitoring is available at `delivery.html`. It excludes backend, admin, RUM, and docs services (15 hosts) via hard-coded SQL filters, showing only user-facing delivery traffic. All main dashboard facets are available; a curated subset is shown by default. See `js/delivery-main.js` for the exclusion list.
 
-**Data Scope:**
-- Shows delivery traffic with backend services automatically excluded (hard-coded, not visible as filters)
-- **Excluded hosts** (backend/admin/RUM/docs services - 15 total):
-  - `config.aem.page`
-  - `pipeline.aem-fastly.page`
-  - `config.aem-cloudflare.page`
-  - `admin.hlx.page`
-  - `media.aem-fastly.page`
-  - `admin.da.live`
-  - `static.aem-fastly.page`
-  - `rum.aem.page`
-  - `rum.hlx.page`
-  - `content.da.live`
-  - `da.live`
-  - `b4adf6cfdac0918eb6aa5ad033da0747.r2.cloudflarestorage.com`
-  - `docs.da.live`
-  - `rum.aem-cloudflare.page`
-  - `translate.da.live`
-- Primary focus: Fastly helix5 service (*.aem.live, *.aem.page) and Cloudflare zones (aem.live, aem.page)
-- Filter by `source` facet to see Fastly vs Cloudflare traffic
-- Exclusions cannot be removed (hard-coded in queries for focused delivery view)
+### Copy Facet Data
 
-**Default Facets (visible out-of-the-box):**
-- Status Range (2xx, 4xx, 5xx)
-- Source (Fastly vs Cloudflare)
-- Hostname
-- Forwarded Hosts (XFH) - origin hostnames
-- X-Error messages
-- Paths
-- User Agents
-- Tech Stack (backend type)
-- BYO CDN Type
-
-**Additional Facets (hidden by default):**
-All other facets from the main dashboard are available but hidden. Use the `d` keyboard shortcut on any facet to show/hide it, or press `g` to open the facet palette for quick navigation.
-
-The delivery dashboard uses localStorage to remember your facet preferences per dashboard (pinned, visible, hidden facets are saved separately from the main dashboard).
-
-### Copy Facet Data to Spreadsheet
-
-Each facet has a copy button in the header that copies the data as Tab-Separated Values (TSV):
-
-**Usage:**
-1. Click the "copy" button on any facet
-2. Paste into Excel, Google Sheets, or any spreadsheet app
-3. Data includes columns: Value, Count, OK (2xx/3xx), 4xx, 5xx
-
-**Features:**
-- Copies visible data rows (respects current topN setting)
-- Preserves numeric values for calculations
-- Works with both count and bytes mode
-- Shows ✓ feedback on successful copy
-
-This is useful for:
-- Creating reports and presentations
-- Deeper analysis in spreadsheet tools
-- Sharing data with team members
-- Historical comparisons
+Click the "copy" button on any facet header to copy its data as TSV. Paste directly into Excel, Google Sheets, or Numbers.
 
 ## URL Parameters
 
