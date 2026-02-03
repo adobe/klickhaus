@@ -9,8 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import { assert } from 'chai';
 import { detectSteps } from './step-detection.js';
 
 function toSeries(data) {
@@ -40,7 +39,7 @@ describe('detectSteps', () => {
     assert.ok(results.length > 0, 'Should detect anomalies');
 
     const ranks = results.map((r) => r.rank);
-    assert.deepStrictEqual(ranks, [1, 2, 3].slice(0, results.length));
+    assert.deepEqual(ranks, [1, 2, 3].slice(0, results.length));
 
     // Ensure no overlapping regions
     for (let i = 0; i < results.length; i += 1) {

@@ -9,8 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import { assert } from 'chai';
 import {
   contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
 } from './buckets.js';
@@ -92,7 +91,7 @@ describe('getContentLengthLabels', () => {
       const sql = contentLengthBuckets(n);
       const sqlLabels = extractBucketLabels(sql);
       const fnLabels = getContentLengthLabels(n);
-      assert.deepStrictEqual(
+      assert.deepEqual(
         fnLabels,
         sqlLabels,
         `Label mismatch for n=${n}`,
@@ -107,7 +106,7 @@ describe('getTimeElapsedLabels', () => {
       const sql = timeElapsedBuckets(n);
       const sqlLabels = extractBucketLabels(sql);
       const fnLabels = getTimeElapsedLabels(n);
-      assert.deepStrictEqual(
+      assert.deepEqual(
         fnLabels,
         sqlLabels,
         `Label mismatch for n=${n}`,

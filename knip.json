@@ -4,7 +4,8 @@
     "js/main.js",
     "sw.js",
     "scripts/*.mjs",
-    "eslint.config.js"
+    "eslint.config.js",
+    "web-test-runner.config.mjs"
   ],
   "project": [
     "js/**/*.js",
@@ -14,9 +15,11 @@
     "js/**/*.test.js"
   ],
   "ignoreDependencies": [
-    "live-server"
+    "live-server",
+    "chai"
   ],
   "ignoreBinaries": [
-    "eslint"
+    "eslint",
+    "playwright"
   ]
 }
