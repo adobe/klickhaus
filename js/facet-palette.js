@@ -9,8 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { getColorForColumn } from './colors/index.js';
-import { escapeHtml } from './utils.js';
+import { renderPaletteListHtml } from './templates/facet-palette-list.js';
 
 // Callback to set focused facet (set by keyboard.js to avoid circular dependency)
 let onFacetNavigate = null;
@@ -396,58 +395,7 @@ function renderList(results) {
   const list = document.getElementById('facetPaletteList');
   if (!list) return;
 
-  list.innerHTML = results.map((r, i) => {
-    const isSelected = i === paletteState.selectedIndex;
-
-    if (r.type === 'facet') {
-      const { facet, matchedValue } = r;
-      const hiddenBadge = facet.isHidden ? '<span class="palette-hidden-badge">hidden</span>' : '';
-
-      // When matched by value, show value as main text with facet as badge
-      // When matched by facet name, show facet as main text
-      const mainText = matchedValue ? escapeHtml(matchedValue) : facet.title;
-      const facetBadge = matchedValue ? `<span class="palette-facet-badge">${facet.title}</span>` : '';
-
-      // Get color for value matches
-      let colorStyle = '';
-      if (matchedValue) {
-        const col = FACET_COLUMNS[facet.id];
-        if (col) {
-          const color = getColorForColumn(col, matchedValue);
-          if (color) {
-            colorStyle = `style="border-left: 3px solid ${color};"`;
-          }
-        }
-      }
-
-      return `
-        <div class="palette-item${isSelected ? ' selected' : ''}${matchedValue ? ' value-match' : ''}" ${colorStyle} data-index="${i}" data-type="facet" data-facet-id="${facet.id}">
-          <span class="palette-item-title">${mainText}</span>
-          ${facetBadge}
-          ${hiddenBadge}
-        </div>
-      `;
-    } else if (r.type === 'query') {
-      const { query } = r;
-      // Shorten section name by removing common prefixes
-      const shortSection = query.section
-        .replace(/^Legacy Views\s*/i, '')
-        .replace(/\(Migration from Coralogix\)/gi, '')
-        .replace(/^\s*[-–—]\s*/, '')
-        .trim();
-      return `
-        <div class="palette-item palette-query${isSelected ? ' selected' : ''}" data-index="${i}" data-type="query" data-href="${escapeHtml(query.href)}">
-          <div class="palette-query-content">
-            <span class="palette-item-title">${escapeHtml(query.title)}</span>
-            <span class="palette-query-desc">${escapeHtml(query.description)}</span>
-          </div>
-          <span class="palette-query-badge">${escapeHtml(shortSection)}</span>
-        </div>
-      `;
-    }
-    return '';
-  }).join('');
-
+  list.innerHTML = renderPaletteListHtml(results, paletteState.selectedIndex, FACET_COLUMNS);
   paletteState.filteredFacets = results;
 
   // Scroll selected item into view

@@ -32,6 +32,7 @@ import {
   getTimeRangeStart,
   getTimeRangeEnd,
 } from './time.js';
+import { loadSql } from './sql-loader.js';
 import { saveStateToURL } from './url-state.js';
 import {
   getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
@@ -1015,17 +1016,18 @@ export async function loadTimeSeries() {
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
 
-  const sql = `
-    SELECT
-      ${bucket} as t,
-      countIf(\`response.status\` < 400) as cnt_ok,
-      countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
-      countIf(\`response.status\` >= 500) as cnt_5xx
-    FROM ${DATABASE}.${getTable()}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${state.additionalWhereClause}
-    GROUP BY t
-    ORDER BY t WITH FILL FROM ${rangeStart} TO ${rangeEnd} STEP ${step}
-  `;
+  const sql = await loadSql('time-series', {
+    bucket,
+    database: DATABASE,
+    table: getTable(),
+    timeFilter,
+    hostFilter,
+    facetFilters,
+    additionalWhereClause: state.additionalWhereClause,
+    rangeStart,
+    rangeEnd,
+    step,
+  });
 
   try {
     const result = await query(sql);
