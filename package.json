@@ -29,10 +29,7 @@
   ],
   "license": "Apache-2.0",
   "lint-staged": {
-    "*.js": [
-      "eslint --fix"
-    ],
-    "*.mjs": [
+    "*.{js,mjs}": [
       "eslint --fix"
     ]
   },
