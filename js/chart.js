@@ -94,7 +94,6 @@ export function renderChart(data) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
 
-  // Set canvas size
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
   canvas.height = rect.height * dpr;
@@ -227,7 +226,8 @@ export function renderChart(data) {
   for (const i of tickIndices) {
     if (i < data.length) {
       const time = parseUTC(data[i].t);
-      const x = padding.left + ((time.getTime() - intendedStartTime) / intendedTimeRange) * chartWidth;
+      const elapsed = time.getTime() - intendedStartTime;
+      const x = padding.left + (elapsed / intendedTimeRange) * chartWidth;
       let label = time.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
@@ -343,31 +343,31 @@ export function renderChart(data) {
     ? parseUTC(data[data.length - 1].t) - parseUTC(data[0].t)
     : 0;
   const minTimeRangeMs = 5 * 60 * 1000; // 5 minutes
-  const steps = timeRangeMs >= minTimeRangeMs ? detectSteps(series, 5) : [];
+
+  // Exclude data points within the last 3 minutes from now() to avoid
+  // false positives from incomplete data due to ingestion delay.
+  // This is time-based rather than index-based so the exclusion window
+  // stays consistent regardless of bucket duration.
+  const ingestionDelay = 3 * 60 * 1000; // 3 minutes
+  const cutoffTime = Date.now() - ingestionDelay;
+  let endMargin = 0;
+  for (let i = data.length - 1; i >= 0; i -= 1) {
+    if (parseUTC(data[i].t).getTime() >= cutoffTime) {
+      endMargin += 1;
+    } else {
+      break;
+    }
+  }
+  const steps = timeRangeMs >= minTimeRangeMs
+    ? detectSteps(series, 5, { endMargin })
+    : [];
 
   // Store detected steps for investigation (with additional metadata)
-  const stepsWithTime = steps.map((s) => ({
+  setDetectedSteps(steps.map((s) => ({
     ...s,
     startTime: data[s.startIndex]?.t ? parseUTC(data[s.startIndex].t) : null,
     endTime: data[s.endIndex]?.t ? parseUTC(data[s.endIndex].t) : null,
-  }));
-  setDetectedSteps(stepsWithTime);
-
-  // Debug: show detected anomalies in console
-  if (steps.length > 0) {
-    // eslint-disable-next-line no-console
-    console.table(steps.map((s) => ({
-      rank: s.rank,
-      type: s.type,
-      category: s.category,
-      startIndex: s.startIndex,
-      endIndex: s.endIndex,
-      startTime: data[s.startIndex]?.t,
-      endTime: data[s.endIndex]?.t,
-      magnitude: `${Math.round(s.magnitude * 100)}%`,
-      score: s.score.toFixed(2),
-    })));
-  }
+  })));
 
   for (const step of steps) {
     const startX = getX(step.startIndex);
@@ -393,63 +393,37 @@ export function renderChart(data) {
       rank: step.rank,
     });
 
-    // Color coding matches the traffic category: red (5xx), yellow (4xx), green (2xx/3xx)
-    // Use slightly lower opacity for lower-ranked anomalies, but keep them clearly visible
-    // Labels and lines always use full opacity for readability
+    // Color coding: red (5xx), yellow (4xx), green (2xx/3xx)
     const opacityMultiplier = step.rank === 1 ? 1 : 0.7;
-    let highlightFill;
-    let highlightStroke;
-    let labelColor;
+    const categoryColors = {
+      red: [240, 68, 56],
+      yellow: [247, 144, 9],
+      green: [18, 183, 106],
+    };
+    const [cr, cg, cb] = categoryColors[step.category] || categoryColors.green;
+    const highlightFill = `rgba(${cr}, ${cg}, ${cb}, ${0.35 * opacityMultiplier})`;
+    const highlightStroke = `rgba(${cr}, ${cg}, ${cb}, 0.8)`;
+    const labelColor = `rgb(${cr}, ${cg}, ${cb})`;
 
-    if (step.category === 'red') {
-      // Red for 5xx anomalies
-      highlightFill = `rgba(240, 68, 56, ${0.35 * opacityMultiplier})`;
-      highlightStroke = 'rgba(240, 68, 56, 0.8)';
-      labelColor = 'rgb(240, 68, 56)';
-    } else if (step.category === 'yellow') {
-      // Orange/amber for 4xx anomalies
-      highlightFill = `rgba(247, 144, 9, ${0.35 * opacityMultiplier})`;
-      highlightStroke = 'rgba(247, 144, 9, 0.8)';
-      labelColor = 'rgb(247, 144, 9)';
-    } else {
-      // Green for 2xx/3xx anomalies
-      highlightFill = `rgba(18, 183, 106, ${0.35 * opacityMultiplier})`;
-      highlightStroke = 'rgba(18, 183, 106, 0.8)';
-      labelColor = 'rgb(18, 183, 106)';
-    }
-
-    // Determine the data range for this anomaly band
     const startIdx = step.startIndex;
     const endIdx = step.endIndex;
 
-    // Get the top and bottom curves for this category
-    let getSeriesTop;
-    let getSeriesBottom;
-    if (step.category === 'red') {
-      // Red: from x-axis (0) to stackedServer
-      getSeriesTop = (i) => getY(stackedServer[i]);
-      getSeriesBottom = () => getY(0);
-    } else if (step.category === 'yellow') {
-      // Yellow: from stackedServer to stackedClient
-      getSeriesTop = (i) => getY(stackedClient[i]);
-      getSeriesBottom = (i) => getY(stackedServer[i]);
-    } else {
-      // Green: from stackedClient to stackedOk
-      getSeriesTop = (i) => getY(stackedOk[i]);
-      getSeriesBottom = (i) => getY(stackedClient[i]);
-    }
+    // Get the top and bottom curves for this category's stacked area
+    const seriesBounds = {
+      red: [(i) => getY(stackedServer[i]), () => getY(0)],
+      yellow: [(i) => getY(stackedClient[i]), (i) => getY(stackedServer[i])],
+      green: [(i) => getY(stackedOk[i]), (i) => getY(stackedClient[i])],
+    };
+    const [getSeriesTop, getSeriesBottom] = seriesBounds[step.category]
+      || seriesBounds.green;
 
-    // Draw shaded region as a direct polygon (no clipping)
-    // Build array of points for debugging
+    // Build polygon: top edge forward, bottom edge backward
     const points = [];
-
-    // Top edge: trace from startIdx to endIdx along the series top
     for (let i = startIdx; i <= endIdx; i += 1) {
-      points.push({ x: getX(i), y: getSeriesTop(i), label: `top[${i}]` });
+      points.push({ x: getX(i), y: getSeriesTop(i) });
     }
-    // Bottom edge: trace back from endIdx to startIdx along the series bottom
     for (let i = endIdx; i >= startIdx; i -= 1) {
-      points.push({ x: getX(i), y: getSeriesBottom(i), label: `bot[${i}]` });
+      points.push({ x: getX(i), y: getSeriesBottom(i) });
     }
 
     // Draw filled polygon for the anomaly region
@@ -462,46 +436,30 @@ export function renderChart(data) {
     ctx.closePath();
     ctx.fill();
 
-    // Draw dashed vertical lines at band edges (full height for visibility)
+    // Draw dashed vertical lines at band edges
     ctx.strokeStyle = highlightStroke;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
+    [bandLeft, bandRight].forEach((bx) => {
+      ctx.beginPath();
+      ctx.moveTo(bx, padding.top);
+      ctx.lineTo(bx, height - padding.bottom);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
 
-    // Left edge line
-    ctx.beginPath();
-    ctx.moveTo(bandLeft, padding.top);
-    ctx.lineTo(bandLeft, height - padding.bottom);
-    ctx.stroke();
-
-    // Right edge line
-    ctx.beginPath();
-    ctx.moveTo(bandRight, padding.top);
-    ctx.lineTo(bandRight, height - padding.bottom);
-    ctx.stroke();
-
-    ctx.setLineDash([]); // Reset dash
-
-    // Draw indicator label at top center of the region
+    // Draw indicator label (e.g., "1 ▲ 2x")
     const centerX = (bandLeft + bandRight) / 2;
-    const arrowY = padding.top + 12;
     const arrow = step.type === 'spike' ? '▲' : '▼';
-
-    // Format magnitude: use multiplier (2x, 3.5x) instead of percentage for large values
-    let magnitudeLabel;
-    if (step.magnitude >= 1) {
-      const multiplier = step.magnitude;
-      magnitudeLabel = multiplier >= 10
-        ? `${Math.round(multiplier)}x`
-        : `${multiplier.toFixed(1).replace(/\.0$/, '')}x`;
-    } else {
-      magnitudeLabel = `${Math.round(step.magnitude * 100)}%`;
-    }
-
-    // Show rank number + arrow + magnitude (e.g., "1 ▲ 2x")
+    const mag = step.magnitude;
+    // Use multiplier format (2x, 3.5x) for large values, percentage otherwise
+    const magnitudeLabel = mag >= 1
+      ? `${mag >= 10 ? Math.round(mag) : mag.toFixed(1).replace(/\.0$/, '')}x`
+      : `${Math.round(mag * 100)}%`;
     ctx.font = 'bold 11px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = labelColor;
-    ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, centerX, arrowY);
+    ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, centerX, padding.top + 12);
   }
 
   // Draw blue selection band if there's a pending selection
@@ -511,8 +469,10 @@ export function renderChart(data) {
 
     if (intendedTimeRange > 0) {
       // Convert selection times to x coordinates using intended time range
-      const selStartX = padding.left + ((selStart - intendedStartTime) / intendedTimeRange) * chartWidth;
-      const selEndX = padding.left + ((selEnd - intendedStartTime) / intendedTimeRange) * chartWidth;
+      const selStartOff = (selStart - intendedStartTime) / intendedTimeRange;
+      const selStartX = padding.left + selStartOff * chartWidth;
+      const selEndOff = (selEnd - intendedStartTime) / intendedTimeRange;
+      const selEndX = padding.left + selEndOff * chartWidth;
 
       // Clamp to chart bounds
       const bandLeft = Math.max(padding.left, Math.min(selStartX, selEndX));

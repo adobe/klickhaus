@@ -139,7 +139,7 @@ describe('detectStep', () => {
     }
   });
 
-  it('should ignore first 2 and last 2 data points', () => {
+  it('should ignore first 2 and last 2 data points by default', () => {
     const series = toSeries(realData);
     const result = detectStep(series);
 
@@ -150,9 +150,34 @@ describe('detectStep', () => {
       );
       assert.ok(
         result.endIndex < realData.length - 2,
-        'Should not detect in last 2 points (data ingestion delay)',
+        'Should not detect in last 2 points (default endMargin)',
       );
     }
+  });
+
+  it('should respect custom endMargin option', () => {
+    // Put a large spike in the last 5 data points to test custom endMargin
+    const dataWithLateSpikeArr = realData.slice(0, -5).concat([
+      ['2026-01-12 22:00:00', '85987', '50000', '5000'],
+      ['2026-01-12 22:01:00', '65363', '55000', '6000'],
+      ['2026-01-12 22:02:00', '65486', '52000', '5500'],
+      ['2026-01-12 22:03:00', '58460', '48000', '4800'],
+      ['2026-01-12 22:04:00', '21705', '45000', '4500'],
+    ]);
+    const series = toSeries(dataWithLateSpikeArr);
+
+    // With endMargin=5, the late spike should be excluded
+    const resultExcluded = detectStep(series, { endMargin: 5 });
+    if (resultExcluded) {
+      assert.ok(
+        resultExcluded.endIndex < dataWithLateSpikeArr.length - 5,
+        'Should not detect in last 5 points when endMargin=5',
+      );
+    }
+
+    // With endMargin=0, the late spike should be detectable
+    const resultIncluded = detectStep(series, { endMargin: 0 });
+    assert.ok(resultIncluded, 'Should detect anomaly with endMargin=0');
   });
 
   it('should detect success drops (traffic loss)', () => {
