@@ -74,6 +74,56 @@ export function getFiltersForColumn(col) {
   return state.filters.filter((f) => f.col === col);
 }
 
+export function getFilterForValue(col, value) {
+  return state.filters.find((f) => f.col === col && f.value === value);
+}
+
+// Immediately update row styling when filter changes (before reload).
+// Toggles classes and attributes on the existing DOM structure
+// (no innerHTML rebuild needed since the tag structure is consistent in all states).
+function updateRowFilterStyling(col, value) {
+  document.querySelectorAll('.breakdown-card .breakdown-table tr[data-dim]').forEach((row) => {
+    if (row.dataset.dim !== value) return;
+
+    // Only update rows belonging to this facet column
+    const dimCell = row.querySelector('td.dim');
+    if (dimCell?.dataset.col !== col) return;
+
+    const filter = state.filters.find((f) => f.col === col && f.value === value);
+    const isIncluded = filter && !filter.exclude;
+    const isExcluded = filter && filter.exclude;
+
+    // Update row classes
+    row.classList.toggle('filter-included', !!isIncluded);
+    row.classList.toggle('filter-excluded', !!isExcluded);
+
+    // Update tag indicator state
+    const tag = row.querySelector('.filter-tag-indicator');
+    if (!tag) return;
+
+    tag.classList.toggle('active', !!isIncluded);
+    tag.classList.toggle('exclude', !!isExcluded);
+
+    // Update background from stored color
+    const bgColor = dimCell?.dataset.bgColor || 'var(--text)';
+    tag.style.background = (isIncluded || isExcluded) ? bgColor : '';
+
+    // Update icon character
+    const icon = tag.querySelector('.filter-icon');
+    if (icon) {
+      if (isIncluded) icon.textContent = '✓';
+      else if (isExcluded) icon.textContent = '×';
+      else icon.textContent = '';
+    }
+
+    // Update dim cell action for next click cycle
+    if (dimCell) {
+      dimCell.dataset.action = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
+      dimCell.dataset.exclude = isExcluded ? 'true' : 'false';
+    }
+  });
+}
+
 export function clearFiltersForColumn(col) {
   state.filters = state.filters.filter((f) => f.col !== col);
   renderActiveFilters();
@@ -116,6 +166,7 @@ export function addFilter(col, value, exclude, filterCol, filterValue, filterOp,
 
   state.filters.push(filter);
   renderActiveFilters();
+  updateRowFilterStyling(col, value); // Update UI immediately before reload
   if (!skipReload) {
     if (saveStateToURL) saveStateToURL();
     if (loadDashboard) loadDashboard();
@@ -129,9 +180,12 @@ export function removeFilter(index) {
   if (loadDashboard) loadDashboard();
 }
 
-export function removeFilterByValue(col, value) {
+export function removeFilterByValue(col, value, skipReload) {
   state.filters = state.filters.filter((f) => !(f.col === col && f.value === value));
   renderActiveFilters();
-  if (saveStateToURL) saveStateToURL();
-  if (loadDashboard) loadDashboard();
+  updateRowFilterStyling(col, value);
+  if (!skipReload) {
+    if (saveStateToURL) saveStateToURL();
+    if (loadDashboard) loadDashboard();
+  }
 }

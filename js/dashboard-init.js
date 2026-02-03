@@ -37,6 +37,7 @@ import {
 import { getNextTopN } from './breakdowns/render.js';
 import {
   addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks,
+  getFilterForValue,
 } from './filters.js';
 import {
   loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
@@ -280,6 +281,7 @@ export function initDashboard(config = {}) {
       addFilter,
       removeFilter,
       removeFilterByValue,
+      getFilterForValue,
       clearFiltersForColumn,
       increaseTopN,
       toggleFacetPin: togglePinnedFacet,

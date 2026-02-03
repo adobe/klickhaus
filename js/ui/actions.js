@@ -14,7 +14,8 @@
  * @property {(col: string) => void} togglePinnedColumn
  * @property {Function} addFilter - (col, value, exclude, filterCol?, filterValue?, filterOp?)
  * @property {(index: number) => void} removeFilter
- * @property {(col: string, value: string) => void} removeFilterByValue
+ * @property {(col: string, value: string, skipReload?: boolean) => void} removeFilterByValue
+ * @property {(col: string, value: string) => Object|undefined} getFilterForValue
  * @property {(col: string) => void} clearFiltersForColumn
  * @property {() => void} increaseTopN
  * @property {(facetId: string) => void} toggleFacetPin
@@ -32,6 +33,13 @@
  */
 export function initActionHandlers(handlers) {
   document.addEventListener('click', (event) => {
+    // Let links inside unfiltered filter tags navigate normally
+    if (event.target.closest('.filter-tag-indicator:not(.active):not(.exclude) a')) return;
+    // Block link navigation inside active/excluded filter tags
+    if (event.target.closest('.filter-tag-indicator.active a, .filter-tag-indicator.exclude a')) {
+      event.preventDefault();
+    }
+
     const target = event.target.closest('[data-action]');
     if (!target) return;
 
@@ -46,10 +54,12 @@ export function initActionHandlers(handlers) {
       }
       case 'add-filter': {
         event.stopPropagation();
+        // Shift+click skips straight to exclude
+        const exclude = event.shiftKey || target.dataset.exclude === 'true';
         handlers.addFilter?.(
           target.dataset.col || '',
           target.dataset.value || '',
-          target.dataset.exclude === 'true',
+          exclude,
           target.dataset.filterCol,
           target.dataset.filterValue,
           target.dataset.filterOp,
@@ -66,7 +76,26 @@ export function initActionHandlers(handlers) {
       }
       case 'remove-filter-value': {
         event.stopPropagation();
-        handlers.removeFilterByValue?.(target.dataset.col || '', target.dataset.value || '');
+        const col = target.dataset.col || '';
+        const value = target.dataset.value || '';
+
+        // Cycle: include → exclude → none
+        const existingFilter = handlers.getFilterForValue?.(col, value);
+        if (existingFilter && !existingFilter.exclude) {
+          // Include → Exclude: remove then add as exclude in a single reload
+          handlers.removeFilterByValue?.(col, value, true);
+          handlers.addFilter?.(
+            col,
+            value,
+            true,
+            target.dataset.filterCol,
+            target.dataset.filterValue,
+            target.dataset.filterOp,
+          );
+        } else {
+          // Exclude → None (or fallback)
+          handlers.removeFilterByValue?.(col, value);
+        }
         break;
       }
       case 'clear-facet': {

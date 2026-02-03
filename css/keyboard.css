@@ -53,26 +53,9 @@ body.keyboard-mode .breakdown-card.kbd-focused {
   }
 }
 
-/* Focused row - show as hovered (with filter/exclude buttons visible) */
+/* Focused row - highlight background */
 body.keyboard-mode .breakdown-table tr.kbd-focused td.dim {
   background: var(--bg);
-}
-
-/* Show action buttons on focused row (same as hover) */
-body.keyboard-mode .breakdown-table tr.kbd-focused .count .value {
-  display: none;
-}
-
-body.keyboard-mode .breakdown-table tr.kbd-focused .count .action-btn {
-  display: block;
-}
-
-body.keyboard-mode .breakdown-table tr.kbd-focused .bar .bar-inner {
-  display: none;
-}
-
-body.keyboard-mode .breakdown-table tr.kbd-focused .bar .action-btn {
-  display: block;
 }
 
 /* Adjacent row hints for h/l navigation - positioned in left margin */

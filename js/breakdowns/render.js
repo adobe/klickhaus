@@ -200,7 +200,6 @@ export function renderBreakdownTable(
 
     // Build dimension cell content - with optional link and dimmed prefix
     // Synthetic buckets like (same), (empty) don't get links
-    let dimContent;
     let linkUrl = null;
     if (!isSyntheticBucket(row.dim)) {
       if (linkFn && row.dim) {
@@ -219,43 +218,48 @@ export function renderBreakdownTable(
     // Get color indicator using unified color system (already skips synthetic buckets)
     const colorIndicator = getColorIndicatorHtml(col, row.dim);
 
-    if (linkUrl) {
-      dimContent = `${colorIndicator}<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`;
-    } else {
-      dimContent = `${colorIndicator}${formattedDim}`;
-    }
-
     // Compute filter attributes (may differ from display col/value for grouped facets)
     const actualFilterCol = filterCol || col;
     const actualFilterValue = filterValueFn ? filterValueFn(row.dim || '') : (row.dim || '');
     const actualFilterOp = filterOp || '=';
     const filterAttrs = `data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-filter-col="${escapeHtml(actualFilterCol)}" data-filter-value="${escapeHtml(actualFilterValue)}" data-filter-op="${escapeHtml(actualFilterOp)}"`;
 
-    // Determine button actions based on current filter state
-    const filterBtn = isIncluded
-      ? `<button class="action-btn" data-action="remove-filter-value" ${filterAttrs}>Clear</button>`
-      : `<button class="action-btn" data-action="add-filter" ${filterAttrs} data-exclude="false">Filter</button>`;
-    const excludeBtn = isExcluded
-      ? `<button class="action-btn" data-action="remove-filter-value" ${filterAttrs}>Clear</button>`
-      : `<button class="action-btn exclude" data-action="add-filter" ${filterAttrs} data-exclude="true">Exclude</button>`;
+    // Extract background color from color indicator
+    const colorMatch = colorIndicator.match(/background:\s*([^;"]+)/);
+    const bgColor = colorMatch ? colorMatch[1] : '';
 
-    // Mobile action buttons (shown on tap) - using Unicode symbols
-    // ▼ for filter, × for exclude, ✓ for clear
-    const mobileFilterBtn = isIncluded
-      ? `<button class="mobile-action-btn active" data-action="remove-filter-value" ${filterAttrs} title="Remove filter">✓</button>`
-      : `<button class="mobile-action-btn" data-action="add-filter" ${filterAttrs} data-exclude="false" title="Filter to this value">▼</button>`;
-    const mobileExcludeBtn = isExcluded
-      ? `<button class="mobile-action-btn exclude active" data-action="remove-filter-value" ${filterAttrs} title="Remove exclusion">✓</button>`
-      : `<button class="mobile-action-btn exclude" data-action="add-filter" ${filterAttrs} data-exclude="true" title="Exclude this value">×</button>`;
+    // Build filter tag with consistent structure in all states (prevents layout shift)
+    // Always: indicator slot (icon + color bar) + text content
+    let stateClass = '';
+    let iconChar = '';
+    let tagStyle = '';
+    if (isIncluded) {
+      stateClass = ' active';
+      iconChar = '✓';
+      tagStyle = ` style="background: ${bgColor || 'var(--text)'}"`;
+    } else if (isExcluded) {
+      stateClass = ' exclude';
+      iconChar = '×';
+      tagStyle = ` style="background: ${bgColor || 'var(--text)'}"`;
+    }
+
+    const indicatorSlot = `<span class="filter-indicator-slot"><span class="filter-icon">${iconChar}</span>${colorIndicator}</span>`;
+    const textHtml = linkUrl
+      ? `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`
+      : formattedDim;
+    const filterTag = `<span class="filter-tag-indicator${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`;
+
+    // Cycle filter state: none → include → exclude → none
+    const dimAction = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
+    const dimExclude = isExcluded ? 'true' : 'false';
 
     const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
     const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');
     html += `
       <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}" data-dim="${dimDataAttr}">
-        <td class="dim" title="${escapeHtml(dim)}">${dimContent}</td>
+        <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${escapeHtml(bgColor || 'var(--text)')}">${filterTag}</td>
         <td class="count">
           <span class="value">${valueFormatter(cnt)}</span>
-          ${filterBtn}
         </td>
         <td class="bar">
           <div class="bar-inner${overflowClass}" style="width: ${barWidth}%">
@@ -263,9 +267,7 @@ export function renderBreakdownTable(
             <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
             <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
           </div>
-          ${excludeBtn}
         </td>
-        <td class="mobile-actions">${mobileFilterBtn}${mobileExcludeBtn}</td>
       </tr>
     `;
     rowIndex += 1;
@@ -281,7 +283,7 @@ export function renderBreakdownTable(
         <td class="dim"><span class="dim-prefix">(more)</span></td>
         <td class="count"></td>
         <td class="bar"></td>
-        <td class="mobile-actions"></td>
+
       </tr>
     `;
   } else if (hasOther) {
@@ -316,7 +318,7 @@ export function renderBreakdownTable(
             <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
           </div>
         </td>
-        <td class="mobile-actions"></td>
+
       </tr>
     `;
   }
