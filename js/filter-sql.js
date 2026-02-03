@@ -9,6 +9,9 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+import { allBreakdowns } from './breakdowns/definitions.js';
+import { COLUMN_DEFS } from './columns.js';
+
 /**
  * @typedef {Object} Filter
  * @property {string} col - Facet column expression.
@@ -18,6 +21,48 @@
  * @property {string|number} [filterValue] - Optional override value for SQL filtering.
  * @property {'=' | 'LIKE'} [filterOp] - Comparison operator (default: '=').
  */
+
+/** @type {Set<string>|null} */
+let allowedColumnsCache = null;
+
+/**
+ * Build the set of valid SQL column expressions from breakdowns and column definitions.
+ * Lazy-initialized and cached.
+ * @returns {Set<string>}
+ */
+export function getAllowedColumns() {
+  if (allowedColumnsCache) return allowedColumnsCache;
+  const cols = new Set();
+  for (const b of allBreakdowns) {
+    if (typeof b.col === 'string') cols.add(b.col);
+    if (b.filterCol) cols.add(b.filterCol);
+  }
+  for (const def of Object.values(COLUMN_DEFS)) {
+    if (def.facetCol) cols.add(def.facetCol);
+  }
+  allowedColumnsCache = cols;
+  return cols;
+}
+
+const ALLOWED_OPS = new Set(['=', 'LIKE']);
+
+/**
+ * Check if a column expression is in the allowlist.
+ * @param {string} col
+ * @returns {boolean}
+ */
+export function isValidFilterColumn(col) {
+  return getAllowedColumns().has(col);
+}
+
+/**
+ * Check if a filter operator is valid.
+ * @param {string} op
+ * @returns {boolean}
+ */
+export function isValidFilterOp(op) {
+  return ALLOWED_OPS.has(op);
+}
 
 /**
  * @typedef {Object} FilterEntry
@@ -67,7 +112,27 @@ export function compileFilters(filters) {
     return { sql: '', map: {} };
   }
 
-  const map = buildFilterMap(filters);
+  const safeFilters = filters.filter((f) => {
+    const sqlCol = f.filterCol || f.col;
+    const sqlOp = f.filterOp || '=';
+    if (!isValidFilterColumn(sqlCol)) {
+      // eslint-disable-next-line no-console
+      console.warn(`Filter rejected: invalid column "${sqlCol}"`);
+      return false;
+    }
+    if (!isValidFilterOp(sqlOp)) {
+      // eslint-disable-next-line no-console
+      console.warn(`Filter rejected: invalid operator "${sqlOp}"`);
+      return false;
+    }
+    return true;
+  });
+
+  if (safeFilters.length === 0) {
+    return { sql: '', map: {} };
+  }
+
+  const map = buildFilterMap(safeFilters);
   const columnClauses = [];
 
   for (const group of Object.values(map)) {

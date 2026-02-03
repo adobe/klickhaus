@@ -11,19 +11,18 @@
  */
 import { query } from './api.js';
 import { parseUTC } from './chart-state.js';
+import { loadSql } from './sql-loader.js';
+import { renderReleaseTooltipHtml } from './templates/release-tooltip.js';
 
 // Get releases within a time range from ClickHouse
 export async function getReleasesInRange(startTime, endTime) {
   try {
     // Format timestamps without 'Z' suffix for ClickHouse
     const formatTs = (d) => d.toISOString().replace('Z', '').replace('T', ' ');
-    const sql = `
-      SELECT published, repo, tag, url, body
-      FROM helix_logs_production.releases FINAL
-      WHERE published >= toDateTime64('${formatTs(startTime)}', 3)
-        AND published <= toDateTime64('${formatTs(endTime)}', 3)
-      ORDER BY published
-    `;
+    const sql = await loadSql('releases', {
+      startTime: formatTs(startTime),
+      endTime: formatTs(endTime),
+    });
     const result = await query(sql, { cacheTtl: 300 });
     return result.data || [];
   } catch (err) {
@@ -251,14 +250,7 @@ export function showReleaseTooltip(release, x, y) {
     timeZone: 'UTC',
   });
 
-  tooltip.innerHTML = `
-    <div class="release-tooltip-header">
-      <span class="release-repo">${release.repo}</span>
-      <span class="release-tag">${release.tag}</span>
-    </div>
-    <div class="release-tooltip-time">${timeStr} UTC</div>
-    <div class="release-tooltip-body">${formatReleaseNotes(release.body)}</div>
-  `;
+  tooltip.innerHTML = renderReleaseTooltipHtml(release, timeStr, formatReleaseNotes);
 
   // Position tooltip above the ship
   tooltip.style.display = 'block';

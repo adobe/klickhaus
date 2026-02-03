@@ -10,7 +10,10 @@
  * governing permissions and limitations under the License.
  */
 import { assert } from 'chai';
-import { hostLink, forwardedHostLink, refererLink } from './links.js';
+import {
+  hostLink, forwardedHostLink, refererLink, pathLink,
+} from './links.js';
+import { state } from '../state.js';
 
 describe('hostLink', () => {
   it('prepends https://', () => {
@@ -64,5 +67,74 @@ describe('refererLink', () => {
   it('returns null for empty value', () => {
     assert.strictEqual(refererLink(''), null);
     assert.strictEqual(refererLink(null), null);
+  });
+});
+
+describe('pathLink', () => {
+  let savedFilters;
+
+  beforeEach(() => {
+    savedFilters = state.filters;
+    state.filters = [];
+  });
+
+  afterEach(() => {
+    state.filters = savedFilters;
+  });
+
+  it('returns null for empty value', () => {
+    assert.strictEqual(pathLink(''), null);
+    assert.strictEqual(pathLink(null), null);
+  });
+
+  it('returns null when no host filter active', () => {
+    assert.strictEqual(pathLink('/page'), null);
+  });
+
+  it('builds URL from host filter', () => {
+    state.filters = [
+      { col: '`request.host`', value: 'example.com', exclude: false },
+    ];
+    assert.strictEqual(pathLink('/page'), 'https://example.com/page');
+  });
+
+  it('ignores excluded host filter', () => {
+    state.filters = [
+      { col: '`request.host`', value: 'example.com', exclude: true },
+    ];
+    assert.strictEqual(pathLink('/page'), null);
+  });
+
+  it('builds URL from forwarded host filter', () => {
+    const fwdCol = "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)";
+    state.filters = [
+      { col: fwdCol, value: 'customer.com', exclude: false },
+    ];
+    assert.strictEqual(pathLink('/page'), 'https://customer.com/page');
+  });
+
+  it('takes first host from comma-separated forwarded host', () => {
+    const fwdCol = "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)";
+    state.filters = [
+      { col: fwdCol, value: 'a.com, b.com', exclude: false },
+    ];
+    assert.strictEqual(pathLink('/page'), 'https://a.com/page');
+  });
+
+  it('ignores forwarded host filter with (same) value', () => {
+    const fwdCol = "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)";
+    state.filters = [
+      { col: fwdCol, value: '(same)', exclude: false },
+    ];
+    assert.strictEqual(pathLink('/page'), null);
+  });
+
+  it('prefers host filter over forwarded host', () => {
+    const fwdCol = "if(`request.headers.x_forwarded_host` = `request.host`, '(same)', `request.headers.x_forwarded_host`)";
+    state.filters = [
+      { col: '`request.host`', value: 'edge.com', exclude: false },
+      { col: fwdCol, value: 'origin.com', exclude: false },
+    ];
+    assert.strictEqual(pathLink('/page'), 'https://edge.com/page');
   });
 });

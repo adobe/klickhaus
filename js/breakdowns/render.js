@@ -11,9 +11,9 @@
  */
 import { escapeHtml, isSyntheticBucket } from '../utils.js';
 import { formatNumber, formatQueryTime, formatBytes } from '../format.js';
-import { getColorIndicatorHtml } from '../colors/index.js';
 import { state } from '../state.js';
 import { TOP_N_OPTIONS } from '../constants.js';
+import { buildBreakdownRow, buildOtherRow } from '../templates/breakdown-table.js';
 
 // Get filters for a specific column
 export function getFiltersForColumn(col) {
@@ -25,19 +25,6 @@ export function getNextTopN() {
   const currentIdx = TOP_N_OPTIONS.indexOf(state.topN);
   if (currentIdx === -1 || currentIdx >= TOP_N_OPTIONS.length - 1) return null;
   return TOP_N_OPTIONS[currentIdx + 1];
-}
-
-// Format dimension value with dimmed prefix if applicable
-function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
-  // Use custom format function if provided
-  if (dimFormatFn) return dimFormatFn(dim);
-  if (!dimPrefixes || dimPrefixes.length === 0) return escapeHtml(dim);
-  for (const prefix of dimPrefixes) {
-    if (dim.startsWith(prefix)) {
-      return `<span class="dim-prefix">${escapeHtml(prefix)}</span>${escapeHtml(dim.slice(prefix.length))}`;
-    }
-  }
-  return escapeHtml(dim);
 }
 
 export function renderBreakdownTable(
@@ -163,165 +150,39 @@ export function renderBreakdownTable(
 
   let rowIndex = 0;
   for (const row of data) {
-    const cnt = parseInt(row.cnt, 10);
-    const cntOk = parseInt(row.cnt_ok, 10) || 0;
-    const cnt4xx = parseInt(row.cnt_4xx, 10) || 0;
-    const cnt5xx = parseInt(row.cnt_5xx, 10) || 0;
-
-    const dim = row.dim || '(empty)';
-    const isSynthetic = isSyntheticBucket(dim);
-
-    // For synthetic buckets, cap bar at 100% and always show fading gradient
-    // to visually distinguish them from real dimension values
-    const barWidth = (isSynthetic && cnt > maxCount) ? 100 : (cnt / maxCount) * 100;
-    const overflowClass = isSynthetic ? ' bar-overflow' : '';
-
-    // Calculate percentages within this row (for stacked segments)
-    const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
-    const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
-    const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
-
-    // Check if this value is currently filtered
-    const activeFilter = columnFilters.find((f) => f.value === (row.dim || ''));
-    const isIncluded = activeFilter && !activeFilter.exclude;
-    const isExcluded = activeFilter && activeFilter.exclude;
-    // Check if this row was added because it's a filtered value not in topN
-    const isFilteredValue = row.isFilteredValue === true;
-    let filterClass = '';
-    if (isIncluded) {
-      filterClass = 'filter-included';
-    } else if (isExcluded) {
-      filterClass = 'filter-excluded';
-    }
-    if (isFilteredValue) {
-      filterClass += ' filtered-value-row';
-    }
-    const rowClass = isSynthetic ? `synthetic-row ${filterClass}` : filterClass.trim();
-
-    // Build dimension cell content - with optional link and dimmed prefix
-    // Synthetic buckets like (same), (empty) don't get links
-    let linkUrl = null;
-    if (!isSyntheticBucket(row.dim)) {
-      if (linkFn && row.dim) {
-        linkUrl = linkFn(row.dim);
-      } else if (linkPrefix && row.dim) {
-        // For ASN links, extract just the number (before first space)
-        const linkValue = row.dim.split(' ')[0];
-        linkUrl = linkPrefix + linkValue + (linkSuffix || '');
-      }
-    }
-    // Synthetic buckets get dimmed styling like (other)
-    const formattedDim = isSynthetic
-      ? `<span class="dim-prefix">${escapeHtml(dim)}</span>`
-      : formatDimWithPrefix(dim, dimPrefixes, dimFormatFn);
-
-    // Get color indicator using unified color system (already skips synthetic buckets)
-    const colorIndicator = getColorIndicatorHtml(col, row.dim);
-
-    // Compute filter attributes (may differ from display col/value for grouped facets)
-    const actualFilterCol = filterCol || col;
-    const actualFilterValue = filterValueFn ? filterValueFn(row.dim || '') : (row.dim || '');
-    const actualFilterOp = filterOp || '=';
-    const filterAttrs = `data-col="${escapeHtml(col)}" data-value="${escapeHtml(row.dim || '')}" data-filter-col="${escapeHtml(actualFilterCol)}" data-filter-value="${escapeHtml(actualFilterValue)}" data-filter-op="${escapeHtml(actualFilterOp)}"`;
-
-    // Extract background color from color indicator
-    const colorMatch = colorIndicator.match(/background:\s*([^;"]+)/);
-    const bgColor = colorMatch ? colorMatch[1] : '';
-
-    // Build filter tag with consistent structure in all states (prevents layout shift)
-    // Always: indicator slot (icon + color bar) + text content
-    let stateClass = '';
-    let iconChar = '';
-    let tagStyle = '';
-    if (isIncluded) {
-      stateClass = ' active';
-      iconChar = '✓';
-      tagStyle = ` style="background: ${bgColor || 'var(--text)'}"`;
-    } else if (isExcluded) {
-      stateClass = ' exclude';
-      iconChar = '×';
-      tagStyle = ` style="background: ${bgColor || 'var(--text)'}"`;
-    }
-
-    const indicatorSlot = `<span class="filter-indicator-slot"><span class="filter-icon">${iconChar}</span>${colorIndicator}</span>`;
-    const textHtml = linkUrl
-      ? `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`
-      : formattedDim;
-    const filterTag = `<span class="filter-tag-indicator${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`;
-
-    // Cycle filter state: none → include → exclude → none
-    const dimAction = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
-    const dimExclude = isExcluded ? 'true' : 'false';
-
-    const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
-    const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');
-    html += `
-      <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}" data-dim="${dimDataAttr}">
-        <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${escapeHtml(bgColor || 'var(--text)')}">${filterTag}</td>
-        <td class="count">
-          <span class="value">${valueFormatter(cnt)}</span>
-        </td>
-        <td class="bar">
-          <div class="bar-inner${overflowClass}" style="width: ${barWidth}%">
-            <div class="bar-segment bar-5xx" style="width: ${pct5xx}%"></div>
-            <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
-            <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
-          </div>
-        </td>
-      </tr>
-    `;
+    html += buildBreakdownRow({
+      row,
+      col,
+      maxCount,
+      columnFilters,
+      valueFormatter,
+      linkPrefix,
+      linkSuffix,
+      linkFn,
+      dimPrefixes,
+      dimFormatFn,
+      filterCol,
+      filterValueFn,
+      filterOp,
+      rowIndex,
+    });
     rowIndex += 1;
   }
 
-  // Add "Other" row if there are more values beyond topN (for non-continuous facets)
-  // Or add "More" row for continuous facets (always shown if next topN is available)
+  // Add "Other" / "More" row
   const nextN = getNextTopN();
-  if (isContinuous && nextN) {
-    // Continuous facets: show "(more)" to get finer-grained buckets
-    html += `
-      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" data-action="increase-topn" title="Click to show ${nextN} buckets with finer granularity">
-        <td class="dim"><span class="dim-prefix">(more)</span></td>
-        <td class="count"></td>
-        <td class="bar"></td>
-
-      </tr>
-    `;
-  } else if (hasOther) {
-    const { cnt } = otherRow;
-    const cntOk = otherRow.cnt_ok;
-    const cnt4xx = otherRow.cnt_4xx;
-    const cnt5xx = otherRow.cnt_5xx;
-    // Cap bar width at 100% (same as top value) to prevent layout explosion
-    const isOverflow = cnt > maxCount;
-    const barWidth = isOverflow ? 100 : (cnt / maxCount) * 100;
-    const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
-    const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
-    const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
-    const overflowClass = isOverflow ? ' bar-overflow' : '';
-
-    // Build data attributes for facet search link
-    const actualFilterCol = filterCol || col;
-    const searchAttrs = `data-col="${escapeHtml(col)}" data-facet-id="${escapeHtml(id)}" data-filter-col="${escapeHtml(actualFilterCol)}" data-title="${escapeHtml(title)}"`;
-
-    html += `
-      <tr class="other-row" tabindex="0" role="option" aria-selected="false" data-value-index="${rowIndex}" title="Click to show top ${nextN}">
-        <td class="dim">
-          <span class="dim-prefix">(<a href="#" class="other-link" data-action="increase-topn">other</a>/<a href="#" class="facet-search-link" data-action="open-facet-search" ${searchAttrs}>search</a>)</span>
-        </td>
-        <td class="count">
-          <span class="value">${valueFormatter(cnt)}</span>
-        </td>
-        <td class="bar">
-          <div class="bar-inner${overflowClass}" style="width: ${barWidth}%">
-            <div class="bar-segment bar-5xx" style="width: ${pct5xx}%"></div>
-            <div class="bar-segment bar-4xx" style="width: ${pct4xx}%"></div>
-            <div class="bar-segment bar-ok" style="width: ${pctOk}%"></div>
-          </div>
-        </td>
-
-      </tr>
-    `;
-  }
+  html += buildOtherRow({
+    otherRow: hasOther ? otherRow : null,
+    maxCount,
+    rowIndex,
+    nextN,
+    isContinuous,
+    col,
+    id,
+    title,
+    filterCol,
+    valueFormatter,
+  });
 
   html += '</table>';
 

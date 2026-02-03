@@ -10,9 +10,9 @@
  * governing permissions and limitations under the License.
  */
 import { state } from './state.js';
-import { escapeHtml } from './utils.js';
 import { getColorIndicatorHtml } from './colors/index.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
+import { renderFilterTags } from './templates/filter-tags.js';
 
 // Callbacks set by main.js to avoid circular dependencies
 let saveStateToURL = null;
@@ -54,7 +54,7 @@ export function renderActiveFilters() {
     updateHeaderFixed();
     return;
   }
-  container.innerHTML = state.filters.map((f, i) => {
+  const filterData = state.filters.map((f) => {
     let label;
     const facetTitle = getFacetTitle(f.col) || 'Empty';
     if (f.value === '') {
@@ -63,10 +63,12 @@ export function renderActiveFilters() {
     } else {
       label = f.exclude ? `NOT ${f.value}` : f.value;
     }
-    // Get color indicator using unified color system
     const colorIndicator = getColorIndicatorHtml(f.col, f.value, 'filter-color');
-    return `<span class="filter-tag ${f.exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${i}" title="${facetTitle}">${colorIndicator}${escapeHtml(label)}</span>`;
-  }).join('');
+    return {
+      label, exclude: f.exclude, colorIndicator, title: facetTitle,
+    };
+  });
+  container.innerHTML = renderFilterTags(filterData);
   updateHeaderFixed();
 }
 

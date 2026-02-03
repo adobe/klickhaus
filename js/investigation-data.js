@@ -21,6 +21,7 @@ import { state } from './state.js';
 import { getTable, getHostFilter, getTimeFilter } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { compileFilters, isFilterSuperset } from './filter-sql.js';
+import { loadSql } from './sql-loader.js';
 
 // Cache version - increment when cache format or algorithm changes
 const CACHE_VERSION = 3;
@@ -412,32 +413,17 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
   // Two-level aggregation:
   // 1. Inner query: aggregate by (minute, dim) with status counts - uses projection
   // 2. Outer query: sum across minutes, splitting anomaly vs baseline windows
-  const sql = `
-    SELECT
-      dim,
-      sumIf(cat_cnt, ${anomalyMinuteFilter}) as anomaly_cat_cnt,
-      sumIf(cat_cnt, NOT (${anomalyMinuteFilter})) as baseline_cat_cnt,
-      sumIf(cnt, ${anomalyMinuteFilter}) as anomaly_total_cnt,
-      sumIf(cnt, NOT (${anomalyMinuteFilter})) as baseline_total_cnt
-    FROM (
-      SELECT
-        toStartOfMinute(timestamp) as minute,
-        ${col} as dim,
-        count() as cnt,
-        countIf(\`response.status\` < 400) as cnt_ok,
-        countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
-        countIf(\`response.status\` >= 500) as cnt_5xx,
-        ${catCountExpr} as cat_cnt
-      FROM ${DATABASE}.${getTable()}
-      WHERE ${buildTimeFilter(fullStart, fullEnd)}
-        ${hostFilter} ${facetFilters} ${extra}
-      GROUP BY minute, dim
-    )
-    GROUP BY dim
-    HAVING anomaly_cat_cnt > 0 OR baseline_cat_cnt > 0
-    ORDER BY anomaly_cat_cnt DESC
-    LIMIT 50
-  `;
+  const sql = await loadSql('investigate-facet', {
+    anomalyMinuteFilter,
+    col,
+    catCountExpr,
+    database: DATABASE,
+    table: getTable(),
+    timeFilter: buildTimeFilter(fullStart, fullEnd),
+    hostFilter,
+    facetFilters,
+    extra,
+  });
 
   try {
     const result = await query(sql, { cacheTtl: 60 });
@@ -550,30 +536,16 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
   // Two-level aggregation:
   // 1. Inner query: aggregate by (minute, dim) with status counts - uses projection
   // 2. Outer query: sum across minutes, splitting selection vs baseline windows
-  const sql = `
-    SELECT
-      dim,
-      sumIf(cnt, ${selectionMinuteFilter}) as selection_cnt,
-      sumIf(cnt, NOT (${selectionMinuteFilter})) as baseline_cnt,
-      sumIf(cnt_4xx + cnt_5xx, ${selectionMinuteFilter}) as selection_err_cnt,
-      sumIf(cnt_4xx + cnt_5xx, NOT (${selectionMinuteFilter})) as baseline_err_cnt
-    FROM (
-      SELECT
-        toStartOfMinute(timestamp) as minute,
-        ${col} as dim,
-        count() as cnt,
-        countIf(\`response.status\` >= 400 AND \`response.status\` < 500) as cnt_4xx,
-        countIf(\`response.status\` >= 500) as cnt_5xx
-      FROM ${DATABASE}.${getTable()}
-      WHERE ${buildTimeFilter(fullStart, fullEnd)}
-        ${hostFilter} ${facetFilters} ${extra}
-      GROUP BY minute, dim
-    )
-    GROUP BY dim
-    HAVING selection_cnt > 0 OR baseline_cnt > 0
-    ORDER BY selection_cnt DESC
-    LIMIT 50
-  `;
+  const sql = await loadSql('investigate-selection', {
+    selectionMinuteFilter,
+    col,
+    database: DATABASE,
+    table: getTable(),
+    timeFilter: buildTimeFilter(fullStart, fullEnd),
+    hostFilter,
+    facetFilters,
+    extra,
+  });
 
   try {
     const result = await query(sql, { cacheTtl: 60 });

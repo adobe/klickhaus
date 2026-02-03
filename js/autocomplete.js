@@ -13,6 +13,7 @@ import { query } from './api.js';
 import { DATABASE } from './config.js';
 import { getTable } from './time.js';
 import { escapeHtml } from './utils.js';
+import { loadSql } from './sql-loader.js';
 
 const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
 const HOST_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
@@ -39,24 +40,14 @@ export async function loadHostAutocomplete() {
 
   // Fetch hosts and forwarded hosts in parallel (lower priority, background task)
   try {
+    const sqlParams = { database: DATABASE, table: getTable() };
+    const [hostsSql, forwardedSql] = await Promise.all([
+      loadSql('autocomplete-hosts', sqlParams),
+      loadSql('autocomplete-forwarded', sqlParams),
+    ]);
     const [hostsResult, forwardedHostsResult] = await Promise.all([
-      query(`
-        SELECT \`request.host\` as host, count() as cnt
-        FROM ${DATABASE}.${getTable()}
-        WHERE timestamp > now() - INTERVAL 1 DAY
-        GROUP BY host
-        ORDER BY cnt DESC
-        LIMIT 100
-      `),
-      query(`
-        SELECT \`request.headers.x_forwarded_host\` as host, count() as cnt
-        FROM ${DATABASE}.${getTable()}
-        WHERE timestamp > now() - INTERVAL 1 DAY
-          AND \`request.headers.x_forwarded_host\` != ''
-        GROUP BY host
-        ORDER BY cnt DESC
-        LIMIT 100
-      `),
+      query(hostsSql),
+      query(forwardedSql),
     ]);
 
     // Collect all hosts

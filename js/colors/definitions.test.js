@@ -339,6 +339,151 @@ describe('colorRules.acceptEncoding', () => {
   });
 });
 
+describe('colorRules.requestType', () => {
+  const { getColor } = colorRules.requestType;
+
+  it('maps delivery category types', () => {
+    assert.strictEqual(getColor('pipeline'), 'var(--rt-pipeline)');
+    assert.strictEqual(getColor('static'), 'var(--rt-static)');
+    assert.strictEqual(getColor('media'), 'var(--rt-media)');
+    assert.strictEqual(getColor('rum'), 'var(--rt-rum)');
+  });
+
+  it('maps pipeline service types', () => {
+    assert.strictEqual(getColor('html'), 'var(--rt-html)');
+    assert.strictEqual(getColor('json'), 'var(--rt-json)');
+    assert.strictEqual(getColor('md'), 'var(--rt-md)');
+    assert.strictEqual(getColor('robots'), 'var(--rt-robots)');
+  });
+
+  it('maps static service types', () => {
+    assert.strictEqual(getColor('content'), 'var(--rt-content)');
+    assert.strictEqual(getColor('code'), 'var(--rt-code)');
+  });
+
+  it('maps admin service types', () => {
+    assert.strictEqual(getColor('job'), 'var(--rt-job)');
+    assert.strictEqual(getColor('discover'), 'var(--rt-discover)');
+    assert.strictEqual(getColor('preview'), 'var(--rt-preview)');
+    assert.strictEqual(getColor('status'), 'var(--rt-status)');
+    assert.strictEqual(getColor('sidekick'), 'var(--rt-sidekick)');
+    assert.strictEqual(getColor('github-bot'), 'var(--rt-github-bot)');
+    assert.strictEqual(getColor('live'), 'var(--rt-live)');
+    assert.strictEqual(getColor('auth'), 'var(--rt-auth)');
+  });
+
+  it('maps config service types', () => {
+    assert.strictEqual(getColor('admin'), 'var(--rt-admin)');
+    assert.strictEqual(getColor('delivery'), 'var(--rt-delivery)');
+    assert.strictEqual(getColor('config'), 'var(--rt-config)');
+  });
+
+  it('is case-insensitive', () => {
+    assert.strictEqual(getColor('Pipeline'), 'var(--rt-pipeline)');
+    assert.strictEqual(getColor('STATIC'), 'var(--rt-static)');
+  });
+
+  it('returns empty for empty/unknown values', () => {
+    assert.strictEqual(getColor(''), '');
+    assert.strictEqual(getColor('unknown'), '');
+  });
+});
+
+describe('colorRules.backendType', () => {
+  const { getColor } = colorRules.backendType;
+
+  it('maps Fastly service types', () => {
+    assert.strictEqual(getColor('fastly / aws'), 'var(--ts-fastly-aws)');
+    assert.strictEqual(getColor('fastly / cloudflare'), 'var(--ts-fastly-cloudflare)');
+    assert.strictEqual(getColor('fastly / image optimizer'), 'var(--ts-fastly-media)');
+    assert.strictEqual(getColor('fastly / admin'), 'var(--ts-fastly-admin)');
+    assert.strictEqual(getColor('fastly / api'), 'var(--ts-fastly-api)');
+    assert.strictEqual(getColor('fastly / config'), 'var(--ts-fastly-config)');
+    assert.strictEqual(getColor('fastly / pipeline'), 'var(--ts-fastly-pipeline)');
+    assert.strictEqual(getColor('fastly / static'), 'var(--ts-fastly-static)');
+    assert.strictEqual(getColor('fastly / www'), 'var(--ts-fastly-www)');
+    assert.strictEqual(getColor('fastly / forms'), 'var(--ts-fastly-forms)');
+    assert.strictEqual(getColor('fastly / other'), 'var(--ts-fastly-other)');
+  });
+
+  it('maps Cloudflare service types', () => {
+    assert.strictEqual(getColor('cloudflare / r2'), 'var(--ts-cf-r2)');
+    assert.strictEqual(getColor('cloudflare / da'), 'var(--ts-cf-da)');
+    assert.strictEqual(getColor('cloudflare / helix'), 'var(--ts-cf-helix)');
+    assert.strictEqual(getColor('cloudflare / workers'), 'var(--ts-cf-workers)');
+  });
+
+  it('maps legacy values', () => {
+    assert.strictEqual(getColor('aws'), 'var(--ts-fastly-aws)');
+    assert.strictEqual(getColor('cloudflare'), 'var(--ts-cf-workers)');
+    assert.strictEqual(getColor('cloudflare (implied)'), 'var(--ts-cf-workers)');
+  });
+
+  it('is case-insensitive', () => {
+    assert.strictEqual(getColor('Fastly / AWS'), 'var(--ts-fastly-aws)');
+    assert.strictEqual(getColor('CLOUDFLARE / R2'), 'var(--ts-cf-r2)');
+  });
+
+  it('returns empty for empty/unknown values', () => {
+    assert.strictEqual(getColor(''), '');
+    assert.strictEqual(getColor('unknown'), '');
+  });
+});
+
+describe('colorRules.asn', () => {
+  const { getColor } = colorRules.asn;
+
+  it('detects Adobe ASN', () => {
+    assert.strictEqual(getColor('14340 - Adobe Inc.'), 'var(--asn-adobe)');
+  });
+
+  it('detects good CDN ASNs', () => {
+    assert.strictEqual(getColor('54113 - Fastly, Inc.'), 'var(--asn-good-cdn)');
+    assert.strictEqual(getColor('20940 - Akamai'), 'var(--asn-good-cdn)');
+    assert.strictEqual(getColor('13335 - Cloudflare'), 'var(--asn-good-cdn)');
+    assert.strictEqual(getColor('16509 - Amazon'), 'var(--asn-good-cdn)');
+  });
+
+  it('detects bad CDN ASNs', () => {
+    assert.strictEqual(getColor('62044 - Zscaler'), 'var(--asn-bad-cdn)');
+    assert.strictEqual(getColor('19551 - Incapsula'), 'var(--asn-bad-cdn)');
+  });
+
+  it('detects cloud ASNs', () => {
+    assert.strictEqual(getColor('8075 - Microsoft'), 'var(--asn-cloud)');
+    assert.strictEqual(getColor('15169 - Google'), 'var(--asn-cloud)');
+  });
+
+  it('returns other for unknown ASNs', () => {
+    assert.strictEqual(getColor('12345 - SomeISP'), 'var(--asn-other)');
+  });
+
+  it('returns empty for falsy values', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+});
+
+describe('colorRules.accept', () => {
+  const { getColor } = colorRules.accept;
+
+  it('maps accept header families', () => {
+    assert.strictEqual(getColor('text/html'), 'var(--ct-text)');
+    assert.strictEqual(getColor('application/json'), 'var(--ct-application)');
+    assert.strictEqual(getColor('image/webp'), 'var(--ct-image)');
+    assert.strictEqual(getColor('video/mp4'), 'var(--ct-video)');
+    assert.strictEqual(getColor('font/woff2'), 'var(--ct-font)');
+  });
+
+  it('maps wildcard accept', () => {
+    assert.strictEqual(getColor('*/*'), 'var(--ct-binary)');
+  });
+
+  it('returns empty for unknown', () => {
+    assert.strictEqual(getColor(''), '');
+    assert.strictEqual(getColor('multipart/form-data'), '');
+  });
+});
+
 describe('colorRules.byoCdn', () => {
   const { getColor } = colorRules.byoCdn;
 

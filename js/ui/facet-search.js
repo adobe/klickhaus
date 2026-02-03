@@ -12,10 +12,10 @@
 import { query } from '../api.js';
 import { DATABASE } from '../config.js';
 import { getTimeFilter, getHostFilter, getTable } from '../time.js';
-import { escapeHtml } from '../utils.js';
-import { formatNumber } from '../format.js';
 import { getFacetFiltersExcluding } from '../breakdowns/index.js';
 import { state } from '../state.js';
+import { loadSql } from '../sql-loader.js';
+import { renderFacetSearchResultsHtml } from '../templates/facet-search-results.js';
 
 // State
 let currentCol = null;
@@ -38,20 +38,7 @@ function renderResults() {
     return;
   }
 
-  container.innerHTML = searchResults.map((row, i) => {
-    const dim = row.dim || '(empty)';
-    const selectedClass = i === selectedIndex ? ' selected' : '';
-    return `
-      <div class="facet-search-item${selectedClass}" data-index="${i}" role="option" aria-selected="${i === selectedIndex}">
-        <span class="facet-search-value" title="${escapeHtml(dim)}">${escapeHtml(dim)}</span>
-        <span class="facet-search-count">${formatNumber(row.cnt)}</span>
-        <span class="facet-search-actions">
-          <button class="facet-search-btn filter" data-index="${i}" data-exclude="false">Filter</button>
-          <button class="facet-search-btn exclude" data-index="${i}" data-exclude="true">Exclude</button>
-        </span>
-      </div>
-    `;
-  }).join('');
+  container.innerHTML = renderFacetSearchResultsHtml(searchResults, selectedIndex);
 }
 
 /**
@@ -68,14 +55,15 @@ async function loadInitialResults() {
     const searchCol = currentFilterCol || currentCol;
 
     // Fetch next 20 values after the currently displayed topN
-    const sql = `
-      SELECT ${searchCol} as dim, count() as cnt
-      FROM ${DATABASE}.${getTable()}
-      WHERE ${timeFilter} ${hostFilter} ${facetFilters}
-      GROUP BY dim
-      ORDER BY cnt DESC
-      LIMIT 20 OFFSET ${state.topN}
-    `;
+    const sql = await loadSql('facet-search-initial', {
+      searchCol,
+      database: DATABASE,
+      table: getTable(),
+      timeFilter,
+      hostFilter,
+      facetFilters,
+      offset: String(state.topN),
+    });
 
     const result = await query(sql);
     searchResults = result.data || [];
@@ -123,15 +111,15 @@ async function searchFacetValues(pattern) {
     // Use the filterCol for searching since it's the raw column
     const searchCol = currentFilterCol || currentCol;
 
-    const sql = `
-      SELECT ${searchCol} as dim, count() as cnt
-      FROM ${DATABASE}.${getTable()}
-      WHERE ${timeFilter} ${hostFilter} ${facetFilters}
-        AND ${searchCol} LIKE '%${escapedPattern}%'
-      GROUP BY dim
-      ORDER BY cnt DESC
-      LIMIT 20
-    `;
+    const sql = await loadSql('facet-search-pattern', {
+      searchCol,
+      database: DATABASE,
+      table: getTable(),
+      timeFilter,
+      hostFilter,
+      facetFilters,
+      escapedPattern,
+    });
 
     const result = await query(sql);
     searchResults = result.data || [];

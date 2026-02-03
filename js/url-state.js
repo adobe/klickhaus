@@ -17,6 +17,7 @@ import { renderActiveFilters } from './filters.js';
 import {
   DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS,
 } from './constants.js';
+import { isValidFilterColumn, isValidFilterOp } from './filter-sql.js';
 
 // DOM elements (set by main.js)
 let elements = {};
@@ -167,6 +168,11 @@ export function loadStateFromURL() {
             if (f.filterValue !== undefined) filter.filterValue = f.filterValue;
             if (f.filterOp) filter.filterOp = f.filterOp;
             return filter;
+          })
+          .filter((f) => {
+            const sqlCol = f.filterCol || f.col;
+            const sqlOp = f.filterOp || '=';
+            return isValidFilterColumn(sqlCol) && isValidFilterOp(sqlOp);
           });
       }
     } catch (e) {

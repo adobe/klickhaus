@@ -59,6 +59,7 @@ import {
   initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
 } from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
+import { preloadAllTemplates } from './sql-loader.js';
 
 /**
  * Initialize a dashboard instance.
@@ -299,6 +300,7 @@ export function initDashboard(config = {}) {
         const creds = JSON.parse(stored);
         if (creds && creds.user && creds.password) {
           state.credentials = creds;
+          preloadAllTemplates();
           syncUIFromState();
           reorderFacets();
           showDashboard();
@@ -370,6 +372,7 @@ export function initDashboard(config = {}) {
     elements.viewToggleBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
 
     window.addEventListener('login-success', () => {
+      preloadAllTemplates();
       syncUIFromState();
       showDashboard();
       loadDashboard();

@@ -19,6 +19,7 @@ import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
+import { loadSql } from '../sql-loader.js';
 
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
@@ -142,20 +143,24 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
   // Custom orderBy or default to count descending
   const orderBy = b.orderBy || 'cnt DESC';
-  const sql = `
-    SELECT
-      ${col} as dim,
-      ${aggTotal} as cnt,
-      ${aggOk} as cnt_ok,
-      ${agg4xx} as cnt_4xx,
-      ${agg5xx} as cnt_5xx${summaryColWithMult}
-    FROM ${DATABASE}.${getTable()}
-    ${sampleClause}
-    WHERE ${timeFilter} ${hostFilter} ${facetFilters} ${extra} ${state.additionalWhereClause}
-    GROUP BY dim WITH TOTALS
-    ORDER BY ${orderBy}
-    LIMIT ${state.topN}
-  `;
+  const sql = await loadSql('breakdown', {
+    col,
+    aggTotal,
+    aggOk,
+    agg4xx,
+    agg5xx,
+    summaryCol: summaryColWithMult,
+    database: DATABASE,
+    table: getTable(),
+    sampleClause,
+    timeFilter,
+    hostFilter,
+    facetFilters,
+    extra,
+    additionalWhereClause: state.additionalWhereClause,
+    orderBy,
+    topN: String(state.topN),
+  });
 
   const startTime = performance.now();
   try {
@@ -200,19 +205,22 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
           .map((v) => `'${v.replace(/'/g, "''")}'`)
           .join(', ');
 
-        const missingValuesSql = `
-          SELECT
-            ${col} as dim,
-            ${isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`} as cnt,
-            ${aggOk} as cnt_ok,
-            ${agg4xx} as cnt_4xx,
-            ${agg5xx} as cnt_5xx
-          FROM ${DATABASE}.${getTable()}
-          ${sampleClause}
-          WHERE ${timeFilter} ${hostFilter} ${extra} ${state.additionalWhereClause}
-            AND ${searchCol} IN (${valuesList})
-          GROUP BY dim
-        `;
+        const missingValuesSql = await loadSql('breakdown-missing', {
+          col,
+          aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
+          aggOk,
+          agg4xx,
+          agg5xx,
+          database: DATABASE,
+          table: getTable(),
+          sampleClause,
+          timeFilter,
+          hostFilter,
+          extra,
+          additionalWhereClause: state.additionalWhereClause,
+          searchCol,
+          valuesList,
+        });
 
         try {
           const missingResult = await query(missingValuesSql);
