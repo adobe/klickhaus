@@ -21,7 +21,8 @@ import {
   setOnStateRestored, setOnBeforeRestore,
 } from './url-state.js';
 import {
-  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, getTimeFilter, getHostFilter,
+  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
+  getTimeFilter, getHostFilter,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -137,6 +138,17 @@ async function loadDashboardQueries(timeFilter, hostFilter) {
   }
 }
 
+// Update keyboard hint for time range to show next option number
+function updateTimeRangeHint() {
+  const hint = document.getElementById('timeRangeHint');
+  const select = document.getElementById('timeRange');
+  if (!hint || !select) return;
+
+  // Show next option number (wraps to 1 if at last option)
+  const nextIndex = (select.selectedIndex + 1) % select.options.length;
+  hint.textContent = nextIndex + 1;
+}
+
 // Load Dashboard Data
 async function loadDashboard(refresh = false) {
   setForceRefresh(refresh);
@@ -149,6 +161,15 @@ async function loadDashboard(refresh = false) {
     setQueryTimestamp(new Date());
   }
   saveStateToURL();
+
+  // Sync time range dropdown with current state (custom zoom vs preset)
+  if (isCustomTimeRange()) {
+    elements.timeRangeSelect.value = 'custom';
+  } else {
+    elements.timeRangeSelect.value = state.timeRange;
+  }
+  updateTimeRangeHint();
+
   startQueryTimer();
   resetFacetTimings();
 
@@ -221,17 +242,6 @@ function reorderFacets(toggledFacetId = null) {
 
 // Set up callback for facet order changes
 setOnFacetOrderChange(reorderFacets);
-
-// Update keyboard hint for time range to show next option number
-function updateTimeRangeHint() {
-  const hint = document.getElementById('timeRangeHint');
-  const select = document.getElementById('timeRange');
-  if (!hint || !select) return;
-
-  // Show next option number (wraps to 1 if at last option)
-  const nextIndex = (select.selectedIndex + 1) % select.options.length;
-  hint.textContent = nextIndex + 1;
-}
 
 // Increase topN and reload breakdowns
 function increaseTopN() {
