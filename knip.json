@@ -2,7 +2,6 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
     "js/main.js",
-    "sw.js",
     "scripts/*.mjs",
     "eslint.config.js",
     "web-test-runner.config.mjs"
