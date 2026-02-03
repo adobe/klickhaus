@@ -324,6 +324,9 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
 
   // Main keydown handler
   document.addEventListener('keydown', (e) => {
+    // Don't capture browser shortcuts (Cmd+L, Cmd+R, Cmd+T, Ctrl+C, etc.)
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
     // Ignore if in input field or dialog is open
     if (e.target.matches('input, textarea, select')) return;
     if (document.querySelector('dialog[open]:not(#keyboardHelp):not(#facetPalette)')) return;
@@ -454,15 +457,11 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
         break;
       case '+':
       case '=': // Unshifted + on most keyboards
-        // Don't override browser zoom (Cmd/Ctrl + +)
-        if (e.metaKey || e.ctrlKey) return;
         e.preventDefault();
         // Zoom in: to most prominent anomaly, or most recent section if none
         zoomToAnomaly();
         break;
       case '-':
-        // Don't override browser zoom (Cmd/Ctrl + -)
-        if (e.metaKey || e.ctrlKey) return;
         e.preventDefault();
         // Zoom out: expand to next larger predefined period
         if (zoomOut()) {
