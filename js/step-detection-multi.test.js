@@ -50,4 +50,33 @@ describe('detectSteps', () => {
       }
     }
   });
+
+  it('respects custom endMargin via options', () => {
+    // 15 points with a spike at the very end (index 13-14)
+    const data = [];
+    for (let i = 0; i < 15; i += 1) {
+      data.push({ ok: 100, client: 10, server: 1 });
+    }
+    // Spike at indices 13-14: excluded by default endMargin=2 (valid range 2-12)
+    data[13] = { ok: 100, client: 80, server: 20 };
+    data[14] = { ok: 100, client: 70, server: 15 };
+    const series = toSeries(data);
+
+    // Default endMargin=2 excludes indices 13-14
+    const resultsDefault = detectSteps(series, 5);
+    const defaultHitsSpike = resultsDefault.some(
+      (r) => r.endIndex >= 13,
+    );
+    assert.ok(
+      !defaultHitsSpike,
+      'Default endMargin should exclude last 2 points',
+    );
+
+    // endMargin=0 should include the spike
+    const resultsNoMargin = detectSteps(series, 5, { endMargin: 0 });
+    const noMarginHitsSpike = resultsNoMargin.some(
+      (r) => r.endIndex >= 13,
+    );
+    assert.ok(noMarginHitsSpike, 'endMargin=0 should include last points');
+  });
 });

@@ -98,16 +98,19 @@ function findAnomalyRegions(deviations, threshold, direction, startMargin, endMa
  * @param {number[]} series.ok - 2xx-3xx response counts per bucket
  * @param {number[]} series.client - 4xx response counts per bucket
  * @param {number[]} series.server - 5xx response counts per bucket
+ * @param {Object} [options] - Optional configuration
+ * @param {number} [options.endMargin=2] - Number of trailing data points to exclude
  * @returns {Object|null} - { startIndex, endIndex, type, magnitude, category } or null
  */
-export function detectStep(series) {
+export function detectStep(series, options = {}) {
   const len = series.ok.length;
   if (len < 8) return null;
 
   // Ignore first 2 data points (incomplete bucket artifacts)
   const startMargin = 2;
-  // Ignore last 2 data points (data ingestion delay - ~2 minutes)
-  const endMargin = 2;
+  // Ignore trailing data points (data ingestion delay)
+  // Caller should compute this based on actual timestamps vs now()
+  const endMargin = options.endMargin !== undefined ? options.endMargin : 2;
 
   // Calculate separate scores for errors and success
   // Errors: weighted sum (5xx is worse than 4xx)
@@ -218,16 +221,19 @@ export function detectStep(series) {
  *
  * @param {Object} series - Object with ok, client, server arrays
  * @param {number} [maxCount=5] - Maximum number of anomalies to return
+ * @param {Object} [options] - Optional configuration
+ * @param {number} [options.endMargin=2] - Number of trailing data points to exclude
  * @returns {Array} - Array of { startIndex, endIndex, type, magnitude, category, rank }
  */
-export function detectSteps(series, maxCount = 5) {
+export function detectSteps(series, maxCount = 5, options = {}) {
   const len = series.ok.length;
   if (len < 8) return [];
 
   // Ignore first 2 data points (incomplete bucket artifacts)
   const startMargin = 2;
-  // Ignore last 2 data points (data ingestion delay - ~2 minutes)
-  const endMargin = 2;
+  // Ignore trailing data points (data ingestion delay)
+  // Caller should compute this based on actual timestamps vs now()
+  const endMargin = options.endMargin !== undefined ? options.endMargin : 2;
 
   // Three independent series: green (ok), yellow (client/4xx), red (server/5xx)
   const greenScores = series.ok.slice();
