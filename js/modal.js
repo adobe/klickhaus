@@ -24,12 +24,12 @@ export function closeQuickLinksModal() {
 
 export function openMoreMenu() {
   if (!moreBtn || !moreMenu) return;
-  
+
   // Position the menu below the button
   const rect = moreBtn.getBoundingClientRect();
   moreMenu.style.top = `${rect.bottom + 4}px`;
   moreMenu.style.left = `${rect.right - 200}px`; // Align right edge with button
-  
+
   moreMenu.showModal();
 }
 
