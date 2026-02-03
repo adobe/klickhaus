@@ -16,7 +16,8 @@
   ],
   "ignoreDependencies": [
     "live-server",
-    "chai"
+    "chai",
+    "@playwright/cli"
   ],
   "ignoreBinaries": [
     "eslint",

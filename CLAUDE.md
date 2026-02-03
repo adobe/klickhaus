@@ -52,48 +52,55 @@ npm start
 
 This starts a dev server with auto-reload at http://localhost:5391/dashboard.html.
 
-## Browser Debugging
+## Browser Exploration with playwright-cli
 
-For UI testing and automation, use the `web-debug` skill with Puppeteer.
+This project includes the `playwright-cli` skill (`.claude/skills/playwright-cli/`) for interactive browser automation. **Use it as a first step when investigating bugs or exploring new features** before writing formalized tests.
 
-### Setup
+### When to Use
 
-1. Load the skill: `/web-debug` or ask Claude to "load the web-debug skill"
-2. Start Chrome with remote debugging on port 9222
-3. Create debug scripts in the `debug/` folder (gitignored)
+- **Bug investigation**: Open the dashboard, reproduce the issue, inspect DOM state, check console errors and network requests
+- **Feature exploration**: Navigate the UI to understand current behavior before implementing changes
+- **Visual verification**: Take screenshots to confirm rendering after code changes
+- **Ad-hoc testing**: Quickly validate a fix in a real browser before committing to a formal test
 
-### Minimal Login Script
+### Quick Start
 
-```javascript
-// debug/session.mjs
-import puppeteer from 'puppeteer-core';
+```bash
+# Start the dev server first
+npm start
 
-const browser = await puppeteer.connect({
-  browserURL: 'http://localhost:9222'
-});
-
-const pages = await browser.pages();
-let page = pages.find(p => p.url().includes('localhost:5391')) || await browser.newPage();
-await page.setViewport({ width: 1400, height: 900 });
-
-await page.goto('http://localhost:5391/dashboard.html', {
-  waitUntil: 'networkidle2',
-  timeout: 30000
-});
-
-// Log in (credentials in README.local.md)
-await page.$eval('#username', el => el.value = '');
-await page.type('#username', 'USERNAME');
-await page.$eval('#password', el => el.value = '');
-await page.type('#password', 'PASSWORD');
-await page.click('#loginForm button[type="submit"]');
-
-await new Promise(r => setTimeout(r, 2000));  // Wait for render
-
-// ... your debug code here ...
-
-await browser.disconnect();
+# Open the dashboard and explore
+playwright-cli open http://localhost:5391/dashboard.html
+playwright-cli snapshot
+playwright-cli fill e3 "lars"
+playwright-cli fill e5 "q4t59nO6By#Ap17q"
+playwright-cli click e7
+playwright-cli snapshot
+playwright-cli screenshot
 ```
+
+### Workflow: Explore, Then Formalize
+
+1. **Explore** the bug or feature interactively with `playwright-cli` (snapshot, click, inspect console/network)
+2. **Understand** the root cause or behavior using `playwright-cli eval`, `playwright-cli console`, `playwright-cli network`
+3. **Fix** the code
+4. **Verify** the fix with `playwright-cli` (screenshot, re-test the flow)
+5. **Formalize** the findings into a unit test in `js/**/*.test.js` using `@web/test-runner`
+
+### Key Commands
+
+```bash
+playwright-cli snapshot              # Capture page structure with element refs
+playwright-cli click e3              # Click element by ref from snapshot
+playwright-cli fill e5 "text"        # Fill input field
+playwright-cli eval "document.title" # Run JS on page
+playwright-cli console               # View console messages
+playwright-cli network               # View network requests
+playwright-cli screenshot            # Capture screenshot
+playwright-cli screenshot e12        # Screenshot specific element
+```
+
+See `.claude/skills/playwright-cli/SKILL.md` for full command reference and `.claude/skills/playwright-cli/references/` for advanced topics (request mocking, tracing, session management).
 
 ### Credentials
 
