@@ -401,7 +401,7 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
 
 /* Filter tag container - consistent sizing in all states to prevent layout shift */
 .breakdown-table .filter-tag-indicator {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 3px;
   padding: 2px 7px;
