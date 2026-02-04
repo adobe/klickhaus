@@ -223,45 +223,30 @@ export function initFacetSearch(callbacks) {
 
   // Handle keyboard navigation
   input.addEventListener('keydown', (e) => {
-    switch (e.key) {
-      case 'ArrowDown':
-      case 'j':
-        // j only navigates if input is empty (not typing)
-        if (e.key === 'ArrowDown' || input.value === '') {
-          e.preventDefault();
-          navigateResults(1);
-        }
-        break;
-      case 'ArrowUp':
-      case 'k':
-        // k only navigates if input is empty (not typing)
-        if (e.key === 'ArrowUp' || input.value === '') {
-          e.preventDefault();
-          navigateResults(-1);
-        }
-        break;
-      case 'Enter':
-      case 'i':
-        // i only filters if input is empty and item selected
-        if (e.key === 'Enter' || (input.value === '' && selectedIndex >= 0)) {
-          e.preventDefault();
-          applyFilter(selectedIndex, e.shiftKey);
-        }
-        break;
-      case 'e':
-      case 'x':
-        // e/x only excludes if input is empty and item selected
-        if (input.value === '' && selectedIndex >= 0) {
-          e.preventDefault();
-          applyFilter(selectedIndex, true);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        closeFacetSearch();
-        break;
-      default:
-        break;
+    const isEmpty = input.value === '';
+    const hasSelection = selectedIndex >= 0;
+    const canNav = isEmpty && hasSelection;
+
+    const navDown = e.key === 'ArrowDown' || (e.key === 'j' && isEmpty);
+    const navUp = e.key === 'ArrowUp' || (e.key === 'k' && isEmpty);
+    const include = e.key === 'Enter' || (e.key === 'i' && canNav);
+    const exclude = (e.key === 'e' || e.key === 'x') && canNav;
+
+    if (navDown) {
+      e.preventDefault();
+      navigateResults(1);
+    } else if (navUp) {
+      e.preventDefault();
+      navigateResults(-1);
+    } else if (include) {
+      e.preventDefault();
+      applyFilter(selectedIndex, e.shiftKey);
+    } else if (exclude) {
+      e.preventDefault();
+      applyFilter(selectedIndex, true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeFacetSearch();
     }
   });
 
