@@ -87,60 +87,47 @@ export function buildDimParts({
  * @param {number} params.rowIndex
  * @returns {string} HTML string
  */
-export function buildBreakdownRow({
-  row, col, maxCount, columnFilters, valueFormatter,
-  linkPrefix, linkSuffix, linkFn, dimPrefixes, dimFormatFn,
-  filterCol, filterValueFn, filterOp, rowIndex,
-}) {
-  const cnt = parseInt(row.cnt, 10);
-  const cntOk = parseInt(row.cnt_ok, 10) || 0;
-  const cnt4xx = parseInt(row.cnt_4xx, 10) || 0;
-  const cnt5xx = parseInt(row.cnt_5xx, 10) || 0;
-  const dim = row.dim || '(empty)';
-  const isSynthetic = isSyntheticBucket(dim);
+/**
+ * Calculate bar percentages from count values
+ */
+function calculateBarPercentages(cnt, cntOk, cnt4xx, cnt5xx) {
+  if (cnt <= 0) return { pct5xx: 0, pct4xx: 0, pctOk: 0 };
+  return {
+    pct5xx: (cnt5xx / cnt) * 100,
+    pct4xx: (cnt4xx / cnt) * 100,
+    pctOk: (cntOk / cnt) * 100,
+  };
+}
 
-  const barWidth = (isSynthetic && cnt > maxCount)
-    ? 100 : (cnt / maxCount) * 100;
-  const overflowClass = isSynthetic ? ' bar-overflow' : '';
-  const pct5xx = cnt > 0 ? (cnt5xx / cnt) * 100 : 0;
-  const pct4xx = cnt > 0 ? (cnt4xx / cnt) * 100 : 0;
-  const pctOk = cnt > 0 ? (cntOk / cnt) * 100 : 0;
+/**
+ * Determine filter state for a row
+ */
+function getFilterState(columnFilters, rowDim) {
+  const activeFilter = columnFilters.find((f) => f.value === (rowDim || ''));
+  return {
+    isIncluded: activeFilter && !activeFilter.exclude,
+    isExcluded: activeFilter && activeFilter.exclude,
+  };
+}
 
-  const activeFilter = columnFilters.find(
-    (f) => f.value === (row.dim || ''),
-  );
-  const isIncluded = activeFilter && !activeFilter.exclude;
-  const isExcluded = activeFilter && activeFilter.exclude;
-  const isFilteredValue = row.isFilteredValue === true;
-
+/**
+ * Build row CSS class based on filter state
+ */
+function buildRowClass(isSynthetic, isIncluded, isExcluded, isFilteredValue) {
   let filterClass = '';
   if (isIncluded) filterClass = 'filter-included';
   else if (isExcluded) filterClass = 'filter-excluded';
   if (isFilteredValue) filterClass += ' filtered-value-row';
-  const rowClass = isSynthetic
-    ? `synthetic-row ${filterClass}` : filterClass.trim();
+  return isSynthetic ? `synthetic-row ${filterClass}` : filterClass.trim();
+}
 
-  const { formattedDim, linkUrl, colorIndicator } = buildDimParts({
-    row, dim, col, linkPrefix, linkSuffix, linkFn, dimPrefixes, dimFormatFn,
-  });
-
-  const actualFilterCol = filterCol || col;
-  const actualFilterValue = filterValueFn
-    ? filterValueFn(row.dim || '') : (row.dim || '');
-  const actualFilterOp = filterOp || '=';
-  const filterAttrs = [
-    `data-col="${escapeHtml(col)}"`,
-    `data-value="${escapeHtml(row.dim || '')}"`,
-    `data-filter-col="${escapeHtml(actualFilterCol)}"`,
-    `data-filter-value="${escapeHtml(actualFilterValue)}"`,
-    `data-filter-op="${escapeHtml(actualFilterOp)}"`,
-  ].join(' ');
-
-  // Extract background color from color indicator
+/**
+ * Build filter tag HTML
+ */
+function buildFilterTag(colorIndicator, formattedDim, linkUrl, isIncluded, isExcluded) {
   const colorMatch = colorIndicator.match(/background:\s*([^;"]+)/);
   const bgColor = colorMatch ? colorMatch[1] : '';
 
-  // Build filter tag with consistent structure in all states
   let stateClass = '';
   let iconChar = '';
   let tagStyle = '';
@@ -154,28 +141,82 @@ export function buildBreakdownRow({
     tagStyle = ` style="background: ${bgColor || 'var(--text)'}"`;
   }
 
-  const indicatorSlot = '<span class="filter-indicator-slot">'
-    + `<span class="filter-icon">${iconChar}</span>`
-    + `${colorIndicator}</span>`;
+  const indicatorSlot = `<span class="filter-indicator-slot"><span class="filter-icon">${iconChar}</span>${colorIndicator}</span>`;
   const textHtml = linkUrl
-    ? `<a href="${linkUrl}" target="_blank" rel="noopener">`
-      + `${formattedDim}</a>`
+    ? `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`
     : formattedDim;
-  const filterTag = '<span class="filter-tag-indicator'
-    + `${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`;
 
-  // Toggle filter state: click to add/remove, Shift+click for exclude
-  const dimAction = (isIncluded || isExcluded)
-    ? 'remove-filter-value' : 'add-filter';
-  const dimExclude = isExcluded ? 'true' : 'false';
+  return {
+    filterTag: `<span class="filter-tag-indicator${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`,
+    bgColor,
+  };
+}
 
-  const ariaSelected = isIncluded || isExcluded ? 'true' : 'false';
+/**
+ * Build filter attributes string for a row
+ */
+function buildFilterAttrs(col, rowDim, filterCol, filterValueFn, filterOp) {
+  const actualFilterCol = filterCol || col;
+  const actualFilterValue = filterValueFn ? filterValueFn(rowDim || '') : (rowDim || '');
+  return [
+    `data-col="${escapeHtml(col)}"`,
+    `data-value="${escapeHtml(rowDim || '')}"`,
+    `data-filter-col="${escapeHtml(actualFilterCol)}"`,
+    `data-filter-value="${escapeHtml(actualFilterValue)}"`,
+    `data-filter-op="${escapeHtml(filterOp || '=')}"`,
+  ].join(' ');
+}
+
+export function buildBreakdownRow({
+  row, col, maxCount, columnFilters, valueFormatter,
+  linkPrefix, linkSuffix, linkFn, dimPrefixes, dimFormatFn,
+  filterCol, filterValueFn, filterOp, rowIndex,
+}) {
+  const cnt = parseInt(row.cnt, 10);
+  const dim = row.dim || '(empty)';
+  const isSynthetic = isSyntheticBucket(dim);
+
+  const barWidth = (isSynthetic && cnt > maxCount) ? 100 : (cnt / maxCount) * 100;
+  const overflowClass = isSynthetic ? ' bar-overflow' : '';
+  const cntOk = parseInt(row.cnt_ok, 10) || 0;
+  const cnt4xx = parseInt(row.cnt_4xx, 10) || 0;
+  const cnt5xx = parseInt(row.cnt_5xx, 10) || 0;
+  const { pct5xx, pct4xx, pctOk } = calculateBarPercentages(cnt, cntOk, cnt4xx, cnt5xx);
+
+  const { isIncluded, isExcluded } = getFilterState(columnFilters, row.dim);
+  const rowClass = buildRowClass(isSynthetic, isIncluded, isExcluded, row.isFilteredValue === true);
+
+  const { formattedDim, linkUrl, colorIndicator } = buildDimParts({
+    row, dim, col, linkPrefix, linkSuffix, linkFn, dimPrefixes, dimFormatFn,
+  });
+
+  const filterAttrs = buildFilterAttrs(col, row.dim, filterCol, filterValueFn, filterOp);
+  const { filterTag, bgColor } = buildFilterTag(
+    colorIndicator,
+    formattedDim,
+    linkUrl,
+    isIncluded,
+    isExcluded,
+  );
+
+  const dimAction = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
   const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');
   const bgAttr = escapeHtml(bgColor || 'var(--text)');
+  const ariaSelected = (isIncluded || isExcluded) ? 'true' : 'false';
+  const dimExclude = isExcluded ? 'true' : 'false';
+  const excludeAction = isExcluded ? 'remove-filter-value' : 'add-filter';
+  const excludeLabel = isExcluded ? 'Clear' : 'Exclude';
+  const excludeAriaLabel = isExcluded ? 'Clear exclude filter' : 'Exclude value';
+  const excludeButtonClass = `mobile-action-btn exclude-btn${isExcluded ? ' active' : ''}`;
+  const mobileActions = `
+        <span class="mobile-actions">
+          <button class="${excludeButtonClass}" type="button" data-action="${excludeAction}" ${filterAttrs} data-exclude="true" aria-label="${escapeHtml(excludeAriaLabel)}">${excludeLabel}</button>
+        </span>
+      `;
 
   return `
     <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}" data-dim="${dimDataAttr}">
-      <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${bgAttr}">${filterTag}</td>
+      <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${bgAttr}">${filterTag}${mobileActions}</td>
       <td class="count">
         <span class="value">${valueFormatter(cnt)}</span>
       </td>

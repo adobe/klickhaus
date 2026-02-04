@@ -63,6 +63,7 @@ export async function copyFacetAsTsv(facetId) {
     showCopyFeedback(card, true);
     return true;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Failed to copy facet data:', err);
     showCopyFeedback(card, false);
     return false;

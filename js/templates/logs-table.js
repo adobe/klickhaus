@@ -16,23 +16,34 @@ import { LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET } from '../columns.js';
 
 /**
  * Format timestamp - short format on mobile.
- * @param {string} value
- * @returns {string}
  */
 function formatTimestamp(value) {
   const date = new Date(value);
-  const isMobile = window.innerWidth < 600;
-  if (isMobile) {
-    return date.toLocaleTimeString();
-  }
-  return date.toLocaleString();
+  return window.innerWidth < 600 ? date.toLocaleTimeString() : date.toLocaleString();
+}
+
+/**
+ * Format status column
+ */
+function formatStatusCell(value) {
+  const status = parseInt(value, 10);
+  let cellClass = 'status-ok';
+  if (status >= 500) cellClass = 'status-5xx';
+  else if (status >= 400) cellClass = 'status-4xx';
+  return { displayValue: String(status), cellClass };
+}
+
+/**
+ * Format generic value
+ */
+function formatGenericValue(value) {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 /**
  * Format a log cell for display and color.
- * @param {string} col
- * @param {unknown} value
- * @returns {{ displayValue: string, cellClass: string, colorIndicator: string }}
  */
 export function formatLogCell(col, value) {
   let cellClass = '';
@@ -42,22 +53,16 @@ export function formatLogCell(col, value) {
     displayValue = formatTimestamp(value);
     cellClass = 'timestamp';
   } else if (col === 'response.status' && value) {
-    const status = parseInt(value, 10);
-    displayValue = String(status);
-    if (status >= 500) cellClass = 'status-5xx';
-    else if (status >= 400) cellClass = 'status-4xx';
-    else cellClass = 'status-ok';
+    const result = formatStatusCell(value);
+    displayValue = result.displayValue;
+    cellClass = result.cellClass;
   } else if (col === 'response.body_size' && value) {
     displayValue = formatBytes(parseInt(value, 10));
   } else if (col === 'request.method') {
     displayValue = value || '';
     cellClass = 'method';
-  } else if (value === null || value === undefined || value === '') {
-    displayValue = '';
-  } else if (typeof value === 'object') {
-    displayValue = JSON.stringify(value);
   } else {
-    displayValue = String(value);
+    displayValue = formatGenericValue(value);
   }
 
   const color = value ? getColorForColumn(col, value) : '';

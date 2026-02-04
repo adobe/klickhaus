@@ -82,6 +82,82 @@ function compareHeaders(current, target) {
   return { missing, extra };
 }
 
+/**
+ * Check if zone needs update based on header diffs
+ */
+function isUpToDate(reqDiff, respDiff) {
+  return reqDiff.missing.length === 0
+    && reqDiff.extra.length === 0
+    && respDiff.missing.length === 0
+    && respDiff.extra.length === 0;
+}
+
+/**
+ * Log a diff category if non-empty
+ */
+function logDiffCategory(items, label) {
+  if (items.length > 0) console.log(`  ${label}: ${items.join(', ')}`);
+}
+
+/**
+ * Log header differences
+ */
+function logDiffs(reqDiff, respDiff) {
+  logDiffCategory(reqDiff.missing, 'Missing request headers');
+  logDiffCategory(reqDiff.extra, 'Extra request headers');
+  logDiffCategory(respDiff.missing, 'Missing response headers');
+  logDiffCategory(respDiff.extra, 'Extra response headers');
+}
+
+/**
+ * Fetch current zone configuration
+ */
+async function fetchZoneConfig(apiToken, zoneName) {
+  const zoneId = await getZoneId(apiToken, zoneName);
+  const rulesetId = await getCustomFieldsRuleset(apiToken, zoneId);
+  const current = rulesetId ? await getCurrentCustomFields(apiToken, zoneId, rulesetId) : null;
+  return { zoneId, rulesetId, current };
+}
+
+/**
+ * Log current and update zone if needed
+ */
+async function updateZone(apiToken, zoneId, rulesetId, reqDiff, respDiff) {
+  logDiffs(reqDiff, respDiff);
+
+  console.log('Updating...');
+  const updated = await setCustomFields(apiToken, zoneId, rulesetId);
+  const actionParams = updated.rules?.[0]?.action_parameters;
+  const newReqCount = actionParams?.request_fields?.length || 0;
+  const newRespCount = actionParams?.response_fields?.length || 0;
+  console.log(`Updated! Now: ${newReqCount} request, ${newRespCount} response`);
+}
+
+/**
+ * Process a single zone update
+ */
+async function processZone(apiToken, zoneName) {
+  console.log(`=== ${zoneName} ===`);
+
+  const { zoneId, rulesetId, current } = await fetchZoneConfig(apiToken, zoneName);
+
+  const actionParams = current?.rules?.[0]?.action_parameters;
+  const currentReqFields = actionParams?.request_fields;
+  const currentRespFields = actionParams?.response_fields;
+
+  const reqDiff = compareHeaders(currentReqFields, REQUEST_HEADERS);
+  const respDiff = compareHeaders(currentRespFields, RESPONSE_HEADERS);
+
+  console.log(`Current: ${currentReqFields?.length || 0} request, ${currentRespFields?.length || 0} response`);
+
+  if (isUpToDate(reqDiff, respDiff)) {
+    console.log('Already up to date');
+    return;
+  }
+
+  await updateZone(apiToken, zoneId, rulesetId, reqDiff, respDiff);
+}
+
 async function main() {
   const [,, apiToken, specificZone] = process.argv;
 
@@ -91,57 +167,14 @@ async function main() {
   }
 
   const zonesToUpdate = specificZone ? [specificZone] : ENTERPRISE_ZONES;
-
-  console.log(`Target: ${REQUEST_HEADERS.length} request headers, ${RESPONSE_HEADERS.length} response headers\n`);
+  const reqCount = REQUEST_HEADERS.length;
+  const respCount = RESPONSE_HEADERS.length;
+  console.log(`Target: ${reqCount} request headers, ${respCount} response headers\n`);
 
   for (const zoneName of zonesToUpdate) {
     try {
-      console.log(`=== ${zoneName} ===`);
       // eslint-disable-next-line no-await-in-loop -- Sequential API calls for rate limiting
-      const zoneId = await getZoneId(apiToken, zoneName);
-
-      // eslint-disable-next-line no-await-in-loop -- Sequential API calls for rate limiting
-      const rulesetId = await getCustomFieldsRuleset(apiToken, zoneId);
-      // eslint-disable-next-line no-await-in-loop -- Sequential API calls for rate limiting
-      const current = rulesetId ? await getCurrentCustomFields(apiToken, zoneId, rulesetId) : null;
-
-      const currentReqFields = current?.rules?.[0]?.action_parameters?.request_fields;
-      const currentRespFields = current?.rules?.[0]?.action_parameters?.response_fields;
-
-      const reqDiff = compareHeaders(currentReqFields, REQUEST_HEADERS);
-      const respDiff = compareHeaders(currentRespFields, RESPONSE_HEADERS);
-
-      const currentReqCount = currentReqFields?.length || 0;
-      const currentRespCount = currentRespFields?.length || 0;
-
-      console.log(`Current: ${currentReqCount} request, ${currentRespCount} response`);
-
-      const alreadyUpToDate = reqDiff.missing.length === 0 && reqDiff.extra.length === 0
-          && respDiff.missing.length === 0 && respDiff.extra.length === 0;
-
-      if (alreadyUpToDate) {
-        console.log('Already up to date');
-      } else {
-        if (reqDiff.missing.length > 0) {
-          console.log(`  Missing request headers: ${reqDiff.missing.join(', ')}`);
-        }
-        if (reqDiff.extra.length > 0) {
-          console.log(`  Extra request headers: ${reqDiff.extra.join(', ')}`);
-        }
-        if (respDiff.missing.length > 0) {
-          console.log(`  Missing response headers: ${respDiff.missing.join(', ')}`);
-        }
-        if (respDiff.extra.length > 0) {
-          console.log(`  Extra response headers: ${respDiff.extra.join(', ')}`);
-        }
-
-        console.log('Updating...');
-        // eslint-disable-next-line no-await-in-loop -- Sequential API calls for rate limiting
-        const updated = await setCustomFields(apiToken, zoneId, rulesetId);
-        const newReqCount = updated.rules?.[0]?.action_parameters?.request_fields?.length || 0;
-        const newRespCount = updated.rules?.[0]?.action_parameters?.response_fields?.length || 0;
-        console.log(`Updated! Now: ${newReqCount} request, ${newRespCount} response`);
-      }
+      await processZone(apiToken, zoneName);
     } catch (err) {
       console.error(`Error: ${err.message}`);
     }

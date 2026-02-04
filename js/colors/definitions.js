@@ -76,34 +76,30 @@ export const colorRules = {
     patterns: ['request_type'],
     getColor: (value) => {
       if (!value) return '';
-      const t = value.toLowerCase();
-      // Delivery category (blue) - main edge on *.aem.live
-      if (t === 'pipeline') return 'var(--rt-pipeline)';
-      if (t === 'static') return 'var(--rt-static)';
-      if (t === 'media') return 'var(--rt-media)';
-      if (t === 'rum') return 'var(--rt-rum)';
-      // Pipeline service category (violet) - pipeline.aem-fastly.page
-      if (t === 'html') return 'var(--rt-html)';
-      if (t === 'json') return 'var(--rt-json)';
-      if (t === 'md') return 'var(--rt-md)';
-      if (t === 'robots') return 'var(--rt-robots)';
-      // Static service category (teal) - static.aem-fastly.page
-      if (t === 'content') return 'var(--rt-content)';
-      if (t === 'code') return 'var(--rt-code)';
-      // Admin service category (orange/amber) - admin.hlx.page
-      if (t === 'job') return 'var(--rt-job)';
-      if (t === 'discover') return 'var(--rt-discover)';
-      if (t === 'preview') return 'var(--rt-preview)';
-      if (t === 'status') return 'var(--rt-status)';
-      if (t === 'sidekick') return 'var(--rt-sidekick)';
-      if (t === 'github-bot') return 'var(--rt-github-bot)';
-      if (t === 'live') return 'var(--rt-live)';
-      if (t === 'auth') return 'var(--rt-auth)';
-      // Config service category (green) - config.aem.page
-      if (t === 'admin') return 'var(--rt-admin)';
-      if (t === 'delivery') return 'var(--rt-delivery)';
-      if (t === 'config') return 'var(--rt-config)';
-      return '';
+      const REQUEST_TYPE_COLORS = {
+        pipeline: 'var(--rt-pipeline)',
+        static: 'var(--rt-static)',
+        media: 'var(--rt-media)',
+        rum: 'var(--rt-rum)',
+        html: 'var(--rt-html)',
+        json: 'var(--rt-json)',
+        md: 'var(--rt-md)',
+        robots: 'var(--rt-robots)',
+        content: 'var(--rt-content)',
+        code: 'var(--rt-code)',
+        job: 'var(--rt-job)',
+        discover: 'var(--rt-discover)',
+        preview: 'var(--rt-preview)',
+        status: 'var(--rt-status)',
+        sidekick: 'var(--rt-sidekick)',
+        'github-bot': 'var(--rt-github-bot)',
+        live: 'var(--rt-live)',
+        auth: 'var(--rt-auth)',
+        admin: 'var(--rt-admin)',
+        delivery: 'var(--rt-delivery)',
+        config: 'var(--rt-config)',
+      };
+      return REQUEST_TYPE_COLORS[value.toLowerCase()] || '';
     },
   },
 
@@ -111,28 +107,27 @@ export const colorRules = {
     patterns: ['backend_type'],
     getColor: (value) => {
       if (!value) return '';
-      const t = value.toLowerCase();
-      // Fastly services
-      if (t === 'fastly / aws') return 'var(--ts-fastly-aws)';
-      if (t === 'fastly / cloudflare') return 'var(--ts-fastly-cloudflare)';
-      if (t === 'fastly / image optimizer') return 'var(--ts-fastly-media)';
-      if (t === 'fastly / admin') return 'var(--ts-fastly-admin)';
-      if (t === 'fastly / api') return 'var(--ts-fastly-api)';
-      if (t === 'fastly / config') return 'var(--ts-fastly-config)';
-      if (t === 'fastly / pipeline') return 'var(--ts-fastly-pipeline)';
-      if (t === 'fastly / static') return 'var(--ts-fastly-static)';
-      if (t === 'fastly / www') return 'var(--ts-fastly-www)';
-      if (t === 'fastly / forms') return 'var(--ts-fastly-forms)';
-      if (t === 'fastly / other') return 'var(--ts-fastly-other)';
-      // Cloudflare services
-      if (t === 'cloudflare / r2') return 'var(--ts-cf-r2)';
-      if (t === 'cloudflare / da') return 'var(--ts-cf-da)';
-      if (t === 'cloudflare / helix') return 'var(--ts-cf-helix)';
-      if (t === 'cloudflare / workers') return 'var(--ts-cf-workers)';
-      // Legacy values (for historical data)
-      if (t === 'aws') return 'var(--ts-fastly-aws)';
-      if (t === 'cloudflare' || t === 'cloudflare (implied)') return 'var(--ts-cf-workers)';
-      return '';
+      const BACKEND_TYPE_COLORS = {
+        'fastly / aws': 'var(--ts-fastly-aws)',
+        'fastly / cloudflare': 'var(--ts-fastly-cloudflare)',
+        'fastly / image optimizer': 'var(--ts-fastly-media)',
+        'fastly / admin': 'var(--ts-fastly-admin)',
+        'fastly / api': 'var(--ts-fastly-api)',
+        'fastly / config': 'var(--ts-fastly-config)',
+        'fastly / pipeline': 'var(--ts-fastly-pipeline)',
+        'fastly / static': 'var(--ts-fastly-static)',
+        'fastly / www': 'var(--ts-fastly-www)',
+        'fastly / forms': 'var(--ts-fastly-forms)',
+        'fastly / other': 'var(--ts-fastly-other)',
+        'cloudflare / r2': 'var(--ts-cf-r2)',
+        'cloudflare / da': 'var(--ts-cf-da)',
+        'cloudflare / helix': 'var(--ts-cf-helix)',
+        'cloudflare / workers': 'var(--ts-cf-workers)',
+        aws: 'var(--ts-fastly-aws)',
+        cloudflare: 'var(--ts-cf-workers)',
+        'cloudflare (implied)': 'var(--ts-cf-workers)',
+      };
+      return BACKEND_TYPE_COLORS[value.toLowerCase()] || '';
     },
   },
 

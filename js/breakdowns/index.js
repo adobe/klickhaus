@@ -69,182 +69,193 @@ export function getFacetFiltersExcluding(col) {
   return compileFilters(state.filters.filter((f) => f.col !== col)).sql;
 }
 
-export async function loadBreakdown(b, timeFilter, hostFilter) {
-  const card = document.getElementById(b.id);
+/**
+ * Render hidden facet as minimal pill
+ */
+function renderHiddenFacet(cardEl, b) {
+  const el = cardEl;
+  if (!el.dataset.title) {
+    const h3 = el.querySelector('h3');
+    el.dataset.title = h3 ? h3.textContent.trim() : b.id.replace('breakdown-', '');
+  }
+  el.innerHTML = `<h3>${el.dataset.title}</h3>`
+    + '<button class="facet-hide-btn" data-action="toggle-facet-hide" '
+    + `data-facet="${b.id}" title="Show facet"></button>`;
+  el.classList.add('facet-hidden');
+  el.classList.remove('updating');
+  el.dataset.action = 'toggle-facet-hide';
+  el.dataset.facet = b.id;
+}
 
-  // Skip fetching data for hidden facets - show as minimal pill
-  if (state.hiddenFacets.includes(b.id)) {
-    // Get or set title before replacing innerHTML
-    if (!card.dataset.title) {
-      const h3 = card.querySelector('h3');
-      card.dataset.title = h3 ? h3.textContent.trim() : b.id.replace('breakdown-', '');
+/**
+ * Build aggregation SQL expressions based on mode
+ * @param {boolean} isBytes - Whether to aggregate bytes instead of counts
+ * @param {string} mult - Multiplier suffix for sampling
+ * @returns {Object} Aggregation expressions
+ */
+function buildAggregations(isBytes, mult) {
+  return {
+    aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
+    aggOk: isBytes
+      ? `sumIf(\`response.headers.content_length\`, \`response.status\` < 400)${mult}`
+      : `countIf(\`response.status\` < 400)${mult}`,
+    agg4xx: isBytes
+      ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 400 AND \`response.status\` < 500)${mult}`
+      : `countIf(\`response.status\` >= 400 AND \`response.status\` < 500)${mult}`,
+    agg5xx: isBytes
+      ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 500)${mult}`
+      : `countIf(\`response.status\` >= 500)${mult}`,
+  };
+}
+
+/**
+ * Fill in missing buckets for continuous range facets
+ */
+function fillExpectedLabels(data, b) {
+  if (!b.getExpectedLabels) return data;
+
+  const expectedLabels = b.getExpectedLabels(state.topN);
+  const existingByLabel = new Map(data.map((row) => [row.dim, row]));
+  return expectedLabels.map((label) => existingByLabel.get(label) || {
+    dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0,
+  });
+}
+
+/**
+ * Fetch and append missing filtered values to data
+ */
+async function appendMissingFilteredValues(data, b, col, aggs, queryParams) {
+  const { originalCol, isBytes, mult } = queryParams;
+  const filtersForCol = getFiltersForColumn(originalCol);
+  if (filtersForCol.length === 0 || b.getExpectedLabels) return data;
+
+  const existingDims = new Set(data.map((row) => row.dim));
+  const missingFilterValues = filtersForCol
+    .map((f) => f.value)
+    .filter((v) => v !== '' && !existingDims.has(v));
+
+  if (missingFilterValues.length === 0) return data;
+
+  const searchCol = b.filterCol || col;
+  const valuesList = missingFilterValues
+    .map((v) => `'${v.replace(/'/g, "''")}'`)
+    .join(', ');
+
+  const missingValuesSql = await loadSql('breakdown-missing', {
+    col,
+    aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
+    aggOk: aggs.aggOk,
+    agg4xx: aggs.agg4xx,
+    agg5xx: aggs.agg5xx,
+    database: DATABASE,
+    table: getTable(),
+    sampleClause: queryParams.sampleClause,
+    timeFilter: queryParams.timeFilter,
+    hostFilter: queryParams.hostFilter,
+    extra: queryParams.extra,
+    additionalWhereClause: state.additionalWhereClause,
+    searchCol,
+    valuesList,
+  });
+
+  try {
+    const missingResult = await query(missingValuesSql);
+    if (missingResult.data && missingResult.data.length > 0) {
+      const markedRows = missingResult.data.map((row) => ({
+        ...row,
+        isFilteredValue: true,
+      }));
+      return [...data, ...markedRows];
     }
-    // Replace with minimal HTML
-    card.innerHTML = `<h3>${card.dataset.title}</h3><button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${b.id}" title="Show facet"></button>`;
-    card.classList.add('facet-hidden');
-    card.classList.remove('updating');
-    // Make whole card clickable to unhide
-    card.dataset.action = 'toggle-facet-hide';
-    card.dataset.facet = b.id;
-    return;
+  } catch (err) {
+    // Silently ignore errors fetching filtered values
   }
+  return data;
+}
 
-  // Clear delegated action markers for visible facets
-  card.removeAttribute('data-action');
-  card.removeAttribute('data-facet');
-
-  card.classList.remove('facet-hidden');
-  card.classList.add('updating');
-
-  // Support dynamic col expressions that depend on topN
-  let col = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-
-  // When there's an active LIKE filter for this breakdown, switch to raw column
-  // to show decomposed individual values instead of grouped ones
-  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
-    && state.filters.some((f) => f.col === col);
-  if (hasActiveFilter) {
-    col = b.filterCol;
-  }
-
-  const extra = b.extraFilter || '';
-  // Get filters excluding this facet's column to show all values for active facets
-  // Use the original grouped col for filter exclusion check
+/**
+ * Build SQL query parameters for breakdown
+ */
+function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const facetFilters = getFacetFiltersExcluding(originalCol);
+  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
+    && state.filters.some((f) => f.col === originalCol);
+  const actualCol = hasActiveFilter ? b.filterCol : col;
 
-  // Check for mode toggle (e.g., count vs bytes for content-types)
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-
-  // Get sampling configuration for high-cardinality facets with large time ranges
   const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
-  // Aggregation functions depend on mode
-  // Note: Using `< 400` instead of `>= 100 AND < 400` to match projection definitions
-  // (HTTP status codes are always >= 100, so the >= 100 check is redundant)
-  // When sampling, multiply counts to get estimated totals
-  const aggTotal = isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`;
-  const aggOk = isBytes
-    ? `sumIf(\`response.headers.content_length\`, \`response.status\` < 400)${mult}`
-    : `countIf(\`response.status\` < 400)${mult}`;
-  const agg4xx = isBytes
-    ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 400 AND \`response.status\` < 500)${mult}`
-    : `countIf(\`response.status\` >= 400 AND \`response.status\` < 500)${mult}`;
-  const agg5xx = isBytes
-    ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 500)${mult}`
-    : `countIf(\`response.status\` >= 500)${mult}`;
+  return {
+    col: actualCol,
+    originalCol,
+    hasActiveFilter,
+    isBytes,
+    sampleClause,
+    mult,
+    extra: b.extraFilter || '',
+    facetFilters: getFacetFiltersExcluding(originalCol),
+    timeFilter,
+    hostFilter,
+  };
+}
 
-  // Summary column also needs multiplier when sampling
+export async function loadBreakdown(b, timeFilter, hostFilter) {
+  const card = document.getElementById(b.id);
+
+  if (state.hiddenFacets.includes(b.id)) {
+    renderHiddenFacet(card, b);
+    return;
+  }
+
+  card.removeAttribute('data-action');
+  card.removeAttribute('data-facet');
+  card.classList.remove('facet-hidden');
+  card.classList.add('updating');
+
+  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
+  const aggs = buildAggregations(params.isBytes, params.mult);
+
   const summaryColWithMult = b.summaryCountIf
-    ? `,\n      countIf(${b.summaryCountIf})${mult} as summary_cnt`
+    ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
     : '';
 
-  // Custom orderBy or default to count descending
-  const orderBy = b.orderBy || 'cnt DESC';
   const sql = await loadSql('breakdown', {
-    col,
-    aggTotal,
-    aggOk,
-    agg4xx,
-    agg5xx,
+    col: params.col,
+    ...aggs,
     summaryCol: summaryColWithMult,
     database: DATABASE,
     table: getTable(),
-    sampleClause,
+    sampleClause: params.sampleClause,
     timeFilter,
     hostFilter,
-    facetFilters,
-    extra,
+    facetFilters: params.facetFilters,
+    extra: params.extra,
     additionalWhereClause: state.additionalWhereClause,
-    orderBy,
+    orderBy: b.orderBy || 'cnt DESC',
     topN: String(state.topN),
   });
 
   const startTime = performance.now();
   try {
     const result = await query(sql);
-    // Prefer actual network time from Resource Timing API, fallback to wall clock
     const elapsed = result.networkTime ?? (performance.now() - startTime);
-    facetTimings[b.id] = elapsed; // Track timing for slowest detection
-    // Calculate summary ratio from totals if summaryCountIf is defined
+    facetTimings[b.id] = elapsed;
+
     const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
       ? parseInt(result.totals.summary_cnt, 10) / parseInt(result.totals.cnt, 10)
       : null;
 
-    // Fill in missing buckets for continuous range facets (e.g., content-length, time-elapsed)
-    let { data } = result;
-    if (b.getExpectedLabels) {
-      const expectedLabels = b.getExpectedLabels(state.topN);
-      const existingByLabel = new Map(data.map((row) => [row.dim, row]));
-      data = expectedLabels.map((label) => {
-        if (existingByLabel.has(label)) {
-          return existingByLabel.get(label);
-        }
-        // Create empty bucket row
-        return {
-          dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0,
-        };
-      });
-    }
+    let data = fillExpectedLabels(result.data, b);
+    data = await appendMissingFilteredValues(data, b, params.col, aggs, params);
 
-    // Fetch filtered values that aren't in topN results
-    // This ensures filtered/excluded values are always visible in the facet
-    const filtersForCol = getFiltersForColumn(originalCol);
-    if (filtersForCol.length > 0 && !b.getExpectedLabels) {
-      const existingDims = new Set(data.map((row) => row.dim));
-      const missingFilterValues = filtersForCol
-        .map((f) => f.value)
-        .filter((v) => v !== '' && !existingDims.has(v));
-
-      if (missingFilterValues.length > 0) {
-        // Build query for missing values
-        const searchCol = b.filterCol || col;
-        const valuesList = missingFilterValues
-          .map((v) => `'${v.replace(/'/g, "''")}'`)
-          .join(', ');
-
-        const missingValuesSql = await loadSql('breakdown-missing', {
-          col,
-          aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
-          aggOk,
-          agg4xx,
-          agg5xx,
-          database: DATABASE,
-          table: getTable(),
-          sampleClause,
-          timeFilter,
-          hostFilter,
-          extra,
-          additionalWhereClause: state.additionalWhereClause,
-          searchCol,
-          valuesList,
-        });
-
-        try {
-          const missingResult = await query(missingValuesSql);
-          if (missingResult.data && missingResult.data.length > 0) {
-            // Mark these rows as filtered values and append them
-            const markedRows = missingResult.data.map((row) => ({
-              ...row,
-              isFilteredValue: true,
-            }));
-            data = [...data, ...markedRows];
-          }
-        } catch (err) {
-          // Silently ignore errors fetching filtered values
-        }
-      }
-    }
-
-    // When showing decomposed values, don't pass filter transformation -
-    // clicking individual values should use exact match, not LIKE pattern
     renderBreakdownTable(
       b.id,
       data,
       result.totals,
-      col,
+      params.col,
       b.linkPrefix,
       b.linkSuffix,
       b.linkFn,
@@ -256,9 +267,9 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       b.summaryColor,
       b.modeToggle,
       !!b.getExpectedLabels,
-      hasActiveFilter ? null : b.filterCol,
-      hasActiveFilter ? null : b.filterValueFn,
-      hasActiveFilter ? null : b.filterOp,
+      params.hasActiveFilter ? null : b.filterCol,
+      params.hasActiveFilter ? null : b.filterValueFn,
+      params.hasActiveFilter ? null : b.filterOp,
     );
   } catch (err) {
     // eslint-disable-next-line no-console

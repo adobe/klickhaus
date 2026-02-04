@@ -314,171 +314,125 @@ export function setFocusedFacet(facetId, targetValue = null) {
   }
 }
 
+// Check if keydown event should be ignored
+function shouldIgnoreKeydown(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return true;
+  if (e.target.matches('input, textarea, select')) return true;
+  if (document.querySelector('dialog[open]:not(#keyboardHelp):not(#facetPalette)')) return true;
+  if (isPaletteOpen()) return true;
+  return false;
+}
+
+// Handle help dialog toggle
+function handleHelpDialog(key) {
+  if (key === '?' || key === '/') {
+    const helpDialog = document.getElementById('keyboardHelp');
+    if (helpDialog.open) helpDialog.close();
+    else helpDialog.showModal();
+    return true;
+  }
+  if (document.getElementById('keyboardHelp').open) {
+    if (key === 'Escape') document.getElementById('keyboardHelp').close();
+    return true;
+  }
+  return false;
+}
+
+// Navigation key handlers
+const NAV_HANDLERS = {
+  j: () => moveValue(1),
+  ArrowDown: () => moveValue(1),
+  k: () => moveValue(-1),
+  ArrowUp: () => moveValue(-1),
+  h: () => moveFacet(-1),
+  ArrowLeft: () => moveFacet(-1),
+  l: () => moveFacet(1),
+  ArrowRight: () => moveFacet(1),
+};
+
+// Action key handlers
+const ACTION_HANDLERS = {
+  i: () => toggleFilterCurrent(),
+  ' ': () => toggleFilterCurrent(),
+  e: () => toggleExcludeCurrent(),
+  x: () => toggleExcludeCurrent(),
+  c: () => handleC(),
+  '.': () => handleDot(),
+  g: () => openFacetPalette(),
+  o: () => openCurrentLink(),
+  p: () => togglePinCurrentFacet(),
+  d: () => toggleHideCurrentFacet(),
+  r: () => document.getElementById('refreshBtn').click(),
+  s: () => openFacetSearchForCurrentFacet(),
+  t: () => document.getElementById('viewToggleBtn').click(),
+  Escape: () => deactivateKeyboardMode(),
+  '+': () => zoomToAnomaly(),
+  '=': () => zoomToAnomaly(),
+  '-': () => {
+    if (zoomOut()) {
+      saveStateToURL();
+      if (onReloadDashboard) onReloadDashboard();
+    }
+  },
+};
+
+// Handle keyboard shortcut
+function handleKeyboardShortcut(e) {
+  const { key } = e;
+
+  // Navigation keys
+  if (NAV_HANDLERS[key]) {
+    e.preventDefault();
+    NAV_HANDLERS[key]();
+    return;
+  }
+
+  // Action keys
+  if (ACTION_HANDLERS[key]) {
+    e.preventDefault();
+    ACTION_HANDLERS[key]();
+    return;
+  }
+
+  // Special cases
+  if (key === 'Enter' && kbd.active) {
+    e.preventDefault();
+    toggleFilterCurrent();
+  } else if (key === 'f') {
+    e.preventDefault();
+    deactivateKeyboardMode();
+    document.getElementById('hostFilter').focus();
+  } else if (key === 'b' || key === '#') {
+    e.preventDefault();
+    if (onToggleFacetMode) onToggleFacetMode('contentTypeMode');
+  } else if (key >= '1' && key <= '5') {
+    e.preventDefault();
+    zoomToAnomalyNumber(key);
+  }
+}
+
 // Initialize keyboard navigation
 export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}) {
   onToggleFacetMode = toggleFacetMode || null;
   onReloadDashboard = reloadDashboard || null;
 
-  // Register callback to break circular dependency with facet-palette.js
   setOnFacetNavigate(setFocusedFacet);
 
-  // Main keydown handler
+  const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+  const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', 'p', 'd', '1', '2', '3', '4', '5', '+', '-', '='];
+
   document.addEventListener('keydown', (e) => {
-    // Don't capture browser shortcuts (Cmd+L, Cmd+R, Cmd+T, Ctrl+C, etc.)
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-    // Ignore if in input field or dialog is open
-    if (e.target.matches('input, textarea, select')) return;
-    if (document.querySelector('dialog[open]:not(#keyboardHelp):not(#facetPalette)')) return;
-    // Don't handle keys while facet palette is open (it handles its own keys)
-    if (isPaletteOpen()) return;
-
-    // ? and / toggle help overlay
-    if (e.key === '?' || e.key === '/') {
+    if (shouldIgnoreKeydown(e)) return;
+    if (handleHelpDialog(e.key)) {
       e.preventDefault();
-      const helpDialog = document.getElementById('keyboardHelp');
-      if (helpDialog.open) {
-        helpDialog.close();
-      } else {
-        helpDialog.showModal();
-      }
       return;
     }
 
-    // If keyboard help is open, only handle Escape
-    if (document.getElementById('keyboardHelp').open) {
-      if (e.key === 'Escape') {
-        document.getElementById('keyboardHelp').close();
-      }
-      return;
+    if ((navKeys.includes(e.key) || actionKeys.includes(e.key)) && !kbd.active) {
+      activateKeyboardMode();
     }
 
-    // Navigation and action keys activate keyboard mode
-    const navKeys = ['j', 'k', 'h', 'l', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-    const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', 'p', 'd', '1', '2', '3', '4', '5', '+', '-', '='];
-
-    if (navKeys.includes(e.key) || actionKeys.includes(e.key)) {
-      if (!kbd.active) {
-        activateKeyboardMode();
-      }
-    }
-
-    // Handle shortcuts
-    switch (e.key) {
-      case 'j':
-      case 'ArrowDown':
-        e.preventDefault();
-        moveValue(1);
-        break;
-      case 'k':
-      case 'ArrowUp':
-        e.preventDefault();
-        moveValue(-1);
-        break;
-      case 'h':
-      case 'ArrowLeft':
-        e.preventDefault();
-        moveFacet(-1);
-        break;
-      case 'l':
-      case 'ArrowRight':
-        e.preventDefault();
-        moveFacet(1);
-        break;
-      case 'i':
-      case ' ':
-      case 'Enter':
-        if (e.key !== 'Enter' || kbd.active) {
-          e.preventDefault();
-          toggleFilterCurrent();
-        }
-        break;
-      case 'e':
-      case 'x':
-        e.preventDefault();
-        toggleExcludeCurrent();
-        break;
-      case 'c':
-        e.preventDefault();
-        handleC();
-        break;
-      case '.':
-        e.preventDefault();
-        handleDot();
-        break;
-      case 'g':
-        e.preventDefault();
-        openFacetPalette();
-        break;
-      case 'o':
-        e.preventDefault();
-        openCurrentLink();
-        break;
-      case 'p':
-        e.preventDefault();
-        togglePinCurrentFacet();
-        break;
-      case 'd':
-        e.preventDefault();
-        toggleHideCurrentFacet();
-        break;
-      case 'r':
-        e.preventDefault();
-        document.getElementById('refreshBtn').click();
-        break;
-      case 's':
-        e.preventDefault();
-        openFacetSearchForCurrentFacet();
-        break;
-      case 'f':
-        e.preventDefault();
-        deactivateKeyboardMode();
-        document.getElementById('hostFilter').focus();
-        break;
-      case 't':
-        e.preventDefault();
-        document.getElementById('viewToggleBtn').click();
-        break;
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-        e.preventDefault();
-        // Zoom to specific anomaly by rank
-        zoomToAnomalyNumber(e.key);
-        break;
-      case 'b':
-      case '#':
-        e.preventDefault();
-        if (onToggleFacetMode) {
-          onToggleFacetMode('contentTypeMode');
-        }
-        break;
-      case '+':
-      case '=': // Unshifted + on most keyboards
-        e.preventDefault();
-        // Zoom in: to most prominent anomaly, or most recent section if none
-        zoomToAnomaly();
-        break;
-      case '-':
-        e.preventDefault();
-        // Zoom out: expand to next larger predefined period
-        if (zoomOut()) {
-          saveStateToURL();
-          if (onReloadDashboard) {
-            onReloadDashboard();
-          }
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        deactivateKeyboardMode();
-        break;
-      default:
-        // No action for other keys
-        break;
-    }
+    handleKeyboardShortcut(e);
   });
 
   // Deactivate on mouse click (but not on action buttons)

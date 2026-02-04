@@ -83,6 +83,15 @@ export default [
       ...recommended.rules,
       ...namingConventionRules,
       'max-lines': ['error', { max: 1000 }],
+      'max-len': ['error', 100, 2, {
+        ignoreUrls: true,
+        ignoreComments: false,
+        ignoreRegExpLiterals: true,
+        ignoreStrings: true,
+        ignoreTemplateLiterals: true,
+        ignorePattern: '^(async\\s+)?function\\s+\\w+\\(',
+      }],
+      'complexity': ['error', { max: 15 }],
       // Tech debt tracking: warn on TODO/FIXME comments
       // Use TODO(ISSUE-123) format to link to tracking issues
       'no-warning-comments': ['warn', {

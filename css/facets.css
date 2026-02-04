@@ -393,7 +393,7 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   white-space: nowrap;
 }
 
-/* Clickable dimension cells for filter cycling */
+/* Clickable dimension cells for filter toggling */
 .breakdown-table .dim.dim-clickable {
   cursor: pointer;
   user-select: none;
@@ -407,6 +407,10 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   padding: 2px 7px;
   border-radius: 4px;
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.breakdown-table .mobile-actions {
+  display: none;
 }
 
 /* Indicator slot: fixed width, shows icon OR color bar */
@@ -546,8 +550,38 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   /* Ensure tap targets are large enough on mobile */
   .breakdown-table .dim.dim-clickable {
     min-height: 44px;
-    display: flex;
-    align-items: center;
+    position: relative;
+    padding-right: 68px;
+  }
+
+  .breakdown-table .mobile-actions {
+    display: inline-flex;
+    gap: 6px;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .breakdown-table .mobile-action-btn {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 10px;
+    line-height: 1;
+    background: var(--bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .breakdown-table .mobile-action-btn.exclude-btn {
+    border-color: var(--error);
+    color: var(--error);
+  }
+
+  .breakdown-table .mobile-action-btn.exclude-btn.active {
+    background: var(--error);
+    color: white;
   }
 }
 
