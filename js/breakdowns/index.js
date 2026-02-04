@@ -55,6 +55,27 @@ function getSamplingConfig(highCardinality) {
   return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
 }
 
+/**
+ * Get current sampling info for UI display (chart blur/line width)
+ * @returns {{ isActive: boolean, rate: string, description: string }} - Sampling status and display info
+ */
+export function getCurrentSamplingInfo() {
+  const periodMs = getPeriodMs();
+
+  // No sampling for time ranges <= 1 hour
+  if (!periodMs || periodMs <= ONE_HOUR_MS) {
+    return { isActive: false, rate: '', description: '' };
+  }
+
+  // 1% sampling for 7d
+  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
+    return { isActive: true, rate: '1%', description: '1% sample for faster queries' };
+  }
+
+  // 10% sampling for 12h, 24h
+  return { isActive: true, rate: '10%', description: '10% sample for faster queries' };
+}
+
 export function resetFacetTimings() {
   Object.keys(facetTimings).forEach((key) => {
     delete facetTimings[key];
