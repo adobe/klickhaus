@@ -239,6 +239,37 @@
   background: rgba(59, 130, 246, 0.35);
 }
 
+/* Time labels on selection edges */
+.chart-selection-time-label {
+  position: absolute;
+  top: -24px;
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  background: rgba(59, 130, 246, 0.95);
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.chart-selection-time-left {
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.chart-selection-time-right {
+  right: 0;
+  transform: translateX(50%);
+}
+
+/* Centered label for narrow selections */
+.chart-selection-time-center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 @media (prefers-color-scheme: dark) {
   .chart-selection-overlay {
     background: rgba(96, 165, 250, 0.25);
@@ -247,6 +278,9 @@
   }
   .chart-selection-overlay.confirmed:hover {
     background: rgba(96, 165, 250, 0.4);
+  }
+  .chart-selection-time-label {
+    background: rgba(96, 165, 250, 0.95);
   }
 }
 
