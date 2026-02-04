@@ -208,29 +208,32 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
   };
 }
 
-export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
+function createRequestStatus(requestContext) {
   const globalContext = getRequestContext('facets');
   const activeContext = requestContext || globalContext;
   const combinedSignal = mergeAbortSignals([activeContext.signal, globalContext.signal]);
   const isCurrent = () => isRequestCurrent(activeContext.requestId, activeContext.scope)
     && isRequestCurrent(globalContext.requestId, globalContext.scope);
-  const requestStatus = { isCurrent, signal: combinedSignal };
-  const card = document.getElementById(b.id);
+  return { isCurrent, signal: combinedSignal };
+}
 
+function prepareBreakdownCard(card, b) {
   if (state.hiddenFacets.includes(b.id)) {
     renderHiddenFacet(card, b);
-    return;
+    return false;
   }
 
   card.removeAttribute('data-action');
   card.removeAttribute('data-facet');
   card.classList.remove('facet-hidden');
   card.classList.add('updating');
+  return true;
+}
 
+async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
   const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
   const aggs = buildAggregations(params.isBytes, params.mult);
-
   const summaryColWithMult = b.summaryCountIf
     ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
     : '';
@@ -251,49 +254,80 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
     topN: String(state.topN),
   });
 
+  return { sql, params, aggs };
+}
+
+function getSummaryRatio(b, totals) {
+  if (!b.summaryCountIf || !totals || totals.cnt <= 0) return null;
+  return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
+}
+
+async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
+  const { isCurrent, signal } = requestStatus;
+  const { sql, params, aggs } = await buildBreakdownSql(b, timeFilter, hostFilter);
   const startTime = performance.now();
+  const result = await query(sql, { signal });
+  if (!isCurrent()) return null;
+
+  const elapsed = result.networkTime ?? (performance.now() - startTime);
+  facetTimings[b.id] = elapsed;
+  const summaryRatio = getSummaryRatio(b, result.totals);
+
+  let data = fillExpectedLabels(result.data, b);
+  data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
+  if (!isCurrent()) return null;
+
+  return {
+    data,
+    totals: result.totals,
+    params,
+    elapsed,
+    summaryRatio,
+  };
+}
+
+function shouldIgnoreBreakdownError(requestStatus, err) {
+  return !requestStatus.isCurrent() || isAbortError(err);
+}
+
+export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
+  const requestStatus = createRequestStatus(requestContext);
+  const card = document.getElementById(b.id);
+
+  if (!prepareBreakdownCard(card, b)) return;
+
   try {
-    const result = await query(sql, { signal: combinedSignal });
-    if (!isCurrent()) return;
-    const elapsed = result.networkTime ?? (performance.now() - startTime);
-    facetTimings[b.id] = elapsed;
-
-    const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
-      ? parseInt(result.totals.summary_cnt, 10) / parseInt(result.totals.cnt, 10)
-      : null;
-
-    let data = fillExpectedLabels(result.data, b);
-    data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
-    if (!isCurrent()) return;
+    const result = await fetchBreakdownData(b, timeFilter, hostFilter, requestStatus);
+    if (!result) return;
 
     renderBreakdownTable(
       b.id,
-      data,
+      result.data,
       result.totals,
-      params.col,
+      result.params.col,
       b.linkPrefix,
       b.linkSuffix,
       b.linkFn,
-      elapsed,
+      result.elapsed,
       b.dimPrefixes,
       b.dimFormatFn,
-      summaryRatio,
+      result.summaryRatio,
       b.summaryLabel,
       b.summaryColor,
       b.modeToggle,
       !!b.getExpectedLabels,
-      params.hasActiveFilter ? null : b.filterCol,
-      params.hasActiveFilter ? null : b.filterValueFn,
-      params.hasActiveFilter ? null : b.filterOp,
+      result.params.hasActiveFilter ? null : b.filterCol,
+      result.params.hasActiveFilter ? null : b.filterValueFn,
+      result.params.hasActiveFilter ? null : b.filterOp,
     );
   } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
+    if (shouldIgnoreBreakdownError(requestStatus, err)) return;
     const details = getQueryErrorDetails(err);
     // eslint-disable-next-line no-console
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, details);
   } finally {
-    if (isCurrent()) {
+    if (requestStatus.isCurrent()) {
       card.classList.remove('updating');
     }
   }
@@ -302,7 +336,9 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  await Promise.all(allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)));
+  await Promise.all(
+    allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
+  );
 }
 
 // Mark the slowest facet in the toolbar timer tooltip
