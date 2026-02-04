@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@adobe/eslint-config-helix": "^3.0.16",
-    "@playwright/cli": "^0.0.62",
+    "@playwright/cli": "^0.0.63",
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
     "canvas": "3.2.1",
