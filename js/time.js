@@ -23,6 +23,10 @@ const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
+const BASE_TABLE = 'cdn_requests_v2';
+const SAMPLED_TABLE_10 = 'cdn_requests_v2_sampled_10';
+const SAMPLED_TABLE_1 = 'cdn_requests_v2_sampled_1';
+
 function floorToInterval(date, intervalMs) {
   return new Date(Math.floor(date.getTime() / intervalMs) * intervalMs);
 }
@@ -67,7 +71,7 @@ function getTimeBucketStep() {
   return TIME_RANGES[state.timeRange]?.step;
 }
 
-function getSelectedRange() {
+export function getSelectedRange() {
   if (timeState.customTimeRange) {
     return {
       start: new Date(timeState.customTimeRange.start),
@@ -149,7 +153,14 @@ export function getCustomTimeRange() {
 }
 
 export function getTable() {
-  return 'cdn_requests_v2';
+  return BASE_TABLE;
+}
+
+export function getSampledTable(sampleRate) {
+  if (!sampleRate || sampleRate >= 1) return BASE_TABLE;
+  if (sampleRate <= 0.01) return SAMPLED_TABLE_1;
+  if (sampleRate <= 0.1) return SAMPLED_TABLE_10;
+  return BASE_TABLE;
 }
 
 export function getInterval() {

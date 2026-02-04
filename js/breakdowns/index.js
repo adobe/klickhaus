@@ -14,7 +14,7 @@ import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
 import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
 import {
-  getTimeFilter, getHostFilter, getTable, getPeriodMs,
+  getTimeFilter, getHostFilter, getPeriodMs, getSampledTable, getSelectedRange,
 } from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
@@ -24,42 +24,67 @@ import { loadSql } from '../sql-loader.js';
 
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
+const facetSampleRates = {};
 
 // Sampling thresholds: use sampling for high-cardinality facets when time range > 1 hour
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const TWO_WEEKS_MS = 14 * 24 * ONE_HOUR_MS;
+const TWENTY_WEEKS_MS = 20 * 7 * 24 * ONE_HOUR_MS;
 
-/**
- * Get sampling configuration based on facet type and time range
- * @param {boolean} highCardinality - Whether this facet has high cardinality
- * @returns {{ sampleClause: string, multiplier: number }} - SQL SAMPLE clause and count multiplier
- */
-function getSamplingConfig(highCardinality) {
-  if (!highCardinality) {
-    return { sampleClause: '', multiplier: 1 };
-  }
+function getRetentionSampleLimit() {
+  const { start } = getSelectedRange();
+  const ageMs = Math.max(0, Date.now() - start.getTime());
+  if (ageMs >= TWENTY_WEEKS_MS) return 0.01;
+  if (ageMs >= TWO_WEEKS_MS) return 0.1;
+  return 1;
+}
+
+function getSamplingPlan(highCardinality) {
+  const maxRate = getRetentionSampleLimit();
+  if (!highCardinality) return [maxRate];
 
   const periodMs = getPeriodMs();
+  if (periodMs <= ONE_HOUR_MS) return [maxRate];
+  if (maxRate <= 0.01) return [0.01];
+  if (maxRate <= 0.1) return [0.01, 0.1];
+  return [0.01, 0.1, 1];
+}
 
-  // No sampling for time ranges <= 1 hour
-  if (periodMs <= ONE_HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
+function getSamplingConfig(sampleRate) {
+  const rate = sampleRate || 1;
+  const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
+  return {
+    sampleRate: rate,
+    multiplier,
+    table: getSampledTable(rate),
+    sampleClause: '',
+  };
+}
+
+function updateGlobalSampleRate(fallbackRate = 1) {
+  const rates = Object.values(facetSampleRates);
+  const nextRate = rates.length ? Math.min(...rates) : fallbackRate;
+  state.sampleRate = nextRate;
+  document.body.dataset.sampleRate = String(nextRate);
+}
+
+function setFacetSampleRate(facetId, sampleRate) {
+  if (sampleRate === null || sampleRate === undefined) {
+    delete facetSampleRates[facetId];
+  } else {
+    facetSampleRates[facetId] = sampleRate;
   }
-
-  // Use 1% sampling for 7d (very large time ranges)
-  // 7d = 604800000ms
-  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
-    return { sampleClause: 'SAMPLE 0.01', multiplier: 100 };
-  }
-
-  // Use 10% sampling for medium time ranges (12h, 24h)
-  // This gives ~3x speedup while maintaining accurate top-K ranking
-  return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
+  updateGlobalSampleRate(getRetentionSampleLimit());
 }
 
 export function resetFacetTimings() {
   Object.keys(facetTimings).forEach((key) => {
     delete facetTimings[key];
   });
+  Object.keys(facetSampleRates).forEach((key) => {
+    delete facetSampleRates[key];
+  });
+  updateGlobalSampleRate(getRetentionSampleLimit());
 }
 
 export function getFacetFilters() {
@@ -151,7 +176,7 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
     agg4xx: aggs.agg4xx,
     agg5xx: aggs.agg5xx,
     database: DATABASE,
-    table: getTable(),
+    table: queryParams.table,
     sampleClause: queryParams.sampleClause,
     timeFilter: queryParams.timeFilter,
     hostFilter: queryParams.hostFilter,
@@ -183,7 +208,7 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
 /**
  * Build SQL query parameters for breakdown
  */
-function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
+function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, sampleRateOverride) {
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
   const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
     && state.filters.some((f) => f.col === originalCol);
@@ -191,7 +216,9 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
+  const {
+    sampleRate, sampleClause, multiplier, table,
+  } = getSamplingConfig(sampleRateOverride);
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
@@ -199,8 +226,10 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
     originalCol,
     hasActiveFilter,
     isBytes,
+    sampleRate,
     sampleClause,
     mult,
+    table,
     extra: b.extraFilter || '',
     facetFilters: getFacetFiltersExcluding(originalCol),
     timeFilter,
@@ -220,6 +249,7 @@ function createRequestStatus(requestContext) {
 function prepareBreakdownCard(card, b) {
   if (state.hiddenFacets.includes(b.id)) {
     renderHiddenFacet(card, b);
+    setFacetSampleRate(b.id, null);
     return false;
   }
 
@@ -230,10 +260,10 @@ function prepareBreakdownCard(card, b) {
   return true;
 }
 
-async function buildBreakdownSql(b, timeFilter, hostFilter) {
-  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
+async function runBreakdownStage(b, params, timeFilter, hostFilter, requestStatus, signal) {
+  const { isCurrent } = requestStatus;
   const aggs = buildAggregations(params.isBytes, params.mult);
+
   const summaryColWithMult = b.summaryCountIf
     ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
     : '';
@@ -243,7 +273,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     ...aggs,
     summaryCol: summaryColWithMult,
     database: DATABASE,
-    table: getTable(),
+    table: params.table,
     sampleClause: params.sampleClause,
     timeFilter,
     hostFilter,
@@ -254,24 +284,14 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     topN: String(state.topN),
   });
 
-  return { sql, params, aggs };
-}
-
-function getSummaryRatio(b, totals) {
-  if (!b.summaryCountIf || !totals || totals.cnt <= 0) return null;
-  return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
-}
-
-async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
-  const { isCurrent, signal } = requestStatus;
-  const { sql, params, aggs } = await buildBreakdownSql(b, timeFilter, hostFilter);
   const startTime = performance.now();
   const result = await query(sql, { signal });
   if (!isCurrent()) return null;
-
   const elapsed = result.networkTime ?? (performance.now() - startTime);
-  facetTimings[b.id] = elapsed;
-  const summaryRatio = getSummaryRatio(b, result.totals);
+
+  const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
+    ? parseInt(result.totals.summary_cnt, 10) / parseInt(result.totals.cnt, 10)
+    : null;
 
   let data = fillExpectedLabels(result.data, b);
   data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
@@ -280,14 +300,88 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   return {
     data,
     totals: result.totals,
-    params,
     elapsed,
     summaryRatio,
   };
 }
 
-function shouldIgnoreBreakdownError(requestStatus, err) {
-  return !requestStatus.isCurrent() || isAbortError(err);
+async function runSamplingStages({
+  breakdown,
+  card,
+  baseCol,
+  samplingPlan,
+  timeFilter,
+  hostFilter,
+  requestStatus,
+  signal,
+}) {
+  const { isCurrent } = requestStatus;
+  const cardEl = card;
+  let hasRendered = false;
+
+  for (const sampleRate of samplingPlan) {
+    if (!isCurrent()) return hasRendered;
+    const params = buildBreakdownQueryParams(
+      breakdown,
+      baseCol,
+      timeFilter,
+      hostFilter,
+      sampleRate,
+    );
+    cardEl.dataset.sampleRate = String(params.sampleRate);
+    cardEl.dataset.sampleTable = params.table;
+
+    try {
+      // Progressive refinement requires sequential queries.
+      // eslint-disable-next-line no-await-in-loop
+      const stage = await runBreakdownStage(
+        breakdown,
+        params,
+        timeFilter,
+        hostFilter,
+        requestStatus,
+        signal,
+      );
+      if (!stage) return hasRendered;
+
+      facetTimings[breakdown.id] = stage.elapsed;
+      renderBreakdownTable(
+        breakdown.id,
+        stage.data,
+        stage.totals,
+        params.col,
+        breakdown.linkPrefix,
+        breakdown.linkSuffix,
+        breakdown.linkFn,
+        stage.elapsed,
+        breakdown.dimPrefixes,
+        breakdown.dimFormatFn,
+        stage.summaryRatio,
+        breakdown.summaryLabel,
+        breakdown.summaryColor,
+        breakdown.modeToggle,
+        !!breakdown.getExpectedLabels,
+        params.hasActiveFilter ? null : breakdown.filterCol,
+        params.hasActiveFilter ? null : breakdown.filterValueFn,
+        params.hasActiveFilter ? null : breakdown.filterOp,
+      );
+
+      hasRendered = true;
+      setFacetSampleRate(breakdown.id, params.sampleRate);
+    } catch (err) {
+      if (!isCurrent() || isAbortError(err)) return hasRendered;
+      const details = getQueryErrorDetails(err);
+      // eslint-disable-next-line no-console
+      console.error(`Breakdown error (${breakdown.id}):`, err);
+      if (!hasRendered) {
+        renderBreakdownError(breakdown.id, details);
+        setFacetSampleRate(breakdown.id, params.sampleRate);
+      }
+      return hasRendered;
+    }
+  }
+
+  return hasRendered;
 }
 
 export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
@@ -296,36 +390,20 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
 
   if (!prepareBreakdownCard(card, b)) return;
 
-  try {
-    const result = await fetchBreakdownData(b, timeFilter, hostFilter, requestStatus);
-    if (!result) return;
+  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+  const samplingPlan = getSamplingPlan(b.highCardinality);
 
-    renderBreakdownTable(
-      b.id,
-      result.data,
-      result.totals,
-      result.params.col,
-      b.linkPrefix,
-      b.linkSuffix,
-      b.linkFn,
-      result.elapsed,
-      b.dimPrefixes,
-      b.dimFormatFn,
-      result.summaryRatio,
-      b.summaryLabel,
-      b.summaryColor,
-      b.modeToggle,
-      !!b.getExpectedLabels,
-      result.params.hasActiveFilter ? null : b.filterCol,
-      result.params.hasActiveFilter ? null : b.filterValueFn,
-      result.params.hasActiveFilter ? null : b.filterOp,
-    );
-  } catch (err) {
-    if (shouldIgnoreBreakdownError(requestStatus, err)) return;
-    const details = getQueryErrorDetails(err);
-    // eslint-disable-next-line no-console
-    console.error(`Breakdown error (${b.id}):`, err);
-    renderBreakdownError(b.id, details);
+  try {
+    await runSamplingStages({
+      breakdown: b,
+      card,
+      baseCol,
+      samplingPlan,
+      timeFilter,
+      hostFilter,
+      requestStatus,
+      signal: requestStatus.signal,
+    });
   } finally {
     if (requestStatus.isCurrent()) {
       card.classList.remove('updating');
@@ -336,6 +414,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
+  updateGlobalSampleRate(getRetentionSampleLimit());
   await Promise.all(
     allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
   );

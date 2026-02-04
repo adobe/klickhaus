@@ -13,7 +13,7 @@ import { assert } from 'chai';
 import { state } from './state.js';
 import {
   setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
-  getTimeFilter, getTimeBucket, getPeriodMs,
+  getTimeFilter, getTimeBucket, getPeriodMs, getSampledTable,
   getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
 } from './time.js';
 
@@ -69,5 +69,11 @@ describe('time helpers', () => {
     state.timeRange = '12h';
     clearCustomTimeRange();
     assert.strictEqual(getPeriodMs(), 12 * 60 * 60 * 1000);
+  });
+
+  it('selects sampled tables based on sample rate', () => {
+    assert.strictEqual(getSampledTable(1), 'cdn_requests_v2');
+    assert.strictEqual(getSampledTable(0.1), 'cdn_requests_v2_sampled_10');
+    assert.strictEqual(getSampledTable(0.01), 'cdn_requests_v2_sampled_1');
   });
 });

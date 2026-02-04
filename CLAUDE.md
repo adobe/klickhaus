@@ -143,7 +143,20 @@ Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL) ──► fastly_in
                                                                                                    │   (2-week TTL)
                                                                                                    │   [partitioned, with sampling]
 Fastly Backend Services ─► fastly_logs_incoming_<service_id> ──► fastly_ingestion_*_v2 (MVs) ──────┘
+                                                                                                   │
+                                                                                                   ├─► cdn_requests_v2_sampled_10
+                                                                                                   │   (20-week TTL, IPs withheld)
+                                                                                                   └─► cdn_requests_v2_sampled_1
+                                                                                                       (200-week TTL, IPs withheld)
 ```
+
+### Sampled Tables (Progressive Refinement)
+
+`cdn_requests_v2` feeds sampled tables for progressive facet sampling:
+- `cdn_requests_v2_sampled_10` (10% sample via `sample_hash % 10`, 20-week TTL)
+- `cdn_requests_v2_sampled_1` (1% sample via `sample_hash % 100`, 200-week TTL)
+
+IP-related columns (`client.ip`, `cdn.originating_ip`, `request.headers.*_ip`) are stored as `(withheld)` in sampled tables to avoid retaining PII with extended TTLs.
 
 ### Fastly Backend Services (per-service logging)
 
@@ -195,7 +208,7 @@ If you add new tail workers that make outbound requests to external services, ad
 
 **Partitioning**: Daily (`toDate(timestamp)`) for efficient data management and faster queries.
 
-**Sampling**: `SAMPLE BY sample_hash` for approximate queries on large datasets.
+**Sampling**: `sample_hash` drives progressive sampling into `cdn_requests_v2_sampled_10` and `cdn_requests_v2_sampled_1`.
 
 **TTL**: 2 weeks
 
@@ -288,6 +301,8 @@ MATERIALIZE PROJECTION proj_facet_example;
 | Table | TTL | Purpose |
 |-------|-----|---------|
 | `cdn_requests_v2` | 2 weeks | Unified CDN logs (primary analytics table, partitioned) |
+| `cdn_requests_v2_sampled_10` | 20 weeks | 10% sample for historical analysis (IPs withheld) |
+| `cdn_requests_v2_sampled_1` | 200 weeks | 1% sample for long-range analysis (IPs withheld) |
 | `cloudflare_http_requests` | 1 day | Raw Cloudflare Logpush data |
 | `cloudflare_tail_incoming` | 1 day | Raw Cloudflare Tail Worker logs (legacy) |
 | `fastly_logs_incoming2` | 1 day | Raw Fastly logs - helix5 main service |

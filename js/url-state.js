@@ -210,6 +210,9 @@ export function syncUIFromState() {
   }
   elements.topNSelect.value = state.topN;
   document.body.dataset.topn = state.topN;
+  if (state.sampleRate) {
+    document.body.dataset.sampleRate = String(state.sampleRate);
+  }
   elements.hostFilterInput.value = state.hostFilter;
   renderActiveFilters();
 
