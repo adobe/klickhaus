@@ -36,8 +36,5 @@
     "*.{js,mjs}": [
       "eslint --fix"
     ]
-  },
-  "dependencies": {
-    "puppeteer-core": "24.36.1"
   }
 }
