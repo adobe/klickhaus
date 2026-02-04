@@ -424,7 +424,7 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   white-space: nowrap;
 }
 
-/* Clickable dimension cells for filter cycling */
+/* Clickable dimension cells for filter toggling */
 .breakdown-table .dim.dim-clickable {
   cursor: pointer;
   user-select: none;
@@ -438,6 +438,10 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   padding: 2px 7px;
   border-radius: 4px;
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.breakdown-table .mobile-actions {
+  display: none;
 }
 
 /* Indicator slot: fixed width, shows icon OR color bar */
@@ -464,10 +468,21 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   border-radius: 1px;
 }
 
-/* Active/exclude states: colored background, white text, show icon, hide color bar */
+/* Active/exclude states: colored background, contrasting text, show icon, hide color bar */
 .breakdown-table .filter-tag-indicator.active,
 .breakdown-table .filter-tag-indicator.exclude {
   color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure text contrast in dark mode with light backgrounds */
+@media (prefers-color-scheme: dark) {
+  .breakdown-table .filter-tag-indicator.active,
+  .breakdown-table .filter-tag-indicator.exclude {
+    /* Add a darker overlay to ensure contrast */
+    background-blend-mode: multiply;
+    box-shadow: inset 0 0 0 1000px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .breakdown-table .filter-tag-indicator.active .filter-icon,
@@ -568,6 +583,45 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
     min-height: 44px;
     display: flex;
     align-items: center;
+  }
+
+  .breakdown-table tr.touch-active .filter-tag-indicator {
+    display: none;
+  }
+
+  .breakdown-table tr.touch-active .mobile-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .breakdown-table .mobile-action-btn {
+    flex: 1;
+    border: 1px solid var(--filter-tag-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    background: var(--filter-tag-bg);
+    color: var(--filter-tag-color);
+    cursor: pointer;
+  }
+
+  .breakdown-table .mobile-action-btn.filter-btn {
+    background: var(--filter-tag-bg);
+    border-color: var(--filter-tag-border);
+    color: var(--filter-tag-color);
+  }
+
+  .breakdown-table .mobile-action-btn.exclude-btn {
+    background: var(--bar-bg);
+    border-color: var(--error);
+    color: var(--error);
+  }
+
+  .breakdown-table .mobile-action-btn:active {
+    transform: translateY(1px);
   }
 }
 

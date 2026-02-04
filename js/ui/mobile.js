@@ -39,9 +39,7 @@ export function initMobileTouchSupport() {
   if (!('ontouchstart' in window)) return;
 
   document.addEventListener('click', (e) => {
-    const row = e.target.closest('.breakdown-table tr:not(.other-row)');
     const isActionBtn = e.target.closest('.mobile-action-btn');
-
     if (isActionBtn) {
       setTimeout(() => {
         document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
@@ -51,7 +49,10 @@ export function initMobileTouchSupport() {
       return;
     }
 
-    if (row) {
+    const row = e.target.closest('.breakdown-table tr:not(.other-row)');
+    const dimCell = e.target.closest('.breakdown-table td.dim.dim-clickable');
+
+    if (row && dimCell) {
       const wasActive = row.classList.contains('touch-active');
       document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
         r.classList.remove('touch-active');
@@ -59,13 +60,15 @@ export function initMobileTouchSupport() {
       if (!wasActive) {
         row.classList.add('touch-active');
       }
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
 
     document.querySelectorAll('.breakdown-table tr.touch-active').forEach((r) => {
       r.classList.remove('touch-active');
     });
-  });
+  }, true);
 }
 
 /**
