@@ -106,6 +106,35 @@ describe('buildDimParts', () => {
     assert.strictEqual(linkUrl, 'https://host/page');
   });
 
+  it('blocks unsafe schemes', () => {
+    const unsafeScheme = ['java', 'script:alert(1)'].join('');
+    const { linkUrl } = buildDimParts({
+      row: { dim: 'evil' },
+      dim: 'evil',
+      col: '`request.headers.referer`',
+      linkPrefix: undefined,
+      linkSuffix: undefined,
+      linkFn: () => unsafeScheme,
+      dimPrefixes: undefined,
+      dimFormatFn: undefined,
+    });
+    assert.isNull(linkUrl);
+  });
+
+  it('sanitizes and encodes URLs', () => {
+    const { linkUrl } = buildDimParts({
+      row: { dim: 'encoded' },
+      dim: 'encoded',
+      col: '`request.url`',
+      linkPrefix: undefined,
+      linkSuffix: undefined,
+      linkFn: () => 'https://example.com/path?q="test"&x=1',
+      dimPrefixes: undefined,
+      dimFormatFn: undefined,
+    });
+    assert.strictEqual(linkUrl, 'https://example.com/path?q=%22test%22&x=1');
+  });
+
   it('wraps synthetic buckets in dim-prefix span', () => {
     const { formattedDim } = buildDimParts({
       row: { dim: '(empty)' },
@@ -232,6 +261,17 @@ describe('buildBreakdownRow', () => {
     });
     assert.include(html, 'href="https://example.com"');
     assert.include(html, 'target="_blank"');
+  });
+
+  it('escapes href attributes when rendering links', () => {
+    const html = buildBreakdownRow({
+      ...baseParams,
+      linkFn: () => 'https://example.com/path?q="test"&x=1',
+      row: {
+        dim: 'encoded', cnt: '100', cnt_ok: '100', cnt_4xx: '0', cnt_5xx: '0',
+      },
+    });
+    assert.include(html, 'href="https://example.com/path?q=%22test%22&amp;x=1"');
   });
 
   it('includes filter data attributes', () => {

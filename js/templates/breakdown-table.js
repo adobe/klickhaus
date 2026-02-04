@@ -9,7 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { escapeHtml, isSyntheticBucket } from '../utils.js';
+import { escapeHtml, isSyntheticBucket, sanitizeUrl } from '../utils.js';
 import { getColorIndicatorHtml } from '../colors/index.js';
 
 /**
@@ -63,6 +63,8 @@ export function buildDimParts({
       linkUrl = linkPrefix + linkValue + (linkSuffix || '');
     }
   }
+
+  linkUrl = linkUrl ? sanitizeUrl(linkUrl) : null;
 
   return { formattedDim, linkUrl, colorIndicator };
 }
@@ -124,6 +126,22 @@ function buildRowClass(isSynthetic, isIncluded, isExcluded, isFilteredValue) {
 /**
  * Build filter tag HTML
  */
+/**
+ * Build a safe anchor element using DOM APIs.
+ * @param {string|null} linkUrl
+ * @param {string} formattedDim - HTML string for the link label
+ * @returns {string} HTML string
+ */
+function buildLinkHtml(linkUrl, formattedDim) {
+  if (!linkUrl) return formattedDim;
+  const anchor = document.createElement('a');
+  anchor.setAttribute('href', linkUrl);
+  anchor.setAttribute('target', '_blank');
+  anchor.setAttribute('rel', 'noopener');
+  anchor.innerHTML = formattedDim;
+  return anchor.outerHTML;
+}
+
 function buildFilterTag(colorIndicator, formattedDim, linkUrl, isIncluded, isExcluded) {
   const colorMatch = colorIndicator.match(/background:\s*([^;"]+)/);
   const bgColor = colorMatch ? colorMatch[1] : '';
@@ -142,9 +160,7 @@ function buildFilterTag(colorIndicator, formattedDim, linkUrl, isIncluded, isExc
   }
 
   const indicatorSlot = `<span class="filter-indicator-slot"><span class="filter-icon">${iconChar}</span>${colorIndicator}</span>`;
-  const textHtml = linkUrl
-    ? `<a href="${linkUrl}" target="_blank" rel="noopener">${formattedDim}</a>`
-    : formattedDim;
+  const textHtml = buildLinkHtml(linkUrl, formattedDim);
 
   return {
     filterTag: `<span class="filter-tag-indicator${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`,

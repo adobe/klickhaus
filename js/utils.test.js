@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { assert } from 'chai';
-import { escapeHtml, isSyntheticBucket } from './utils.js';
+import { escapeHtml, isSyntheticBucket, sanitizeUrl } from './utils.js';
 
 describe('escapeHtml', () => {
   it('escapes angle brackets', () => {
@@ -68,5 +68,43 @@ describe('isSyntheticBucket', () => {
   it('returns false for non-string types', () => {
     assert.strictEqual(isSyntheticBucket(42), false);
     assert.strictEqual(isSyntheticBucket(true), false);
+  });
+});
+
+describe('sanitizeUrl', () => {
+  it('allows http and https URLs', () => {
+    assert.strictEqual(sanitizeUrl('https://example.com/path?q=1'), 'https://example.com/path?q=1');
+    assert.strictEqual(sanitizeUrl('http://example.com'), 'http://example.com');
+  });
+
+  it('encodes query characters and preserves hash', () => {
+    assert.strictEqual(
+      sanitizeUrl('https://example.com/path?q="test"&x=1#frag'),
+      'https://example.com/path?q=%22test%22&x=1#frag',
+    );
+  });
+
+  it('handles query or hash without explicit path', () => {
+    assert.strictEqual(sanitizeUrl('https://example.com?query=value'), 'https://example.com?query=value');
+    assert.strictEqual(sanitizeUrl('https://example.com#section'), 'https://example.com#section');
+  });
+
+  it('preserves explicit trailing slash', () => {
+    assert.strictEqual(sanitizeUrl('https://example.com/'), 'https://example.com/');
+  });
+
+  it('rejects invalid or unsafe protocols', () => {
+    const scriptScheme = ['java', 'script:alert(1)'].join('');
+    const dataScheme = ['da', 'ta:text/plain,hello'].join('');
+    const blobScheme = ['b', 'lob:https://example.com/'].join('');
+    assert.isNull(sanitizeUrl(scriptScheme));
+    assert.isNull(sanitizeUrl(dataScheme));
+    assert.isNull(sanitizeUrl(blobScheme));
+  });
+
+  it('returns null for invalid input', () => {
+    assert.isNull(sanitizeUrl(''));
+    assert.isNull(sanitizeUrl('   '));
+    assert.isNull(sanitizeUrl('not a url'));
   });
 });
