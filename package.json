@@ -23,7 +23,8 @@
     "jscpd": "^4.0.5",
     "knip": "^5.82.1",
     "lint-staged": "^16.2.7",
-    "live-server": "^1.2.2"
+    "live-server": "^1.2.2",
+    "puppeteer-core": "24.36.1"
   },
   "keywords": [
     "clickhouse",
@@ -36,8 +37,5 @@
     "*.{js,mjs}": [
       "eslint --fix"
     ]
-  },
-  "dependencies": {
-    "puppeteer-core": "24.36.1"
   }
 }
