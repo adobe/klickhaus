@@ -60,6 +60,7 @@ import {
 } from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
 import { preloadAllTemplates } from './sql-loader.js';
+import { startRequestContext, isRequestCurrent } from './request-context.js';
 
 /**
  * Initialize a dashboard instance.
@@ -92,12 +93,15 @@ export function initDashboard(config = {}) {
   setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
 
   // Load dashboard queries (chart and facets)
-  async function loadDashboardQueries(timeFilter, hostFilter) {
-    const timeSeriesPromise = loadTimeSeries();
+  async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
+    const timeSeriesPromise = loadTimeSeries(dashboardContext);
     const focusedFacetId = getFocusedFacetId();
+    const isDashboardCurrent = () => isRequestCurrent(dashboardContext.requestId, dashboardContext.scope);
+    const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
     const facetPromises = allBreakdowns.map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter).then(() => {
+      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
+        if (!isFacetsCurrent()) return;
         if (!hasVisibleUpdatingFacets()) {
           stopQueryTimer();
         }
@@ -109,6 +113,8 @@ export function initDashboard(config = {}) {
     );
 
     await timeSeriesPromise;
+
+    if (!isDashboardCurrent()) return;
 
     if (!hasVisibleUpdatingFacets()) {
       stopQueryTimer();
@@ -122,14 +128,19 @@ export function initDashboard(config = {}) {
 
       if (hasCache) {
         investigateAnomalies(anomalies, chartData);
-        Promise.all(facetPromises).then(() => markSlowestFacet());
+        Promise.all(facetPromises).then(() => {
+          if (isFacetsCurrent()) markSlowestFacet();
+        });
       } else {
         await Promise.all(facetPromises);
+        if (!isFacetsCurrent()) return;
         markSlowestFacet();
         await investigateAnomalies(anomalies, chartData);
       }
     } else {
-      Promise.all(facetPromises).then(() => markSlowestFacet());
+      Promise.all(facetPromises).then(() => {
+        if (isFacetsCurrent()) markSlowestFacet();
+      });
     }
   }
 
@@ -145,6 +156,8 @@ export function initDashboard(config = {}) {
 
   // Load Dashboard Data
   async function loadDashboard(refresh = false) {
+    const dashboardContext = startRequestContext('dashboard');
+    const facetsContext = startRequestContext('facets');
     setForceRefresh(refresh);
     if (refresh) {
       invalidateInvestigationCache();
@@ -169,11 +182,11 @@ export function initDashboard(config = {}) {
     const hostFilter = getHostFilter();
 
     if (state.showLogs) {
-      await loadLogs();
-      loadDashboardQueries(timeFilter, hostFilter);
+      await loadLogs(dashboardContext);
+      loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
     } else {
-      await loadDashboardQueries(timeFilter, hostFilter);
-      loadLogs();
+      await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+      loadLogs(dashboardContext);
     }
 
     setForceRefresh(false);
@@ -217,7 +230,8 @@ export function initDashboard(config = {}) {
       if (breakdown) {
         const timeFilter = getTimeFilter();
         const hostFilter = getHostFilter();
-        loadBreakdown(breakdown, timeFilter, hostFilter);
+        const facetsContext = startRequestContext(`facet:${breakdown.id}`);
+        loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
       }
     }
   }
@@ -230,7 +244,8 @@ export function initDashboard(config = {}) {
       state.topN = next;
       elements.topNSelect.value = next;
       saveStateToURL();
-      loadAllBreakdowns();
+      const facetsContext = startRequestContext('facets');
+      loadAllBreakdowns(facetsContext);
     }
   }
 
@@ -242,7 +257,8 @@ export function initDashboard(config = {}) {
     const hostFilter = getHostFilter();
     const breakdowns = allBreakdowns.filter((b) => b.modeToggle === stateKey);
     for (const breakdown of breakdowns) {
-      loadBreakdown(breakdown, timeFilter, hostFilter);
+      const facetsContext = startRequestContext(`facet:${breakdown.id}`);
+      loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
     }
   }
 
@@ -335,7 +351,8 @@ export function initDashboard(config = {}) {
       state.topN = parseInt(e.target.value, 10);
       document.body.dataset.topn = state.topN;
       saveStateToURL();
-      loadAllBreakdowns();
+      const facetsContext = startRequestContext('facets');
+      loadAllBreakdowns(facetsContext);
     });
 
     let filterTimeout;

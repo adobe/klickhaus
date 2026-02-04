@@ -228,8 +228,32 @@ export function renderBreakdownTable(
   card.classList.remove('facet-hidden');
 }
 
-export function renderBreakdownError(id, _) {
+export function renderBreakdownError(id, details = {}) {
   const card = document.getElementById(id);
-  const title = card.querySelector('h3').textContent;
-  card.innerHTML = `<h3>${title}</h3><div class="empty">Error loading data</div>`;
+  const title = card.querySelector('h3')?.textContent || card.dataset.title || id;
+  const label = details.label || 'Query failed';
+  const message = details.message || 'Error loading data';
+  const detail = details.detail && details.detail !== message ? details.detail : '';
+  const metaParts = [];
+
+  if (details.code) metaParts.push(`Code ${details.code}`);
+  if (details.type) metaParts.push(details.type);
+  if (details.status) metaParts.push(`HTTP ${details.status}`);
+
+  const detailHtml = detail
+    ? `<div class="facet-error-detail">${escapeHtml(detail)}</div>`
+    : '';
+  const metaHtml = metaParts.length > 0
+    ? `<div class="facet-error-meta">${escapeHtml(metaParts.join(' | '))}</div>`
+    : '';
+
+  card.innerHTML = `
+    <h3>${escapeHtml(title)}</h3>
+    <div class="facet-error">
+      <div class="facet-error-title">${escapeHtml(label)}</div>
+      <div class="facet-error-message">${escapeHtml(message)}</div>
+      ${detailHtml}${metaHtml}
+    </div>
+    <button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${escapeHtml(id)}" title="Hide facet"></button>
+  `;
 }

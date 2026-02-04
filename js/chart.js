@@ -15,10 +15,11 @@
  * State management and navigation logic are in chart-state.js.
  */
 
-import { query } from './api.js';
+import { query, isAbortError } from './api.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
+import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
@@ -905,7 +906,9 @@ export function setupChartNavigation(callback) {
   });
 }
 
-export async function loadTimeSeries() {
+export async function loadTimeSeries(requestContext = getRequestContext('dashboard')) {
+  const { requestId, signal, scope } = requestContext;
+  const isCurrent = () => isRequestCurrent(requestId, scope);
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
@@ -928,10 +931,12 @@ export async function loadTimeSeries() {
   });
 
   try {
-    const result = await query(sql);
+    const result = await query(sql, { signal });
+    if (!isCurrent()) return;
     state.chartData = result.data;
     renderChart(result.data);
   } catch (err) {
+    if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Chart error:', err);
   }

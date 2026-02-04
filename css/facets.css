@@ -86,6 +86,37 @@
   opacity: 0.7;
 }
 
+.facet-error {
+  border: 1px solid rgba(240, 68, 56, 0.3);
+  background: rgba(240, 68, 56, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.facet-error-title {
+  color: var(--status-server-error);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.facet-error-message {
+  color: var(--text-secondary);
+}
+
+.facet-error-detail {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.facet-error-meta {
+  margin-top: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 .breakdown-card h3 {
   font-size: 14px;
   font-weight: 600;

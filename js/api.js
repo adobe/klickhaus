@@ -27,7 +27,174 @@ export function setForceRefresh(value) {
 // Auth error event - dispatched when authentication fails
 const authErrorEvent = new CustomEvent('auth-error');
 
-export async function query(sql, { cacheTtl: initialCacheTtl = null, skipCache = false } = {}) {
+const CATEGORY_LABELS = {
+  permissions: 'Permissions',
+  memory: 'Out of memory',
+  syntax: 'Query syntax',
+  timeout: 'Query timeout',
+  schema: 'Schema',
+  resource: 'Resource limits',
+  network: 'Network error',
+  cancelled: 'Cancelled',
+  unknown: 'Query failed',
+};
+
+export function summarizeErrorText(text) {
+  if (!text) return 'Unknown error';
+  const trimmed = String(text).trim();
+  const firstLine = trimmed.split('\n').map((line) => line.trim()).find(Boolean) || trimmed;
+  const normalized = firstLine.replace(/\s+/g, ' ').trim();
+  if (normalized.length > 200) {
+    return `${normalized.slice(0, 197)}...`;
+  }
+  return normalized;
+}
+
+export function extractErrorType(text) {
+  const matches = [...String(text).matchAll(/\(([A-Z0-9_]+)\)/g)];
+  if (matches.length === 0) return null;
+  return matches[matches.length - 1][1];
+}
+
+const PERMISSION_TYPES = new Set(['ACCESS_DENIED', 'NOT_ENOUGH_PRIVILEGES']);
+const SCHEMA_TYPES = new Set([
+  'UNKNOWN_TABLE',
+  'UNKNOWN_IDENTIFIER',
+  'UNKNOWN_COLUMN',
+  'UNKNOWN_FUNCTION',
+]);
+const RESOURCE_TYPES = new Set([
+  'TOO_MANY_PARTS',
+  'TOO_MANY_SIMULTANEOUS_QUERIES',
+  'TOO_MANY_BYTES',
+  'QUERY_WAS_CANCELLED',
+]);
+
+const PERMISSION_TEXT = [
+  'authentication failed',
+  'required_password',
+  'not enough privileges',
+  'access denied',
+];
+const SCHEMA_TEXT = ['unknown table', 'unknown identifier'];
+const NETWORK_TEXT = ['failed to fetch', 'networkerror', 'network error'];
+
+function matchesAny(text, list) {
+  return list.some((item) => text.includes(item));
+}
+
+export function classifyCategory(text, status, type) {
+  const lower = String(text).toLowerCase();
+  const isPermissions = [
+    status === 401,
+    status === 403,
+    PERMISSION_TYPES.has(type),
+    matchesAny(lower, PERMISSION_TEXT),
+  ].some(Boolean);
+  if (isPermissions) return 'permissions';
+
+  if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) return 'memory';
+  if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) return 'syntax';
+  if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) return 'timeout';
+
+  const isSchema = [
+    SCHEMA_TYPES.has(type),
+    matchesAny(lower, SCHEMA_TEXT),
+  ].some(Boolean);
+  if (isSchema) return 'schema';
+
+  if (RESOURCE_TYPES.has(type)) return 'resource';
+  if (matchesAny(lower, NETWORK_TEXT)) return 'network';
+  return 'unknown';
+}
+
+export class QueryError extends Error {
+  constructor(message, {
+    status = null,
+    code = null,
+    type = null,
+    category = 'unknown',
+    detail = null,
+  } = {}) {
+    super(message);
+    this.name = 'QueryError';
+    this.status = status;
+    this.code = code;
+    this.type = type;
+    this.category = category;
+    this.detail = detail;
+    this.isQueryError = true;
+  }
+}
+
+export function parseQueryError(text, status) {
+  const codeMatch = String(text).match(/Code:\s*(\d+)/i);
+  const code = codeMatch ? parseInt(codeMatch[1], 10) : null;
+  const type = extractErrorType(text);
+  const category = classifyCategory(text, status, type);
+  const message = summarizeErrorText(text);
+  return {
+    status,
+    code,
+    type,
+    category,
+    message,
+    detail: message,
+  };
+}
+
+export function isAbortError(err) {
+  return err?.name === 'AbortError';
+}
+
+export function getQueryErrorDetails(err) {
+  if (!err) {
+    return {
+      label: CATEGORY_LABELS.unknown,
+      category: 'unknown',
+      message: 'Unknown error',
+    };
+  }
+
+  if (isAbortError(err)) {
+    return {
+      label: CATEGORY_LABELS.cancelled,
+      category: 'cancelled',
+      message: 'Request cancelled',
+      isAbort: true,
+    };
+  }
+
+  if (err.isQueryError || err.name === 'QueryError') {
+    const label = CATEGORY_LABELS[err.category] || CATEGORY_LABELS.unknown;
+    return {
+      label,
+      category: err.category,
+      message: err.message || 'Query failed',
+      detail: err.detail || err.message || 'Query failed',
+      code: err.code,
+      type: err.type,
+      status: err.status,
+    };
+  }
+
+  const message = summarizeErrorText(err.message || String(err));
+  const category = classifyCategory(message, null, null);
+  return {
+    label: CATEGORY_LABELS[category] || CATEGORY_LABELS.unknown,
+    category,
+    message,
+  };
+}
+
+export async function query(
+  sql,
+  {
+    cacheTtl: initialCacheTtl = null,
+    skipCache = false,
+    signal,
+  } = {},
+) {
   const params = new URLSearchParams();
 
   // Skip caching entirely for simple queries like auth check
@@ -58,6 +225,7 @@ export async function query(sql, { cacheTtl: initialCacheTtl = null, skipCache =
       Authorization: `Basic ${btoa(`${state.credentials.user}:${state.credentials.password}`)}`,
     },
     body: `${normalizedSql} FORMAT JSON`,
+    signal,
   });
   const fetchEnd = performance.now();
 
@@ -67,7 +235,8 @@ export async function query(sql, { cacheTtl: initialCacheTtl = null, skipCache =
     if (response.status === 401 || text.includes('Authentication failed') || text.includes('REQUIRED_PASSWORD')) {
       window.dispatchEvent(authErrorEvent);
     }
-    throw new Error(text);
+    const parsed = parseQueryError(text, response.status);
+    throw new QueryError(parsed.message, parsed);
   }
 
   const data = await response.json();

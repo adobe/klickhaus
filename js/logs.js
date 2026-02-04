@@ -11,12 +11,13 @@
  */
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
-import { query } from './api.js';
+import { query, isAbortError } from './api.js';
 import { getTimeFilter, getHostFilter, getTable } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
+import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
@@ -416,6 +417,9 @@ export function renderLogsTable(data) {
 async function loadMoreLogs() {
   if (loadingMore || !hasMoreLogs) return;
   loadingMore = true;
+  const requestContext = getRequestContext('dashboard');
+  const { requestId, signal, scope } = requestContext;
+  const isCurrent = () => isRequestCurrent(requestId, scope);
 
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
@@ -433,7 +437,8 @@ async function loadMoreLogs() {
   });
 
   try {
-    const result = await query(sql);
+    const result = await query(sql, { signal });
+    if (!isCurrent()) return;
     if (result.data.length > 0) {
       state.logsData = [...state.logsData, ...result.data];
       appendLogsRows(result.data);
@@ -442,10 +447,13 @@ async function loadMoreLogs() {
     // Check if there might be more data
     hasMoreLogs = result.data.length === PAGE_SIZE;
   } catch (err) {
+    if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Load more logs error:', err);
   } finally {
-    loadingMore = false;
+    if (isCurrent()) {
+      loadingMore = false;
+    }
   }
 }
 
@@ -504,10 +512,13 @@ export function toggleLogsView(saveStateToURL) {
   saveStateToURL();
 }
 
-export async function loadLogs() {
-  if (state.logsLoading) return;
+export async function loadLogs(requestContext = getRequestContext('dashboard')) {
+  const { requestId, signal, scope } = requestContext;
+  const isCurrent = () => isRequestCurrent(requestId, scope);
+
   state.logsLoading = true;
   state.logsReady = false;
+  loadingMore = false;
 
   // Reset pagination state
   logsOffset = 0;
@@ -532,7 +543,8 @@ export async function loadLogs() {
   });
 
   try {
-    const result = await query(sql);
+    const result = await query(sql, { signal });
+    if (!isCurrent()) return;
     state.logsData = result.data;
     renderLogsTable(result.data);
     state.logsReady = true;
@@ -540,11 +552,14 @@ export async function loadLogs() {
     hasMoreLogs = result.data.length === PAGE_SIZE;
     logsOffset = result.data.length;
   } catch (err) {
+    if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Logs error:', err);
     renderLogsError(err.message);
   } finally {
-    state.logsLoading = false;
-    container.classList.remove('updating');
+    if (isCurrent()) {
+      state.logsLoading = false;
+      container.classList.remove('updating');
+    }
   }
 }

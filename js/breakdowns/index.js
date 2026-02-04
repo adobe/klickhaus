@@ -11,7 +11,8 @@
  */
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
-import { query } from '../api.js';
+import { query, getQueryErrorDetails, isAbortError } from '../api.js';
+import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
 import {
   getTimeFilter, getHostFilter, getTable, getPeriodMs,
 } from '../time.js';
@@ -124,7 +125,9 @@ function fillExpectedLabels(data, b) {
 /**
  * Fetch and append missing filtered values to data
  */
-async function appendMissingFilteredValues(data, b, col, aggs, queryParams) {
+async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requestStatus) {
+  const { isCurrent, signal } = requestStatus || {};
+  const shouldApply = () => (typeof isCurrent === 'function' ? isCurrent() : true);
   const { originalCol, isBytes, mult } = queryParams;
   const filtersForCol = getFiltersForColumn(originalCol);
   if (filtersForCol.length === 0 || b.getExpectedLabels) return data;
@@ -159,7 +162,9 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams) {
   });
 
   try {
-    const missingResult = await query(missingValuesSql);
+    if (!shouldApply()) return data;
+    const missingResult = await query(missingValuesSql, { signal });
+    if (!shouldApply()) return data;
     if (missingResult.data && missingResult.data.length > 0) {
       const markedRows = missingResult.data.map((row) => ({
         ...row,
@@ -168,6 +173,8 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams) {
       return [...data, ...markedRows];
     }
   } catch (err) {
+    if (!shouldApply()) return data;
+    if (isAbortError(err)) return data;
     // Silently ignore errors fetching filtered values
   }
   return data;
@@ -201,7 +208,13 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
   };
 }
 
-export async function loadBreakdown(b, timeFilter, hostFilter) {
+export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
+  const globalContext = getRequestContext('facets');
+  const activeContext = requestContext || globalContext;
+  const combinedSignal = mergeAbortSignals([activeContext.signal, globalContext.signal]);
+  const isCurrent = () => isRequestCurrent(activeContext.requestId, activeContext.scope)
+    && isRequestCurrent(globalContext.requestId, globalContext.scope);
+  const requestStatus = { isCurrent, signal: combinedSignal };
   const card = document.getElementById(b.id);
 
   if (state.hiddenFacets.includes(b.id)) {
@@ -240,7 +253,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
 
   const startTime = performance.now();
   try {
-    const result = await query(sql);
+    const result = await query(sql, { signal: combinedSignal });
+    if (!isCurrent()) return;
     const elapsed = result.networkTime ?? (performance.now() - startTime);
     facetTimings[b.id] = elapsed;
 
@@ -249,7 +263,8 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       : null;
 
     let data = fillExpectedLabels(result.data, b);
-    data = await appendMissingFilteredValues(data, b, params.col, aggs, params);
+    data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
+    if (!isCurrent()) return;
 
     renderBreakdownTable(
       b.id,
@@ -272,18 +287,22 @@ export async function loadBreakdown(b, timeFilter, hostFilter) {
       params.hasActiveFilter ? null : b.filterOp,
     );
   } catch (err) {
+    if (!isCurrent() || isAbortError(err)) return;
+    const details = getQueryErrorDetails(err);
     // eslint-disable-next-line no-console
     console.error(`Breakdown error (${b.id}):`, err);
-    renderBreakdownError(b.id, err.message);
+    renderBreakdownError(b.id, details);
   } finally {
-    card.classList.remove('updating');
+    if (isCurrent()) {
+      card.classList.remove('updating');
+    }
   }
 }
 
-export async function loadAllBreakdowns() {
+export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  await Promise.all(allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter)));
+  await Promise.all(allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)));
 }
 
 // Mark the slowest facet in the toolbar timer tooltip
