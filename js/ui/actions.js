@@ -54,8 +54,8 @@ export function initActionHandlers(handlers) {
       }
       case 'add-filter': {
         event.stopPropagation();
-        // Shift+click skips straight to exclude
-        const exclude = event.shiftKey || target.dataset.exclude === 'true';
+        // Shift+click adds as exclude filter, regular click adds as include filter
+        const exclude = event.shiftKey;
         handlers.addFilter?.(
           target.dataset.col || '',
           target.dataset.value || '',
@@ -79,23 +79,8 @@ export function initActionHandlers(handlers) {
         const col = target.dataset.col || '';
         const value = target.dataset.value || '';
 
-        // Cycle: include → exclude → none
-        const existingFilter = handlers.getFilterForValue?.(col, value);
-        if (existingFilter && !existingFilter.exclude) {
-          // Include → Exclude: remove then add as exclude in a single reload
-          handlers.removeFilterByValue?.(col, value, true);
-          handlers.addFilter?.(
-            col,
-            value,
-            true,
-            target.dataset.filterCol,
-            target.dataset.filterValue,
-            target.dataset.filterOp,
-          );
-        } else {
-          // Exclude → None (or fallback)
-          handlers.removeFilterByValue?.(col, value);
-        }
+        // Simple toggle: remove the filter (whether include or exclude)
+        handlers.removeFilterByValue?.(col, value);
         break;
       }
       case 'clear-facet': {

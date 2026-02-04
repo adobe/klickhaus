@@ -164,7 +164,7 @@ export function buildBreakdownRow({
   const filterTag = '<span class="filter-tag-indicator'
     + `${stateClass}"${tagStyle}>${indicatorSlot}${textHtml}</span>`;
 
-  // Cycle filter state: none -> include -> exclude -> none
+  // Toggle filter state: click to add/remove, Shift+click for exclude
   const dimAction = (isIncluded || isExcluded)
     ? 'remove-filter-value' : 'add-filter';
   const dimExclude = isExcluded ? 'true' : 'false';
