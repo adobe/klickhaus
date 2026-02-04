@@ -12,6 +12,8 @@
 import { state } from './state.js';
 import { query } from './api.js';
 
+const CREDENTIALS_KEY = 'clickhouse_credentials';
+
 // DOM element references (set by main.js)
 let elements = {};
 
@@ -19,20 +21,60 @@ export function setElements(els) {
   elements = els;
 }
 
+function clearStoredCredentials() {
+  localStorage.removeItem(CREDENTIALS_KEY);
+  sessionStorage.removeItem(CREDENTIALS_KEY);
+}
+
+function storeCredentials(credentials, forgetMe) {
+  const storage = forgetMe ? sessionStorage : localStorage;
+  clearStoredCredentials();
+  storage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
+}
+
+function parseStoredCredentials(raw, storage) {
+  try {
+    const creds = JSON.parse(raw);
+    if (creds && creds.user && creds.password) {
+      return creds;
+    }
+  } catch (err) {
+    // Fall through to cleanup invalid stored credentials.
+  }
+  storage.removeItem(CREDENTIALS_KEY);
+  return null;
+}
+
+export function loadStoredCredentials() {
+  const sessionStored = sessionStorage.getItem(CREDENTIALS_KEY);
+  if (sessionStored) {
+    const sessionCredentials = parseStoredCredentials(sessionStored, sessionStorage);
+    if (sessionCredentials) {
+      return sessionCredentials;
+    }
+  }
+  const localStored = localStorage.getItem(CREDENTIALS_KEY);
+  if (localStored) {
+    return parseStoredCredentials(localStored, localStorage);
+  }
+  return null;
+}
+
 export async function handleLogin(e) {
   e.preventDefault();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
+  const forgetMe = document.getElementById('forgetMe')?.checked;
 
   // Clear any stale stored credentials before attempting login
   // User input always takes precedence
-  localStorage.removeItem('clickhouse_credentials');
+  clearStoredCredentials();
   state.credentials = { user: username, password };
 
   try {
     // Test connection
     await query('SELECT 1');
-    localStorage.setItem('clickhouse_credentials', JSON.stringify(state.credentials));
+    storeCredentials(state.credentials, forgetMe);
     elements.loginError.classList.remove('visible');
     // Dispatch event for dashboard to sync UI and load data
     window.dispatchEvent(new CustomEvent('login-success'));
@@ -51,8 +93,8 @@ export function showLogin() {
 export function handleLogout() {
   state.credentials = null;
 
-  // Clear all session-related localStorage entries
-  localStorage.removeItem('clickhouse_credentials');
+  // Clear stored credentials and session-related localStorage entries
+  clearStoredCredentials();
   localStorage.removeItem('hostAutocompleteSuggestions');
 
   // Clear all investigation caches (keys starting with 'anomaly_investigation_')
@@ -70,7 +112,7 @@ export function handleLogout() {
 
 export function handleAuthError() {
   state.credentials = null;
-  localStorage.removeItem('clickhouse_credentials');
+  clearStoredCredentials();
   elements.loginError.textContent = 'Session expired. Please sign in again.';
   elements.loginError.classList.add('visible');
   showLogin();

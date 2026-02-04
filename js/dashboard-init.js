@@ -14,7 +14,7 @@ import {
 } from './state.js';
 import { setForceRefresh } from './api.js';
 import {
-  setElements, handleLogin, handleLogout, showDashboard,
+  setElements, handleLogin, handleLogout, showDashboard, loadStoredCredentials,
 } from './auth.js';
 import {
   loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements,
@@ -294,24 +294,15 @@ export function initDashboard(config = {}) {
       copyFacetTsv: copyFacetAsTsv,
     });
 
-    const stored = localStorage.getItem('clickhouse_credentials');
-    if (stored) {
-      try {
-        const creds = JSON.parse(stored);
-        if (creds && creds.user && creds.password) {
-          state.credentials = creds;
-          preloadAllTemplates();
-          syncUIFromState();
-          reorderFacets();
-          showDashboard();
-          updateTimeRangeHint();
-          loadDashboard();
-        }
-      } catch (err) {
-        localStorage.removeItem('clickhouse_credentials');
-        // eslint-disable-next-line no-console
-        console.log('Invalid credentials in localStorage');
-      }
+    const storedCredentials = loadStoredCredentials();
+    if (storedCredentials) {
+      state.credentials = storedCredentials;
+      preloadAllTemplates();
+      syncUIFromState();
+      reorderFacets();
+      showDashboard();
+      updateTimeRangeHint();
+      loadDashboard();
     }
 
     elements.loginForm.addEventListener('submit', handleLogin);
