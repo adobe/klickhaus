@@ -56,6 +56,8 @@ import {
   getPendingSelection,
   getAnomalyAtX,
   getTimeAtX,
+  getXAtTime,
+  calcStatusBarLeft,
   formatScrubberTime,
   formatDuration,
   zoomToAnomalyByRank,
@@ -566,6 +568,25 @@ export function setupChartNavigation(callback) {
     selectionOverlay.classList.add('visible');
   }
 
+  // Show selection time range in status bar, centered between selection edges
+  function updateSelectionStatusBar(startTime, endTime) {
+    const startFmt = formatScrubberTime(startTime);
+    const endFmt = formatScrubberTime(endTime);
+    const dur = formatDuration(startTime, endTime);
+    const row = `<span class="scrubber-time">${startFmt.timeStr}</span>`
+      + '<span class="scrubber-selection-arrow">\u2192</span>'
+      + `<span class="scrubber-time">${endFmt.timeStr} UTC</span>`
+      + `<span class="scrubber-selection-duration">${dur}</span>`;
+    scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner"><div class="chart-scrubber-status-row">${row}</div></div>`;
+    const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
+    if (inner) {
+      const midX = (getXAtTime(startTime) + getXAtTime(endTime)) / 2;
+      const pad = 24;
+      inner.style.marginLeft = `${calcStatusBarLeft(midX, scrubberStatusBar.offsetWidth, inner.offsetWidth, getChartLayout()?.width || 0, pad) - pad}px`;
+    }
+    scrubberStatusBar.classList.add('visible');
+  }
+
   function hideSelectionOverlay() {
     selectionOverlay.classList.remove('visible');
     selectionOverlay.classList.remove('confirmed');
@@ -642,6 +663,13 @@ export function setupChartNavigation(callback) {
     scrubberLine.style.top = `${padding.top}px`;
     scrubberLine.style.height = `${height - padding.top - padding.bottom}px`;
 
+    // If there's a confirmed selection, show selection times instead
+    const pendingSel = getPendingSelection();
+    if (pendingSel) {
+      updateSelectionStatusBar(pendingSel.startTime, pendingSel.endTime);
+      return;
+    }
+
     // Get time at position
     const time = getTimeAtX(x);
     if (!time) {
@@ -658,10 +686,7 @@ export function setupChartNavigation(callback) {
       row1 += `<span class="scrubber-relative">${relativeStr}</span>`;
     }
 
-    // Row 2: Anomaly and/or release info
     const row2Parts = [];
-
-    // Check for anomaly
     const anomaly = getAnomalyAtX(x);
     if (anomaly) {
       const detectedSteps = getDetectedSteps();
@@ -682,18 +707,12 @@ export function setupChartNavigation(callback) {
       row2Parts.push(`<span class="scrubber-anomaly scrubber-anomaly-${step?.category || 'red'}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`);
     }
 
-    // Check for ship (with padding)
     const ship = getShipNearX(x);
     if (ship) {
       const { release } = ship;
-      const isConfigChange = release.repo === 'aem-certificate-rotation';
-
-      if (isConfigChange) {
-        // Config change - show with config styling
+      if (release.repo === 'aem-certificate-rotation') {
         row2Parts.push(`<span class="scrubber-release scrubber-release-config">Config: ${release.repo}</span>`);
       } else {
-        // Determine release type from semver:
-        // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch
         const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
         let releaseType = 'patch';
         if (versionMatch) {
@@ -708,49 +727,18 @@ export function setupChartNavigation(callback) {
       }
     }
 
-    // Build final content
     let content = `<div class="chart-scrubber-status-row">${row1}</div>`;
     if (row2Parts.length > 0) {
       content += `<div class="chart-scrubber-status-row">${row2Parts.join('')}</div>`;
     }
-
-    // Wrap content in inner container for positioning
     scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner">${content}</div>`;
-
-    // Position the inner element to follow scrubber with edge easing
     const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
     if (inner) {
-      const statusWidth = scrubberStatusBar.offsetWidth;
-      const innerWidth = inner.offsetWidth;
-      const statusPadding = 24; // Match CSS padding
-
-      // Calculate target position (centered on scrubber)
-      const targetLeft = x - innerWidth / 2;
-
-      // Apply easing at edges
-      const minLeft = statusPadding;
-      const maxLeft = statusWidth - innerWidth - statusPadding;
-
-      // Ease function: smoothly transition from edge-clamped to centered
-      const edgeZone = innerWidth / 2 + statusPadding;
-      let finalLeft;
-
-      if (x < edgeZone) {
-        // Left edge: ease from minLeft to centered
-        const t = x / edgeZone;
-        finalLeft = minLeft + (targetLeft - minLeft) * t;
-      } else if (x > width - edgeZone) {
-        // Right edge: ease from centered to maxLeft
-        const t = (width - x) / edgeZone;
-        finalLeft = maxLeft + (targetLeft - maxLeft) * t;
-      } else {
-        // Middle: centered on scrubber
-        finalLeft = targetLeft;
-      }
-
-      // Clamp to valid range
-      finalLeft = Math.max(minLeft, Math.min(maxLeft, finalLeft));
-      inner.style.marginLeft = `${finalLeft - statusPadding}px`;
+      const pad = 24;
+      const sw = scrubberStatusBar.offsetWidth;
+      const iw = inner.offsetWidth;
+      const finalLeft = calcStatusBarLeft(x, sw, iw, width, pad);
+      inner.style.marginLeft = `${finalLeft - pad}px`;
     }
   }
 
@@ -842,9 +830,13 @@ export function setupChartNavigation(callback) {
       );
       updateSelectionOverlay(dragStartX, clampedX);
 
-      // Hide scrubber while dragging
+      // Hide scrubber line but show selection times in status bar
       scrubberLine.classList.remove('visible');
-      scrubberStatusBar.classList.remove('visible');
+      const selStartTime = getTimeAtX(Math.min(dragStartX, clampedX));
+      const selEndTime = getTimeAtX(Math.max(dragStartX, clampedX));
+      if (selStartTime && selEndTime) {
+        updateSelectionStatusBar(selStartTime, selEndTime);
+      }
     }
   });
 
@@ -888,7 +880,8 @@ export function setupChartNavigation(callback) {
     if (startTime && endTime && startTime < endTime) {
       setPendingSelection({ startTime, endTime });
       selectionOverlay.classList.add('confirmed');
-      // Keep overlay visible - don't hide it
+      // Show final selection times in status bar
+      updateSelectionStatusBar(startTime, endTime);
       // Set flag to prevent click handlers from firing
       justCompletedDrag = true;
       requestAnimationFrame(() => {
