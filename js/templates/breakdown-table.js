@@ -126,6 +126,12 @@ function buildRowClass(isSynthetic, isIncluded, isExcluded, isFilteredValue) {
 /**
  * Build filter tag HTML
  */
+/**
+ * Build a safe anchor element using DOM APIs.
+ * @param {string|null} linkUrl
+ * @param {string} formattedDim - HTML string for the link label
+ * @returns {string} HTML string
+ */
 function buildLinkHtml(linkUrl, formattedDim) {
   if (!linkUrl) return formattedDim;
   const anchor = document.createElement('a');
