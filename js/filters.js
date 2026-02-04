@@ -80,48 +80,58 @@ export function getFilterForValue(col, value) {
   return state.filters.find((f) => f.col === col && f.value === value);
 }
 
+/**
+ * Get filter icon character based on state
+ */
+function getFilterIcon(isIncluded, isExcluded) {
+  if (isIncluded) return '\u2713';
+  if (isExcluded) return '\u00D7';
+  return '';
+}
+
+/**
+ * Update filter tag styling
+ */
+function updateFilterTagStyling(tagEl, isIncluded, isExcluded, bgColor) {
+  const el = tagEl;
+  el.classList.toggle('active', !!isIncluded);
+  el.classList.toggle('exclude', !!isExcluded);
+  el.style.background = (isIncluded || isExcluded) ? bgColor : '';
+
+  const icon = el.querySelector('.filter-icon');
+  if (icon) icon.textContent = getFilterIcon(isIncluded, isExcluded);
+}
+
+/**
+ * Update a single row's filter styling
+ */
+function updateSingleRowFilterStyling(row, col, value) {
+  const dimCell = row.querySelector('td.dim');
+  if (dimCell?.dataset.col !== col) return;
+
+  const filter = state.filters.find((f) => f.col === col && f.value === value);
+  const isIncluded = filter && !filter.exclude;
+  const isExcluded = filter && filter.exclude;
+
+  row.classList.toggle('filter-included', !!isIncluded);
+  row.classList.toggle('filter-excluded', !!isExcluded);
+
+  const tag = row.querySelector('.filter-tag-indicator');
+  if (tag) {
+    updateFilterTagStyling(tag, isIncluded, isExcluded, dimCell?.dataset.bgColor || 'var(--text)');
+  }
+
+  if (dimCell) {
+    dimCell.dataset.action = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
+    dimCell.dataset.exclude = isExcluded ? 'true' : 'false';
+  }
+}
+
 // Immediately update row styling when filter changes (before reload).
-// Toggles classes and attributes on the existing DOM structure
-// (no innerHTML rebuild needed since the tag structure is consistent in all states).
 function updateRowFilterStyling(col, value) {
   document.querySelectorAll('.breakdown-card .breakdown-table tr[data-dim]').forEach((row) => {
-    if (row.dataset.dim !== value) return;
-
-    // Only update rows belonging to this facet column
-    const dimCell = row.querySelector('td.dim');
-    if (dimCell?.dataset.col !== col) return;
-
-    const filter = state.filters.find((f) => f.col === col && f.value === value);
-    const isIncluded = filter && !filter.exclude;
-    const isExcluded = filter && filter.exclude;
-
-    // Update row classes
-    row.classList.toggle('filter-included', !!isIncluded);
-    row.classList.toggle('filter-excluded', !!isExcluded);
-
-    // Update tag indicator state
-    const tag = row.querySelector('.filter-tag-indicator');
-    if (!tag) return;
-
-    tag.classList.toggle('active', !!isIncluded);
-    tag.classList.toggle('exclude', !!isExcluded);
-
-    // Update background from stored color
-    const bgColor = dimCell?.dataset.bgColor || 'var(--text)';
-    tag.style.background = (isIncluded || isExcluded) ? bgColor : '';
-
-    // Update icon character
-    const icon = tag.querySelector('.filter-icon');
-    if (icon) {
-      if (isIncluded) icon.textContent = '✓';
-      else if (isExcluded) icon.textContent = '×';
-      else icon.textContent = '';
-    }
-
-    // Update dim cell action for next click cycle
-    if (dimCell) {
-      dimCell.dataset.action = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
-      dimCell.dataset.exclude = isExcluded ? 'true' : 'false';
+    if (row.dataset.dim === value) {
+      updateSingleRowFilterStyling(row, col, value);
     }
   });
 }

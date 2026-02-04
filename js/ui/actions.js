@@ -28,14 +28,73 @@
  */
 
 /**
+ * Handle add-filter action
+ */
+function handleAddFilter(handlers, target, event) {
+  const exclude = event.shiftKey || target.dataset.exclude === 'true';
+  handlers.addFilter?.(
+    target.dataset.col || '',
+    target.dataset.value || '',
+    exclude,
+    target.dataset.filterCol,
+    target.dataset.filterValue,
+    target.dataset.filterOp,
+  );
+}
+
+/**
+ * Handle remove-filter action
+ */
+function handleRemoveFilter(handlers, target) {
+  const index = Number.parseInt(target.dataset.index || '', 10);
+  if (!Number.isNaN(index)) {
+    handlers.removeFilter?.(index);
+  }
+}
+
+/**
+ * Handle remove-filter-value action (cycle: include -> exclude -> none)
+ */
+function handleRemoveFilterValue(handlers, target) {
+  const col = target.dataset.col || '';
+  const value = target.dataset.value || '';
+
+  const existingFilter = handlers.getFilterForValue?.(col, value);
+  if (existingFilter && !existingFilter.exclude) {
+    handlers.removeFilterByValue?.(col, value, true);
+    handlers.addFilter?.(
+      col,
+      value,
+      true,
+      target.dataset.filterCol,
+      target.dataset.filterValue,
+      target.dataset.filterOp,
+    );
+  } else {
+    handlers.removeFilterByValue?.(col, value);
+  }
+}
+
+/**
+ * Handle open-facet-search action
+ */
+function handleOpenFacetSearch(handlers, target, event) {
+  event.preventDefault();
+  handlers.openFacetSearch?.(
+    target.dataset.col || '',
+    target.dataset.facetId || '',
+    target.dataset.filterCol || '',
+    target.dataset.title || '',
+  );
+}
+
+/**
  * Initialize delegated click handlers for UI actions.
  * @param {ActionHandlers} handlers
  */
 export function initActionHandlers(handlers) {
   document.addEventListener('click', (event) => {
-    // Let links inside unfiltered filter tags navigate normally
     if (event.target.closest('.filter-tag-indicator:not(.active):not(.exclude) a')) return;
-    // Block link navigation inside active/excluded filter tags
     if (event.target.closest('.filter-tag-indicator.active a, .filter-tag-indicator.exclude a')) {
       event.preventDefault();
     }
@@ -46,111 +105,33 @@ export function initActionHandlers(handlers) {
     const { action } = target.dataset;
     if (!action) return;
 
-    switch (action) {
-      case 'toggle-pinned-column': {
-        event.stopPropagation();
-        handlers.togglePinnedColumn?.(target.dataset.col || '');
-        break;
-      }
-      case 'add-filter': {
-        event.stopPropagation();
-        // Shift+click skips straight to exclude
-        const exclude = event.shiftKey || target.dataset.exclude === 'true';
-        handlers.addFilter?.(
-          target.dataset.col || '',
-          target.dataset.value || '',
-          exclude,
-          target.dataset.filterCol,
-          target.dataset.filterValue,
-          target.dataset.filterOp,
-        );
-        break;
-      }
-      case 'remove-filter': {
-        event.stopPropagation();
-        const index = Number.parseInt(target.dataset.index || '', 10);
-        if (!Number.isNaN(index)) {
-          handlers.removeFilter?.(index);
-        }
-        break;
-      }
-      case 'remove-filter-value': {
-        event.stopPropagation();
-        const col = target.dataset.col || '';
-        const value = target.dataset.value || '';
+    event.stopPropagation();
 
-        // Cycle: include → exclude → none
-        const existingFilter = handlers.getFilterForValue?.(col, value);
-        if (existingFilter && !existingFilter.exclude) {
-          // Include → Exclude: remove then add as exclude in a single reload
-          handlers.removeFilterByValue?.(col, value, true);
-          handlers.addFilter?.(
-            col,
-            value,
-            true,
-            target.dataset.filterCol,
-            target.dataset.filterValue,
-            target.dataset.filterOp,
-          );
-        } else {
-          // Exclude → None (or fallback)
-          handlers.removeFilterByValue?.(col, value);
-        }
-        break;
-      }
-      case 'clear-facet': {
-        event.stopPropagation();
-        handlers.clearFiltersForColumn?.(target.dataset.col || '');
-        break;
-      }
-      case 'increase-topn': {
-        event.stopPropagation();
-        handlers.increaseTopN?.();
-        break;
-      }
-      case 'toggle-facet-pin': {
-        event.stopPropagation();
-        handlers.toggleFacetPin?.(target.dataset.facet || '');
-        break;
-      }
-      case 'toggle-facet-hide': {
-        event.stopPropagation();
-        handlers.toggleFacetHide?.(target.dataset.facet || '');
-        break;
-      }
-      case 'toggle-facet-mode': {
-        event.stopPropagation();
-        handlers.toggleFacetMode?.(target.dataset.mode || '');
-        break;
-      }
-      case 'close-quick-links': {
-        event.stopPropagation();
-        handlers.closeQuickLinksModal?.();
-        break;
-      }
-      case 'close-dialog': {
-        event.stopPropagation();
-        handlers.closeDialog?.(target);
-        break;
-      }
-      case 'open-facet-search': {
-        event.preventDefault();
-        event.stopPropagation();
-        handlers.openFacetSearch?.(
-          target.dataset.col || '',
-          target.dataset.facetId || '',
-          target.dataset.filterCol || '',
-          target.dataset.title || '',
-        );
-        break;
-      }
-      case 'copy-facet-tsv': {
-        event.stopPropagation();
-        handlers.copyFacetTsv?.(target.dataset.facet || '');
-        break;
-      }
-      default:
-        break;
+    const simpleActions = {
+      'toggle-pinned-column': () => handlers.togglePinnedColumn?.(target.dataset.col || ''),
+      'clear-facet': () => handlers.clearFiltersForColumn?.(target.dataset.col || ''),
+      'increase-topn': () => handlers.increaseTopN?.(),
+      'toggle-facet-pin': () => handlers.toggleFacetPin?.(target.dataset.facet || ''),
+      'toggle-facet-hide': () => handlers.toggleFacetHide?.(target.dataset.facet || ''),
+      'toggle-facet-mode': () => handlers.toggleFacetMode?.(target.dataset.mode || ''),
+      'close-quick-links': () => handlers.closeQuickLinksModal?.(),
+      'close-dialog': () => handlers.closeDialog?.(target),
+      'copy-facet-tsv': () => handlers.copyFacetTsv?.(target.dataset.facet || ''),
+    };
+
+    if (simpleActions[action]) {
+      simpleActions[action]();
+      return;
+    }
+
+    if (action === 'add-filter') {
+      handleAddFilter(handlers, target, event);
+    } else if (action === 'remove-filter') {
+      handleRemoveFilter(handlers, target);
+    } else if (action === 'remove-filter-value') {
+      handleRemoveFilterValue(handlers, target);
+    } else if (action === 'open-facet-search') {
+      handleOpenFacetSearch(handlers, target, event);
     }
   });
 }

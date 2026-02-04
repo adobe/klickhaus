@@ -151,33 +151,60 @@ function getAllFacets() {
   });
 }
 
+/**
+ * Check for exact or prefix match
+ */
+function checkExactOrPrefixMatch(query, target) {
+  if (query === target) {
+    return { score: 1000, positions: [...Array(query.length).keys()] };
+  }
+  if (target.startsWith(query)) {
+    return { score: 500 + query.length * 10, positions: [...Array(query.length).keys()] };
+  }
+  return null;
+}
+
+/**
+ * Check for substring match
+ */
+function checkSubstringMatch(query, target) {
+  const substringIdx = target.indexOf(query);
+  if (substringIdx === -1) return null;
+
+  const positions = [...Array(query.length).keys()].map((i) => i + substringIdx);
+  const atWordStart = substringIdx === 0 || /[\s\-_.]/.test(target[substringIdx - 1]);
+  return { score: 300 + (atWordStart ? 100 : 0) + query.length * 5, positions };
+}
+
+/**
+ * Calculate fuzzy match score from positions
+ */
+function calculateFuzzyScore(matchPositions, query, target) {
+  let score = 0;
+  for (let i = 0; i < matchPositions.length; i += 1) {
+    const pos = matchPositions[i];
+    if (pos === 0) score += 10;
+    else if (target[pos - 1] === ' ' || target[pos - 1] === '-') score += 8;
+    if (i > 0 && matchPositions[i] === matchPositions[i - 1] + 1) score += 5;
+  }
+  score += (query.length / target.length) * 50;
+  score -= target.length * 0.1;
+  return score;
+}
+
 // Fuzzy match: check if all query chars appear in order in target
 function fuzzyMatch(queryStr, targetStr) {
   const query = queryStr.toLowerCase();
   const target = targetStr.toLowerCase();
 
-  // Exact match gets highest score
-  if (query === target) {
-    return { score: 1000, positions: [...Array(query.length).keys()] };
-  }
+  const exactOrPrefix = checkExactOrPrefixMatch(query, target);
+  if (exactOrPrefix) return exactOrPrefix;
 
-  // Prefix match gets high score
-  if (target.startsWith(query)) {
-    return { score: 500 + query.length * 10, positions: [...Array(query.length).keys()] };
-  }
-
-  // Check if target contains query as substring (word match)
-  const substringIdx = target.indexOf(query);
-  if (substringIdx !== -1) {
-    const positions = [...Array(query.length).keys()].map((i) => i + substringIdx);
-    // Higher score if it's at a word boundary
-    const atWordStart = substringIdx === 0 || /[\s\-_.]/.test(target[substringIdx - 1]);
-    return { score: 300 + (atWordStart ? 100 : 0) + query.length * 5, positions };
-  }
+  const substring = checkSubstringMatch(query, target);
+  if (substring) return substring;
 
   let queryIdx = 0;
   const matchPositions = [];
-
   for (let i = 0; i < target.length && queryIdx < query.length; i += 1) {
     if (target[i] === query[queryIdx]) {
       matchPositions.push(i);
@@ -187,25 +214,39 @@ function fuzzyMatch(queryStr, targetStr) {
 
   if (queryIdx !== query.length) return null;
 
-  // Score: prefer matches at word starts and consecutive chars
-  let score = 0;
-  for (let i = 0; i < matchPositions.length; i += 1) {
-    const pos = matchPositions[i];
-    // Bonus for match at start
-    if (pos === 0) score += 10;
-    // Bonus for match after space/hyphen (word start)
-    else if (target[pos - 1] === ' ' || target[pos - 1] === '-') score += 8;
-    // Bonus for consecutive matches
-    if (i > 0 && matchPositions[i] === matchPositions[i - 1] + 1) score += 5;
-  }
+  return { score: calculateFuzzyScore(matchPositions, query, target), positions: matchPositions };
+}
 
-  // Bonus for higher coverage (query length vs target length)
-  score += (query.length / target.length) * 50;
+/**
+ * Parse a single list item into a query object
+ */
+function parseQueryItem(item, sectionTitle) {
+  const link = item.querySelector('a');
+  if (!link) return null;
 
-  // Penalty for longer targets
-  score -= target.length * 0.1;
+  const href = link.getAttribute('href');
+  if (!href || !href.includes('dashboard.html')) return null;
 
-  return { score, positions: matchPositions };
+  const titleEl = link.querySelector('.title');
+  const descEl = link.querySelector('.description');
+
+  let title = titleEl?.textContent || '';
+  const badge = titleEl?.querySelector('.badge');
+  if (badge) title = title.replace(badge.textContent, '').trim();
+
+  if (!title) return null;
+
+  const description = descEl?.textContent || '';
+  return {
+    type: 'query',
+    title,
+    description,
+    section: sectionTitle,
+    href,
+    searchTerms: [
+      title.toLowerCase(), description.toLowerCase(), sectionTitle.toLowerCase(),
+    ].filter(Boolean),
+  };
 }
 
 // Load saved queries from index.html
@@ -219,52 +260,14 @@ async function loadSavedQueries() {
   try {
     const response = await fetch('/index.html');
     const html = await response.text();
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = new DOMParser().parseFromString(html, 'text/html');
 
     const queries = [];
-    const sections = doc.querySelectorAll('.section');
-
-    for (const section of sections) {
+    for (const section of doc.querySelectorAll('.section')) {
       const sectionTitle = section.querySelector('h2')?.textContent || '';
-      const items = section.querySelectorAll('li:not(.legacy-view)');
-
-      for (const item of items) {
-        const link = item.querySelector('a');
-        if (link) {
-          const href = link.getAttribute('href');
-          // Process only dashboard links with valid hrefs
-          if (href && href.includes('dashboard.html')) {
-            const titleEl = link.querySelector('.title');
-            const descEl = link.querySelector('.description');
-
-            // Extract text without badges
-            let title = titleEl?.textContent || '';
-            // Remove badge text from title
-            const badge = titleEl?.querySelector('.badge');
-            if (badge) {
-              title = title.replace(badge.textContent, '').trim();
-            }
-
-            const description = descEl?.textContent || '';
-
-            if (title) {
-              queries.push({
-                type: 'query',
-                title,
-                description,
-                section: sectionTitle,
-                href,
-                searchTerms: [
-                  title.toLowerCase(),
-                  description.toLowerCase(),
-                  sectionTitle.toLowerCase(),
-                ].filter(Boolean),
-              });
-            }
-          }
-        }
+      for (const item of section.querySelectorAll('li:not(.legacy-view)')) {
+        const query = parseQueryItem(item, sectionTitle);
+        if (query) queries.push(query);
       }
     }
 
@@ -280,69 +283,40 @@ async function loadSavedQueries() {
   }
 }
 
-// Filter and score facets and saved queries
-function filterFacets(query, savedQueries = []) {
-  const facets = getAllFacets();
-
-  if (!query.trim()) {
-    // No query: show all visible facets, then hidden ones, then saved queries
-    const visible = facets.filter((f) => !f.isHidden);
-    const hidden = facets.filter((f) => f.isHidden);
-    const facetResults = [...visible, ...hidden].map((f) => ({
-      type: 'facet',
-      facet: f,
-      match: null,
-      matchedValue: null,
-    }));
-
-    // Add saved queries section
-    const queryResults = savedQueries.map((q) => ({
-      type: 'query',
-      query: q,
-      match: null,
-    }));
-
-    return [...facetResults, ...queryResults];
+/**
+ * Find best match from a list of terms
+ */
+function findBestMatch(terms, query) {
+  let bestMatch = null;
+  let bestTerm = null;
+  for (const term of terms) {
+    const match = fuzzyMatch(query, term);
+    if (match && (!bestMatch || match.score > bestMatch.score)) {
+      bestMatch = { ...match, term };
+      bestTerm = term;
+    }
   }
+  return { match: bestMatch, term: bestTerm };
+}
 
+/**
+ * Search facets and return matching results
+ */
+function searchFacets(facets, query) {
   const results = [];
-
-  // Search facets
   for (const facet of facets) {
-    let bestPrimaryMatch = null;
-    let bestValueMatch = null;
-    let bestValueTerm = null;
+    const primary = findBestMatch(facet.primaryTerms, query);
+    const value = findBestMatch(facet.valueTerms, query);
 
-    // Try primary terms (title, aliases)
-    for (const term of facet.primaryTerms) {
-      const match = fuzzyMatch(query, term);
-      if (match && (!bestPrimaryMatch || match.score > bestPrimaryMatch.score)) {
-        bestPrimaryMatch = { ...match, term };
-      }
-    }
-
-    // Try value terms (actual facet values)
-    for (const term of facet.valueTerms) {
-      const match = fuzzyMatch(query, term);
-      if (match && (!bestValueMatch || match.score > bestValueMatch.score)) {
-        bestValueMatch = { ...match, term };
-        bestValueTerm = term;
-      }
-    }
-
-    // Decide which match to use:
-    // - If we have a value match, prefer it (allows direct filtering)
-    // - Otherwise use primary match
-    // - Add bonus to primary matches for ranking between facets
     let bestMatch = null;
     let matchedValue = null;
 
-    if (bestValueMatch) {
-      bestMatch = bestValueMatch;
-      matchedValue = bestValueTerm;
-    } else if (bestPrimaryMatch) {
-      bestPrimaryMatch.score += 20; // Primary-only match bonus for ranking
-      bestMatch = bestPrimaryMatch;
+    if (value.match) {
+      bestMatch = value.match;
+      matchedValue = value.term;
+    } else if (primary.match) {
+      primary.match.score += 20;
+      bestMatch = primary.match;
     }
 
     if (bestMatch) {
@@ -351,36 +325,46 @@ function filterFacets(query, savedQueries = []) {
       });
     }
   }
+  return results;
+}
 
-  // Search saved queries
+/**
+ * Search saved queries and return matching results
+ */
+function searchSavedQueries(savedQueries, query) {
+  const results = [];
   for (const sq of savedQueries) {
-    let bestMatch = null;
-
-    for (const term of sq.searchTerms) {
-      const match = fuzzyMatch(query, term);
-      if (match && (!bestMatch || match.score > bestMatch.score)) {
-        bestMatch = { ...match, term };
-      }
-    }
-
-    if (bestMatch) {
-      // Slight penalty for saved queries so facets appear first for ambiguous queries
-      bestMatch.score -= 5;
-      results.push({ type: 'query', query: sq, match: bestMatch });
+    const { match } = findBestMatch(sq.searchTerms, query);
+    if (match) {
+      match.score -= 5;
+      results.push({ type: 'query', query: sq, match });
     }
   }
+  return results;
+}
 
-  // Sort by score descending, then by type (facets first), then by visibility
+// Filter and score facets and saved queries
+function filterFacets(query, savedQueries = []) {
+  const facets = getAllFacets();
+
+  if (!query.trim()) {
+    const visible = facets.filter((f) => !f.isHidden);
+    const hidden = facets.filter((f) => f.isHidden);
+    const facetResults = [...visible, ...hidden].map((f) => ({
+      type: 'facet', facet: f, match: null, matchedValue: null,
+    }));
+    const queryResults = savedQueries.map((q) => ({ type: 'query', query: q, match: null }));
+    return [...facetResults, ...queryResults];
+  }
+
+  const results = [...searchFacets(facets, query), ...searchSavedQueries(savedQueries, query)];
+
   results.sort((a, b) => {
     if (a.match && b.match) {
       const scoreDiff = b.match.score - a.match.score;
       if (scoreDiff !== 0) return scoreDiff;
     }
-    // Prefer facets over saved queries
-    if (a.type !== b.type) {
-      return a.type === 'facet' ? -1 : 1;
-    }
-    // For facets, prefer visible ones
+    if (a.type !== b.type) return a.type === 'facet' ? -1 : 1;
     if (a.type === 'facet' && a.facet.isHidden !== b.facet.isHidden) {
       return a.facet.isHidden ? 1 : -1;
     }

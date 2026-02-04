@@ -168,10 +168,9 @@ function applyHighlightsFromContributors(contributors) {
 }
 
 /**
- * Apply visual highlights to all facet values
+ * Clear all investigation highlight classes from elements
  */
-function applyHighlights() {
-  // Remove existing highlights and reset titles
+function clearAllHighlightClasses() {
   document.querySelectorAll('.investigation-highlight').forEach((el) => {
     el.classList.remove(
       'investigation-highlight',
@@ -183,60 +182,32 @@ function applyHighlights() {
     const statusColor = el.querySelector('.status-color');
     if (statusColor) statusColor.removeAttribute('title');
   });
+}
 
-  const focusedId = getFocusedAnomalyId();
-
-  // Build a map of facetId -> dim -> { category, shareChange, anomalyId, rank }
-  const highlightMap = new Map();
-
-  // If we have a focused anomaly ID, try to get its results from the persistent map
-  if (focusedId) {
-    const persistedResult = investigationsByAnomalyId.get(focusedId);
-    if (persistedResult) {
-      const category = persistedResult.anomaly?.category || 'red';
-      const { anomalyId } = persistedResult;
-      const rank = persistedResult.anomaly?.rank || 1;
-      for (const [facetId, facetResults] of Object.entries(persistedResult.facets)) {
-        if (!highlightMap.has(facetId)) {
-          highlightMap.set(facetId, new Map());
-        }
-        for (const item of facetResults) {
-          highlightMap.get(facetId).set(item.dim, {
-            category,
-            shareChange: item.shareChange,
-            anomalyId,
-            rank,
-          });
-        }
-      }
-    }
-  } else {
-    // No specific focus - highlight from all current results (use highest share change per dim)
-    for (const result of lastInvestigationResults) {
-      const category = result.anomaly?.category || 'red';
-      const { anomalyId } = result;
-      const rank = result.anomaly?.rank || 1;
-      for (const [facetId, facetResults] of Object.entries(result.facets)) {
-        if (!highlightMap.has(facetId)) {
-          highlightMap.set(facetId, new Map());
-        }
-        for (const item of facetResults) {
-          const existing = highlightMap.get(facetId).get(item.dim);
-          // Keep the one with higher share change
-          if (!existing || item.shareChange > existing.shareChange) {
-            highlightMap.get(facetId).set(item.dim, {
-              category,
-              shareChange: item.shareChange,
-              anomalyId,
-              rank,
-            });
-          }
-        }
+/**
+ * Add facet results to highlight map
+ */
+function addResultToHighlightMap(highlightMap, result, checkExisting) {
+  const category = result.anomaly?.category || 'red';
+  const { anomalyId } = result;
+  const rank = result.anomaly?.rank || 1;
+  for (const [facetId, facetResults] of Object.entries(result.facets)) {
+    if (!highlightMap.has(facetId)) highlightMap.set(facetId, new Map());
+    for (const item of facetResults) {
+      const existing = highlightMap.get(facetId).get(item.dim);
+      if (!checkExisting || !existing || item.shareChange > existing.shareChange) {
+        highlightMap.get(facetId).set(item.dim, {
+          category, shareChange: item.shareChange, anomalyId, rank,
+        });
       }
     }
   }
+}
 
-  // Apply highlights to matching rows
+/**
+ * Apply highlight map to DOM elements
+ */
+function applyHighlightMapToDOM(highlightMap) {
   for (const [facetId, dimInfoMap] of highlightMap) {
     const card = document.getElementById(facetId);
     if (card) {
@@ -248,14 +219,34 @@ function applyHighlights() {
             row.classList.add('investigation-highlight', `investigation-${info.category}`);
             const statusColor = row.querySelector('.status-color');
             if (statusColor) {
-              const title = `+${info.shareChange}pp share of #${info.rank} ${info.anomalyId}`;
-              statusColor.title = title;
+              statusColor.title = `+${info.shareChange}pp share of #${info.rank} ${info.anomalyId}`;
             }
           }
         }
       }
     }
   }
+}
+
+/**
+ * Apply visual highlights to all facet values
+ */
+function applyHighlights() {
+  clearAllHighlightClasses();
+
+  const focusedId = getFocusedAnomalyId();
+  const highlightMap = new Map();
+
+  if (focusedId) {
+    const persistedResult = investigationsByAnomalyId.get(focusedId);
+    if (persistedResult) addResultToHighlightMap(highlightMap, persistedResult, false);
+  } else {
+    for (const result of lastInvestigationResults) {
+      addResultToHighlightMap(highlightMap, result, true);
+    }
+  }
+
+  applyHighlightMapToDOM(highlightMap);
 }
 
 /**
@@ -285,97 +276,106 @@ function updateProgressiveHighlights() {
  * @param {Array} anomalies - Array of detected anomalies from detectSteps()
  * @param {Array} chartData - Time series data points
  */
+/**
+ * Try to use memory cache for investigation results
+ * @returns {Array|null} Cached results if valid and sufficient, null otherwise
+ */
+function tryMemoryCache(cacheKey) {
+  const hasValidCache = cacheKey === currentCacheKey
+    && lastInvestigationResults.length > 0
+    && currentCacheContext;
+  if (!hasValidCache) return null;
+  if (!isCacheEligible(currentCacheContext)) {
+    // eslint-disable-next-line no-console
+    console.log('Memory cache key matches but context changed, checking localStorage');
+    return null;
+  }
+  // eslint-disable-next-line no-console
+  console.log('Memory cache eligible, applying highlights');
+  let highlightCount = 0;
+  if (cachedTopContributors && cachedTopContributors.length > 0) {
+    highlightCount = applyHighlightsFromContributors(cachedTopContributors);
+    // eslint-disable-next-line no-console
+    console.log(`Applied ${highlightCount}/${HIGHLIGHT_TOP_N} highlights from memory cache`);
+  } else {
+    applyHighlights();
+    highlightCount = HIGHLIGHT_TOP_N;
+  }
+  if (highlightCount >= HIGHLIGHT_TOP_N) {
+    // eslint-disable-next-line no-console
+    console.log('Memory cache sufficient');
+    return lastInvestigationResults;
+  }
+  // eslint-disable-next-line no-console
+  console.log(`Only ${highlightCount}/${HIGHLIGHT_TOP_N} highlighted from memory cache, fetching fresh`);
+  currentCacheKey = null;
+  currentCacheContext = null;
+  return null;
+}
+
+/**
+ * Try to use localStorage cache for investigation results
+ * @returns {Array|null} Cached results if valid and sufficient, null otherwise
+ */
+function tryLocalStorageCache(cacheKey) {
+  const cached = loadCachedInvestigation(cacheKey);
+  if (!cached || !cached.results) return null;
+
+  currentCacheKey = cacheKey;
+  currentCacheContext = cached.context || getQueryContext();
+  lastInvestigationResults = cached.results;
+
+  // Restore anomaly ID mappings
+  for (const result of lastInvestigationResults) {
+    if (result.anomalyId) {
+      investigationsByAnomalyId.set(result.anomalyId, result);
+      if (result.anomaly?.rank) storeAnomalyIdOnStep(result.anomaly.rank, result.anomalyId);
+    }
+  }
+
+  let highlightedFromCache = 0;
+  if (cached.topContributors && cached.topContributors.length > 0) {
+    cachedTopContributors = cached.topContributors;
+    highlightedFromCache = applyHighlightsFromContributors(cachedTopContributors);
+    // eslint-disable-next-line no-console
+    console.log(`Applied ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlights from localStorage cache`);
+  } else {
+    cachedTopContributors = null;
+    applyHighlights();
+    highlightedFromCache = HIGHLIGHT_TOP_N;
+    // eslint-disable-next-line no-console
+    console.log('Applied highlights from old cache format');
+  }
+
+  if (highlightedFromCache >= HIGHLIGHT_TOP_N) {
+    // eslint-disable-next-line no-console
+    console.log('LocalStorage cache sufficient');
+    return lastInvestigationResults;
+  }
+  // eslint-disable-next-line no-console
+  console.log(`Only ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlighted, fetching fresh candidates`);
+  currentCacheKey = null;
+  currentCacheContext = null;
+  return null;
+}
+
 export async function investigateAnomalies(anomalies, chartData) {
   if (!anomalies || anomalies.length === 0) {
     clearHighlights();
     return [];
   }
 
-  // Generate cache key for current context
   const cacheKey = generateCacheKey();
   // eslint-disable-next-line no-console
   console.log(`Investigation cache key: ${cacheKey} (${window.location.pathname}${window.location.search})`);
 
-  // Check if we have cached results for this context (memory cache)
-  // Must also verify context eligibility (drill-in allowed, drill-out not)
-  if (cacheKey === currentCacheKey && lastInvestigationResults.length > 0 && currentCacheContext) {
-    if (isCacheEligible(currentCacheContext)) {
-      // eslint-disable-next-line no-console
-      console.log('Memory cache eligible, applying highlights');
-      // Use cached contributors if available, otherwise fall back to applyHighlights
-      let highlightCount = 0;
-      if (cachedTopContributors && cachedTopContributors.length > 0) {
-        highlightCount = applyHighlightsFromContributors(cachedTopContributors);
-        // eslint-disable-next-line no-console
-        console.log(`Applied ${highlightCount}/${HIGHLIGHT_TOP_N} highlights from memory cache`);
-      } else {
-        applyHighlights();
-        highlightCount = HIGHLIGHT_TOP_N; // Assume enough for old format
-      }
-      // If enough highlights, return cached results
-      if (highlightCount >= HIGHLIGHT_TOP_N) {
-        // eslint-disable-next-line no-console
-        console.log('Memory cache sufficient');
-        return lastInvestigationResults;
-      }
-      // Not enough highlights visible after drill-down, need fresh investigation
-      // eslint-disable-next-line no-console
-      console.log(`Only ${highlightCount}/${HIGHLIGHT_TOP_N} highlighted from memory cache, fetching fresh candidates`);
-      currentCacheKey = null;
-      currentCacheContext = null;
-      // Fall through to fresh investigation
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('Memory cache key matches but context changed, checking localStorage');
-    }
-  }
+  // Try memory cache first
+  const memCached = tryMemoryCache(cacheKey);
+  if (memCached) return memCached;
 
-  // Check localStorage cache - apply immediately if available
-  const cached = loadCachedInvestigation(cacheKey);
-  if (cached && cached.results) {
-    currentCacheKey = cacheKey;
-    currentCacheContext = cached.context || getQueryContext();
-    lastInvestigationResults = cached.results;
-    // Restore the anomaly ID mappings
-    for (const result of lastInvestigationResults) {
-      if (result.anomalyId) {
-        investigationsByAnomalyId.set(result.anomalyId, result);
-        if (result.anomaly?.rank) {
-          storeAnomalyIdOnStep(result.anomaly.rank, result.anomalyId);
-        }
-      }
-    }
-    // Store top contributors for re-applying as facets load
-    // (keep all cached, function limits to HIGHLIGHT_TOP_N)
-    let highlightedFromCache = 0;
-    if (cached.topContributors && cached.topContributors.length > 0) {
-      cachedTopContributors = cached.topContributors;
-      // Apply highlights immediately (some facets may already be loaded)
-      highlightedFromCache = applyHighlightsFromContributors(cachedTopContributors);
-      // eslint-disable-next-line no-console
-      console.log(`Applied ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlights from cache`);
-    } else {
-      cachedTopContributors = null;
-      // Fallback for old cache format
-      applyHighlights();
-      highlightedFromCache = HIGHLIGHT_TOP_N; // Assume enough for old format
-      // eslint-disable-next-line no-console
-      console.log('Applied highlights from old cache format');
-    }
-
-    // If we couldn't highlight enough values (e.g., after drill-down filtered them out),
-    // fall through to run a fresh investigation which will create a new cache entry
-    if (highlightedFromCache >= HIGHLIGHT_TOP_N) {
-      // eslint-disable-next-line no-console
-      console.log('Cache sufficient, skipping fresh investigation');
-      return lastInvestigationResults;
-    }
-    // eslint-disable-next-line no-console
-    console.log(`Only ${highlightedFromCache}/${HIGHLIGHT_TOP_N} highlighted, fetching fresh candidates`);
-    // Clear stale cache data before fresh investigation
-    currentCacheKey = null;
-    currentCacheContext = null;
-  }
+  // Try localStorage cache
+  const storageCached = tryLocalStorageCache(cacheKey);
+  if (storageCached) return storageCached;
 
   // Get base context for stable IDs
   const baseTimeFilter = getTimeFilter();

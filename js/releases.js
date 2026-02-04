@@ -32,6 +32,83 @@ export async function getReleasesInRange(startTime, endTime) {
   }
 }
 
+// Draw a simple ship/boat shape
+function drawShip(ctx, x, y, color, size = 8) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  ctx.beginPath();
+  ctx.moveTo(-size, 0);
+  ctx.quadraticCurveTo(-size * 0.8, size * 0.6, 0, size * 0.6);
+  ctx.quadraticCurveTo(size * 0.8, size * 0.6, size, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.lineTo(size * 0.8, 0);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.7;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.lineTo(0, size * 0.3);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 1;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Draw a wrench icon for config changes
+function drawWrench(ctx, x, y, color, size = 8) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-Math.PI / 4);
+
+  const headRadius = size * 0.55;
+  const handleWidth = size * 0.35;
+  const handleLength = size * 1.2;
+  const hexRadius = size * 0.38;
+
+  ctx.beginPath();
+  ctx.rect(-handleWidth / 2, -handleLength + headRadius, handleWidth, handleLength);
+  ctx.arc(0, -handleLength + headRadius, headRadius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  const hexCenterY = -handleLength + headRadius - headRadius * 0.5;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6;
+    const hx = Math.cos(angle) * hexRadius;
+    const hy = hexCenterY + Math.sin(angle) * hexRadius;
+    if (i === 0) ctx.moveTo(hx, hy);
+    else ctx.lineTo(hx, hy);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// Get ship color based on semver version
+function getShipColor(release, cssVar) {
+  const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
+  if (!versionMatch) return cssVar('--status-ok') || '#12b76a';
+
+  const [, , minor, patch] = versionMatch;
+  if (minor === '0' && patch === '0') return cssVar('--status-server-error') || '#f04438';
+  if (patch === '0') return cssVar('--status-client-error') || '#f79009';
+  return cssVar('--status-ok') || '#12b76a';
+}
+
 // Render ship symbols on the chart canvas
 export function renderReleaseShips(ctx, releases, data, chartDimensions, timeRange = null) {
   if (!releases || releases.length === 0) return [];
@@ -39,137 +116,36 @@ export function renderReleaseShips(ctx, releases, data, chartDimensions, timeRan
   const { padding, chartWidth } = chartDimensions;
   let startTime;
   let endTime;
-  let timeRangeMs;
 
   if (timeRange) {
     startTime = timeRange.start;
     endTime = timeRange.end;
-    timeRangeMs = endTime - startTime;
   } else if (data && data.length >= 2) {
     startTime = parseUTC(data[0].t).getTime();
     endTime = parseUTC(data[data.length - 1].t).getTime();
-    timeRangeMs = endTime - startTime;
   } else {
     return [];
   }
 
-  // Get CSS variables for theming
+  const timeRangeMs = endTime - startTime;
   const styles = getComputedStyle(document.documentElement);
   const cssVar = (name) => styles.getPropertyValue(name).trim();
 
-  // Track ship positions for tooltip hit-testing
   const shipPositions = [];
-
-  // Draw a simple ship/boat shape
-  function drawShip(x, y, color, size = 8) {
-    ctx.save();
-    ctx.translate(x, y);
-
-    // Hull (boat bottom) - curved bottom
-    ctx.beginPath();
-    ctx.moveTo(-size, 0);
-    ctx.quadraticCurveTo(-size * 0.8, size * 0.6, 0, size * 0.6);
-    ctx.quadraticCurveTo(size * 0.8, size * 0.6, size, 0);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    // Sail (triangle)
-    ctx.beginPath();
-    ctx.moveTo(0, -size);
-    ctx.lineTo(size * 0.8, 0);
-    ctx.lineTo(0, 0);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.7;
-    ctx.fill();
-
-    // Mast (vertical line)
-    ctx.beginPath();
-    ctx.moveTo(0, -size);
-    ctx.lineTo(0, size * 0.3);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 1;
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // Draw a wrench icon for config changes
-  function drawWrench(x, y, color, size = 8) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(-Math.PI / 4); // Rotate -45 degrees
-
-    const s = size;
-    const headRadius = s * 0.55;
-    const handleWidth = s * 0.35;
-    const handleLength = s * 1.2;
-    const hexRadius = s * 0.38;
-
-    // Draw handle (rectangle) and head (circle)
-    ctx.beginPath();
-    ctx.rect(-handleWidth / 2, -handleLength + headRadius, handleWidth, handleLength);
-    ctx.arc(0, -handleLength + headRadius, headRadius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    // Cut out hexagon for nut opening (on diagonal, towards top edge of head)
-    const hexCenterX = 0;
-    const hexCenterY = -handleLength + headRadius - headRadius * 0.5;
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    for (let i = 0; i < 6; i += 1) {
-      const angle = (Math.PI / 3) * i - Math.PI / 6;
-      const hx = hexCenterX + Math.cos(angle) * hexRadius;
-      const hy = hexCenterY + Math.sin(angle) * hexRadius;
-      if (i === 0) ctx.moveTo(hx, hy);
-      else ctx.lineTo(hx, hy);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
-  }
 
   for (const release of releases) {
     const publishedTime = parseUTC(release.published).getTime();
-    const xRatio = (publishedTime - startTime) / timeRangeMs;
-    const x = padding.left + (chartWidth * xRatio);
-
-    // Draw at the very top of the chart
+    const x = padding.left + (chartWidth * (publishedTime - startTime)) / timeRangeMs;
     const y = 10;
 
-    // Check if this is a config change (certificate rotation) vs code release
-    const isConfigChange = release.repo === 'aem-certificate-rotation';
-
-    if (isConfigChange) {
-      // Config changes get a wrench icon in a neutral color
-      const configColor = cssVar('--text-secondary') || '#667085';
-      drawWrench(x, y, configColor);
+    if (release.repo === 'aem-certificate-rotation') {
+      drawWrench(ctx, x, y, cssVar('--text-secondary') || '#667085');
     } else {
-      // Determine release type from semver:
-      // x.0.0 = breaking (red), x.y.0 = feature (yellow), else patch (green)
-      const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
-      let shipColor = cssVar('--status-ok') || '#12b76a'; // Default: patch (green)
-      if (versionMatch) {
-        const [, , minor, patch] = versionMatch;
-        if (minor === '0' && patch === '0') {
-          shipColor = cssVar('--status-server-error') || '#f04438'; // Breaking (red)
-        } else if (patch === '0') {
-          shipColor = cssVar('--status-client-error') || '#f79009'; // Feature (yellow)
-        }
-      }
-      drawShip(x, y, shipColor);
+      drawShip(ctx, x, y, getShipColor(release, cssVar));
     }
 
-    // Store position for tooltip hit-testing
     shipPositions.push({
-      x,
-      y,
-      release,
-      radius: 12, // Hit area radius
+      x, y, release, radius: 12,
     });
   }
 
