@@ -141,9 +141,18 @@ export function renderBreakdownTable(
   const isBytes = mode === 'bytes';
   const valueFormatter = isBytes ? formatBytes : formatNumber;
 
+  const headerParts = buildHeaderElements(
+    id,
+    elapsed,
+    modeToggle,
+    isBytes,
+    summaryRatio,
+    summaryLabel,
+    summaryColor,
+  );
   const {
     speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml,
-  } = buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, summaryLabel, summaryColor);
+  } = headerParts;
 
   if (data.length === 0) {
     let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;

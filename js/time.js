@@ -45,6 +45,28 @@ function formatSqlDateTime(date) {
   return date.toISOString().replace('T', ' ').slice(0, 19);
 }
 
+// Get period duration in milliseconds (moved up to avoid use-before-define)
+function getPeriodMs() {
+  if (timeState.customTimeRange) {
+    return timeState.customTimeRange.end - timeState.customTimeRange.start;
+  }
+  return TIME_RANGES[state.timeRange]?.periodMs;
+}
+
+// Get time bucket step (moved up to avoid use-before-define)
+function getTimeBucketStep() {
+  if (timeState.customTimeRange) {
+    const durationMs = timeState.customTimeRange.end - timeState.customTimeRange.start;
+    const durationMinutes = durationMs / 60000;
+    if (durationMinutes <= 15) return 'INTERVAL 5 SECOND';
+    if (durationMinutes <= 60) return 'INTERVAL 10 SECOND';
+    if (durationMinutes <= 720) return 'INTERVAL 1 MINUTE';
+    if (durationMinutes <= 1440) return 'INTERVAL 5 MINUTE';
+    return 'INTERVAL 10 MINUTE';
+  }
+  return TIME_RANGES[state.timeRange]?.step;
+}
+
 function getSelectedRange() {
   if (timeState.customTimeRange) {
     return {
@@ -169,20 +191,8 @@ export function getTimeBucket() {
   return TIME_RANGES[state.timeRange]?.bucket;
 }
 
-export function getTimeBucketStep() {
-  if (timeState.customTimeRange) {
-    const durationMs = timeState.customTimeRange.end - timeState.customTimeRange.start;
-    const durationMinutes = durationMs / 60000;
-
-    if (durationMinutes <= 15) return 'INTERVAL 5 SECOND';
-    if (durationMinutes <= 60) return 'INTERVAL 10 SECOND';
-    if (durationMinutes <= 720) return 'INTERVAL 1 MINUTE';
-    if (durationMinutes <= 1440) return 'INTERVAL 5 MINUTE';
-    return 'INTERVAL 10 MINUTE';
-  }
-
-  return TIME_RANGES[state.timeRange]?.step;
-}
+// Re-export getTimeBucketStep for external use
+export { getTimeBucketStep };
 
 export function getTimeFilter() {
   const { start, end } = getTimeFilterBounds();
@@ -215,14 +225,8 @@ export function getTimeRangeEnd() {
   return `toDateTime('${formatSqlDateTime(end)}')`;
 }
 
-// Get period duration in milliseconds
-export function getPeriodMs() {
-  if (timeState.customTimeRange) {
-    return timeState.customTimeRange.end - timeState.customTimeRange.start;
-  }
-
-  return TIME_RANGES[state.timeRange]?.periodMs;
-}
+// Re-export getPeriodMs for external use
+export { getPeriodMs };
 
 // Zoom out to next larger predefined period, centered on current midpoint
 export function zoomOut() {

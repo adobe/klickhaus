@@ -309,6 +309,7 @@ export function initDashboard(config = {}) {
         }
       } catch (err) {
         localStorage.removeItem('clickhouse_credentials');
+        // eslint-disable-next-line no-console
         console.log('Invalid credentials in localStorage');
       }
     }

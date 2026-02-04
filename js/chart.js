@@ -104,7 +104,7 @@ function initChartCanvas() {
  */
 function drawYAxis(ctx, chartDimensions, cssVar, minValue, maxValue) {
   const {
-    width, height, padding, chartWidth, chartHeight, labelInset,
+    width, height, padding, chartHeight, labelInset,
   } = chartDimensions;
   ctx.fillStyle = cssVar('--text-secondary');
   ctx.font = '11px -apple-system, sans-serif';
@@ -163,9 +163,7 @@ function drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intended
  * Draw anomaly highlight for a detected step
  */
 function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stacks) {
-  const {
-    width, height, padding, chartWidth,
-  } = chartDimensions;
+  const { height, padding, chartWidth } = chartDimensions;
   const { stackedServer, stackedClient, stackedOk } = stacks;
 
   const startX = getX(step.startIndex);
@@ -636,7 +634,7 @@ export function setupChartNavigation(callback) {
     const chartLayout = getChartLayout();
     if (!chartLayout) return;
 
-    const { padding, width, height } = chartLayout;
+    const { padding, height } = chartLayout;
 
     // Position the scrubber line
     scrubberLine.style.left = `${x}px`;

@@ -178,7 +178,10 @@ export function buildBreakdownRow({
 
   const barWidth = (isSynthetic && cnt > maxCount) ? 100 : (cnt / maxCount) * 100;
   const overflowClass = isSynthetic ? ' bar-overflow' : '';
-  const { pct5xx, pct4xx, pctOk } = calculateBarPercentages(cnt, parseInt(row.cnt_ok, 10) || 0, parseInt(row.cnt_4xx, 10) || 0, parseInt(row.cnt_5xx, 10) || 0);
+  const cntOk = parseInt(row.cnt_ok, 10) || 0;
+  const cnt4xx = parseInt(row.cnt_4xx, 10) || 0;
+  const cnt5xx = parseInt(row.cnt_5xx, 10) || 0;
+  const { pct5xx, pct4xx, pctOk } = calculateBarPercentages(cnt, cntOk, cnt4xx, cnt5xx);
 
   const { isIncluded, isExcluded } = getFilterState(columnFilters, row.dim);
   const rowClass = buildRowClass(isSynthetic, isIncluded, isExcluded, row.isFilteredValue === true);
@@ -188,7 +191,13 @@ export function buildBreakdownRow({
   });
 
   const filterAttrs = buildFilterAttrs(col, row.dim, filterCol, filterValueFn, filterOp);
-  const { filterTag, bgColor } = buildFilterTag(colorIndicator, formattedDim, linkUrl, isIncluded, isExcluded);
+  const { filterTag, bgColor } = buildFilterTag(
+    colorIndicator,
+    formattedDim,
+    linkUrl,
+    isIncluded,
+    isExcluded,
+  );
 
   const dimAction = (isIncluded || isExcluded) ? 'remove-filter-value' : 'add-filter';
   const dimDataAttr = (row.dim || '').replace(/"/g, '&quot;');

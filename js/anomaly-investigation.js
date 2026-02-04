@@ -210,16 +210,19 @@ function addResultToHighlightMap(highlightMap, result, checkExisting) {
 function applyHighlightMapToDOM(highlightMap) {
   for (const [facetId, dimInfoMap] of highlightMap) {
     const card = document.getElementById(facetId);
-    if (!card) continue;
-    const rows = card.querySelectorAll('.breakdown-table tr');
-    if (rows.length === 0) continue;
-    for (const [expectedDim, info] of dimInfoMap) {
-      const row = findRowByDim(rows, expectedDim);
-      if (!row) continue;
-      row.classList.add('investigation-highlight', `investigation-${info.category}`);
-      const statusColor = row.querySelector('.status-color');
-      if (statusColor) {
-        statusColor.title = `+${info.shareChange}pp share of #${info.rank} ${info.anomalyId}`;
+    if (card) {
+      const rows = card.querySelectorAll('.breakdown-table tr');
+      if (rows.length > 0) {
+        for (const [expectedDim, info] of dimInfoMap) {
+          const row = findRowByDim(rows, expectedDim);
+          if (row) {
+            row.classList.add('investigation-highlight', `investigation-${info.category}`);
+            const statusColor = row.querySelector('.status-color');
+            if (statusColor) {
+              statusColor.title = `+${info.shareChange}pp share of #${info.rank} ${info.anomalyId}`;
+            }
+          }
+        }
       }
     }
   }
@@ -278,9 +281,10 @@ function updateProgressiveHighlights() {
  * @returns {Array|null} Cached results if valid and sufficient, null otherwise
  */
 function tryMemoryCache(cacheKey) {
-  if (cacheKey !== currentCacheKey || lastInvestigationResults.length === 0 || !currentCacheContext) {
-    return null;
-  }
+  const hasValidCache = cacheKey === currentCacheKey
+    && lastInvestigationResults.length > 0
+    && currentCacheContext;
+  if (!hasValidCache) return null;
   if (!isCacheEligible(currentCacheContext)) {
     // eslint-disable-next-line no-console
     console.log('Memory cache key matches but context changed, checking localStorage');
