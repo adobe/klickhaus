@@ -147,6 +147,28 @@
   font-size: 10px;
 }
 
+.scrubber-selection-arrow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.scrubber-selection-duration {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.1);
+  color: rgba(59, 130, 246, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  .scrubber-selection-duration {
+    background: rgba(96, 165, 250, 0.15);
+    color: rgba(96, 165, 250, 0.9);
+  }
+}
+
 .scrubber-anomaly {
   font-weight: 500;
   padding: 2px 8px;

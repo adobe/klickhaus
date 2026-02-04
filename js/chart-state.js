@@ -300,6 +300,48 @@ export function getTimeAtX(x) {
 }
 
 /**
+ * Get x position on chart for a given time (inverse of getTimeAtX)
+ * @param {Date|number} time - Time as Date or milliseconds
+ * @returns {number} X coordinate
+ */
+export function getXAtTime(time) {
+  if (!chartLayout) return 0;
+  const {
+    padding, chartWidth, intendedStartTime, intendedEndTime,
+  } = chartLayout;
+  const timeMs = time instanceof Date ? time.getTime() : time;
+  const ratio = (timeMs - intendedStartTime) / (intendedEndTime - intendedStartTime);
+  return padding.left + ratio * chartWidth;
+}
+
+/**
+ * Calculate status bar inner element left position with edge easing.
+ * @param {number} x - Target center X coordinate
+ * @param {number} statusWidth - Status bar width
+ * @param {number} innerWidth - Inner content width
+ * @param {number} chartWidth - Full chart width
+ * @param {number} pad - CSS padding (default 24)
+ * @returns {number} Left margin value
+ */
+export function calcStatusBarLeft(x, statusWidth, innerWidth, chartWidth, pad = 24) {
+  const targetLeft = x - innerWidth / 2;
+  const minLeft = pad;
+  const maxLeft = statusWidth - innerWidth - pad;
+  const edgeZone = innerWidth / 2 + pad;
+  let finalLeft;
+  if (x < edgeZone) {
+    const t = x / edgeZone;
+    finalLeft = minLeft + (targetLeft - minLeft) * t;
+  } else if (x > chartWidth - edgeZone) {
+    const t = (chartWidth - x) / edgeZone;
+    finalLeft = maxLeft + (targetLeft - maxLeft) * t;
+  } else {
+    finalLeft = targetLeft;
+  }
+  return Math.max(minLeft, Math.min(maxLeft, finalLeft));
+}
+
+/**
  * Format time for scrubber display
  * @param {Date} time - Time to format
  * @returns {Object} Formatted time { timeStr, relativeStr }
