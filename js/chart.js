@@ -57,7 +57,6 @@ import {
   getAnomalyAtX,
   getTimeAtX,
   getXAtTime,
-  calcStatusBarLeft,
   formatScrubberTime,
   formatDuration,
   zoomToAnomalyByRank,
@@ -86,118 +85,27 @@ let isDragging = false;
 let dragStartX = null;
 let justCompletedDrag = false;
 
-export function renderChart(data) {
-  // Store data for zoom functionality and reset anomaly/ship bounds
-  setLastChartData(data);
-  resetAnomalyBounds();
-  setShipPositions(null);
-  hideReleaseTooltip();
+/**
+ * Initialize canvas for chart rendering
+ */
+function initChartCanvas() {
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
   canvas.height = rect.height * dpr;
   ctx.scale(dpr, dpr);
+  return { canvas, ctx, rect };
+}
 
-  const { width } = rect;
-  const { height } = rect;
-  const padding = {
-    top: 20, right: 0, bottom: 40, left: 0,
-  };
-  const labelInset = 24; // Match main element padding for alignment with breakdowns
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  const timeRangeBounds = getTimeRangeBounds();
-
-  // Clear
-  ctx.clearRect(0, 0, width, height);
-
-  // Get CSS variables for theming
-  const styles = getComputedStyle(document.documentElement);
-  const cssVar = (name) => styles.getPropertyValue(name).trim();
-
-  if (data.length === 0) {
-    const intendedStartTime = timeRangeBounds.start.getTime();
-    const intendedEndTime = timeRangeBounds.end.getTime();
-    setChartLayout({
-      width,
-      height,
-      padding,
-      chartWidth,
-      chartHeight,
-      intendedStartTime,
-      intendedEndTime,
-    });
-    ctx.fillStyle = cssVar('--text-secondary');
-    ctx.textAlign = 'center';
-    ctx.fillText('No data', width / 2, height / 2);
-    return;
-  }
-
-  let intendedStartDate = timeRangeBounds.start;
-  let intendedEndDate = timeRangeBounds.end;
-  let intendedStartTime = intendedStartDate.getTime();
-  let intendedEndTime = intendedEndDate.getTime();
-  let intendedTimeRange = intendedEndTime - intendedStartTime;
-
-  if (!Number.isFinite(intendedTimeRange) || intendedTimeRange <= 0) {
-    intendedStartDate = parseUTC(data[0].t);
-    intendedEndDate = parseUTC(data[data.length - 1].t);
-    intendedStartTime = intendedStartDate.getTime();
-    intendedEndTime = intendedEndDate.getTime();
-    intendedTimeRange = Math.max(1, intendedEndTime - intendedStartTime);
-  }
-
-  // Store layout for scrubber (including intended time range)
-  setChartLayout({
-    width,
-    height,
-    padding,
-    chartWidth,
-    chartHeight,
-    intendedStartTime,
-    intendedEndTime,
-  });
-
-  // Parse data into stacked values
-  const series = {
-    ok: data.map((d) => parseInt(d.cnt_ok, 10) || 0),
-    client: data.map((d) => parseInt(d.cnt_4xx, 10) || 0),
-    server: data.map((d) => parseInt(d.cnt_5xx, 10) || 0),
-  };
-
-  // Calculate stacked totals for max value
-  const totals = data.map((_, i) => series.ok[i] + series.client[i] + series.server[i]);
-  const dataMax = Math.max(...totals);
-  const minValue = 0;
-
-  // Round up to a multiple of 4 so all 4 grid lines land on whole numbers
-  const maxValue = Math.max(4, Math.ceil(Math.ceil(dataMax) / 4) * 4);
-
-  // Colors from CSS variables
-  const okColor = cssVar('--status-ok');
-  const clientColor = cssVar('--status-client-error');
-  const serverColor = cssVar('--status-server-error');
-
-  const colors = {
-    ok: { line: okColor, fill: hexToRgba(okColor, 0.3) },
-    client: { line: clientColor, fill: hexToRgba(clientColor, 0.3) },
-    server: { line: serverColor, fill: hexToRgba(serverColor, 0.3) },
-  };
-
-  // Draw axes
-  ctx.strokeStyle = cssVar('--axis-line');
-  ctx.lineWidth = 1;
-
-  // X axis
-  ctx.beginPath();
-  ctx.moveTo(padding.left, height - padding.bottom);
-  ctx.lineTo(width - padding.right, height - padding.bottom);
-  ctx.stroke();
-
-  // Y axis labels (inside chart, above grid lines, skip zero)
+/**
+ * Draw Y axis with grid lines and labels
+ */
+function drawYAxis(ctx, chartDimensions, cssVar, minValue, maxValue) {
+  const {
+    width, height, padding, chartWidth, chartHeight, labelInset,
+  } = chartDimensions;
   ctx.fillStyle = cssVar('--text-secondary');
   ctx.font = '11px -apple-system, sans-serif';
   ctx.textAlign = 'left';
@@ -206,262 +114,258 @@ export function renderChart(data) {
     const val = minValue + (maxValue - minValue) * (i / 4);
     const y = height - padding.bottom - ((chartHeight * i) / 4);
 
-    // Grid line
     ctx.strokeStyle = cssVar('--grid-line');
     ctx.beginPath();
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
 
-    // Label inside chart, above grid line (val is already a whole number)
     ctx.fillStyle = cssVar('--text-secondary');
     ctx.fillText(formatNumber(val), padding.left + labelInset, y - 4);
   }
+}
 
-  // X axis labels - fewer on mobile (first, middle, last)
+/**
+ * Draw X axis labels
+ */
+function drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intendedTimeRange, cssVar) {
+  const {
+    width, height, padding, chartWidth, labelInset,
+  } = chartDimensions;
   ctx.fillStyle = cssVar('--text-secondary');
   const isMobile = width < 500;
   const tickIndices = isMobile
     ? [0, Math.floor((data.length - 1) / 2), data.length - 1]
     : Array.from({ length: 6 }, (_, idx) => Math.round((idx * (data.length - 1)) / 5));
 
-  for (const i of tickIndices) {
-    if (i < data.length) {
-      const time = parseUTC(data[i].t);
-      const elapsed = time.getTime() - intendedStartTime;
-      const x = padding.left + (elapsed / intendedTimeRange) * chartWidth;
-      let label = time.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC',
-      });
-      // Align first label left, last label right, others center
-      if (i === 0) {
-        ctx.textAlign = 'left';
-        ctx.fillText(label, padding.left + labelInset, height - padding.bottom + 20);
-      } else if (i === data.length - 1) {
-        ctx.textAlign = 'right';
-        label += ' (UTC)';
-        ctx.fillText(label, width - padding.right - labelInset, height - padding.bottom + 20);
-      } else {
-        ctx.textAlign = 'center';
-        ctx.fillText(label, x, height - padding.bottom + 20);
-      }
+  const validIndices = tickIndices.filter((i) => i < data.length);
+  for (const i of validIndices) {
+    const time = parseUTC(data[i].t);
+    const elapsed = time.getTime() - intendedStartTime;
+    const x = padding.left + (elapsed / intendedTimeRange) * chartWidth;
+    const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const yPos = height - padding.bottom + 20;
+
+    if (i === 0) {
+      ctx.textAlign = 'left';
+      ctx.fillText(label, padding.left + labelInset, yPos);
+    } else if (i === data.length - 1) {
+      ctx.textAlign = 'right';
+      ctx.fillText(`${label} (UTC)`, width - padding.right - labelInset, yPos);
+    } else {
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, yPos);
     }
   }
+}
 
-  // Helper function to get Y coordinate
+/**
+ * Draw anomaly highlight for a detected step
+ */
+function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stacks) {
+  const {
+    width, height, padding, chartWidth,
+  } = chartDimensions;
+  const { stackedServer, stackedClient, stackedOk } = stacks;
+
+  const startX = getX(step.startIndex);
+  const endX = getX(step.endIndex);
+  const minBandWidth = Math.max((chartWidth / data.length) * 2, 16);
+  const bandPadding = minBandWidth / 2;
+  const bandLeft = startX - bandPadding;
+  const bandRight = step.startIndex === step.endIndex ? startX + bandPadding : endX + bandPadding;
+
+  const startTime = parseUTC(data[step.startIndex].t);
+  const endTime = parseUTC(data[step.endIndex].t);
+  addAnomalyBounds({
+    left: bandLeft, right: bandRight, startTime, endTime, rank: step.rank,
+  });
+
+  const opacityMultiplier = step.rank === 1 ? 1 : 0.7;
+  const categoryColors = { red: [240, 68, 56], yellow: [247, 144, 9], green: [18, 183, 106] };
+  const [cr, cg, cb] = categoryColors[step.category] || categoryColors.green;
+
+  const seriesBounds = {
+    red: [(i) => getY(stackedServer[i]), () => getY(0)],
+    yellow: [(i) => getY(stackedClient[i]), (i) => getY(stackedServer[i])],
+    green: [(i) => getY(stackedOk[i]), (i) => getY(stackedClient[i])],
+  };
+  const [getSeriesTop, getSeriesBottom] = seriesBounds[step.category] || seriesBounds.green;
+
+  const points = [];
+  for (let i = step.startIndex; i <= step.endIndex; i += 1) {
+    points.push({ x: getX(i), y: getSeriesTop(i) });
+  }
+  for (let i = step.endIndex; i >= step.startIndex; i -= 1) {
+    points.push({ x: getX(i), y: getSeriesBottom(i) });
+  }
+
+  ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${0.35 * opacityMultiplier})`;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, 0.8)`;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  [bandLeft, bandRight].forEach((bx) => {
+    ctx.beginPath();
+    ctx.moveTo(bx, padding.top);
+    ctx.lineTo(bx, height - padding.bottom);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  const mag = step.magnitude;
+  const magnitudeLabel = mag >= 1
+    ? `${mag >= 10 ? Math.round(mag) : mag.toFixed(1).replace(/\.0$/, '')}x`
+    : `${Math.round(mag * 100)}%`;
+  ctx.font = 'bold 11px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = `rgb(${cr}, ${cg}, ${cb})`;
+  const arrow = step.type === 'spike' ? '\u25B2' : '\u25BC';
+  ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, (bandLeft + bandRight) / 2, padding.top + 12);
+}
+
+/**
+ * Draw a stacked area with line on top
+ */
+function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
+  if (!topStack.some((v, i) => v > bottomStack[i])) return;
+
+  ctx.beginPath();
+  ctx.moveTo(getX(0), getY(bottomStack[0]));
+  for (let i = 0; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
+  for (let i = data.length - 1; i >= 0; i -= 1) ctx.lineTo(getX(i), getY(bottomStack[i]));
+  ctx.closePath();
+  ctx.fillStyle = colors.fill;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(getX(0), getY(topStack[0]));
+  for (let i = 1; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
+  ctx.strokeStyle = colors.line;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+export function renderChart(data) {
+  setLastChartData(data);
+  resetAnomalyBounds();
+  setShipPositions(null);
+  hideReleaseTooltip();
+
+  const { ctx, rect } = initChartCanvas();
+  const { width } = rect;
+  const { height } = rect;
+  const padding = {
+    top: 20, right: 0, bottom: 40, left: 0,
+  };
+  const labelInset = 24;
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const timeRangeBounds = getTimeRangeBounds();
+
+  ctx.clearRect(0, 0, width, height);
+  const styles = getComputedStyle(document.documentElement);
+  const cssVar = (name) => styles.getPropertyValue(name).trim();
+
+  if (data.length === 0) {
+    setChartLayout({
+      width,
+      height,
+      padding,
+      chartWidth,
+      chartHeight,
+      intendedStartTime: timeRangeBounds.start.getTime(),
+      intendedEndTime: timeRangeBounds.end.getTime(),
+    });
+    ctx.fillStyle = cssVar('--text-secondary');
+    ctx.textAlign = 'center';
+    ctx.fillText('No data', width / 2, height / 2);
+    return;
+  }
+
+  let intendedStartTime = timeRangeBounds.start.getTime();
+  let intendedEndTime = timeRangeBounds.end.getTime();
+  let intendedTimeRange = intendedEndTime - intendedStartTime;
+
+  if (!Number.isFinite(intendedTimeRange) || intendedTimeRange <= 0) {
+    intendedStartTime = parseUTC(data[0].t).getTime();
+    intendedEndTime = parseUTC(data[data.length - 1].t).getTime();
+    intendedTimeRange = Math.max(1, intendedEndTime - intendedStartTime);
+  }
+
+  const chartDimensions = {
+    width, height, padding, chartWidth, chartHeight, labelInset,
+  };
+  setChartLayout({ ...chartDimensions, intendedStartTime, intendedEndTime });
+
+  const series = {
+    ok: data.map((d) => parseInt(d.cnt_ok, 10) || 0),
+    client: data.map((d) => parseInt(d.cnt_4xx, 10) || 0),
+    server: data.map((d) => parseInt(d.cnt_5xx, 10) || 0),
+  };
+
+  const totals = data.map((_, i) => series.ok[i] + series.client[i] + series.server[i]);
+  const maxValue = Math.max(4, Math.ceil(Math.ceil(Math.max(...totals)) / 4) * 4);
+
+  const okColor = cssVar('--status-ok');
+  const clientColor = cssVar('--status-client-error');
+  const serverColor = cssVar('--status-server-error');
+  const colors = {
+    ok: { line: okColor, fill: hexToRgba(okColor, 0.3) },
+    client: { line: clientColor, fill: hexToRgba(clientColor, 0.3) },
+    server: { line: serverColor, fill: hexToRgba(serverColor, 0.3) },
+  };
+
+  // Draw X axis line
+  ctx.strokeStyle = cssVar('--axis-line');
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, height - padding.bottom);
+  ctx.lineTo(width - padding.right, height - padding.bottom);
+  ctx.stroke();
+
+  drawYAxis(ctx, chartDimensions, cssVar, 0, maxValue);
+  drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intendedTimeRange, cssVar);
+
   const getY = (value) => height - padding.bottom - ((chartHeight * value) / (maxValue || 1));
-  // Helper function to get X coordinate based on timestamp (time-based, not index-based)
   const getX = (idx) => {
     const time = parseUTC(data[idx].t);
-    if (!Number.isFinite(intendedTimeRange) || intendedTimeRange <= 0) {
-      return padding.left + ((chartWidth * idx) / (data.length - 1 || 1));
-    }
     return padding.left + ((time.getTime() - intendedStartTime) / intendedTimeRange) * chartWidth;
   };
 
-  // Calculate cumulative values for stacking (reversed order: 5xx at bottom)
   const stackedServer = series.server.slice();
   const stackedClient = series.server.map((v, i) => v + series.client[i]);
   const stackedOk = series.server.map((v, i) => v + series.client[i] + series.ok[i]);
+  const zeros = new Array(data.length).fill(0);
 
-  // Draw 1xx-3xx area (top layer - green)
-  if (series.ok.some((v) => v > 0)) {
-    ctx.beginPath();
-    ctx.moveTo(getX(0), getY(stackedClient[0]));
-    for (let i = 0; i < data.length; i += 1) {
-      ctx.lineTo(getX(i), getY(stackedOk[i]));
-    }
-    for (let i = data.length - 1; i >= 0; i -= 1) {
-      ctx.lineTo(getX(i), getY(stackedClient[i]));
-    }
-    ctx.closePath();
-    ctx.fillStyle = colors.ok.fill;
-    ctx.fill();
+  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok);
+  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client);
+  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server);
 
-    // Draw line on top
-    ctx.beginPath();
-    ctx.moveTo(getX(0), getY(stackedOk[0]));
-    for (let i = 1; i < data.length; i += 1) {
-      ctx.lineTo(getX(i), getY(stackedOk[i]));
-    }
-    ctx.strokeStyle = colors.ok.line;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  // Draw 4xx area (middle layer - yellow/orange)
-  if (series.client.some((v) => v > 0)) {
-    ctx.beginPath();
-    ctx.moveTo(getX(0), getY(stackedServer[0]));
-    for (let i = 0; i < data.length; i += 1) {
-      ctx.lineTo(getX(i), getY(stackedClient[i]));
-    }
-    for (let i = data.length - 1; i >= 0; i -= 1) {
-      ctx.lineTo(getX(i), getY(stackedServer[i]));
-    }
-    ctx.closePath();
-    ctx.fillStyle = colors.client.fill;
-    ctx.fill();
-
-    // Draw line on top
-    ctx.beginPath();
-    ctx.moveTo(getX(0), getY(stackedClient[0]));
-    for (let i = 1; i < data.length; i += 1) {
-      ctx.lineTo(getX(i), getY(stackedClient[i]));
-    }
-    ctx.strokeStyle = colors.client.line;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  // Draw 5xx area (bottom layer - red)
-  if (series.server.some((v) => v > 0)) {
-    ctx.beginPath();
-    ctx.moveTo(getX(0), getY(0));
-    for (let i = 0; i < data.length; i += 1) {
-      ctx.lineTo(getX(i), getY(stackedServer[i]));
-    }
-    ctx.lineTo(getX(data.length - 1), getY(0));
-    ctx.closePath();
-    ctx.fillStyle = colors.server.fill;
-    ctx.fill();
-
-    // Draw line on top
-    ctx.beginPath();
-    ctx.moveTo(getX(0), getY(stackedServer[0]));
-    for (let i = 1; i < data.length; i += 1) {
-      ctx.lineTo(getX(i), getY(stackedServer[i]));
-    }
-    ctx.strokeStyle = colors.server.line;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  // Detect and highlight up to 5 anomaly regions (spikes or dips)
-  // Skip anomaly detection for time ranges less than 5 minutes
-  const timeRangeMs = data.length >= 2
-    ? parseUTC(data[data.length - 1].t) - parseUTC(data[0].t)
-    : 0;
-  const minTimeRangeMs = 5 * 60 * 1000; // 5 minutes
-
-  // Exclude data points within the last 3 minutes from now() to avoid
-  // false positives from incomplete data due to ingestion delay.
-  // This is time-based rather than index-based so the exclusion window
-  // stays consistent regardless of bucket duration.
-  const ingestionDelay = 3 * 60 * 1000; // 3 minutes
-  const cutoffTime = Date.now() - ingestionDelay;
+  // Detect anomalies (skip for ranges < 5 minutes)
+  const lastIdx = data.length - 1;
+  const timeRangeMs = data.length >= 2 ? parseUTC(data[lastIdx].t) - parseUTC(data[0].t) : 0;
+  const cutoffTime = Date.now() - 3 * 60 * 1000;
   let endMargin = 0;
-  for (let i = data.length - 1; i >= 0; i -= 1) {
-    if (parseUTC(data[i].t).getTime() >= cutoffTime) {
-      endMargin += 1;
-    } else {
-      break;
-    }
+  for (let i = lastIdx; i >= 0 && parseUTC(data[i].t).getTime() >= cutoffTime; i -= 1) {
+    endMargin += 1;
   }
-  const steps = timeRangeMs >= minTimeRangeMs
-    ? detectSteps(series, 5, { endMargin })
-    : [];
+  const steps = timeRangeMs >= 5 * 60 * 1000 ? detectSteps(series, 5, { endMargin }) : [];
 
-  // Store detected steps for investigation (with additional metadata)
   setDetectedSteps(steps.map((s) => ({
     ...s,
     startTime: data[s.startIndex]?.t ? parseUTC(data[s.startIndex].t) : null,
     endTime: data[s.endIndex]?.t ? parseUTC(data[s.endIndex].t) : null,
   })));
 
+  const stacks = { stackedServer, stackedClient, stackedOk };
   for (const step of steps) {
-    const startX = getX(step.startIndex);
-    const endX = getX(step.endIndex);
-    // Wider minimum band for better visibility
-    const minBandWidth = Math.max((chartWidth / data.length) * 2, 16);
-
-    // Calculate band edges with padding on both sides
-    const bandPadding = minBandWidth / 2;
-    const bandLeft = startX - bandPadding;
-    const bandRight = step.startIndex === step.endIndex
-      ? startX + bandPadding
-      : endX + bandPadding;
-
-    // Store anomaly bounds for click detection and zoom
-    const startTime = parseUTC(data[step.startIndex].t);
-    const endTime = parseUTC(data[step.endIndex].t);
-    addAnomalyBounds({
-      left: bandLeft,
-      right: bandRight,
-      startTime,
-      endTime,
-      rank: step.rank,
-    });
-
-    // Color coding: red (5xx), yellow (4xx), green (2xx/3xx)
-    const opacityMultiplier = step.rank === 1 ? 1 : 0.7;
-    const categoryColors = {
-      red: [240, 68, 56],
-      yellow: [247, 144, 9],
-      green: [18, 183, 106],
-    };
-    const [cr, cg, cb] = categoryColors[step.category] || categoryColors.green;
-    const highlightFill = `rgba(${cr}, ${cg}, ${cb}, ${0.35 * opacityMultiplier})`;
-    const highlightStroke = `rgba(${cr}, ${cg}, ${cb}, 0.8)`;
-    const labelColor = `rgb(${cr}, ${cg}, ${cb})`;
-
-    const startIdx = step.startIndex;
-    const endIdx = step.endIndex;
-
-    // Get the top and bottom curves for this category's stacked area
-    const seriesBounds = {
-      red: [(i) => getY(stackedServer[i]), () => getY(0)],
-      yellow: [(i) => getY(stackedClient[i]), (i) => getY(stackedServer[i])],
-      green: [(i) => getY(stackedOk[i]), (i) => getY(stackedClient[i])],
-    };
-    const [getSeriesTop, getSeriesBottom] = seriesBounds[step.category]
-      || seriesBounds.green;
-
-    // Build polygon: top edge forward, bottom edge backward
-    const points = [];
-    for (let i = startIdx; i <= endIdx; i += 1) {
-      points.push({ x: getX(i), y: getSeriesTop(i) });
-    }
-    for (let i = endIdx; i >= startIdx; i -= 1) {
-      points.push({ x: getX(i), y: getSeriesBottom(i) });
-    }
-
-    // Draw filled polygon for the anomaly region
-    ctx.fillStyle = highlightFill;
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i += 1) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    // Draw dashed vertical lines at band edges
-    ctx.strokeStyle = highlightStroke;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    [bandLeft, bandRight].forEach((bx) => {
-      ctx.beginPath();
-      ctx.moveTo(bx, padding.top);
-      ctx.lineTo(bx, height - padding.bottom);
-      ctx.stroke();
-    });
-    ctx.setLineDash([]);
-
-    // Draw indicator label (e.g., "1 ▲ 2x")
-    const centerX = (bandLeft + bandRight) / 2;
-    const arrow = step.type === 'spike' ? '▲' : '▼';
-    const mag = step.magnitude;
-    // Use multiplier format (2x, 3.5x) for large values, percentage otherwise
-    const magnitudeLabel = mag >= 1
-      ? `${mag >= 10 ? Math.round(mag) : mag.toFixed(1).replace(/\.0$/, '')}x`
-      : `${Math.round(mag * 100)}%`;
-    ctx.font = 'bold 11px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = labelColor;
-    ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, centerX, padding.top + 12);
+    drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stacks);
   }
 
   // Draw blue selection band if there's a pending selection
@@ -508,13 +412,15 @@ export function renderChart(data) {
   }
 
   // Fetch and render release ships asynchronously
+  const intendedStartDate = new Date(intendedStartTime);
+  const intendedEndDate = new Date(intendedEndTime);
   getReleasesInRange(intendedStartDate, intendedEndDate).then((releases) => {
     if (releases.length > 0) {
-      const chartDimensions = {
+      const dims = {
         width, height, padding, chartWidth,
       };
       const timeRange = { start: intendedStartTime, end: intendedEndTime };
-      setShipPositions(renderReleaseShips(ctx, releases, data, chartDimensions, timeRange));
+      setShipPositions(renderReleaseShips(ctx, releases, data, dims, timeRange));
     } else {
       setShipPositions(null);
     }
@@ -566,25 +472,6 @@ export function setupChartNavigation(callback) {
     selectionOverlay.style.width = `${width}px`;
     selectionOverlay.style.height = `${height - padding.top - padding.bottom}px`;
     selectionOverlay.classList.add('visible');
-  }
-
-  // Show selection time range in status bar, centered between selection edges
-  function updateSelectionStatusBar(startTime, endTime) {
-    const startFmt = formatScrubberTime(startTime);
-    const endFmt = formatScrubberTime(endTime);
-    const dur = formatDuration(startTime, endTime);
-    const row = `<span class="scrubber-time">${startFmt.timeStr}</span>`
-      + '<span class="scrubber-selection-arrow">\u2192</span>'
-      + `<span class="scrubber-time">${endFmt.timeStr} UTC</span>`
-      + `<span class="scrubber-selection-duration">${dur}</span>`;
-    scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner"><div class="chart-scrubber-status-row">${row}</div></div>`;
-    const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
-    if (inner) {
-      const midX = (getXAtTime(startTime) + getXAtTime(endTime)) / 2;
-      const pad = 24;
-      inner.style.marginLeft = `${calcStatusBarLeft(midX, scrubberStatusBar.offsetWidth, inner.offsetWidth, getChartLayout()?.width || 0, pad) - pad}px`;
-    }
-    scrubberStatusBar.classList.add('visible');
   }
 
   function hideSelectionOverlay() {
@@ -651,6 +538,99 @@ export function setupChartNavigation(callback) {
     }
   }, { passive: true });
 
+  /**
+   * Build anomaly info HTML for scrubber
+   */
+  function buildAnomalyInfo(x) {
+    const anomaly = getAnomalyAtX(x);
+    if (!anomaly) return null;
+
+    const detectedSteps = getDetectedSteps();
+    const step = detectedSteps.find((s) => s.rank === anomaly.rank);
+    const duration = formatDuration(anomaly.startTime, anomaly.endTime);
+    const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
+    let categoryLabel = '2xx';
+    if (step?.category === 'red') categoryLabel = '5xx';
+    else if (step?.category === 'yellow') categoryLabel = '4xx';
+
+    let magnitudeLabel;
+    if (step?.magnitude >= 1) {
+      magnitudeLabel = step.magnitude >= 10
+        ? `${Math.round(step.magnitude)}x`
+        : `${step.magnitude.toFixed(1).replace(/\.0$/, '')}x`;
+    } else {
+      magnitudeLabel = `${Math.round((step?.magnitude || 0) * 100)}%`;
+    }
+    const cat = step?.category || 'red';
+    return `<span class="scrubber-anomaly scrubber-anomaly-${cat}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`;
+  }
+
+  /**
+   * Build release info HTML for scrubber
+   */
+  function buildReleaseInfo(x) {
+    const ship = getShipNearX(x);
+    if (!ship) return null;
+
+    const { release } = ship;
+    if (release.repo === 'aem-certificate-rotation') {
+      return `<span class="scrubber-release scrubber-release-config">Config: ${release.repo}</span>`;
+    }
+
+    const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
+    let releaseType = 'patch';
+    if (versionMatch) {
+      const [, , minor, patch] = versionMatch;
+      if (minor === '0' && patch === '0') releaseType = 'breaking';
+      else if (patch === '0') releaseType = 'feature';
+    }
+    return `<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`;
+  }
+
+  /**
+   * Position scrubber status bar inner element with edge easing
+   */
+  function positionScrubberInner(inner, x, scrubWidth) {
+    const innerWidth = inner.offsetWidth;
+    const statusPadding = 24;
+    const targetLeft = x - innerWidth / 2;
+    const minLeft = statusPadding;
+    const maxLeft = scrubWidth - innerWidth - statusPadding;
+    const edgeZone = innerWidth / 2 + statusPadding;
+
+    let finalLeft;
+    if (x < edgeZone) {
+      finalLeft = minLeft + (targetLeft - minLeft) * (x / edgeZone);
+    } else if (x > scrubWidth - edgeZone) {
+      finalLeft = maxLeft + (targetLeft - maxLeft) * ((scrubWidth - x) / edgeZone);
+    } else {
+      finalLeft = targetLeft;
+    }
+
+    const el = inner;
+    el.style.marginLeft = `${Math.max(minLeft, Math.min(maxLeft, finalLeft)) - statusPadding}px`;
+  }
+
+  // Show selection time range in status bar, centered between selection edges
+  function updateSelectionStatusBar(startTime, endTime) {
+    const startFmt = formatScrubberTime(startTime);
+    const endFmt = formatScrubberTime(endTime);
+    const dur = formatDuration(startTime, endTime);
+    const row = `<span class="scrubber-time">${startFmt.timeStr}</span>`
+      + '<span class="scrubber-selection-arrow">\u2192</span>'
+      + `<span class="scrubber-time">${endFmt.timeStr} UTC</span>`
+      + `<span class="scrubber-selection-duration">${dur}</span>`;
+    scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner"><div class="chart-scrubber-status-row">${row}</div></div>`;
+    const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
+    const startX = getXAtTime(startTime);
+    const endX = getXAtTime(endTime);
+    if (inner && Number.isFinite(startX) && Number.isFinite(endX)) {
+      const midX = (startX + endX) / 2;
+      positionScrubberInner(inner, midX, scrubberStatusBar.offsetWidth);
+    }
+    scrubberStatusBar.classList.add('visible');
+  }
+
   // Update scrubber position and content
   function updateScrubber(x, _) {
     const chartLayout = getChartLayout();
@@ -686,59 +666,26 @@ export function setupChartNavigation(callback) {
       row1 += `<span class="scrubber-relative">${relativeStr}</span>`;
     }
 
+    // Row 2: Anomaly and/or release info
     const row2Parts = [];
-    const anomaly = getAnomalyAtX(x);
-    if (anomaly) {
-      const detectedSteps = getDetectedSteps();
-      const step = detectedSteps.find((s) => s.rank === anomaly.rank);
-      const duration = formatDuration(anomaly.startTime, anomaly.endTime);
-      const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
-      let categoryLabel = '2xx';
-      if (step?.category === 'red') categoryLabel = '5xx';
-      else if (step?.category === 'yellow') categoryLabel = '4xx';
-      let magnitudeLabel;
-      if (step?.magnitude >= 1) {
-        magnitudeLabel = step.magnitude >= 10
-          ? `${Math.round(step.magnitude)}x`
-          : `${step.magnitude.toFixed(1).replace(/\.0$/, '')}x`;
-      } else {
-        magnitudeLabel = `${Math.round((step?.magnitude || 0) * 100)}%`;
-      }
-      row2Parts.push(`<span class="scrubber-anomaly scrubber-anomaly-${step?.category || 'red'}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`);
-    }
+    const anomalyHtml = buildAnomalyInfo(x);
+    if (anomalyHtml) row2Parts.push(anomalyHtml);
+    const releaseHtml = buildReleaseInfo(x);
+    if (releaseHtml) row2Parts.push(releaseHtml);
 
-    const ship = getShipNearX(x);
-    if (ship) {
-      const { release } = ship;
-      if (release.repo === 'aem-certificate-rotation') {
-        row2Parts.push(`<span class="scrubber-release scrubber-release-config">Config: ${release.repo}</span>`);
-      } else {
-        const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
-        let releaseType = 'patch';
-        if (versionMatch) {
-          const [, , minor, patch] = versionMatch;
-          if (minor === '0' && patch === '0') {
-            releaseType = 'breaking';
-          } else if (patch === '0') {
-            releaseType = 'feature';
-          }
-        }
-        row2Parts.push(`<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`);
-      }
-    }
-
+    // Build final content
     let content = `<div class="chart-scrubber-status-row">${row1}</div>`;
     if (row2Parts.length > 0) {
       content += `<div class="chart-scrubber-status-row">${row2Parts.join('')}</div>`;
     }
+
+    // Wrap content in inner container for positioning
     scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner">${content}</div>`;
+
+    // Position the inner element to follow scrubber with edge easing
     const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
     if (inner) {
-      const pad = 24;
-      const sw = scrubberStatusBar.offsetWidth;
-      const iw = inner.offsetWidth;
-      const finalLeft = calcStatusBarLeft(x, sw, iw, width, pad);
-      inner.style.marginLeft = `${finalLeft - pad}px`;
+      positionScrubberInner(inner, x, scrubberStatusBar.offsetWidth);
     }
   }
 
