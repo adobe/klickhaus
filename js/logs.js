@@ -513,8 +513,7 @@ export function toggleLogsView(saveStateToURL) {
 }
 
 export async function loadLogs(requestContext = getRequestContext('dashboard')) {
-  const activeContext = requestContext || getRequestContext('dashboard');
-  const { requestId, signal, scope } = activeContext;
+  const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
 
   state.logsLoading = true;

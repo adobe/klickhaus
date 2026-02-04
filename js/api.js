@@ -39,7 +39,7 @@ const CATEGORY_LABELS = {
   unknown: 'Query failed',
 };
 
-function summarizeErrorText(text) {
+export function summarizeErrorText(text) {
   if (!text) return 'Unknown error';
   const trimmed = String(text).trim();
   const firstLine = trimmed.split('\n').map((line) => line.trim()).find(Boolean) || trimmed;
@@ -50,60 +50,61 @@ function summarizeErrorText(text) {
   return normalized;
 }
 
-function extractErrorType(text) {
+export function extractErrorType(text) {
   const matches = [...String(text).matchAll(/\(([A-Z0-9_]+)\)/g)];
   if (matches.length === 0) return null;
   return matches[matches.length - 1][1];
 }
 
-function classifyCategory(text, status, type) {
+const PERMISSION_TYPES = new Set(['ACCESS_DENIED', 'NOT_ENOUGH_PRIVILEGES']);
+const SCHEMA_TYPES = new Set([
+  'UNKNOWN_TABLE',
+  'UNKNOWN_IDENTIFIER',
+  'UNKNOWN_COLUMN',
+  'UNKNOWN_FUNCTION',
+]);
+const RESOURCE_TYPES = new Set([
+  'TOO_MANY_PARTS',
+  'TOO_MANY_SIMULTANEOUS_QUERIES',
+  'TOO_MANY_BYTES',
+  'QUERY_WAS_CANCELLED',
+]);
+
+const PERMISSION_TEXT = [
+  'authentication failed',
+  'required_password',
+  'not enough privileges',
+  'access denied',
+];
+const SCHEMA_TEXT = ['unknown table', 'unknown identifier'];
+const NETWORK_TEXT = ['failed to fetch', 'networkerror', 'network error'];
+
+function matchesAny(text, list) {
+  return list.some((item) => text.includes(item));
+}
+
+export function classifyCategory(text, status, type) {
   const lower = String(text).toLowerCase();
-  if (
-    status === 401
-    || status === 403
-    || type === 'ACCESS_DENIED'
-    || type === 'NOT_ENOUGH_PRIVILEGES'
-    || lower.includes('authentication failed')
-    || lower.includes('required_password')
-    || lower.includes('not enough privileges')
-    || lower.includes('access denied')
-  ) {
-    return 'permissions';
-  }
-  if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) {
-    return 'memory';
-  }
-  if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) {
-    return 'syntax';
-  }
-  if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) {
-    return 'timeout';
-  }
-  if (
-    type === 'UNKNOWN_TABLE'
-    || type === 'UNKNOWN_IDENTIFIER'
-    || type === 'UNKNOWN_COLUMN'
-    || type === 'UNKNOWN_FUNCTION'
-    || lower.includes('unknown table')
-    || lower.includes('unknown identifier')
-  ) {
-    return 'schema';
-  }
-  if (
-    type === 'TOO_MANY_PARTS'
-    || type === 'TOO_MANY_SIMULTANEOUS_QUERIES'
-    || type === 'TOO_MANY_BYTES'
-    || type === 'QUERY_WAS_CANCELLED'
-  ) {
-    return 'resource';
-  }
-  if (
-    lower.includes('failed to fetch')
-    || lower.includes('networkerror')
-    || lower.includes('network error')
-  ) {
-    return 'network';
-  }
+  const isPermissions = [
+    status === 401,
+    status === 403,
+    PERMISSION_TYPES.has(type),
+    matchesAny(lower, PERMISSION_TEXT),
+  ].some(Boolean);
+  if (isPermissions) return 'permissions';
+
+  if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) return 'memory';
+  if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) return 'syntax';
+  if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) return 'timeout';
+
+  const isSchema = [
+    SCHEMA_TYPES.has(type),
+    matchesAny(lower, SCHEMA_TEXT),
+  ].some(Boolean);
+  if (isSchema) return 'schema';
+
+  if (RESOURCE_TYPES.has(type)) return 'resource';
+  if (matchesAny(lower, NETWORK_TEXT)) return 'network';
   return 'unknown';
 }
 
@@ -126,7 +127,7 @@ export class QueryError extends Error {
   }
 }
 
-function parseQueryError(text, status) {
+export function parseQueryError(text, status) {
   const codeMatch = String(text).match(/Code:\s*(\d+)/i);
   const code = codeMatch ? parseInt(codeMatch[1], 10) : null;
   const type = extractErrorType(text);
