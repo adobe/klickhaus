@@ -551,10 +551,6 @@ export function setupChartNavigation(callback) {
   // Create drag selection overlay
   selectionOverlay = document.createElement('div');
   selectionOverlay.className = 'chart-selection-overlay';
-  selectionOverlay.innerHTML = `
-    <div class="chart-selection-time-label chart-selection-time-left"></div>
-    <div class="chart-selection-time-label chart-selection-time-right"></div>
-  `;
   container.appendChild(selectionOverlay);
 
   // Drag selection helper functions
@@ -570,59 +566,6 @@ export function setupChartNavigation(callback) {
     selectionOverlay.style.width = `${width}px`;
     selectionOverlay.style.height = `${height - padding.top - padding.bottom}px`;
     selectionOverlay.classList.add('visible');
-
-    // Update time labels
-    const startTime = getTimeAtX(Math.min(startX, endX));
-    const endTime = getTimeAtX(Math.max(startX, endX));
-
-    if (startTime && endTime) {
-      const leftLabel = selectionOverlay.querySelector('.chart-selection-time-left');
-      const rightLabel = selectionOverlay.querySelector('.chart-selection-time-right');
-
-      // Format times - show date if spanning multiple days
-      const startDate = new Date(startTime);
-      const endDate = new Date(endTime);
-      const sameDay = startDate.toDateString() === endDate.toDateString();
-
-      const formatTime = (date) => {
-        const timeStr = date.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-          timeZone: 'UTC',
-        });
-        if (sameDay) {
-          return timeStr;
-        }
-        const dateStr = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          timeZone: 'UTC',
-        });
-        return `${dateStr} ${timeStr}`;
-      };
-
-      // Check if labels would overlap (minimum 100px spacing for readability)
-      const minLabelSpacing = 100;
-      const showSeparateLabels = width >= minLabelSpacing;
-
-      if (showSeparateLabels) {
-        // Show separate labels at each edge
-        leftLabel.textContent = formatTime(startDate);
-        rightLabel.textContent = formatTime(endDate);
-        leftLabel.style.display = 'block';
-        rightLabel.style.display = 'block';
-        leftLabel.classList.remove('chart-selection-time-center');
-        rightLabel.classList.remove('chart-selection-time-center');
-      } else {
-        // Narrow selection - show single centered label with range
-        leftLabel.textContent = `${formatTime(startDate)} - ${formatTime(endDate)} UTC`;
-        leftLabel.style.display = 'block';
-        leftLabel.classList.add('chart-selection-time-center');
-        rightLabel.style.display = 'none';
-      }
-    }
   }
 
   // Show selection time range in status bar, centered between selection edges
@@ -648,11 +591,6 @@ export function setupChartNavigation(callback) {
     selectionOverlay.classList.remove('visible');
     selectionOverlay.classList.remove('confirmed');
     setPendingSelection(null);
-    // Clear time labels
-    const leftLabel = selectionOverlay.querySelector('.chart-selection-time-left');
-    const rightLabel = selectionOverlay.querySelector('.chart-selection-time-right');
-    if (leftLabel) leftLabel.textContent = '';
-    if (rightLabel) rightLabel.textContent = '';
     // Clear blue highlights when selection is cleared
     clearSelectionHighlights();
     // Redraw chart to remove blue band
