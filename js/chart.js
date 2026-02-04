@@ -16,7 +16,7 @@
  */
 
 import { query, isAbortError } from './api.js';
-import { getFacetFilters } from './breakdowns/index.js';
+import { getFacetFilters, getCurrentSamplingInfo, getSamplingPlan } from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -24,10 +24,11 @@ import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
   getHostFilter,
-  getTable,
+  getSampledTable,
   getTimeBucket,
   getTimeBucketStep,
   getTimeFilter,
+  normalizeSampleRate,
   setCustomTimeRange,
   getTimeRangeBounds,
   getTimeRangeStart,
@@ -65,6 +66,15 @@ import {
   hexToRgba,
   parseUTC,
 } from './chart-state.js';
+
+function getSamplingConfig(sampleRate) {
+  const rate = normalizeSampleRate(sampleRate);
+  const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
+  return {
+    table: getSampledTable(rate),
+    mult: multiplier > 1 ? ` * ${multiplier}` : '',
+  };
+}
 
 // Re-export state functions for external use
 export {
@@ -231,7 +241,7 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
 /**
  * Draw a stacked area with line on top
  */
-function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
+function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, lineWidth = 2) {
   if (!topStack.some((v, i) => v > bottomStack[i])) return;
 
   ctx.beginPath();
@@ -246,7 +256,7 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
   ctx.moveTo(getX(0), getY(topStack[0]));
   for (let i = 1; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
   ctx.strokeStyle = colors.line;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = lineWidth;
   ctx.stroke();
 }
 
@@ -342,9 +352,22 @@ export function renderChart(data) {
   const stackedOk = series.server.map((v, i) => v + series.client[i] + series.ok[i]);
   const zeros = new Array(data.length).fill(0);
 
-  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok);
-  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client);
-  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server);
+  // Apply blur and thicker lines based on sampling rate
+  const samplingInfo = getCurrentSamplingInfo();
+  let lineWidth = 2; // Default line width
+  if (samplingInfo.isActive) {
+    // 1% sampling = more blur and thicker, 10% sampling = slight blur and slightly thicker
+    const blurAmount = samplingInfo.rate === '1%' ? 3 : 1.5;
+    lineWidth = samplingInfo.rate === '1%' ? 4 : 3;
+    ctx.filter = `blur(${blurAmount}px)`;
+  }
+
+  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineWidth);
+  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client, lineWidth);
+  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server, lineWidth);
+
+  // Reset filter for other elements
+  ctx.filter = 'none';
 
   // Detect anomalies (skip for ranges < 5 minutes)
   const lastIdx = data.length - 1;
@@ -916,28 +939,44 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const step = getTimeBucketStep();
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
+  const samplingPlan = getSamplingPlan();
 
-  const sql = await loadSql('time-series', {
-    bucket,
-    database: DATABASE,
-    table: getTable(),
-    timeFilter,
-    hostFilter,
-    facetFilters,
-    additionalWhereClause: state.additionalWhereClause,
-    rangeStart,
-    rangeEnd,
-    step,
-  });
-
-  try {
-    const result = await query(sql, { signal });
+  for (const sampleRate of samplingPlan) {
     if (!isCurrent()) return;
-    state.chartData = result.data;
-    renderChart(result.data);
-  } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
-    // eslint-disable-next-line no-console
-    console.error('Chart error:', err);
+    const { table, mult } = getSamplingConfig(sampleRate);
+    // Progressive refinement requires sequential queries.
+    // eslint-disable-next-line no-await-in-loop
+    const sql = await loadSql('time-series', {
+      bucket,
+      database: DATABASE,
+      table,
+      timeFilter,
+      hostFilter,
+      facetFilters,
+      additionalWhereClause: state.additionalWhereClause,
+      rangeStart,
+      rangeEnd,
+      step,
+      mult,
+    });
+
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await query(sql, { signal });
+      if (!isCurrent()) return;
+      state.chartData = result.data;
+      renderChart(result.data);
+    } catch (err) {
+      if (!isCurrent() || isAbortError(err)) return;
+      // eslint-disable-next-line no-console
+      console.error('Chart error:', err);
+      return;
+    }
   }
 }
+
+window.addEventListener('sample-rate-change', () => {
+  if (state.chartData) {
+    renderChart(state.chartData);
+  }
+});
