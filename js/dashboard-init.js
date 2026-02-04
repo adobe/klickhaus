@@ -96,7 +96,10 @@ export function initDashboard(config = {}) {
   async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
     const timeSeriesPromise = loadTimeSeries(dashboardContext);
     const focusedFacetId = getFocusedFacetId();
-    const isDashboardCurrent = () => isRequestCurrent(dashboardContext.requestId, dashboardContext.scope);
+    const isDashboardCurrent = () => isRequestCurrent(
+      dashboardContext.requestId,
+      dashboardContext.scope,
+    );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
     const facetPromises = allBreakdowns.map(
