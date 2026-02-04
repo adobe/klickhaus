@@ -433,10 +433,21 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   border-radius: 1px;
 }
 
-/* Active/exclude states: colored background, white text, show icon, hide color bar */
+/* Active/exclude states: colored background, contrasting text, show icon, hide color bar */
 .breakdown-table .filter-tag-indicator.active,
 .breakdown-table .filter-tag-indicator.exclude {
   color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure text contrast in dark mode with light backgrounds */
+@media (prefers-color-scheme: dark) {
+  .breakdown-table .filter-tag-indicator.active,
+  .breakdown-table .filter-tag-indicator.exclude {
+    /* Add a darker overlay to ensure contrast */
+    background-blend-mode: multiply;
+    box-shadow: inset 0 0 0 1000px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .breakdown-table .filter-tag-indicator.active .filter-icon,
