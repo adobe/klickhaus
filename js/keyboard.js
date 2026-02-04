@@ -15,6 +15,7 @@ import { openFacetPalette, isPaletteOpen, setOnFacetNavigate } from './facet-pal
 import { zoomToAnomaly, zoomToAnomalyByRank, getAnomalyCount } from './chart.js';
 import { zoomOut } from './time.js';
 import { saveStateToURL } from './url-state.js';
+import { toggleLogsView } from './logs.js';
 import { openFacetSearch } from './ui/facet-search.js';
 
 // Keyboard navigation state
@@ -364,7 +365,7 @@ const ACTION_HANDLERS = {
   d: () => toggleHideCurrentFacet(),
   r: () => document.getElementById('refreshBtn').click(),
   s: () => openFacetSearchForCurrentFacet(),
-  t: () => document.getElementById('viewToggleBtn').click(),
+  t: () => toggleLogsView(saveStateToURL),
   Escape: () => deactivateKeyboardMode(),
   '+': () => zoomToAnomaly(),
   '=': () => zoomToAnomaly(),
