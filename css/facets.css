@@ -550,17 +550,17 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   /* Ensure tap targets are large enough on mobile */
   .breakdown-table .dim.dim-clickable {
     min-height: 44px;
-    position: relative;
-    padding-right: 68px;
+    display: flex;
+    align-items: center;
   }
 
-  .breakdown-table .mobile-actions {
+  .breakdown-table tr.touch-active .filter-tag-indicator {
+    display: none;
+  }
+
+  .breakdown-table tr.touch-active .mobile-actions {
     display: inline-flex;
     gap: 6px;
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
   }
 
   .breakdown-table .mobile-action-btn {
@@ -572,6 +572,16 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
     background: var(--bg);
     color: var(--text-secondary);
     cursor: pointer;
+  }
+
+  .breakdown-table .mobile-action-btn.filter-btn {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .breakdown-table .mobile-action-btn.filter-btn.active {
+    background: var(--primary);
+    color: white;
   }
 
   .breakdown-table .mobile-action-btn.exclude-btn {
