@@ -33,7 +33,7 @@ Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)
                     cloudflare_http_ingestion (MV)
                               │
                               ▼
-                     cdn_requests_combined (2-week TTL)
+                     cdn_requests_v2 (2-week TTL)
                               ▲
                     fastly_ingestion (MV)
                               │
@@ -115,7 +115,7 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users receive read-only access (`SELECT` on `cdn_requests_combined`).
+New users receive read-only access (`SELECT` on `cdn_requests_v2`).
 
 ## Local Development
 
@@ -124,7 +124,7 @@ npm install
 npm start
 ```
 
-This starts a development server with auto-reload at http://localhost:8000/dashboard.html.
+This starts a development server with auto-reload at http://localhost:5391/dashboard.html.
 
 For ClickHouse CLI access:
 
@@ -135,7 +135,7 @@ clickhouse client --host s2p5b8wmt5.eastus2.azure.clickhouse.cloud \
 
 ## Data Schema
 
-The primary table `cdn_requests_combined` includes:
+The primary table `cdn_requests_v2` includes:
 
 | Column Group | Examples |
 |-------------|----------|
@@ -153,7 +153,7 @@ The primary table `cdn_requests_combined` includes:
 **Symptoms:**
 - Dashboard shows no data or stale data
 - `cloudflare_http_requests` table is empty (1-day TTL expires old data)
-- `cdn_requests_combined` and `cdn_requests_v2` have no recent rows
+- `cdn_requests_v2` has no recent rows
 
 **Cause:**
 Cloudflare Logpush jobs auto-disable after repeated delivery failures (e.g., ClickHouse instance was stopped, ran out of credits, or network issues).
@@ -273,4 +273,4 @@ clickhouse client ... --query "
 
 ## License
 
-MIT
+Apache-2.0
