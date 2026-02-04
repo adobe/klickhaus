@@ -53,26 +53,12 @@ function handleRemoveFilter(handlers, target) {
 }
 
 /**
- * Handle remove-filter-value action (cycle: include -> exclude -> none)
+ * Handle remove-filter-value action (toggle off).
  */
 function handleRemoveFilterValue(handlers, target) {
   const col = target.dataset.col || '';
   const value = target.dataset.value || '';
-
-  const existingFilter = handlers.getFilterForValue?.(col, value);
-  if (existingFilter && !existingFilter.exclude) {
-    handlers.removeFilterByValue?.(col, value, true);
-    handlers.addFilter?.(
-      col,
-      value,
-      true,
-      target.dataset.filterCol,
-      target.dataset.filterValue,
-      target.dataset.filterOp,
-    );
-  } else {
-    handlers.removeFilterByValue?.(col, value);
-  }
+  handlers.removeFilterByValue?.(col, value);
 }
 
 /**

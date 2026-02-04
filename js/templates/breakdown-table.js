@@ -167,6 +167,24 @@ function buildFilterAttrs(col, rowDim, filterCol, filterValueFn, filterOp) {
   ].join(' ');
 }
 
+function buildMobileActions(isIncluded, isExcluded, filterAttrs) {
+  const filterAction = isIncluded ? 'remove-filter-value' : 'add-filter';
+  const filterLabel = isIncluded ? 'Clear' : 'Filter';
+  const filterAriaLabel = isIncluded ? 'Clear filter' : 'Filter value';
+  const filterButtonClass = `mobile-action-btn filter-btn${isIncluded ? ' active' : ''}`;
+  const excludeAction = isExcluded ? 'remove-filter-value' : 'add-filter';
+  const excludeLabel = isExcluded ? 'Clear' : 'Exclude';
+  const excludeAriaLabel = isExcluded ? 'Clear exclude filter' : 'Exclude value';
+  const excludeButtonClass = `mobile-action-btn exclude-btn${isExcluded ? ' active' : ''}`;
+
+  return `
+        <span class="mobile-actions">
+          <button class="${filterButtonClass}" type="button" data-action="${filterAction}" ${filterAttrs} data-exclude="false" aria-label="${escapeHtml(filterAriaLabel)}">${filterLabel}</button>
+          <button class="${excludeButtonClass}" type="button" data-action="${excludeAction}" ${filterAttrs} data-exclude="true" aria-label="${escapeHtml(excludeAriaLabel)}">${excludeLabel}</button>
+        </span>
+      `;
+}
+
 export function buildBreakdownRow({
   row, col, maxCount, columnFilters, valueFormatter,
   linkPrefix, linkSuffix, linkFn, dimPrefixes, dimFormatFn,
@@ -204,10 +222,11 @@ export function buildBreakdownRow({
   const bgAttr = escapeHtml(bgColor || 'var(--text)');
   const ariaSelected = (isIncluded || isExcluded) ? 'true' : 'false';
   const dimExclude = isExcluded ? 'true' : 'false';
+  const mobileActions = buildMobileActions(isIncluded, isExcluded, filterAttrs);
 
   return `
     <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}" data-dim="${dimDataAttr}">
-      <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${bgAttr}">${filterTag}</td>
+      <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${bgAttr}">${filterTag}${mobileActions}</td>
       <td class="count">
         <span class="value">${valueFormatter(cnt)}</span>
       </td>
