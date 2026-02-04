@@ -1,0 +1,27 @@
+# CODEOWNERS for klickhaus - ClickHouse CDN Analytics Dashboard
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @trieloff
+
+# JavaScript application code
+/js/ @trieloff
+
+# SQL queries and database schema
+/sql/ @trieloff
+
+# User management scripts
+/scripts/ @trieloff
+
+# GitHub Actions workflows
+/.github/workflows/ @trieloff
+
+# Dashboard HTML and CSS
+*.html @trieloff
+*.css @trieloff
+/css/ @trieloff
+
+# Configuration files
+eslint.config.js @trieloff
+package.json @trieloff
+manifest.json @trieloff
