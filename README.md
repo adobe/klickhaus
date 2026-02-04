@@ -2,6 +2,7 @@
 
 A real-time analytics dashboard for CDN log analysis, built with ClickHouse and vanilla JavaScript.
 
+
 ![CDN Analytics Dashboard](screenshot.png)
 
 ## Features
