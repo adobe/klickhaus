@@ -12,24 +12,28 @@
 import { query } from './api.js';
 import { DATABASE } from './config.js';
 import { getTable } from './time.js';
+import { state } from './state.js';
 import { escapeHtml } from './utils.js';
 import { loadSql } from './sql-loader.js';
 
 const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
-const HOST_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+const FUNCTION_CACHE_KEY = 'functionAutocompleteSuggestions';
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 
-function populateHostDatalist(hosts) {
+function populateHostDatalist(values) {
   const datalist = document.getElementById('hostSuggestions');
-  datalist.innerHTML = hosts.map((h) => `<option value="${escapeHtml(h)}">`).join('');
+  datalist.innerHTML = values.map((v) => `<option value="${escapeHtml(v)}">`).join('');
 }
 
 export async function loadHostAutocomplete() {
-  // Check cache first
-  const cached = localStorage.getItem(HOST_CACHE_KEY);
+  const isFunctionFilter = state.hostFilterColumn === 'function_name';
+  const cacheKey = isFunctionFilter ? FUNCTION_CACHE_KEY : HOST_CACHE_KEY;
+
+  const cached = localStorage.getItem(cacheKey);
   if (cached) {
     try {
       const { hosts, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < HOST_CACHE_TTL) {
+      if (Date.now() - timestamp < CACHE_TTL) {
         populateHostDatalist(hosts);
         return;
       }
@@ -38,9 +42,23 @@ export async function loadHostAutocomplete() {
     }
   }
 
-  // Fetch hosts and forwarded hosts in parallel (lower priority, background task)
   try {
     const sqlParams = { database: DATABASE, table: getTable() };
+
+    if (isFunctionFilter) {
+      const sql = await loadSql('autocomplete-functions', sqlParams);
+      const result = await query(sql);
+      const values = (result.data || [])
+        .map((row) => row.host)
+        .filter(Boolean)
+        .sort()
+        .slice(0, 200);
+      localStorage.setItem(cacheKey, JSON.stringify({ hosts: values, timestamp: Date.now() }));
+      populateHostDatalist(values);
+      return;
+    }
+
+    // CDN: hosts and forwarded hosts in parallel
     const [hostsSql, forwardedSql] = await Promise.all([
       loadSql('autocomplete-hosts', sqlParams),
       loadSql('autocomplete-forwarded', sqlParams),
@@ -50,31 +68,18 @@ export async function loadHostAutocomplete() {
       query(forwardedSql),
     ]);
 
-    // Collect all hosts
     const hostSet = new Set();
-
-    // Add request.host values
     for (const row of hostsResult.data) {
       if (row.host) hostSet.add(row.host);
     }
-
-    // Add forwarded hosts (split comma-separated values)
     for (const row of forwardedHostsResult.data) {
       if (row.host) {
-        const hosts = row.host.split(',').map((h) => h.trim()).filter((h) => h);
-        hosts.forEach((h) => hostSet.add(h));
+        row.host.split(',').map((h) => h.trim()).filter(Boolean).forEach((h) => hostSet.add(h));
       }
     }
 
-    // Convert to sorted array, limit to 200
     const hosts = Array.from(hostSet).sort().slice(0, 200);
-
-    // Cache in localStorage
-    localStorage.setItem(HOST_CACHE_KEY, JSON.stringify({
-      hosts,
-      timestamp: Date.now(),
-    }));
-
+    localStorage.setItem(cacheKey, JSON.stringify({ hosts, timestamp: Date.now() }));
     populateHostDatalist(hosts);
   } catch (err) {
     // eslint-disable-next-line no-console
