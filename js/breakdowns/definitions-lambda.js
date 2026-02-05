@@ -39,4 +39,8 @@ export const lambdaBreakdowns = [
     col: '`log_group`',
     highCardinality: true,
   },
+  {
+    id: 'breakdown-admin-method',
+    col: 'CAST(message_json.admin.method, \'String\')',
+  },
 ];
