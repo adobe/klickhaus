@@ -32,7 +32,7 @@ import { loadSql } from '../sql-loader.js';
 export const facetTimings = {};
 const facetSampleRates = {};
 
-// Sampling thresholds: use sampling for high-cardinality facets when time range > 1 hour
+// Sampling thresholds: use sampling for all facets when time range > 1 hour
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const TWO_WEEKS_MS = 14 * 24 * ONE_HOUR_MS;
 const TWENTY_WEEKS_MS = 20 * 7 * 24 * ONE_HOUR_MS;
@@ -45,10 +45,8 @@ function getRetentionSampleLimit() {
   return SAMPLE_RATES.full;
 }
 
-function getSamplingPlan(highCardinality) {
+export function getSamplingPlan() {
   const maxRate = getRetentionSampleLimit();
-  if (!highCardinality) return [maxRate];
-
   const periodMs = getPeriodMs();
   if (periodMs <= ONE_HOUR_MS) return [maxRate];
   if (maxRate <= SAMPLE_RATES.onePercent) {
@@ -84,9 +82,7 @@ function updateGlobalSampleRate(fallbackRate = SAMPLE_RATES.full) {
 }
 
 function getInitialSamplingRate() {
-  const hasHighCardinality = allBreakdowns.some((b) => b.highCardinality);
-  if (!hasHighCardinality) return getRetentionSampleLimit();
-  const plan = getSamplingPlan(true);
+  const plan = getSamplingPlan();
   return plan.length > 0 ? plan[0] : getRetentionSampleLimit();
 }
 
@@ -97,6 +93,25 @@ function setFacetSampleRate(facetId, sampleRate) {
     facetSampleRates[facetId] = sampleRate;
   }
   updateGlobalSampleRate(getInitialSamplingRate());
+}
+
+/**
+ * Get current sampling info for UI display.
+ * @returns {{ isActive: boolean, rate: string, description: string }}
+ * Sampling status and display info.
+ */
+export function getCurrentSamplingInfo() {
+  const rate = normalizeSampleRate(state.sampleRate);
+  if (!rate || rate >= SAMPLE_RATES.full) {
+    return { isActive: false, rate: '', description: '' };
+  }
+
+  const percentage = `${Math.round(rate * 100)}%`;
+  return {
+    isActive: true,
+    rate: percentage,
+    description: `${percentage} sample for faster queries`,
+  };
 }
 
 export function resetFacetTimings() {
@@ -410,7 +425,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
   if (!prepareBreakdownCard(card, b)) return;
 
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const samplingPlan = getSamplingPlan(b.highCardinality);
+  const samplingPlan = getSamplingPlan();
 
   try {
     await runSamplingStages({
