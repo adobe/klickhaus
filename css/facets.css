@@ -188,13 +188,35 @@
   font-weight: 500;
 }
 
+.refine-sample-btn {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  font-weight: 600;
+}
+
 .copy-facet-btn:hover {
   background: var(--bg);
   border-color: var(--border);
   color: var(--text);
 }
 
+.refine-sample-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 .copy-facet-btn:active {
+  transform: scale(0.95);
+}
+
+.refine-sample-btn:active {
   transform: scale(0.95);
 }
 

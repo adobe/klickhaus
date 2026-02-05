@@ -30,9 +30,15 @@ import {
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
   renderChart,
+  refineChartSampling,
 } from './chart.js';
 import {
-  loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings,
+  loadAllBreakdowns,
+  loadBreakdown,
+  allBreakdowns,
+  markSlowestFacet,
+  resetFacetTimings,
+  refineFacetSampling,
 } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import {
@@ -307,6 +313,8 @@ export function initDashboard(config = {}) {
       toggleFacetPin: togglePinnedFacet,
       toggleFacetHide: toggleHiddenFacet,
       toggleFacetMode,
+      refineFacetSampling,
+      refineChartSampling,
       closeQuickLinksModal,
       closeDialog: (el) => el.closest('dialog')?.close(),
       openFacetSearch,

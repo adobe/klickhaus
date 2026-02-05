@@ -157,6 +157,7 @@ Fastly Backend Services ─► fastly_logs_incoming_<service_id> ──► fastl
 - `cdn_requests_v2_sampled_1` (1% sample via `sample_hash % 100`, 200-week TTL)
 
 IP-related columns (`client.ip`, `cdn.originating_ip`, `request.headers.*_ip`) are stored as `(withheld)` in sampled tables to avoid retaining PII with extended TTLs.
+Sampled tables rebuild facet projections with hourly buckets to keep projection size and query cost down (see `sql/cdn_requests_v2_sampling.sql`).
 
 ### Fastly Backend Services (per-service logging)
 

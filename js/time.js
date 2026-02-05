@@ -176,6 +176,14 @@ export function getSampledTable(sampleRate) {
   return BASE_TABLE;
 }
 
+export function getSampleRateTimeout(sampleRate, { disableTimeouts = false } = {}) {
+  if (disableTimeouts) return 0;
+  const normalizedRate = normalizeSampleRate(sampleRate);
+  if (normalizedRate <= SAMPLE_RATES.onePercent) return 10;
+  if (normalizedRate <= SAMPLE_RATES.tenPercent) return 30;
+  return 60;
+}
+
 export function getInterval() {
   // Custom time range doesn't use interval (uses explicit timestamps)
   if (timeState.customTimeRange) {

@@ -14,6 +14,7 @@ import { formatNumber, formatQueryTime, formatBytes } from '../format.js';
 import { state } from '../state.js';
 import { TOP_N_OPTIONS } from '../constants.js';
 import { buildBreakdownRow, buildOtherRow } from '../templates/breakdown-table.js';
+import { normalizeSampleRate } from '../time.js';
 
 // Get filters for a specific column
 export function getFiltersForColumn(col) {
@@ -39,7 +40,26 @@ function getSpeedClass(elapsed) {
 /**
  * Build header elements HTML for facet card
  */
-function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, summaryLabel, summaryColor) {
+function formatSampleRateLabel(rate) {
+  const normalizedRate = normalizeSampleRate(rate);
+  if (!Number.isFinite(normalizedRate)) return '';
+  if (normalizedRate >= 1) return '100%';
+  return `${Math.round(normalizedRate * 100)}%`;
+}
+
+/**
+ * Build header elements HTML for facet card
+ */
+function buildHeaderElements(
+  id,
+  elapsed,
+  modeToggle,
+  isBytes,
+  summaryRatio,
+  summaryLabel,
+  summaryColor,
+  nextSampleRate,
+) {
   const speedClass = getSpeedClass(elapsed);
   const speedTitle = formatQueryTime(elapsed);
   const isPinned = state.pinnedFacets.includes(id);
@@ -54,6 +74,13 @@ function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, sum
       + `${isBytes ? 'B' : '#'}</button>`
     : '';
 
+  const refineLabel = Number.isFinite(nextSampleRate) ? formatSampleRateLabel(nextSampleRate) : '';
+  const refineBtnHtml = refineLabel
+    ? '<button class="refine-sample-btn" data-action="refine-facet-sampling" '
+      + `data-facet="${escapeHtml(id)}" data-sample-rate="${nextSampleRate}" `
+      + `title="Load ${refineLabel} data without a timeout">Load ${refineLabel}</button>`
+    : '';
+
   const copyBtnHtml = '<button class="copy-facet-btn" data-action="copy-facet-tsv" '
     + `data-facet="${escapeHtml(id)}" title="Copy data as TSV">copy</button>`;
 
@@ -64,7 +91,7 @@ function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, sum
     : '';
 
   return {
-    speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml,
+    speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml, refineBtnHtml,
   };
 }
 
@@ -130,6 +157,7 @@ export function renderBreakdownTable(
   filterCol,
   filterValueFn,
   filterOp,
+  nextSampleRate = null,
 ) {
   const card = document.getElementById(id);
   if (!card.dataset.title) card.dataset.title = card.querySelector('h3').textContent;
@@ -149,13 +177,14 @@ export function renderBreakdownTable(
     summaryRatio,
     summaryLabel,
     summaryColor,
+    nextSampleRate,
   );
   const {
-    speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml,
+    speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml, refineBtnHtml,
   } = headerParts;
 
   if (data.length === 0) {
-    let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
+    let html = `<h3>${speedIndicator}${title}${refineBtnHtml}${modeToggleHtml}${summaryHtml}`;
     if (hasFilters) {
       html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
     }
@@ -177,7 +206,7 @@ export function renderBreakdownTable(
   const realData = data.filter((d) => !isSyntheticBucket(d.dim));
   const maxCount = realData.length > 0 ? Math.max(...realData.map((d) => parseInt(d.cnt, 10))) : 1;
 
-  let html = `<h3>${speedIndicator}${title}${copyBtnHtml}${modeToggleHtml}${summaryHtml}`;
+  let html = `<h3>${speedIndicator}${title}${refineBtnHtml}${copyBtnHtml}${modeToggleHtml}${summaryHtml}`;
   if (hasFilters) {
     html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
   }

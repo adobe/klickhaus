@@ -12,7 +12,13 @@
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
 import { query, isAbortError } from './api.js';
-import { getTimeFilter, getHostFilter, getTable } from './time.js';
+import {
+  getTimeFilter,
+  getHostFilter,
+  getSampledTable,
+  getSampleRateTimeout,
+  normalizeSampleRate,
+} from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
@@ -99,6 +105,9 @@ const PAGE_SIZE = 500;
 let logsOffset = 0;
 let hasMoreLogs = true;
 let loadingMore = false;
+let logsSampleRate = 1;
+let logsTable = null;
+let logsMaxExecutionTime = null;
 
 // Show brief "Copied!" feedback
 function showCopyFeedback() {
@@ -424,10 +433,12 @@ async function loadMoreLogs() {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
+  const table = logsTable || getSampledTable(logsSampleRate);
+  const maxExecutionTime = logsMaxExecutionTime ?? getSampleRateTimeout(logsSampleRate);
 
   const sql = await loadSql('logs-more', {
     database: DATABASE,
-    table: getTable(),
+    table,
     timeFilter,
     hostFilter,
     facetFilters,
@@ -437,7 +448,7 @@ async function loadMoreLogs() {
   });
 
   try {
-    const result = await query(sql, { signal });
+    const result = await query(sql, { signal, maxExecutionTime });
     if (!isCurrent()) return;
     if (result.data.length > 0) {
       state.logsData = [...state.logsData, ...result.data];
@@ -523,6 +534,9 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   // Reset pagination state
   logsOffset = 0;
   hasMoreLogs = true;
+  logsSampleRate = normalizeSampleRate(state.sampleRate);
+  logsTable = getSampledTable(logsSampleRate);
+  logsMaxExecutionTime = getSampleRateTimeout(logsSampleRate);
 
   // Apply blur effect while loading
   const container = logsView.querySelector('.logs-table-container');
@@ -534,7 +548,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
 
   const sql = await loadSql('logs', {
     database: DATABASE,
-    table: getTable(),
+    table: logsTable,
     timeFilter,
     hostFilter,
     facetFilters,
@@ -543,7 +557,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   });
 
   try {
-    const result = await query(sql, { signal });
+    const result = await query(sql, { signal, maxExecutionTime: logsMaxExecutionTime });
     if (!isCurrent()) return;
     state.logsData = result.data;
     renderLogsTable(result.data);

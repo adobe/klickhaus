@@ -19,6 +19,7 @@ import {
   getTimeBucket,
   getPeriodMs,
   getSampledTable,
+  getSampleRateTimeout,
   normalizeSampleRate,
   getTimeRangeBounds,
   getTimeRangeStart,
@@ -98,5 +99,13 @@ describe('time helpers', () => {
     assert.strictEqual(normalizeSampleRate(-1), 1);
     assert.strictEqual(normalizeSampleRate(null), 1);
     assert.strictEqual(normalizeSampleRate(undefined), 1);
+  });
+
+  it('maps sample rates to execution timeouts', () => {
+    assert.strictEqual(getSampleRateTimeout(0.01), 10);
+    assert.strictEqual(getSampleRateTimeout(0.1), 30);
+    assert.strictEqual(getSampleRateTimeout(1), 60);
+    assert.strictEqual(getSampleRateTimeout(2), 60);
+    assert.strictEqual(getSampleRateTimeout(0.01, { disableTimeouts: true }), 0);
   });
 });

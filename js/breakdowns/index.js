@@ -12,12 +12,18 @@
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
-import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
+import {
+  getRequestContext,
+  isRequestCurrent,
+  mergeAbortSignals,
+  startRequestContext,
+} from '../request-context.js';
 import {
   getTimeFilter,
   getHostFilter,
   getPeriodMs,
   getSampledTable,
+  getSampleRateTimeout,
   getSelectedRange,
   normalizeSampleRate,
   SAMPLE_RATES,
@@ -304,12 +310,13 @@ function prepareBreakdownCard(card, b) {
 
   card.removeAttribute('data-action');
   card.removeAttribute('data-facet');
+  card.removeAttribute('data-next-sample-rate');
   card.classList.remove('facet-hidden');
   card.classList.add('updating');
   return true;
 }
 
-async function runBreakdownStage(b, params, timeFilter, hostFilter, requestStatus, signal) {
+async function runBreakdownStage(b, params, timeFilter, hostFilter, requestStatus, signal, maxExecutionTime) {
   const { isCurrent } = requestStatus;
   const aggs = buildAggregations(params.isBytes, params.mult);
 
@@ -333,7 +340,7 @@ async function runBreakdownStage(b, params, timeFilter, hostFilter, requestStatu
   });
 
   const startTime = performance.now();
-  const result = await query(sql, { signal });
+  const result = await query(sql, { signal, maxExecutionTime });
   if (!isCurrent()) return null;
   const elapsed = result.networkTime ?? (performance.now() - startTime);
 
@@ -362,10 +369,48 @@ async function runSamplingStages({
   hostFilter,
   requestStatus,
   signal,
+  disableTimeouts = false,
 }) {
   const { isCurrent } = requestStatus;
   const cardEl = card;
   let hasRendered = false;
+  let lastStage = null;
+  let lastParams = null;
+
+  const applyStage = (stage, params, nextSampleRate = null) => {
+    facetTimings[breakdown.id] = stage.elapsed;
+    renderBreakdownTable(
+      breakdown.id,
+      stage.data,
+      stage.totals,
+      params.col,
+      breakdown.linkPrefix,
+      breakdown.linkSuffix,
+      breakdown.linkFn,
+      stage.elapsed,
+      breakdown.dimPrefixes,
+      breakdown.dimFormatFn,
+      stage.summaryRatio,
+      breakdown.summaryLabel,
+      breakdown.summaryColor,
+      breakdown.modeToggle,
+      !!breakdown.getExpectedLabels,
+      params.hasActiveFilter ? null : breakdown.filterCol,
+      params.hasActiveFilter ? null : breakdown.filterValueFn,
+      params.hasActiveFilter ? null : breakdown.filterOp,
+      nextSampleRate,
+    );
+
+    cardEl.dataset.sampleRate = String(params.sampleRate);
+    cardEl.dataset.sampleTable = params.table;
+    if (nextSampleRate) {
+      cardEl.dataset.nextSampleRate = String(nextSampleRate);
+    } else {
+      cardEl.removeAttribute('data-next-sample-rate');
+    }
+    hasRendered = true;
+    setFacetSampleRate(breakdown.id, params.sampleRate);
+  };
 
   for (let idx = 0; idx < samplingPlan.length; idx += 1) {
     const sampleRate = samplingPlan[idx];
@@ -377,8 +422,7 @@ async function runSamplingStages({
       hostFilter,
       sampleRate,
     );
-    cardEl.dataset.sampleRate = String(params.sampleRate);
-    cardEl.dataset.sampleTable = params.table;
+    const maxExecutionTime = getSampleRateTimeout(params.sampleRate, { disableTimeouts });
 
     try {
       // Progressive refinement requires sequential queries.
@@ -390,60 +434,54 @@ async function runSamplingStages({
         hostFilter,
         requestStatus,
         signal,
+        maxExecutionTime,
       );
       if (!stage) return hasRendered;
 
-      facetTimings[breakdown.id] = stage.elapsed;
-      renderBreakdownTable(
-        breakdown.id,
-        stage.data,
-        stage.totals,
-        params.col,
-        breakdown.linkPrefix,
-        breakdown.linkSuffix,
-        breakdown.linkFn,
-        stage.elapsed,
-        breakdown.dimPrefixes,
-        breakdown.dimFormatFn,
-        stage.summaryRatio,
-        breakdown.summaryLabel,
-        breakdown.summaryColor,
-        breakdown.modeToggle,
-        !!breakdown.getExpectedLabels,
-        params.hasActiveFilter ? null : breakdown.filterCol,
-        params.hasActiveFilter ? null : breakdown.filterValueFn,
-        params.hasActiveFilter ? null : breakdown.filterOp,
-      );
-
-      hasRendered = true;
-      setFacetSampleRate(breakdown.id, params.sampleRate);
+      lastStage = stage;
+      lastParams = params;
+      applyStage(stage, params);
     } catch (err) {
       if (!isCurrent() || isAbortError(err)) return hasRendered;
       const details = getQueryErrorDetails(err);
       // eslint-disable-next-line no-console
       console.error(`Breakdown error (${breakdown.id}):`, err);
-      const shouldRetry = details.category === 'timeout' && idx < samplingPlan.length - 1;
-      if (!shouldRetry) {
-        if (!hasRendered) {
+      if (details.category === 'timeout') {
+        if (hasRendered && lastStage && lastParams) {
+          applyStage(lastStage, lastParams, params.sampleRate);
+        } else if (!hasRendered) {
           renderBreakdownError(breakdown.id, details);
           setFacetSampleRate(breakdown.id, params.sampleRate);
         }
         return hasRendered;
       }
+
+      if (!hasRendered) {
+        renderBreakdownError(breakdown.id, details);
+        setFacetSampleRate(breakdown.id, params.sampleRate);
+      }
+      return hasRendered;
     }
   }
 
   return hasRendered;
 }
 
-export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
+export async function loadBreakdown(
+  b,
+  timeFilter,
+  hostFilter,
+  requestContext = null,
+  options = {},
+) {
   const requestStatus = createRequestStatus(requestContext);
   const card = document.getElementById(b.id);
 
   if (!prepareBreakdownCard(card, b)) return;
 
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const samplingPlan = getSamplingPlan();
+  const samplingPlan = options.samplingPlan || getSamplingPlan();
+  const disableTimeouts = options.disableTimeouts === true;
 
   try {
     await runSamplingStages({
@@ -455,6 +493,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
       hostFilter,
       requestStatus,
       signal: requestStatus.signal,
+      disableTimeouts,
     });
   } finally {
     if (requestStatus.isCurrent()) {
@@ -508,6 +547,31 @@ export function increaseTopN(topNSelectEl, saveStateToURL, loadAllBreakdownsFn) 
     saveStateToURL();
     loadAllBreakdownsFn();
   }
+}
+
+export async function refineFacetSampling(facetId, targetSampleRate = null) {
+  const breakdown = allBreakdowns.find((b) => b.id === facetId);
+  if (!breakdown) return;
+
+  const card = document.getElementById(facetId);
+  const sampleValue = targetSampleRate || card?.dataset.nextSampleRate;
+  const parsedRate = Number.parseFloat(sampleValue);
+  if (!Number.isFinite(parsedRate)) return;
+
+  const samplingPlan = getSamplingPlan();
+  const normalizedTarget = normalizeSampleRate(parsedRate);
+  const startIndex = samplingPlan.findIndex(
+    (rate) => normalizeSampleRate(rate) === normalizedTarget,
+  );
+  if (startIndex === -1) return;
+
+  const timeFilter = getTimeFilter();
+  const hostFilter = getHostFilter();
+  const context = startRequestContext(`facet-${facetId}`);
+  await loadBreakdown(breakdown, timeFilter, hostFilter, context, {
+    samplingPlan: samplingPlan.slice(startIndex),
+    disableTimeouts: true,
+  });
 }
 
 // Re-export for convenience

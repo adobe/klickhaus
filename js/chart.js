@@ -10,80 +10,40 @@
  * governing permissions and limitations under the License.
  */
 
-/**
- * UI plane for chart - handles rendering and event handling.
- * State management and navigation logic are in chart-state.js.
- */
-
 import { query, isAbortError } from './api.js';
 import {
-  getFacetFilters,
-  getCurrentSamplingInfo,
-  getSamplingPlan,
-  setTimelineSampleRate,
+  getFacetFilters, getCurrentSamplingInfo, getSamplingPlan, setTimelineSampleRate,
 } from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
-import { getRequestContext, isRequestCurrent } from './request-context.js';
+import { getRequestContext, isRequestCurrent, startRequestContext } from './request-context.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
-  getHostFilter,
-  getSampledTable,
-  getTimeBucket,
-  getTimeBucketStep,
-  getTimeFilter,
-  normalizeSampleRate,
-  setCustomTimeRange,
-  getTimeRangeBounds,
-  getTimeRangeStart,
-  getTimeRangeEnd,
+  getHostFilter, getSampleRateTimeout, getTimeBucket, getTimeBucketStep,
+  getTimeFilter, normalizeSampleRate, setCustomTimeRange, getTimeRangeBounds,
+  getTimeRangeStart, getTimeRangeEnd,
 } from './time.js';
 import { loadSql } from './sql-loader.js';
 import { saveStateToURL } from './url-state.js';
+import {
+  setChartRefineTarget,
+  getChartRefineTarget,
+  getChartSamplingConfig,
+  isChartTimeoutError,
+} from './chart-sampling.js';
 import {
   getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
 } from './releases.js';
 import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 import {
-  setNavigationCallback,
-  getNavigationCallback,
-  navigateTime,
-  setChartLayout,
-  getChartLayout,
-  setLastChartData,
-  getLastChartData,
-  addAnomalyBounds,
-  resetAnomalyBounds,
-  setDetectedSteps,
-  getDetectedSteps,
-  setShipPositions,
-  getShipPositions,
-  setPendingSelection,
-  getPendingSelection,
-  getAnomalyAtX,
-  getTimeAtX,
-  getXAtTime,
-  formatScrubberTime,
-  formatDuration,
-  zoomToAnomalyByRank,
-  getShipNearX,
-  hexToRgba,
-  parseUTC,
+  setNavigationCallback, getNavigationCallback, navigateTime, setChartLayout, getChartLayout,
+  setLastChartData, getLastChartData, addAnomalyBounds, resetAnomalyBounds,
+  setDetectedSteps, getDetectedSteps, setShipPositions, getShipPositions,
+  setPendingSelection, getPendingSelection, getAnomalyAtX, getTimeAtX, getXAtTime,
+  formatScrubberTime, formatDuration, zoomToAnomalyByRank, getShipNearX,
+  hexToRgba, parseUTC,
 } from './chart-state.js';
-
-function isTimeoutError(err) {
-  return err?.category === 'timeout' || err?.type === 'TIMEOUT_EXCEEDED';
-}
-
-function getSamplingConfig(sampleRate) {
-  const rate = normalizeSampleRate(sampleRate);
-  const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
-  return {
-    table: getSampledTable(rate),
-    mult: multiplier > 1 ? ` * ${multiplier}` : '',
-  };
-}
 
 // Re-export state functions for external use
 export {
@@ -938,7 +898,7 @@ export function setupChartNavigation(callback) {
   });
 }
 
-export async function loadTimeSeries(requestContext = getRequestContext('dashboard')) {
+export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), options = {}) {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
   const timeFilter = getTimeFilter();
@@ -948,16 +908,21 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const step = getTimeBucketStep();
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
-  const samplingPlan = getSamplingPlan();
-  if (samplingPlan.length > 0) {
+  const samplingPlan = options.samplingPlan || getSamplingPlan();
+  const disableTimeouts = options.disableTimeouts === true;
+  const preserveSampleRate = options.preserveSampleRate === true;
+  const preserveExisting = options.preserveExisting === true;
+  let hasRendered = preserveExisting && !!state.chartData;
+  setChartRefineTarget(null);
+  if (samplingPlan.length > 0 && !preserveSampleRate) {
     setTimelineSampleRate(samplingPlan[0]);
   }
 
   for (let idx = 0; idx < samplingPlan.length; idx += 1) {
     const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return;
-    setTimelineSampleRate(sampleRate);
-    const { table, mult } = getSamplingConfig(sampleRate);
+    const { table, mult } = getChartSamplingConfig(sampleRate);
+    const maxExecutionTime = getSampleRateTimeout(sampleRate, { disableTimeouts });
     // Progressive refinement requires sequential queries.
     // eslint-disable-next-line no-await-in-loop
     const sql = await loadSql('time-series', {
@@ -976,20 +941,50 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
 
     try {
       // eslint-disable-next-line no-await-in-loop
-      const result = await query(sql, { signal });
+      const result = await query(sql, { signal, maxExecutionTime });
       if (!isCurrent()) return;
       state.chartData = result.data;
       renderChart(result.data);
+      hasRendered = true;
+      setTimelineSampleRate(sampleRate);
+      setChartRefineTarget(null);
     } catch (err) {
       if (!isCurrent() || isAbortError(err)) return;
-      const shouldRetry = isTimeoutError(err) && idx < samplingPlan.length - 1;
-      if (!shouldRetry) {
-        // eslint-disable-next-line no-console
-        console.error('Chart error:', err);
+      if (isChartTimeoutError(err)) {
+        if (hasRendered) {
+          setChartRefineTarget(sampleRate);
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('Chart error:', err);
+        }
         return;
       }
+      // eslint-disable-next-line no-console
+      console.error('Chart error:', err);
+      return;
     }
   }
+}
+
+export async function refineChartSampling(targetSampleRate = null) {
+  const sampleValue = targetSampleRate || getChartRefineTarget();
+  const parsedRate = Number.parseFloat(sampleValue);
+  if (!Number.isFinite(parsedRate)) return;
+
+  const samplingPlan = getSamplingPlan();
+  const normalizedTarget = normalizeSampleRate(parsedRate);
+  const startIndex = samplingPlan.findIndex(
+    (rate) => normalizeSampleRate(rate) === normalizedTarget,
+  );
+  if (startIndex === -1) return;
+
+  const context = startRequestContext('chart-refine');
+  await loadTimeSeries(context, {
+    samplingPlan: samplingPlan.slice(startIndex),
+    disableTimeouts: true,
+    preserveSampleRate: true,
+    preserveExisting: true,
+  });
 }
 
 window.addEventListener('sample-rate-change', () => {
