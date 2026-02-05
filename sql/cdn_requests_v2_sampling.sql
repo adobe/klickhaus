@@ -54,8 +54,9 @@ FROM helix_logs_production.cdn_requests_v2
 WHERE (sample_hash % 100) = 0;
 
 -- Backfill (run once, per day to keep inserts smaller)
-TRUNCATE TABLE helix_logs_production.cdn_requests_v2_sampled_10;
-TRUNCATE TABLE helix_logs_production.cdn_requests_v2_sampled_1;
+-- WARNING: destructive. Only run TRUNCATE during initial setup.
+-- TRUNCATE TABLE helix_logs_production.cdn_requests_v2_sampled_10;
+-- TRUNCATE TABLE helix_logs_production.cdn_requests_v2_sampled_1;
 
 -- Example per-day backfill (substitute partition date)
 -- INSERT INTO helix_logs_production.cdn_requests_v2_sampled_10

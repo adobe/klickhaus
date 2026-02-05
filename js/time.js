@@ -26,6 +26,11 @@ const DAY_MS = 24 * HOUR_MS;
 const BASE_TABLE = 'cdn_requests_v2';
 const SAMPLED_TABLE_10 = 'cdn_requests_v2_sampled_10';
 const SAMPLED_TABLE_1 = 'cdn_requests_v2_sampled_1';
+const SAMPLE_RATES = {
+  full: 1,
+  tenPercent: 0.1,
+  onePercent: 0.01,
+};
 
 function floorToInterval(date, intervalMs) {
   return new Date(Math.floor(date.getTime() / intervalMs) * intervalMs);
@@ -156,10 +161,18 @@ export function getTable() {
   return BASE_TABLE;
 }
 
+export function normalizeSampleRate(sampleRate) {
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0) return SAMPLE_RATES.full;
+  if (sampleRate >= SAMPLE_RATES.full) return SAMPLE_RATES.full;
+  if (sampleRate <= SAMPLE_RATES.onePercent) return SAMPLE_RATES.onePercent;
+  if (sampleRate <= SAMPLE_RATES.tenPercent) return SAMPLE_RATES.tenPercent;
+  return SAMPLE_RATES.full;
+}
+
 export function getSampledTable(sampleRate) {
-  if (!sampleRate || sampleRate >= 1) return BASE_TABLE;
-  if (sampleRate <= 0.01) return SAMPLED_TABLE_1;
-  if (sampleRate <= 0.1) return SAMPLED_TABLE_10;
+  const normalizedRate = normalizeSampleRate(sampleRate);
+  if (normalizedRate === SAMPLE_RATES.onePercent) return SAMPLED_TABLE_1;
+  if (normalizedRate === SAMPLE_RATES.tenPercent) return SAMPLED_TABLE_10;
   return BASE_TABLE;
 }
 

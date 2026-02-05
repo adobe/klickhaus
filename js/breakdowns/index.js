@@ -14,7 +14,12 @@ import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
 import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
 import {
-  getTimeFilter, getHostFilter, getPeriodMs, getSampledTable, getSelectedRange,
+  getTimeFilter,
+  getHostFilter,
+  getPeriodMs,
+  getSampledTable,
+  getSelectedRange,
+  normalizeSampleRate,
 } from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
@@ -51,7 +56,7 @@ function getSamplingPlan(highCardinality) {
 }
 
 function getSamplingConfig(sampleRate) {
-  const rate = sampleRate || 1;
+  const rate = normalizeSampleRate(sampleRate);
   const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
   return {
     sampleRate: rate,

@@ -12,9 +12,17 @@
 import { assert } from 'chai';
 import { state } from './state.js';
 import {
-  setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
-  getTimeFilter, getTimeBucket, getPeriodMs, getSampledTable,
-  getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
+  setQueryTimestamp,
+  setCustomTimeRange,
+  clearCustomTimeRange,
+  getTimeFilter,
+  getTimeBucket,
+  getPeriodMs,
+  getSampledTable,
+  normalizeSampleRate,
+  getTimeRangeBounds,
+  getTimeRangeStart,
+  getTimeRangeEnd,
 } from './time.js';
 
 beforeEach(() => {
@@ -75,5 +83,20 @@ describe('time helpers', () => {
     assert.strictEqual(getSampledTable(1), 'cdn_requests_v2');
     assert.strictEqual(getSampledTable(0.1), 'cdn_requests_v2_sampled_10');
     assert.strictEqual(getSampledTable(0.01), 'cdn_requests_v2_sampled_1');
+    assert.strictEqual(getSampledTable(0.05), 'cdn_requests_v2_sampled_10');
+    assert.strictEqual(getSampledTable(0), 'cdn_requests_v2');
+    assert.strictEqual(getSampledTable(-1), 'cdn_requests_v2');
+    assert.strictEqual(getSampledTable(null), 'cdn_requests_v2');
+    assert.strictEqual(getSampledTable(undefined), 'cdn_requests_v2');
+  });
+
+  it('normalizes unsupported sample rates', () => {
+    assert.strictEqual(normalizeSampleRate(0.05), 0.1);
+    assert.strictEqual(normalizeSampleRate(0.5), 1);
+    assert.strictEqual(normalizeSampleRate(0.001), 0.01);
+    assert.strictEqual(normalizeSampleRate(0), 1);
+    assert.strictEqual(normalizeSampleRate(-1), 1);
+    assert.strictEqual(normalizeSampleRate(null), 1);
+    assert.strictEqual(normalizeSampleRate(undefined), 1);
   });
 });
