@@ -16,7 +16,12 @@
  */
 
 import { query, isAbortError } from './api.js';
-import { getFacetFilters, getCurrentSamplingInfo, getSamplingPlan } from './breakdowns/index.js';
+import {
+  getFacetFilters,
+  getCurrentSamplingInfo,
+  getSamplingPlan,
+  setTimelineSampleRate,
+} from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -938,9 +943,13 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
   const samplingPlan = getSamplingPlan();
+  if (samplingPlan.length > 0) {
+    setTimelineSampleRate(samplingPlan[0]);
+  }
 
   for (const sampleRate of samplingPlan) {
     if (!isCurrent()) return;
+    setTimelineSampleRate(sampleRate);
     const { table, mult } = getSamplingConfig(sampleRate);
     // Progressive refinement requires sequential queries.
     // eslint-disable-next-line no-await-in-loop

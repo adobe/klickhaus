@@ -31,6 +31,7 @@ import { loadSql } from '../sql-loader.js';
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
 const facetSampleRates = {};
+let timelineSampleRate = null;
 
 // Sampling thresholds: use sampling for all facets when time range > 1 hour
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -70,6 +71,9 @@ function getSamplingConfig(sampleRate) {
 
 function updateGlobalSampleRate(fallbackRate = SAMPLE_RATES.full) {
   const rates = Object.values(facetSampleRates);
+  if (Number.isFinite(timelineSampleRate)) {
+    rates.push(timelineSampleRate);
+  }
   const nextRate = rates.length ? Math.min(...rates) : fallbackRate;
   const prevRate = state.sampleRate;
   state.sampleRate = nextRate;
@@ -91,6 +95,15 @@ function setFacetSampleRate(facetId, sampleRate) {
     delete facetSampleRates[facetId];
   } else {
     facetSampleRates[facetId] = sampleRate;
+  }
+  updateGlobalSampleRate(getInitialSamplingRate());
+}
+
+export function setTimelineSampleRate(sampleRate) {
+  if (sampleRate === null || sampleRate === undefined) {
+    timelineSampleRate = null;
+  } else {
+    timelineSampleRate = sampleRate;
   }
   updateGlobalSampleRate(getInitialSamplingRate());
 }
@@ -121,6 +134,7 @@ export function resetFacetTimings() {
   Object.keys(facetSampleRates).forEach((key) => {
     delete facetSampleRates[key];
   });
+  timelineSampleRate = getInitialSamplingRate();
   updateGlobalSampleRate(getInitialSamplingRate());
 }
 
