@@ -26,7 +26,7 @@ const DAY_MS = 24 * HOUR_MS;
 const BASE_TABLE = 'cdn_requests_v2';
 const SAMPLED_TABLE_10 = 'cdn_requests_v2_sampled_10';
 const SAMPLED_TABLE_1 = 'cdn_requests_v2_sampled_1';
-const SAMPLE_RATES = {
+export const SAMPLE_RATES = {
   full: 1,
   tenPercent: 0.1,
   onePercent: 0.01,

@@ -20,6 +20,7 @@ import {
   getSampledTable,
   getSelectedRange,
   normalizeSampleRate,
+  SAMPLE_RATES,
 } from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
@@ -39,9 +40,9 @@ const TWENTY_WEEKS_MS = 20 * 7 * 24 * ONE_HOUR_MS;
 function getRetentionSampleLimit() {
   const { start } = getSelectedRange();
   const ageMs = Math.max(0, Date.now() - start.getTime());
-  if (ageMs >= TWENTY_WEEKS_MS) return 0.01;
-  if (ageMs >= TWO_WEEKS_MS) return 0.1;
-  return 1;
+  if (ageMs >= TWENTY_WEEKS_MS) return SAMPLE_RATES.onePercent;
+  if (ageMs >= TWO_WEEKS_MS) return SAMPLE_RATES.tenPercent;
+  return SAMPLE_RATES.full;
 }
 
 function getSamplingPlan(highCardinality) {
@@ -50,9 +51,13 @@ function getSamplingPlan(highCardinality) {
 
   const periodMs = getPeriodMs();
   if (periodMs <= ONE_HOUR_MS) return [maxRate];
-  if (maxRate <= 0.01) return [0.01];
-  if (maxRate <= 0.1) return [0.01, 0.1];
-  return [0.01, 0.1, 1];
+  if (maxRate <= SAMPLE_RATES.onePercent) {
+    return [SAMPLE_RATES.onePercent];
+  }
+  if (maxRate <= SAMPLE_RATES.tenPercent) {
+    return [SAMPLE_RATES.onePercent, SAMPLE_RATES.tenPercent];
+  }
+  return [SAMPLE_RATES.onePercent, SAMPLE_RATES.tenPercent, SAMPLE_RATES.full];
 }
 
 function getSamplingConfig(sampleRate) {
@@ -65,7 +70,7 @@ function getSamplingConfig(sampleRate) {
   };
 }
 
-function updateGlobalSampleRate(fallbackRate = 1) {
+function updateGlobalSampleRate(fallbackRate = SAMPLE_RATES.full) {
   const rates = Object.values(facetSampleRates);
   const nextRate = rates.length ? Math.min(...rates) : fallbackRate;
   const prevRate = state.sampleRate;
