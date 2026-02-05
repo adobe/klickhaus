@@ -18,6 +18,16 @@
 
 const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
+const DATABASE = 'helix_logs_production';
+const TABLES = [
+  'cdn_requests_combined',
+  'cdn_requests_v2',
+  'cdn_requests_v2_sampled_10',
+  'cdn_requests_v2_sampled_1',
+  'releases',
+  'oncall_shifts',
+];
+const DICTIONARIES = ['asn_dict'];
 
 function generatePassword(length = 16) {
   const lower = 'abcdefghijklmnopqrstuvwxyz';
@@ -78,6 +88,18 @@ async function main() {
   try {
     const sql = `ALTER USER ${username} IDENTIFIED BY '${newPassword.replace(/'/g, "''")}'`;
     await query(sql, adminUser, adminPassword);
+
+    for (const table of TABLES) {
+      const grantSql = `GRANT SELECT ON ${DATABASE}.${table} TO ${username}`;
+      // eslint-disable-next-line no-await-in-loop -- Sequential grants to avoid race conditions
+      await query(grantSql, adminUser, adminPassword);
+    }
+
+    for (const dict of DICTIONARIES) {
+      const grantSql = `GRANT dictGet ON ${DATABASE}.${dict} TO ${username}`;
+      // eslint-disable-next-line no-await-in-loop -- Sequential grants to avoid race conditions
+      await query(grantSql, adminUser, adminPassword);
+    }
 
     console.log(`Password rotated for user: ${username}`);
     console.log('\n--- New Credentials ---');
