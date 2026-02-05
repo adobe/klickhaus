@@ -93,6 +93,7 @@ export function classifyCategory(text, status, type) {
   ].some(Boolean);
   if (isPermissions) return 'permissions';
 
+  if (status === 408 || status === 504 || status === 524) return 'timeout';
   if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) return 'memory';
   if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) return 'syntax';
   if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) return 'timeout';
@@ -196,7 +197,7 @@ export async function query(
   } = {},
 ) {
   const params = new URLSearchParams();
-  params.set('max_execution_time', '30');
+  params.set('max_execution_time', '10');
   params.set('timeout_before_checking_execution_speed', '0');
 
   // Skip caching entirely for simple queries like auth check
