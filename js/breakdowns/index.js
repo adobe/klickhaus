@@ -365,7 +365,6 @@ async function runSamplingStages({
   card,
   baseCol,
   samplingPlan,
-  timeFilter,
   hostFilter,
   requestStatus,
   signal,
@@ -415,6 +414,7 @@ async function runSamplingStages({
   for (let idx = 0; idx < samplingPlan.length; idx += 1) {
     const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return hasRendered;
+    const timeFilter = getTimeFilter(sampleRate);
     const params = buildBreakdownQueryParams(
       breakdown,
       baseCol,
@@ -467,13 +467,7 @@ async function runSamplingStages({
   return hasRendered;
 }
 
-export async function loadBreakdown(
-  b,
-  timeFilter,
-  hostFilter,
-  requestContext = null,
-  options = {},
-) {
+export async function loadBreakdown(b, hostFilter, requestContext = null, options = {}) {
   const requestStatus = createRequestStatus(requestContext);
   const card = document.getElementById(b.id);
 
@@ -489,7 +483,6 @@ export async function loadBreakdown(
       card,
       baseCol,
       samplingPlan,
-      timeFilter,
       hostFilter,
       requestStatus,
       signal: requestStatus.signal,
@@ -503,11 +496,10 @@ export async function loadBreakdown(
 }
 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
-  const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   updateGlobalSampleRate(getInitialSamplingRate());
   await Promise.all(
-    allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
+    allBreakdowns.map((b) => loadBreakdown(b, hostFilter, requestContext)),
   );
 }
 
@@ -565,10 +557,9 @@ export async function refineFacetSampling(facetId, targetSampleRate = null) {
   );
   if (startIndex === -1) return;
 
-  const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const context = startRequestContext(`facet-${facetId}`);
-  await loadBreakdown(breakdown, timeFilter, hostFilter, context, {
+  await loadBreakdown(breakdown, hostFilter, context, {
     samplingPlan: samplingPlan.slice(startIndex),
     disableTimeouts: true,
   });

@@ -430,7 +430,7 @@ async function loadMoreLogs() {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
 
-  const timeFilter = getTimeFilter();
+  const timeFilter = getTimeFilter(logsSampleRate);
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
   const table = logsTable || getSampledTable(logsSampleRate);
@@ -542,7 +542,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   const container = logsView.querySelector('.logs-table-container');
   container.classList.add('updating');
 
-  const timeFilter = getTimeFilter();
+  const timeFilter = getTimeFilter(logsSampleRate);
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
 

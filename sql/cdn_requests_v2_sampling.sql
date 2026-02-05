@@ -53,457 +53,317 @@ AS SELECT * REPLACE (
 FROM helix_logs_production.cdn_requests_v2
 WHERE (sample_hash % 100) = 0;
 
+
+
 -- Rebuild projections for sampled tables using coarse (hourly) buckets.
 -- Drop projections first to stay within the projection limit.
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_url;
+  DROP PROJECTION IF EXISTS proj_hour_facet_content_length;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_user_agent;
+  DROP PROJECTION IF EXISTS proj_hour_facet_time_elapsed;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_referer;
+  DROP PROJECTION IF EXISTS proj_hour_accept;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_x_forwarded_host;
+  DROP PROJECTION IF EXISTS proj_hour_accept_encoding;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_x_error;
+  DROP PROJECTION IF EXISTS proj_hour_asn;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_host;
+  DROP PROJECTION IF EXISTS proj_hour_backend_type;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_method;
+  DROP PROJECTION IF EXISTS proj_hour_byo_cdn;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_datacenter;
+  DROP PROJECTION IF EXISTS proj_hour_cache_control;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_request_type;
+  DROP PROJECTION IF EXISTS proj_hour_cache_status;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_backend_type;
+  DROP PROJECTION IF EXISTS proj_hour_client_ip;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_content_type;
+  DROP PROJECTION IF EXISTS proj_hour_content_type;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_cache_status;
+  DROP PROJECTION IF EXISTS proj_hour_datacenter;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_client_ip;
+  DROP PROJECTION IF EXISTS proj_hour_host;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_status_range;
+  DROP PROJECTION IF EXISTS proj_hour_location;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_status;
+  DROP PROJECTION IF EXISTS proj_hour_method;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_asn;
+  DROP PROJECTION IF EXISTS proj_hour_push_invalidation;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  DROP PROJECTION IF EXISTS proj_facet_asn_num;
+  DROP PROJECTION IF EXISTS proj_hour_referer;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_request_type;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_status;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_status_range;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_url;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_user_agent;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_x_error;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_x_error_grouped;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  DROP PROJECTION IF EXISTS proj_hour_x_forwarded_host;
 
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_url;
+  DROP PROJECTION IF EXISTS proj_hour_facet_content_length;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_user_agent;
+  DROP PROJECTION IF EXISTS proj_hour_facet_time_elapsed;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_referer;
+  DROP PROJECTION IF EXISTS proj_hour_accept;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_x_forwarded_host;
+  DROP PROJECTION IF EXISTS proj_hour_accept_encoding;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_x_error;
+  DROP PROJECTION IF EXISTS proj_hour_asn;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_host;
+  DROP PROJECTION IF EXISTS proj_hour_backend_type;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_method;
+  DROP PROJECTION IF EXISTS proj_hour_byo_cdn;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_datacenter;
+  DROP PROJECTION IF EXISTS proj_hour_cache_control;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_request_type;
+  DROP PROJECTION IF EXISTS proj_hour_cache_status;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_backend_type;
+  DROP PROJECTION IF EXISTS proj_hour_client_ip;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_content_type;
+  DROP PROJECTION IF EXISTS proj_hour_content_type;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_cache_status;
+  DROP PROJECTION IF EXISTS proj_hour_datacenter;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_client_ip;
+  DROP PROJECTION IF EXISTS proj_hour_host;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_status_range;
+  DROP PROJECTION IF EXISTS proj_hour_location;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_status;
+  DROP PROJECTION IF EXISTS proj_hour_method;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_asn;
+  DROP PROJECTION IF EXISTS proj_hour_push_invalidation;
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  DROP PROJECTION IF EXISTS proj_facet_asn_num;
+  DROP PROJECTION IF EXISTS proj_hour_referer;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_request_type;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_status;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_status_range;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_url;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_user_agent;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_x_error;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_x_error_grouped;
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  DROP PROJECTION IF EXISTS proj_hour_x_forwarded_host;
 
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_url (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.url`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.url`
+  ADD PROJECTION proj_hour_facet_content_length (
+    SELECT toStartOfHour(timestamp) AS hour, multiIf(`response.headers.content_length` = 0, '0 (empty)', `response.headers.content_length` < 100, '1-100 B', `response.headers.content_length` < 500, '100-500 B', `response.headers.content_length` < 1024, '500 B - 1 KB', `response.headers.content_length` < 5120, '1-5 KB', `response.headers.content_length` < 10240, '5-10 KB', `response.headers.content_length` < 51200, '10-50 KB', `response.headers.content_length` < 102400, '50-100 KB', `response.headers.content_length` < 512000, '100-500 KB', `response.headers.content_length` < 1048576, '500 KB - 1 MB', `response.headers.content_length` < 10485760, '1-10 MB', '> 10 MB') AS content_length_bucket, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, content_length_bucket
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_user_agent (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.headers.user_agent`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.headers.user_agent`
+  ADD PROJECTION proj_hour_facet_time_elapsed (
+    SELECT toStartOfHour(timestamp) AS hour, multiIf(`cdn.time_elapsed_msec` < 5, '< 5ms', `cdn.time_elapsed_msec` < 10, '5-10ms', `cdn.time_elapsed_msec` < 20, '10-20ms', `cdn.time_elapsed_msec` < 35, '20-35ms', `cdn.time_elapsed_msec` < 50, '35-50ms', `cdn.time_elapsed_msec` < 100, '50-100ms', `cdn.time_elapsed_msec` < 250, '100-250ms', `cdn.time_elapsed_msec` < 500, '250-500ms', `cdn.time_elapsed_msec` < 1000, '500ms - 1s', '>= 1s') AS time_elapsed_bucket, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, time_elapsed_bucket
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_referer (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.headers.referer`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.headers.referer`
+  ADD PROJECTION proj_hour_accept (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.accept`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.accept`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_x_forwarded_host (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.headers.x_forwarded_host`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.headers.x_forwarded_host`
+  ADD PROJECTION proj_hour_accept_encoding (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.accept_encoding`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.accept_encoding`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_x_error (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `response.headers.x_error`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `response.headers.x_error`
+  ADD PROJECTION proj_hour_asn (
+    SELECT toStartOfHour(timestamp) AS hour, `client.asn`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `client.asn`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_host (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.host`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.host`
+  ADD PROJECTION proj_hour_backend_type (
+    SELECT toStartOfHour(timestamp) AS hour, `helix.backend_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `helix.backend_type`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_method (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.method`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.method`
+  ADD PROJECTION proj_hour_byo_cdn (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.x_byo_cdn_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.x_byo_cdn_type`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_datacenter (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `cdn.datacenter`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `cdn.datacenter`
+  ADD PROJECTION proj_hour_cache_control (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.cache_control`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.cache_control`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_request_type (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `helix.request_type`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `helix.request_type`
+  ADD PROJECTION proj_hour_cache_status (
+    SELECT toStartOfHour(timestamp) AS hour, upper(`cdn.cache_status`) AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(upper(`cdn.cache_status`) LIKE 'HIT%') AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_backend_type (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `helix.backend_type`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `helix.backend_type`
+  ADD PROJECTION proj_hour_client_ip (
+    SELECT toStartOfHour(timestamp) AS hour, if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%') AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_content_type (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `response.headers.content_type`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `response.headers.content_type`
+  ADD PROJECTION proj_hour_content_type (
+    SELECT toStartOfHour(timestamp) AS hour, `response.headers.content_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, sum(`response.headers.content_length`) AS bytes, sumIf(`response.headers.content_length`, `response.status` < 400) AS bytes_ok, sumIf(`response.headers.content_length`, (`response.status` >= 400) AND (`response.status` < 500)) AS bytes_4xx, sumIf(`response.headers.content_length`, `response.status` >= 500) AS bytes_5xx GROUP BY hour, `response.headers.content_type`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_cache_status (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      upper(`cdn.cache_status`) as cache_status,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, cache_status
+  ADD PROJECTION proj_hour_datacenter (
+    SELECT toStartOfHour(timestamp) AS hour, `cdn.datacenter`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `cdn.datacenter`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_client_ip (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) as client_ip,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, client_ip
+  ADD PROJECTION proj_hour_host (
+    SELECT toStartOfHour(timestamp) AS hour, `request.host` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`request.host` LIKE '%.aem.live') AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_status_range (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      concat(toString(intDiv(`response.status`, 100)), 'xx') as status_range,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, status_range
+  ADD PROJECTION proj_hour_location (
+    SELECT toStartOfHour(timestamp) AS hour, `response.headers.location`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `response.headers.location`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_status (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      toString(`response.status`) as status,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, status
+  ADD PROJECTION proj_hour_method (
+    SELECT toStartOfHour(timestamp) AS hour, `request.method` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')) AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_asn (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      concat(toString(`client.asn`), ' - ', `client.name`) as asn,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, asn
+  ADD PROJECTION proj_hour_push_invalidation (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.x_push_invalidation`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.x_push_invalidation`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
-  ADD PROJECTION proj_facet_asn_num (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `client.asn` as asn_num,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, asn_num
+  ADD PROJECTION proj_hour_referer (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.referer`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.referer`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_request_type (
+    SELECT toStartOfHour(timestamp) AS hour, `helix.request_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `helix.request_type`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_status (
+    SELECT toStartOfHour(timestamp) AS hour, toString(`response.status`) AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_status_range (
+    SELECT toStartOfHour(timestamp) AS hour, concat(toString(intDiv(`response.status`, 100)), 'xx') AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`response.status` >= 500) AS summary_cnt GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_url (
+    SELECT toStartOfHour(timestamp) AS hour, `request.url`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.url`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_user_agent (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.user_agent` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf((NOT (`request.headers.user_agent` LIKE 'Mozilla/%')) OR (`request.headers.user_agent` LIKE '%+http%')) AS summary_cnt GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_x_error (
+    SELECT toStartOfHour(timestamp) AS hour, `response.headers.x_error`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `response.headers.x_error`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_x_error_grouped (
+    SELECT toStartOfHour(timestamp) AS hour, replaceRegexpAll(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...') AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10
+  ADD PROJECTION proj_hour_x_forwarded_host (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.x_forwarded_host` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`request.headers.x_forwarded_host` != '') AS summary_cnt GROUP BY hour, dim
   );
 
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_url (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.url`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.url`
+  ADD PROJECTION proj_hour_facet_content_length (
+    SELECT toStartOfHour(timestamp) AS hour, multiIf(`response.headers.content_length` = 0, '0 (empty)', `response.headers.content_length` < 100, '1-100 B', `response.headers.content_length` < 500, '100-500 B', `response.headers.content_length` < 1024, '500 B - 1 KB', `response.headers.content_length` < 5120, '1-5 KB', `response.headers.content_length` < 10240, '5-10 KB', `response.headers.content_length` < 51200, '10-50 KB', `response.headers.content_length` < 102400, '50-100 KB', `response.headers.content_length` < 512000, '100-500 KB', `response.headers.content_length` < 1048576, '500 KB - 1 MB', `response.headers.content_length` < 10485760, '1-10 MB', '> 10 MB') AS content_length_bucket, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, content_length_bucket
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_user_agent (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.headers.user_agent`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.headers.user_agent`
+  ADD PROJECTION proj_hour_facet_time_elapsed (
+    SELECT toStartOfHour(timestamp) AS hour, multiIf(`cdn.time_elapsed_msec` < 5, '< 5ms', `cdn.time_elapsed_msec` < 10, '5-10ms', `cdn.time_elapsed_msec` < 20, '10-20ms', `cdn.time_elapsed_msec` < 35, '20-35ms', `cdn.time_elapsed_msec` < 50, '35-50ms', `cdn.time_elapsed_msec` < 100, '50-100ms', `cdn.time_elapsed_msec` < 250, '100-250ms', `cdn.time_elapsed_msec` < 500, '250-500ms', `cdn.time_elapsed_msec` < 1000, '500ms - 1s', '>= 1s') AS time_elapsed_bucket, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, time_elapsed_bucket
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_referer (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.headers.referer`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.headers.referer`
+  ADD PROJECTION proj_hour_accept (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.accept`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.accept`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_x_forwarded_host (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.headers.x_forwarded_host`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.headers.x_forwarded_host`
+  ADD PROJECTION proj_hour_accept_encoding (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.accept_encoding`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.accept_encoding`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_x_error (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `response.headers.x_error`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `response.headers.x_error`
+  ADD PROJECTION proj_hour_asn (
+    SELECT toStartOfHour(timestamp) AS hour, `client.asn`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `client.asn`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_host (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.host`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.host`
+  ADD PROJECTION proj_hour_backend_type (
+    SELECT toStartOfHour(timestamp) AS hour, `helix.backend_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `helix.backend_type`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_method (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `request.method`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `request.method`
+  ADD PROJECTION proj_hour_byo_cdn (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.x_byo_cdn_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.x_byo_cdn_type`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_datacenter (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `cdn.datacenter`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `cdn.datacenter`
+  ADD PROJECTION proj_hour_cache_control (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.cache_control`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.cache_control`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_request_type (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `helix.request_type`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `helix.request_type`
+  ADD PROJECTION proj_hour_cache_status (
+    SELECT toStartOfHour(timestamp) AS hour, upper(`cdn.cache_status`) AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(upper(`cdn.cache_status`) LIKE 'HIT%') AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_backend_type (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `helix.backend_type`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `helix.backend_type`
+  ADD PROJECTION proj_hour_client_ip (
+    SELECT toStartOfHour(timestamp) AS hour, if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%') AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_content_type (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `response.headers.content_type`,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `response.headers.content_type`
+  ADD PROJECTION proj_hour_content_type (
+    SELECT toStartOfHour(timestamp) AS hour, `response.headers.content_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, sum(`response.headers.content_length`) AS bytes, sumIf(`response.headers.content_length`, `response.status` < 400) AS bytes_ok, sumIf(`response.headers.content_length`, (`response.status` >= 400) AND (`response.status` < 500)) AS bytes_4xx, sumIf(`response.headers.content_length`, `response.status` >= 500) AS bytes_5xx GROUP BY hour, `response.headers.content_type`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_cache_status (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      upper(`cdn.cache_status`) as cache_status,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, cache_status
+  ADD PROJECTION proj_hour_datacenter (
+    SELECT toStartOfHour(timestamp) AS hour, `cdn.datacenter`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `cdn.datacenter`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_client_ip (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) as client_ip,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, client_ip
+  ADD PROJECTION proj_hour_host (
+    SELECT toStartOfHour(timestamp) AS hour, `request.host` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`request.host` LIKE '%.aem.live') AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_status_range (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      concat(toString(intDiv(`response.status`, 100)), 'xx') as status_range,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, status_range
+  ADD PROJECTION proj_hour_location (
+    SELECT toStartOfHour(timestamp) AS hour, `response.headers.location`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `response.headers.location`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_status (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      toString(`response.status`) as status,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, status
+  ADD PROJECTION proj_hour_method (
+    SELECT toStartOfHour(timestamp) AS hour, `request.method` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')) AS summary_cnt GROUP BY hour, dim
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_asn (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      concat(toString(`client.asn`), ' - ', `client.name`) as asn,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, asn
+  ADD PROJECTION proj_hour_push_invalidation (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.x_push_invalidation`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.x_push_invalidation`
   );
 ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
-  ADD PROJECTION proj_facet_asn_num (
-    SELECT
-      toStartOfHour(timestamp) as hour,
-      `client.asn` as asn_num,
-      count() as cnt,
-      countIf(`response.status` < 400) as cnt_ok,
-      countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-      countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, asn_num
+  ADD PROJECTION proj_hour_referer (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.referer`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.headers.referer`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_request_type (
+    SELECT toStartOfHour(timestamp) AS hour, `helix.request_type`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `helix.request_type`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_status (
+    SELECT toStartOfHour(timestamp) AS hour, toString(`response.status`) AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_status_range (
+    SELECT toStartOfHour(timestamp) AS hour, concat(toString(intDiv(`response.status`, 100)), 'xx') AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`response.status` >= 500) AS summary_cnt GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_url (
+    SELECT toStartOfHour(timestamp) AS hour, `request.url`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `request.url`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_user_agent (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.user_agent` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf((NOT (`request.headers.user_agent` LIKE 'Mozilla/%')) OR (`request.headers.user_agent` LIKE '%+http%')) AS summary_cnt GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_x_error (
+    SELECT toStartOfHour(timestamp) AS hour, `response.headers.x_error`, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, `response.headers.x_error`
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_x_error_grouped (
+    SELECT toStartOfHour(timestamp) AS hour, replaceRegexpAll(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...') AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx GROUP BY hour, dim
+  );
+ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1
+  ADD PROJECTION proj_hour_x_forwarded_host (
+    SELECT toStartOfHour(timestamp) AS hour, `request.headers.x_forwarded_host` AS dim, count() AS cnt, countIf(`response.status` < 400) AS cnt_ok, countIf((`response.status` >= 400) AND (`response.status` < 500)) AS cnt_4xx, countIf(`response.status` >= 500) AS cnt_5xx, countIf(`request.headers.x_forwarded_host` != '') AS summary_cnt GROUP BY hour, dim
   );
 
 -- Materialize projections for existing data (runs in background)
--- ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10 MATERIALIZE PROJECTION proj_facet_url;
--- ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1 MATERIALIZE PROJECTION proj_facet_url;
+-- ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_10 MATERIALIZE PROJECTION proj_hour_url;
+-- ALTER TABLE helix_logs_production.cdn_requests_v2_sampled_1 MATERIALIZE PROJECTION proj_hour_url;
 
 -- Backfill (run once, per day to keep inserts smaller)
 -- WARNING: destructive. Only run TRUNCATE during initial setup.

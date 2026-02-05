@@ -901,7 +901,6 @@ export function setupChartNavigation(callback) {
 export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), options = {}) {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
-  const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
   const bucket = getTimeBucket();
@@ -921,6 +920,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   for (let idx = 0; idx < samplingPlan.length; idx += 1) {
     const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return;
+    const timeFilter = getTimeFilter(sampleRate);
     const { table, mult } = getChartSamplingConfig(sampleRate);
     const maxExecutionTime = getSampleRateTimeout(sampleRate, { disableTimeouts });
     // Progressive refinement requires sequential queries.

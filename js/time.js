@@ -22,6 +22,7 @@ const SECOND_MS = 1000;
 const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
+const TWELVE_HOURS_MS = 12 * HOUR_MS;
 
 const BASE_TABLE = 'cdn_requests_v2';
 const SAMPLED_TABLE_10 = 'cdn_requests_v2_sampled_10';
@@ -52,6 +53,14 @@ function parseIntervalToMs(interval) {
 
 function formatSqlDateTime(date) {
   return date.toISOString().replace('T', ' ').slice(0, 19);
+}
+
+export function normalizeSampleRate(sampleRate) {
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0) return SAMPLE_RATES.full;
+  if (sampleRate >= SAMPLE_RATES.full) return SAMPLE_RATES.full;
+  if (sampleRate <= SAMPLE_RATES.onePercent) return SAMPLE_RATES.onePercent;
+  if (sampleRate <= SAMPLE_RATES.tenPercent) return SAMPLE_RATES.tenPercent;
+  return SAMPLE_RATES.full;
 }
 
 // Get period duration in milliseconds (moved up to avoid use-before-define)
@@ -89,11 +98,21 @@ export function getSelectedRange() {
   return { start, end };
 }
 
-function getTimeFilterBounds() {
+function getTimeAlignmentMs(sampleRate = null) {
+  if (Number.isFinite(sampleRate) && normalizeSampleRate(sampleRate) < SAMPLE_RATES.full) {
+    return HOUR_MS;
+  }
+  const periodMs = getPeriodMs();
+  return periodMs > TWELVE_HOURS_MS ? HOUR_MS : MINUTE_MS;
+}
+
+function getTimeFilterBounds(sampleRate = null) {
   const { start, end } = getSelectedRange();
+  const alignmentMs = getTimeAlignmentMs(sampleRate);
   return {
-    start: floorToInterval(start, MINUTE_MS),
-    end: floorToInterval(end, MINUTE_MS),
+    start: floorToInterval(start, alignmentMs),
+    end: floorToInterval(end, alignmentMs),
+    alignmentMs,
   };
 }
 
@@ -125,9 +144,11 @@ export function setQueryTimestamp(ts) {
 }
 
 export function setCustomTimeRange(start, end) {
-  // Round to full minutes for projection compatibility
-  const roundedStart = new Date(Math.floor(start.getTime() / 60000) * 60000);
-  const roundedEnd = new Date(Math.ceil(end.getTime() / 60000) * 60000);
+  const durationMs = end.getTime() - start.getTime();
+  const alignmentMs = durationMs > TWELVE_HOURS_MS ? HOUR_MS : MINUTE_MS;
+  // Round to full minutes/hours for projection compatibility
+  const roundedStart = new Date(Math.floor(start.getTime() / alignmentMs) * alignmentMs);
+  const roundedEnd = new Date(Math.ceil(end.getTime() / alignmentMs) * alignmentMs);
 
   // Enforce minimum 3-minute window
   const minDuration = 3 * 60 * 1000;
@@ -159,14 +180,6 @@ export function getCustomTimeRange() {
 
 export function getTable() {
   return BASE_TABLE;
-}
-
-export function normalizeSampleRate(sampleRate) {
-  if (!Number.isFinite(sampleRate) || sampleRate <= 0) return SAMPLE_RATES.full;
-  if (sampleRate >= SAMPLE_RATES.full) return SAMPLE_RATES.full;
-  if (sampleRate <= SAMPLE_RATES.onePercent) return SAMPLE_RATES.onePercent;
-  if (sampleRate <= SAMPLE_RATES.tenPercent) return SAMPLE_RATES.tenPercent;
-  return SAMPLE_RATES.full;
 }
 
 export function getSampledTable(sampleRate) {
@@ -226,11 +239,12 @@ export function getTimeBucket() {
 // Re-export getTimeBucketStep for external use
 export { getTimeBucketStep };
 
-export function getTimeFilter() {
-  const { start, end } = getTimeFilterBounds();
+export function getTimeFilter(sampleRate = null) {
+  const { start, end, alignmentMs } = getTimeFilterBounds(sampleRate);
+  const rounding = alignmentMs === HOUR_MS ? 'toStartOfHour' : 'toStartOfMinute';
   const startIso = formatSqlDateTime(start);
   const endIso = formatSqlDateTime(end);
-  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
+  return `${rounding}(timestamp) BETWEEN ${rounding}(toDateTime('${startIso}')) AND ${rounding}(toDateTime('${endIso}'))`;
 }
 
 export function getHostFilter() {

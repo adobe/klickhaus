@@ -49,6 +49,16 @@ describe('time helpers', () => {
     assert.ok(filter.includes('2026-01-20 12:02:00'));
   });
 
+  it('rounds long custom time ranges to hour boundaries', () => {
+    const start = new Date('2026-01-20T00:15:00Z');
+    const end = new Date('2026-01-20T15:45:00Z');
+    setCustomTimeRange(start, end);
+
+    const filter = getTimeFilter();
+    assert.ok(filter.includes('2026-01-20 00:00:00'));
+    assert.ok(filter.includes('2026-01-20 16:00:00'));
+  });
+
   it('uses expected bucket for short custom range', () => {
     const start = new Date('2026-01-20T12:00:00Z');
     const end = new Date('2026-01-20T12:10:00Z');
@@ -107,5 +117,10 @@ describe('time helpers', () => {
     assert.strictEqual(getSampleRateTimeout(1), 60);
     assert.strictEqual(getSampleRateTimeout(2), 60);
     assert.strictEqual(getSampleRateTimeout(0.01, { disableTimeouts: true }), 0);
+  });
+
+  it('uses hour rounding for sampled filters', () => {
+    const filter = getTimeFilter(0.1);
+    assert.ok(filter.startsWith('toStartOfHour(timestamp)'));
   });
 });

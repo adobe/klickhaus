@@ -22,7 +22,7 @@ import {
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter, normalizeSampleRate,
+  getHostFilter, normalizeSampleRate,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -99,7 +99,7 @@ export function initDashboard(config = {}) {
   setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
 
   // Load dashboard queries (chart and facets)
-  async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
+  async function loadDashboardQueries(hostFilter, dashboardContext, facetsContext) {
     const timeSeriesPromise = loadTimeSeries(dashboardContext);
     const focusedFacetId = getFocusedFacetId();
     const isDashboardCurrent = () => isRequestCurrent(
@@ -109,7 +109,7 @@ export function initDashboard(config = {}) {
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
     const facetPromises = allBreakdowns.map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
+      (b) => loadBreakdown(b, hostFilter, facetsContext).then(() => {
         if (!isFacetsCurrent()) return;
         if (!hasVisibleUpdatingFacets()) {
           stopQueryTimer();
@@ -187,14 +187,13 @@ export function initDashboard(config = {}) {
     startQueryTimer();
     resetFacetTimings();
 
-    const timeFilter = getTimeFilter();
     const hostFilter = getHostFilter();
 
     if (state.showLogs) {
       await loadLogs(dashboardContext);
-      loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+      loadDashboardQueries(hostFilter, dashboardContext, facetsContext);
     } else {
-      await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+      await loadDashboardQueries(hostFilter, dashboardContext, facetsContext);
       loadLogs(dashboardContext);
     }
 
@@ -237,10 +236,9 @@ export function initDashboard(config = {}) {
     if (toggledFacetId) {
       const breakdown = allBreakdowns.find((b) => b.id === toggledFacetId);
       if (breakdown) {
-        const timeFilter = getTimeFilter();
         const hostFilter = getHostFilter();
         const facetsContext = startRequestContext(`facet:${breakdown.id}`);
-        loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+        loadBreakdown(breakdown, hostFilter, facetsContext);
       }
     }
   }
@@ -262,12 +260,11 @@ export function initDashboard(config = {}) {
     state[stateKey] = state[stateKey] === 'count' ? 'bytes' : 'count';
     saveStateToURL();
 
-    const timeFilter = getTimeFilter();
     const hostFilter = getHostFilter();
     const breakdowns = allBreakdowns.filter((b) => b.modeToggle === stateKey);
     for (const breakdown of breakdowns) {
       const facetsContext = startRequestContext(`facet:${breakdown.id}`);
-      loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+      loadBreakdown(breakdown, hostFilter, facetsContext);
     }
   }
 
