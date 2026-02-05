@@ -196,6 +196,8 @@ export async function query(
   } = {},
 ) {
   const params = new URLSearchParams();
+  params.set('max_execution_time', '30');
+  params.set('timeout_before_checking_execution_speed', '0');
 
   // Skip caching entirely for simple queries like auth check
   if (!skipCache) {

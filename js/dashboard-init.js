@@ -22,7 +22,7 @@ import {
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter,
+  getTimeFilter, getHostFilter, normalizeSampleRate,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -126,7 +126,7 @@ export function initDashboard(config = {}) {
     const anomalies = getDetectedAnomalies();
     const chartData = getLastChartData();
 
-    if (anomalies.length > 0 && chartData) {
+    if (anomalies.length > 0 && chartData && normalizeSampleRate(state.sampleRate) >= 1) {
       const hasCache = hasCachedInvestigation();
 
       if (hasCache) {

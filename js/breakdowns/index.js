@@ -367,7 +367,8 @@ async function runSamplingStages({
   const cardEl = card;
   let hasRendered = false;
 
-  for (const sampleRate of samplingPlan) {
+  for (let idx = 0; idx < samplingPlan.length; idx += 1) {
+    const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return hasRendered;
     const params = buildBreakdownQueryParams(
       breakdown,
@@ -421,11 +422,14 @@ async function runSamplingStages({
       const details = getQueryErrorDetails(err);
       // eslint-disable-next-line no-console
       console.error(`Breakdown error (${breakdown.id}):`, err);
-      if (!hasRendered) {
-        renderBreakdownError(breakdown.id, details);
-        setFacetSampleRate(breakdown.id, params.sampleRate);
+      const shouldRetry = details.category === 'timeout' && idx < samplingPlan.length - 1;
+      if (!shouldRetry) {
+        if (!hasRendered) {
+          renderBreakdownError(breakdown.id, details);
+          setFacetSampleRate(breakdown.id, params.sampleRate);
+        }
+        return hasRendered;
       }
-      return hasRendered;
     }
   }
 

@@ -72,6 +72,10 @@ import {
   parseUTC,
 } from './chart-state.js';
 
+function isTimeoutError(err) {
+  return err?.category === 'timeout' || err?.type === 'TIMEOUT_EXCEEDED';
+}
+
 function getSamplingConfig(sampleRate) {
   const rate = normalizeSampleRate(sampleRate);
   const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
@@ -873,7 +877,9 @@ export function setupChartNavigation(callback) {
       if (chartData && chartData.length >= 2) {
         const fullStart = parseUTC(chartData[0].t);
         const fullEnd = parseUTC(chartData[chartData.length - 1].t);
-        investigateTimeRange(startTime, endTime, fullStart, fullEnd);
+        if (normalizeSampleRate(state.sampleRate) >= 1) {
+          investigateTimeRange(startTime, endTime, fullStart, fullEnd);
+        }
       }
     } else {
       hideSelectionOverlay();
@@ -947,7 +953,8 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
     setTimelineSampleRate(samplingPlan[0]);
   }
 
-  for (const sampleRate of samplingPlan) {
+  for (let idx = 0; idx < samplingPlan.length; idx += 1) {
+    const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return;
     setTimelineSampleRate(sampleRate);
     const { table, mult } = getSamplingConfig(sampleRate);
@@ -975,9 +982,12 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
       renderChart(result.data);
     } catch (err) {
       if (!isCurrent() || isAbortError(err)) return;
-      // eslint-disable-next-line no-console
-      console.error('Chart error:', err);
-      return;
+      const shouldRetry = isTimeoutError(err) && idx < samplingPlan.length - 1;
+      if (!shouldRetry) {
+        // eslint-disable-next-line no-console
+        console.error('Chart error:', err);
+        return;
+      }
     }
   }
 }
