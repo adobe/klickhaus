@@ -16,7 +16,7 @@
  */
 
 import { query, isAbortError } from './api.js';
-import { getFacetFilters } from './breakdowns/index.js';
+import { getFacetFilters, getCurrentSamplingInfo } from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -231,7 +231,7 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
 /**
  * Draw a stacked area with line on top
  */
-function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
+function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, lineDash = []) {
   if (!topStack.some((v, i) => v > bottomStack[i])) return;
 
   ctx.beginPath();
@@ -247,7 +247,9 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
   for (let i = 1; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
   ctx.strokeStyle = colors.line;
   ctx.lineWidth = 2;
+  ctx.setLineDash(lineDash);
   ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 export function renderChart(data) {
@@ -342,9 +344,17 @@ export function renderChart(data) {
   const stackedOk = series.server.map((v, i) => v + series.client[i] + series.ok[i]);
   const zeros = new Array(data.length).fill(0);
 
-  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok);
-  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client);
-  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server);
+  // Use line dash pattern based on sampling rate:
+  // solid = no sampling, dashed = 10% sampling, dotted = 1% sampling
+  const samplingInfo = getCurrentSamplingInfo();
+  let lineDash = [];
+  if (samplingInfo.isActive) {
+    lineDash = samplingInfo.rate === '1%' ? [3, 3] : [8, 4];
+  }
+
+  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineDash);
+  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client, lineDash);
+  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server, lineDash);
 
   // Detect anomalies (skip for ranges < 5 minutes)
   const lastIdx = data.length - 1;
