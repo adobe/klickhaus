@@ -240,8 +240,9 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
 
 /**
  * Draw a stacked area with line on top
- * @param {number[]} [lineDash] - Optional dash array for stroke (e.g. [6, 4] dashed, [2, 2] dotted). Omit or [] for solid.
- */
+ * @param {number[]} [lineDash] - Optional dash array for stroke
+ * (e.g. [6, 4] dashed, [2, 2] dotted). Omit or [] for solid.
+*/
 function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, lineDash = []) {
   if (!topStack.some((v, i) => v > bottomStack[i])) return;
 
@@ -357,7 +358,10 @@ export function renderChart(data) {
 
   // Line style based on sampling: solid (no sampling), dashed (10%), dotted (1%)
   const samplingInfo = getCurrentSamplingInfo();
-  const lineDash = !samplingInfo.isActive ? [] : samplingInfo.rate === '1%' ? [2, 2] : [6, 4];
+  let lineDash = [];
+  if (samplingInfo.isActive) {
+    lineDash = samplingInfo.rate === '1%' ? [2, 2] : [6, 4];
+  }
 
   drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineDash);
   drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client, lineDash);

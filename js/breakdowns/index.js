@@ -69,8 +69,21 @@ function getSamplingConfig(sampleRate) {
 function updateGlobalSampleRate(fallbackRate = 1) {
   const rates = Object.values(facetSampleRates);
   const nextRate = rates.length ? Math.min(...rates) : fallbackRate;
+  const prevRate = state.sampleRate;
   state.sampleRate = nextRate;
   document.body.dataset.sampleRate = String(nextRate);
+  if (prevRate !== nextRate) {
+    window.dispatchEvent(new CustomEvent('sample-rate-change', {
+      detail: { sampleRate: nextRate },
+    }));
+  }
+}
+
+function getInitialSamplingRate() {
+  const hasHighCardinality = allBreakdowns.some((b) => b.highCardinality);
+  if (!hasHighCardinality) return getRetentionSampleLimit();
+  const plan = getSamplingPlan(true);
+  return plan.length > 0 ? plan[0] : getRetentionSampleLimit();
 }
 
 function setFacetSampleRate(facetId, sampleRate) {
@@ -79,28 +92,26 @@ function setFacetSampleRate(facetId, sampleRate) {
   } else {
     facetSampleRates[facetId] = sampleRate;
   }
-  updateGlobalSampleRate(getRetentionSampleLimit());
+  updateGlobalSampleRate(getInitialSamplingRate());
 }
 
 /**
- * Get current sampling info for UI display (chart blur/line width)
- * @returns {{ isActive: boolean, rate: string, description: string }} - Sampling status and display info
+ * Get current sampling info for UI display (chart blur/line width).
+ * @returns {{ isActive: boolean, rate: string, description: string }}
+ * Sampling status and display info.
  */
 export function getCurrentSamplingInfo() {
-  const periodMs = getPeriodMs();
-
-  // No sampling for time ranges <= 1 hour
-  if (!periodMs || periodMs <= ONE_HOUR_MS) {
+  const rate = normalizeSampleRate(state.sampleRate);
+  if (!rate || rate >= 1) {
     return { isActive: false, rate: '', description: '' };
   }
 
-  // 1% sampling for 7d
-  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
-    return { isActive: true, rate: '1%', description: '1% sample for faster queries' };
-  }
-
-  // 10% sampling for 12h, 24h
-  return { isActive: true, rate: '10%', description: '10% sample for faster queries' };
+  const percentage = `${Math.round(rate * 100)}%`;
+  return {
+    isActive: true,
+    rate: percentage,
+    description: `${percentage} sample for faster queries`,
+  };
 }
 
 export function resetFacetTimings() {
@@ -110,7 +121,7 @@ export function resetFacetTimings() {
   Object.keys(facetSampleRates).forEach((key) => {
     delete facetSampleRates[key];
   });
-  updateGlobalSampleRate(getRetentionSampleLimit());
+  updateGlobalSampleRate(getInitialSamplingRate());
 }
 
 export function getFacetFilters() {
@@ -440,7 +451,7 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  updateGlobalSampleRate(getRetentionSampleLimit());
+  updateGlobalSampleRate(getInitialSamplingRate());
   await Promise.all(
     allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
   );
