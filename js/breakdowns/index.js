@@ -16,7 +16,11 @@ import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../reque
 import {
   getTimeFilter, getHostFilter, getTable, getPeriodMs,
 } from '../time.js';
-import { allBreakdowns } from './definitions.js';
+import { allBreakdowns as defaultBreakdowns } from './definitions.js';
+
+export function getBreakdowns() {
+  return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
+}
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
@@ -95,6 +99,14 @@ function renderHiddenFacet(cardEl, b) {
  * @returns {Object} Aggregation expressions
  */
 function buildAggregations(isBytes, mult) {
+  if (state.aggregations) {
+    return {
+      aggTotal: state.aggregations.aggTotal + mult,
+      aggOk: state.aggregations.aggOk + mult,
+      agg4xx: state.aggregations.agg4xx + mult,
+      agg5xx: state.aggregations.agg5xx + mult,
+    };
+  }
   return {
     aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
     aggOk: isBytes
@@ -336,8 +348,9 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
+  const breakdowns = getBreakdowns();
   await Promise.all(
-    allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
+    breakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
   );
 }
 

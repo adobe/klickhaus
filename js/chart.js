@@ -917,7 +917,8 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
 
-  const sql = await loadSql('time-series', {
+  const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
+  const sql = await loadSql(timeSeriesTemplate, {
     bucket,
     database: DATABASE,
     table: getTable(),

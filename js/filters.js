@@ -11,7 +11,7 @@
  */
 import { state } from './state.js';
 import { getColorIndicatorHtml } from './colors/index.js';
-import { allBreakdowns } from './breakdowns/definitions.js';
+import { getBreakdowns } from './breakdowns/index.js';
 import { renderFilterTags } from './templates/filter-tags.js';
 
 // Callbacks set by main.js to avoid circular dependencies
@@ -31,7 +31,7 @@ export function updateHeaderFixed() {
 
 // Get facet title from breakdown column
 function getFacetTitle(col) {
-  const breakdown = allBreakdowns.find((b) => b.col === col);
+  const breakdown = getBreakdowns().find((b) => b.col === col);
   if (!breakdown) return null;
   const card = document.getElementById(breakdown.id);
   if (!card) return null;
@@ -166,7 +166,7 @@ export function addFilter(col, value, exclude, filterCol, filterValue, filterOp,
     }
   } else {
     // Fallback: look up breakdown to get filterCol and filterValueFn if defined
-    const breakdown = allBreakdowns.find((b) => b.col === col);
+    const breakdown = getBreakdowns().find((b) => b.col === col);
     if (breakdown?.filterCol) {
       filter.filterCol = breakdown.filterCol;
       filter.filterValue = breakdown.filterValueFn ? breakdown.filterValueFn(value) : value;

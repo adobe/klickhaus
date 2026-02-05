@@ -32,7 +32,7 @@ import {
   renderChart,
 } from './chart.js';
 import {
-  loadAllBreakdowns, loadBreakdown, allBreakdowns, markSlowestFacet, resetFacetTimings,
+  loadAllBreakdowns, loadBreakdown, getBreakdowns, markSlowestFacet, resetFacetTimings,
 } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import {
@@ -102,7 +102,7 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
-    const facetPromises = allBreakdowns.map(
+    const facetPromises = getBreakdowns().map(
       (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
         if (!isFacetsCurrent()) return;
         if (!hasVisibleUpdatingFacets()) {
@@ -229,7 +229,7 @@ export function initDashboard(config = {}) {
     saveStateToURL();
 
     if (toggledFacetId) {
-      const breakdown = allBreakdowns.find((b) => b.id === toggledFacetId);
+      const breakdown = getBreakdowns().find((b) => b.id === toggledFacetId);
       if (breakdown) {
         const timeFilter = getTimeFilter();
         const hostFilter = getHostFilter();
@@ -258,7 +258,7 @@ export function initDashboard(config = {}) {
 
     const timeFilter = getTimeFilter();
     const hostFilter = getHostFilter();
-    const breakdowns = allBreakdowns.filter((b) => b.modeToggle === stateKey);
+    const breakdowns = getBreakdowns().filter((b) => b.modeToggle === stateKey);
     for (const breakdown of breakdowns) {
       const facetsContext = startRequestContext(`facet:${breakdown.id}`);
       loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
@@ -273,8 +273,23 @@ export function initDashboard(config = {}) {
     if (config.title && !state.title) {
       state.title = config.title;
     }
-    if (config.additionalWhereClause) {
+    if (config.additionalWhereClause !== undefined) {
       state.additionalWhereClause = config.additionalWhereClause;
+    }
+    if (config.tableName) {
+      state.tableName = config.tableName;
+    }
+    if (config.timeSeriesTemplate) {
+      state.timeSeriesTemplate = config.timeSeriesTemplate;
+    }
+    if (config.aggregations) {
+      state.aggregations = config.aggregations;
+    }
+    if (config.hostFilterColumn !== undefined) {
+      state.hostFilterColumn = config.hostFilterColumn;
+    }
+    if (config.breakdowns) {
+      state.breakdowns = config.breakdowns;
     }
     if (config.defaultHiddenFacets) {
       const hasCustomPrefs = localStorage.getItem(`facetPrefs_${state.title || ''}`);
