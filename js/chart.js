@@ -229,8 +229,9 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
 
 /**
  * Draw a stacked area with line on top
+ * @param {number[]} [lineDash] - Optional dash array for stroke (e.g. [6, 4] dashed, [2, 2] dotted). Omit or [] for solid.
  */
-function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, lineWidth = 2) {
+function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, lineDash = []) {
   if (!topStack.some((v, i) => v > bottomStack[i])) return;
 
   ctx.beginPath();
@@ -245,8 +246,10 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, l
   ctx.moveTo(getX(0), getY(topStack[0]));
   for (let i = 1; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
   ctx.strokeStyle = colors.line;
-  ctx.lineWidth = lineWidth;
+  ctx.lineWidth = 2;
+  ctx.setLineDash(lineDash);
   ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 export function renderChart(data) {
@@ -341,22 +344,13 @@ export function renderChart(data) {
   const stackedOk = series.server.map((v, i) => v + series.client[i] + series.ok[i]);
   const zeros = new Array(data.length).fill(0);
 
-  // Apply blur and thicker lines based on sampling rate
+  // Line style based on sampling: solid (no sampling), dashed (10%), dotted (1%)
   const samplingInfo = getCurrentSamplingInfo();
-  let lineWidth = 2; // Default line width
-  if (samplingInfo.isActive) {
-    // 1% sampling = more blur and thicker, 10% sampling = slight blur and slightly thicker
-    const blurAmount = samplingInfo.rate === '1%' ? 3 : 1.5;
-    lineWidth = samplingInfo.rate === '1%' ? 4 : 3;
-    ctx.filter = `blur(${blurAmount}px)`;
-  }
+  const lineDash = !samplingInfo.isActive ? [] : samplingInfo.rate === '1%' ? [2, 2] : [6, 4];
 
-  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineWidth);
-  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client, lineWidth);
-  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server, lineWidth);
-
-  // Reset filter for other elements
-  ctx.filter = 'none';
+  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineDash);
+  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client, lineDash);
+  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server, lineDash);
 
   // Detect anomalies (skip for ranges < 5 minutes)
   const lastIdx = data.length - 1;
