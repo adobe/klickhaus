@@ -99,25 +99,6 @@ function setFacetSampleRate(facetId, sampleRate) {
   updateGlobalSampleRate(getInitialSamplingRate());
 }
 
-/**
- * Get current sampling info for UI display (chart blur/line width).
- * @returns {{ isActive: boolean, rate: string, description: string }}
- * Sampling status and display info.
- */
-export function getCurrentSamplingInfo() {
-  const rate = normalizeSampleRate(state.sampleRate);
-  if (!rate || rate >= 1) {
-    return { isActive: false, rate: '', description: '' };
-  }
-
-  const percentage = `${Math.round(rate * 100)}%`;
-  return {
-    isActive: true,
-    rate: percentage,
-    description: `${percentage} sample for faster queries`,
-  };
-}
-
 export function resetFacetTimings() {
   Object.keys(facetTimings).forEach((key) => {
     delete facetTimings[key];

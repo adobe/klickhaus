@@ -264,6 +264,23 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, l
   ctx.setLineDash([]);
 }
 
+function getChartSamplingConfig() {
+  const { start } = getSelectedRange();
+  const ageMs = Math.max(0, Date.now() - start.getTime());
+  const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+  const TWENTY_WEEKS_MS = 20 * 7 * 24 * 60 * 60 * 1000;
+  let rate = SAMPLE_RATES.full;
+  if (ageMs >= TWENTY_WEEKS_MS) rate = SAMPLE_RATES.onePercent;
+  else if (ageMs >= TWO_WEEKS_MS) rate = SAMPLE_RATES.tenPercent;
+  rate = normalizeSampleRate(rate);
+  const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
+  return {
+    table: getSampledTable(rate),
+    mult: multiplier > 1 ? ` * ${multiplier}` : '',
+    sampleRate: rate,
+  };
+}
+
 export function renderChart(data) {
   setLastChartData(data);
   resetAnomalyBounds();
@@ -357,10 +374,11 @@ export function renderChart(data) {
   const zeros = new Array(data.length).fill(0);
 
   // Line style based on sampling: solid (no sampling), dashed (10%), dotted (1%)
-  const samplingInfo = getCurrentSamplingInfo();
+  const chartSampling = getChartSamplingConfig();
   let lineDash = [];
-  if (samplingInfo.isActive) {
-    lineDash = samplingInfo.rate === '1%' ? [2, 2] : [6, 4];
+  if (chartSampling.sampleRate < SAMPLE_RATES.full) {
+    lineDash = chartSampling.sampleRate <= SAMPLE_RATES.onePercent
+      ? [2, 2] : [6, 4];
   }
 
   drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineDash);
