@@ -5,7 +5,6 @@ SELECT
   {{agg4xx}} as cnt_4xx,
   {{agg5xx}} as cnt_5xx{{summaryCol}}
 FROM {{database}}.{{table}}
-{{sampleClause}}
 WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}
 GROUP BY dim WITH TOTALS
 ORDER BY {{orderBy}}

@@ -62,7 +62,6 @@ function getSamplingConfig(sampleRate) {
     sampleRate: rate,
     multiplier,
     table: getSampledTable(rate),
-    sampleClause: '',
   };
 }
 
@@ -214,7 +213,6 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
     agg5xx: aggs.agg5xx,
     database: DATABASE,
     table: queryParams.table,
-    sampleClause: queryParams.sampleClause,
     timeFilter: queryParams.timeFilter,
     hostFilter: queryParams.hostFilter,
     extra: queryParams.extra,
@@ -254,7 +252,7 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, sampleRateOve
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
   const {
-    sampleRate, sampleClause, multiplier, table,
+    sampleRate, multiplier, table,
   } = getSamplingConfig(sampleRateOverride);
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
@@ -264,7 +262,6 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, sampleRateOve
     hasActiveFilter,
     isBytes,
     sampleRate,
-    sampleClause,
     mult,
     table,
     extra: b.extraFilter || '',
@@ -311,7 +308,6 @@ async function runBreakdownStage(b, params, timeFilter, hostFilter, requestStatu
     summaryCol: summaryColWithMult,
     database: DATABASE,
     table: params.table,
-    sampleClause: params.sampleClause,
     timeFilter,
     hostFilter,
     facetFilters: params.facetFilters,
