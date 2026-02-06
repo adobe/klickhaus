@@ -24,6 +24,7 @@ export const state = {
   timeRange: DEFAULT_TIME_RANGE,
   hostFilter: '',
   topN: DEFAULT_TOP_N,
+  sampleRate: 1,
   filters: [], // [{col: '`request.url`', value: '/foo', exclude: false}]
   logsData: null,
   logsLoading: false,

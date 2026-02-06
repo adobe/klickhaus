@@ -15,6 +15,7 @@ import { state } from './state.js';
 
 // Force refresh state - set by dashboard when refresh button is clicked
 const refreshState = { force: false };
+const DEFAULT_MAX_EXECUTION_TIME = 10;
 
 export function isForceRefresh() {
   return refreshState.force;
@@ -93,6 +94,7 @@ export function classifyCategory(text, status, type) {
   ].some(Boolean);
   if (isPermissions) return 'permissions';
 
+  if (status === 408 || status === 504 || status === 524) return 'timeout';
   if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) return 'memory';
   if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) return 'syntax';
   if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) return 'timeout';
@@ -193,9 +195,15 @@ export async function query(
     cacheTtl: initialCacheTtl = null,
     skipCache = false,
     signal,
+    maxExecutionTime = DEFAULT_MAX_EXECUTION_TIME,
   } = {},
 ) {
   const params = new URLSearchParams();
+  const executionTime = Number.isFinite(maxExecutionTime)
+    ? maxExecutionTime
+    : DEFAULT_MAX_EXECUTION_TIME;
+  params.set('max_execution_time', String(executionTime));
+  params.set('timeout_before_checking_execution_speed', '0');
 
   // Skip caching entirely for simple queries like auth check
   if (!skipCache) {

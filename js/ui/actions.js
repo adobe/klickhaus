@@ -21,6 +21,8 @@
  * @property {(facetId: string) => void} toggleFacetPin
  * @property {(facetId: string) => void} toggleFacetHide
  * @property {(modeKey: string) => void} toggleFacetMode
+ * @property {(facetId: string, sampleRate?: string) => void} refineFacetSampling
+ * @property {(sampleRate?: string) => void} refineChartSampling
  * @property {() => void} closeQuickLinksModal
  * @property {(el: HTMLElement) => void} closeDialog
  * @property {Function} openFacetSearch - (col, facetId, filterCol, title)
@@ -100,6 +102,11 @@ export function initActionHandlers(handlers) {
       'toggle-facet-pin': () => handlers.toggleFacetPin?.(target.dataset.facet || ''),
       'toggle-facet-hide': () => handlers.toggleFacetHide?.(target.dataset.facet || ''),
       'toggle-facet-mode': () => handlers.toggleFacetMode?.(target.dataset.mode || ''),
+      'refine-facet-sampling': () => handlers.refineFacetSampling?.(
+        target.dataset.facet || '',
+        target.dataset.sampleRate,
+      ),
+      'refine-chart-sampling': () => handlers.refineChartSampling?.(target.dataset.sampleRate),
       'close-quick-links': () => handlers.closeQuickLinksModal?.(),
       'close-dialog': () => handlers.closeDialog?.(target),
       'copy-facet-tsv': () => handlers.copyFacetTsv?.(target.dataset.facet || ''),

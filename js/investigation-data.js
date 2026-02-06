@@ -18,7 +18,12 @@
 import { query } from './api.js';
 import { DATABASE } from './config.js';
 import { state } from './state.js';
-import { getTable, getHostFilter, getTimeFilter } from './time.js';
+import {
+  getTable,
+  getHostFilter,
+  getTimeFilter,
+  getSampleRateTimeout,
+} from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { compileFilters, isFilterSuperset } from './filter-sql.js';
 import { loadSql } from './sql-loader.js';
@@ -426,7 +431,10 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
   });
 
   try {
-    const result = await query(sql, { cacheTtl: 60 });
+    const result = await query(sql, {
+      cacheTtl: 60,
+      maxExecutionTime: getSampleRateTimeout(state.sampleRate),
+    });
 
     // Calculate anomaly and baseline durations in ms
     const anomalyDurationMs = anomaly.endTime - anomaly.startTime;
@@ -548,7 +556,10 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
   });
 
   try {
-    const result = await query(sql, { cacheTtl: 60 });
+    const result = await query(sql, {
+      cacheTtl: 60,
+      maxExecutionTime: getSampleRateTimeout(state.sampleRate),
+    });
 
     // Calculate durations for rate normalization
     const selectionDurationMs = selection.endTime - selection.startTime;

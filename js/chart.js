@@ -10,60 +10,39 @@
  * governing permissions and limitations under the License.
  */
 
-/**
- * UI plane for chart - handles rendering and event handling.
- * State management and navigation logic are in chart-state.js.
- */
-
 import { query, isAbortError } from './api.js';
-import { getFacetFilters } from './breakdowns/index.js';
+import {
+  getFacetFilters, getCurrentSamplingInfo, getSamplingPlan, setTimelineSampleRate,
+} from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
-import { getRequestContext, isRequestCurrent } from './request-context.js';
+import { getRequestContext, isRequestCurrent, startRequestContext } from './request-context.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
-  getHostFilter,
-  getTable,
-  getTimeBucket,
-  getTimeBucketStep,
-  getTimeFilter,
-  setCustomTimeRange,
-  getTimeRangeBounds,
-  getTimeRangeStart,
-  getTimeRangeEnd,
+  getHostFilter, getSampleRateTimeout, getTimeBucket, getTimeBucketStep,
+  getTimeFilter, normalizeSampleRate, setCustomTimeRange, getTimeRangeBounds,
+  getTimeRangeStart, getTimeRangeEnd,
 } from './time.js';
 import { loadSql } from './sql-loader.js';
 import { saveStateToURL } from './url-state.js';
+import {
+  setChartRefineTarget,
+  getChartRefineTarget,
+  getChartSamplingConfig,
+  isChartTimeoutError,
+} from './chart-sampling.js';
 import {
   getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
 } from './releases.js';
 import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 import {
-  setNavigationCallback,
-  getNavigationCallback,
-  navigateTime,
-  setChartLayout,
-  getChartLayout,
-  setLastChartData,
-  getLastChartData,
-  addAnomalyBounds,
-  resetAnomalyBounds,
-  setDetectedSteps,
-  getDetectedSteps,
-  setShipPositions,
-  getShipPositions,
-  setPendingSelection,
-  getPendingSelection,
-  getAnomalyAtX,
-  getTimeAtX,
-  getXAtTime,
-  formatScrubberTime,
-  formatDuration,
-  zoomToAnomalyByRank,
-  getShipNearX,
-  hexToRgba,
-  parseUTC,
+  setNavigationCallback, getNavigationCallback, navigateTime, setChartLayout, getChartLayout,
+  setLastChartData, getLastChartData, addAnomalyBounds, resetAnomalyBounds,
+  setDetectedSteps, getDetectedSteps, setShipPositions, getShipPositions,
+  setPendingSelection, getPendingSelection, getAnomalyAtX, getTimeAtX, getXAtTime,
+  formatScrubberTime, formatDuration, zoomToAnomalyByRank, getShipNearX,
+  hexToRgba, parseUTC,
 } from './chart-state.js';
 
 // Re-export state functions for external use
@@ -230,8 +209,10 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
 
 /**
  * Draw a stacked area with line on top
- */
-function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
+ * @param {number[]} [lineDash] - Optional dash array for stroke
+ * (e.g. [6, 4] dashed, [2, 2] dotted). Omit or [] for solid.
+*/
+function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors, lineDash = []) {
   if (!topStack.some((v, i) => v > bottomStack[i])) return;
 
   ctx.beginPath();
@@ -247,7 +228,9 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
   for (let i = 1; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
   ctx.strokeStyle = colors.line;
   ctx.lineWidth = 2;
+  ctx.setLineDash(lineDash);
   ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 export function renderChart(data) {
@@ -265,7 +248,7 @@ export function renderChart(data) {
   const labelInset = 24;
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  const timeRangeBounds = getTimeRangeBounds();
+  const timeRangeBounds = getTimeRangeBounds(state.sampleRate);
 
   ctx.clearRect(0, 0, width, height);
   const styles = getComputedStyle(document.documentElement);
@@ -342,9 +325,16 @@ export function renderChart(data) {
   const stackedOk = series.server.map((v, i) => v + series.client[i] + series.ok[i]);
   const zeros = new Array(data.length).fill(0);
 
-  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok);
-  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client);
-  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server);
+  // Line style based on sampling: solid (no sampling), dashed (10%), dotted (1%)
+  const samplingInfo = getCurrentSamplingInfo();
+  let lineDash = [];
+  if (samplingInfo.isActive) {
+    lineDash = samplingInfo.rate === '1%' ? [2, 2] : [6, 4];
+  }
+
+  drawStackedArea(ctx, data, getX, getY, stackedOk, stackedClient, colors.ok, lineDash);
+  drawStackedArea(ctx, data, getX, getY, stackedClient, stackedServer, colors.client, lineDash);
+  drawStackedArea(ctx, data, getX, getY, stackedServer, zeros, colors.server, lineDash);
 
   // Detect anomalies (skip for ranges < 5 minutes)
   const lastIdx = data.length - 1;
@@ -847,7 +837,9 @@ export function setupChartNavigation(callback) {
       if (chartData && chartData.length >= 2) {
         const fullStart = parseUTC(chartData[0].t);
         const fullEnd = parseUTC(chartData[chartData.length - 1].t);
-        investigateTimeRange(startTime, endTime, fullStart, fullEnd);
+        if (normalizeSampleRate(state.sampleRate) >= 1) {
+          investigateTimeRange(startTime, endTime, fullStart, fullEnd);
+        }
       }
     } else {
       hideSelectionOverlay();
@@ -906,38 +898,97 @@ export function setupChartNavigation(callback) {
   });
 }
 
-export async function loadTimeSeries(requestContext = getRequestContext('dashboard')) {
+export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), options = {}) {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
-  const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const facetFilters = getFacetFilters();
   const bucket = getTimeBucket();
   const step = getTimeBucketStep();
-  const rangeStart = getTimeRangeStart();
-  const rangeEnd = getTimeRangeEnd();
+  const samplingPlan = options.samplingPlan || getSamplingPlan();
+  const disableTimeouts = options.disableTimeouts === true;
+  const preserveSampleRate = options.preserveSampleRate === true;
+  const preserveExisting = options.preserveExisting === true;
+  let hasRendered = preserveExisting && !!state.chartData;
+  setChartRefineTarget(null);
+  if (samplingPlan.length > 0 && !preserveSampleRate) {
+    setTimelineSampleRate(samplingPlan[0]);
+  }
 
-  const sql = await loadSql('time-series', {
-    bucket,
-    database: DATABASE,
-    table: getTable(),
-    timeFilter,
-    hostFilter,
-    facetFilters,
-    additionalWhereClause: state.additionalWhereClause,
-    rangeStart,
-    rangeEnd,
-    step,
-  });
-
-  try {
-    const result = await query(sql, { signal });
+  for (let idx = 0; idx < samplingPlan.length; idx += 1) {
+    const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return;
-    state.chartData = result.data;
-    renderChart(result.data);
-  } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
-    // eslint-disable-next-line no-console
-    console.error('Chart error:', err);
+    const timeFilter = getTimeFilter(sampleRate);
+    const rangeStart = getTimeRangeStart(sampleRate);
+    const rangeEnd = getTimeRangeEnd(sampleRate);
+    const { table, mult } = getChartSamplingConfig(sampleRate);
+    const maxExecutionTime = getSampleRateTimeout(sampleRate, { disableTimeouts });
+    // Progressive refinement requires sequential queries.
+    // eslint-disable-next-line no-await-in-loop
+    const sql = await loadSql('time-series', {
+      bucket,
+      database: DATABASE,
+      table,
+      timeFilter,
+      hostFilter,
+      facetFilters,
+      additionalWhereClause: state.additionalWhereClause,
+      rangeStart,
+      rangeEnd,
+      step,
+      mult,
+    });
+
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await query(sql, { signal, maxExecutionTime });
+      if (!isCurrent()) return;
+      state.chartData = result.data;
+      setTimelineSampleRate(sampleRate);
+      renderChart(result.data);
+      hasRendered = true;
+      setChartRefineTarget(null);
+    } catch (err) {
+      if (!isCurrent() || isAbortError(err)) return;
+      if (isChartTimeoutError(err)) {
+        if (hasRendered) {
+          setChartRefineTarget(sampleRate);
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('Chart error:', err);
+        }
+        return;
+      }
+      // eslint-disable-next-line no-console
+      console.error('Chart error:', err);
+      return;
+    }
   }
 }
+
+export async function refineChartSampling(targetSampleRate = null) {
+  const sampleValue = targetSampleRate || getChartRefineTarget();
+  const parsedRate = Number.parseFloat(sampleValue);
+  if (!Number.isFinite(parsedRate)) return;
+
+  const samplingPlan = getSamplingPlan();
+  const normalizedTarget = normalizeSampleRate(parsedRate);
+  const startIndex = samplingPlan.findIndex(
+    (rate) => normalizeSampleRate(rate) === normalizedTarget,
+  );
+  if (startIndex === -1) return;
+
+  const context = startRequestContext('chart-refine');
+  await loadTimeSeries(context, {
+    samplingPlan: samplingPlan.slice(startIndex),
+    disableTimeouts: true,
+    preserveSampleRate: true,
+    preserveExisting: true,
+  });
+}
+
+window.addEventListener('sample-rate-change', () => {
+  if (state.chartData) {
+    renderChart(state.chartData);
+  }
+});

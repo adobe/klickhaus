@@ -12,9 +12,21 @@
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
-import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
 import {
-  getTimeFilter, getHostFilter, getTable, getPeriodMs,
+  getRequestContext,
+  isRequestCurrent,
+  mergeAbortSignals,
+  startRequestContext,
+} from '../request-context.js';
+import {
+  getTimeFilter,
+  getHostFilter,
+  getPeriodMs,
+  getSampledTable,
+  getSampleRateTimeout,
+  getSelectedRange,
+  normalizeSampleRate,
+  SAMPLE_RATES,
 } from '../time.js';
 import { allBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
@@ -24,42 +36,112 @@ import { loadSql } from '../sql-loader.js';
 
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
+const facetSampleRates = {};
+let timelineSampleRate = null;
 
-// Sampling thresholds: use sampling for high-cardinality facets when time range > 1 hour
+// Sampling thresholds: use sampling for all facets when time range > 1 hour
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const TWO_WEEKS_MS = 14 * 24 * ONE_HOUR_MS;
+const TWENTY_WEEKS_MS = 20 * 7 * 24 * ONE_HOUR_MS;
+
+function getRetentionSampleLimit() {
+  const { start } = getSelectedRange();
+  const ageMs = Math.max(0, Date.now() - start.getTime());
+  if (ageMs >= TWENTY_WEEKS_MS) return SAMPLE_RATES.onePercent;
+  if (ageMs >= TWO_WEEKS_MS) return SAMPLE_RATES.tenPercent;
+  return SAMPLE_RATES.full;
+}
+
+export function getSamplingPlan() {
+  const maxRate = getRetentionSampleLimit();
+  const periodMs = getPeriodMs();
+  if (periodMs <= ONE_HOUR_MS) return [maxRate];
+  if (maxRate <= SAMPLE_RATES.onePercent) {
+    return [SAMPLE_RATES.onePercent];
+  }
+  if (maxRate <= SAMPLE_RATES.tenPercent) {
+    return [SAMPLE_RATES.onePercent, SAMPLE_RATES.tenPercent];
+  }
+  return [SAMPLE_RATES.onePercent, SAMPLE_RATES.tenPercent, SAMPLE_RATES.full];
+}
+
+function getSamplingConfig(sampleRate) {
+  const rate = normalizeSampleRate(sampleRate);
+  const multiplier = rate < 1 ? Math.round(1 / rate) : 1;
+  return {
+    sampleRate: rate,
+    multiplier,
+    table: getSampledTable(rate),
+  };
+}
+
+function updateGlobalSampleRate(fallbackRate = SAMPLE_RATES.full) {
+  const rates = Object.values(facetSampleRates);
+  if (Number.isFinite(timelineSampleRate)) {
+    rates.push(timelineSampleRate);
+  }
+  const nextRate = rates.length ? Math.min(...rates) : fallbackRate;
+  const prevRate = state.sampleRate;
+  state.sampleRate = nextRate;
+  document.body.dataset.sampleRate = String(nextRate);
+  if (prevRate !== nextRate) {
+    window.dispatchEvent(new CustomEvent('sample-rate-change', {
+      detail: { sampleRate: nextRate },
+    }));
+  }
+}
+
+function getInitialSamplingRate() {
+  const plan = getSamplingPlan();
+  return plan.length > 0 ? plan[0] : getRetentionSampleLimit();
+}
+
+function setFacetSampleRate(facetId, sampleRate) {
+  if (sampleRate === null || sampleRate === undefined) {
+    delete facetSampleRates[facetId];
+  } else {
+    facetSampleRates[facetId] = sampleRate;
+  }
+  updateGlobalSampleRate(getInitialSamplingRate());
+}
+
+export function setTimelineSampleRate(sampleRate) {
+  if (sampleRate === null || sampleRate === undefined) {
+    timelineSampleRate = null;
+  } else {
+    timelineSampleRate = sampleRate;
+  }
+  updateGlobalSampleRate(getInitialSamplingRate());
+}
 
 /**
- * Get sampling configuration based on facet type and time range
- * @param {boolean} highCardinality - Whether this facet has high cardinality
- * @returns {{ sampleClause: string, multiplier: number }} - SQL SAMPLE clause and count multiplier
+ * Get current sampling info for UI display.
+ * @returns {{ isActive: boolean, rate: string, description: string }}
+ * Sampling status and display info.
  */
-function getSamplingConfig(highCardinality) {
-  if (!highCardinality) {
-    return { sampleClause: '', multiplier: 1 };
+export function getCurrentSamplingInfo() {
+  const rate = normalizeSampleRate(state.sampleRate);
+  if (!rate || rate >= SAMPLE_RATES.full) {
+    return { isActive: false, rate: '', description: '' };
   }
 
-  const periodMs = getPeriodMs();
-
-  // No sampling for time ranges <= 1 hour
-  if (periodMs <= ONE_HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  // Use 1% sampling for 7d (very large time ranges)
-  // 7d = 604800000ms
-  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
-    return { sampleClause: 'SAMPLE 0.01', multiplier: 100 };
-  }
-
-  // Use 10% sampling for medium time ranges (12h, 24h)
-  // This gives ~3x speedup while maintaining accurate top-K ranking
-  return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
+  const percentage = `${Math.round(rate * 100)}%`;
+  return {
+    isActive: true,
+    rate: percentage,
+    description: `${percentage} sample for faster queries`,
+  };
 }
 
 export function resetFacetTimings() {
   Object.keys(facetTimings).forEach((key) => {
     delete facetTimings[key];
   });
+  Object.keys(facetSampleRates).forEach((key) => {
+    delete facetSampleRates[key];
+  });
+  timelineSampleRate = getInitialSamplingRate();
+  updateGlobalSampleRate(getInitialSamplingRate());
 }
 
 export function getFacetFilters() {
@@ -151,8 +233,7 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
     agg4xx: aggs.agg4xx,
     agg5xx: aggs.agg5xx,
     database: DATABASE,
-    table: getTable(),
-    sampleClause: queryParams.sampleClause,
+    table: queryParams.table,
     timeFilter: queryParams.timeFilter,
     hostFilter: queryParams.hostFilter,
     extra: queryParams.extra,
@@ -183,7 +264,7 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
 /**
  * Build SQL query parameters for breakdown
  */
-function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
+function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, sampleRateOverride) {
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
   const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
     && state.filters.some((f) => f.col === originalCol);
@@ -191,7 +272,9 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
+  const {
+    sampleRate, multiplier, table,
+  } = getSamplingConfig(sampleRateOverride);
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
@@ -199,8 +282,9 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
     originalCol,
     hasActiveFilter,
     isBytes,
-    sampleClause,
+    sampleRate,
     mult,
+    table,
     extra: b.extraFilter || '',
     facetFilters: getFacetFiltersExcluding(originalCol),
     timeFilter,
@@ -220,20 +304,22 @@ function createRequestStatus(requestContext) {
 function prepareBreakdownCard(card, b) {
   if (state.hiddenFacets.includes(b.id)) {
     renderHiddenFacet(card, b);
+    setFacetSampleRate(b.id, null);
     return false;
   }
 
   card.removeAttribute('data-action');
   card.removeAttribute('data-facet');
+  card.removeAttribute('data-next-sample-rate');
   card.classList.remove('facet-hidden');
   card.classList.add('updating');
   return true;
 }
 
-async function buildBreakdownSql(b, timeFilter, hostFilter) {
-  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
+async function runBreakdownStage(b, params, timeFilter, hostFilter, requestStatus, signal, maxExecutionTime) {
+  const { isCurrent } = requestStatus;
   const aggs = buildAggregations(params.isBytes, params.mult);
+
   const summaryColWithMult = b.summaryCountIf
     ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
     : '';
@@ -243,8 +329,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     ...aggs,
     summaryCol: summaryColWithMult,
     database: DATABASE,
-    table: getTable(),
-    sampleClause: params.sampleClause,
+    table: params.table,
     timeFilter,
     hostFilter,
     facetFilters: params.facetFilters,
@@ -254,24 +339,14 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     topN: String(state.topN),
   });
 
-  return { sql, params, aggs };
-}
-
-function getSummaryRatio(b, totals) {
-  if (!b.summaryCountIf || !totals || totals.cnt <= 0) return null;
-  return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
-}
-
-async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
-  const { isCurrent, signal } = requestStatus;
-  const { sql, params, aggs } = await buildBreakdownSql(b, timeFilter, hostFilter);
   const startTime = performance.now();
-  const result = await query(sql, { signal });
+  const result = await query(sql, { signal, maxExecutionTime });
   if (!isCurrent()) return null;
-
   const elapsed = result.networkTime ?? (performance.now() - startTime);
-  facetTimings[b.id] = elapsed;
-  const summaryRatio = getSummaryRatio(b, result.totals);
+
+  const summaryRatio = (b.summaryCountIf && result.totals && result.totals.cnt > 0)
+    ? parseInt(result.totals.summary_cnt, 10) / parseInt(result.totals.cnt, 10)
+    : null;
 
   let data = fillExpectedLabels(result.data, b);
   data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
@@ -280,52 +355,139 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   return {
     data,
     totals: result.totals,
-    params,
     elapsed,
     summaryRatio,
   };
 }
 
-function shouldIgnoreBreakdownError(requestStatus, err) {
-  return !requestStatus.isCurrent() || isAbortError(err);
+async function runSamplingStages({
+  breakdown,
+  card,
+  baseCol,
+  samplingPlan,
+  hostFilter,
+  requestStatus,
+  signal,
+  disableTimeouts = false,
+}) {
+  const { isCurrent } = requestStatus;
+  const cardEl = card;
+  let hasRendered = false;
+  let lastStage = null;
+  let lastParams = null;
+
+  const applyStage = (stage, params, nextSampleRate = null) => {
+    facetTimings[breakdown.id] = stage.elapsed;
+    renderBreakdownTable(
+      breakdown.id,
+      stage.data,
+      stage.totals,
+      params.col,
+      breakdown.linkPrefix,
+      breakdown.linkSuffix,
+      breakdown.linkFn,
+      stage.elapsed,
+      breakdown.dimPrefixes,
+      breakdown.dimFormatFn,
+      stage.summaryRatio,
+      breakdown.summaryLabel,
+      breakdown.summaryColor,
+      breakdown.modeToggle,
+      !!breakdown.getExpectedLabels,
+      params.hasActiveFilter ? null : breakdown.filterCol,
+      params.hasActiveFilter ? null : breakdown.filterValueFn,
+      params.hasActiveFilter ? null : breakdown.filterOp,
+      nextSampleRate,
+    );
+
+    cardEl.dataset.sampleRate = String(params.sampleRate);
+    cardEl.dataset.sampleTable = params.table;
+    if (nextSampleRate) {
+      cardEl.dataset.nextSampleRate = String(nextSampleRate);
+    } else {
+      cardEl.removeAttribute('data-next-sample-rate');
+    }
+    hasRendered = true;
+    setFacetSampleRate(breakdown.id, params.sampleRate);
+  };
+
+  for (let idx = 0; idx < samplingPlan.length; idx += 1) {
+    const sampleRate = samplingPlan[idx];
+    if (!isCurrent()) return hasRendered;
+    const timeFilter = getTimeFilter(sampleRate);
+    const params = buildBreakdownQueryParams(
+      breakdown,
+      baseCol,
+      timeFilter,
+      hostFilter,
+      sampleRate,
+    );
+    const maxExecutionTime = getSampleRateTimeout(params.sampleRate, { disableTimeouts });
+
+    try {
+      // Progressive refinement requires sequential queries.
+      // eslint-disable-next-line no-await-in-loop
+      const stage = await runBreakdownStage(
+        breakdown,
+        params,
+        timeFilter,
+        hostFilter,
+        requestStatus,
+        signal,
+        maxExecutionTime,
+      );
+      if (!stage) return hasRendered;
+
+      lastStage = stage;
+      lastParams = params;
+      applyStage(stage, params);
+    } catch (err) {
+      if (!isCurrent() || isAbortError(err)) return hasRendered;
+      const details = getQueryErrorDetails(err);
+      // eslint-disable-next-line no-console
+      console.error(`Breakdown error (${breakdown.id}):`, err);
+      if (details.category === 'timeout') {
+        if (hasRendered && lastStage && lastParams) {
+          applyStage(lastStage, lastParams, params.sampleRate);
+        } else if (!hasRendered) {
+          renderBreakdownError(breakdown.id, details);
+          setFacetSampleRate(breakdown.id, params.sampleRate);
+        }
+        return hasRendered;
+      }
+
+      if (!hasRendered) {
+        renderBreakdownError(breakdown.id, details);
+        setFacetSampleRate(breakdown.id, params.sampleRate);
+      }
+      return hasRendered;
+    }
+  }
+
+  return hasRendered;
 }
 
-export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
+export async function loadBreakdown(b, hostFilter, requestContext = null, options = {}) {
   const requestStatus = createRequestStatus(requestContext);
   const card = document.getElementById(b.id);
 
   if (!prepareBreakdownCard(card, b)) return;
 
-  try {
-    const result = await fetchBreakdownData(b, timeFilter, hostFilter, requestStatus);
-    if (!result) return;
+  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+  const samplingPlan = options.samplingPlan || getSamplingPlan();
+  const disableTimeouts = options.disableTimeouts === true;
 
-    renderBreakdownTable(
-      b.id,
-      result.data,
-      result.totals,
-      result.params.col,
-      b.linkPrefix,
-      b.linkSuffix,
-      b.linkFn,
-      result.elapsed,
-      b.dimPrefixes,
-      b.dimFormatFn,
-      result.summaryRatio,
-      b.summaryLabel,
-      b.summaryColor,
-      b.modeToggle,
-      !!b.getExpectedLabels,
-      result.params.hasActiveFilter ? null : b.filterCol,
-      result.params.hasActiveFilter ? null : b.filterValueFn,
-      result.params.hasActiveFilter ? null : b.filterOp,
-    );
-  } catch (err) {
-    if (shouldIgnoreBreakdownError(requestStatus, err)) return;
-    const details = getQueryErrorDetails(err);
-    // eslint-disable-next-line no-console
-    console.error(`Breakdown error (${b.id}):`, err);
-    renderBreakdownError(b.id, details);
+  try {
+    await runSamplingStages({
+      breakdown: b,
+      card,
+      baseCol,
+      samplingPlan,
+      hostFilter,
+      requestStatus,
+      signal: requestStatus.signal,
+      disableTimeouts,
+    });
   } finally {
     if (requestStatus.isCurrent()) {
       card.classList.remove('updating');
@@ -334,10 +496,10 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
 }
 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
-  const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
+  updateGlobalSampleRate(getInitialSamplingRate());
   await Promise.all(
-    allBreakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
+    allBreakdowns.map((b) => loadBreakdown(b, hostFilter, requestContext)),
   );
 }
 
@@ -377,6 +539,30 @@ export function increaseTopN(topNSelectEl, saveStateToURL, loadAllBreakdownsFn) 
     saveStateToURL();
     loadAllBreakdownsFn();
   }
+}
+
+export async function refineFacetSampling(facetId, targetSampleRate = null) {
+  const breakdown = allBreakdowns.find((b) => b.id === facetId);
+  if (!breakdown) return;
+
+  const card = document.getElementById(facetId);
+  const sampleValue = targetSampleRate || card?.dataset.nextSampleRate;
+  const parsedRate = Number.parseFloat(sampleValue);
+  if (!Number.isFinite(parsedRate)) return;
+
+  const samplingPlan = getSamplingPlan();
+  const normalizedTarget = normalizeSampleRate(parsedRate);
+  const startIndex = samplingPlan.findIndex(
+    (rate) => normalizeSampleRate(rate) === normalizedTarget,
+  );
+  if (startIndex === -1) return;
+
+  const hostFilter = getHostFilter();
+  const context = startRequestContext(`facet-${facetId}`);
+  await loadBreakdown(breakdown, hostFilter, context, {
+    samplingPlan: samplingPlan.slice(startIndex),
+    disableTimeouts: true,
+  });
 }
 
 // Re-export for convenience
