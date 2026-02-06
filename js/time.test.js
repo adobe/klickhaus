@@ -29,6 +29,7 @@ import {
 beforeEach(() => {
   clearCustomTimeRange();
   state.timeRange = '1h';
+  state.sampleRate = 1;
   setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
 });
 
@@ -49,13 +50,13 @@ describe('time helpers', () => {
     assert.ok(filter.includes('2026-01-20 12:02:00'));
   });
 
-  it('rounds long custom time ranges to hour boundaries', () => {
-    const start = new Date('2026-01-20T00:15:00Z');
+  it('rounds custom time ranges longer than 24h to hour boundaries', () => {
+    const start = new Date('2026-01-19T00:15:00Z');
     const end = new Date('2026-01-20T15:45:00Z');
     setCustomTimeRange(start, end);
 
     const filter = getTimeFilter();
-    assert.ok(filter.includes('2026-01-20 00:00:00'));
+    assert.ok(filter.includes('2026-01-19 00:00:00'));
     assert.ok(filter.includes('2026-01-20 16:00:00'));
   });
 
@@ -90,6 +91,13 @@ describe('time helpers', () => {
     assert.strictEqual(getPeriodMs(), 12 * 60 * 60 * 1000);
   });
 
+  it('keeps minute rounding for 24h unsampled filters', () => {
+    state.timeRange = '24h';
+    clearCustomTimeRange();
+    const filter = getTimeFilter();
+    assert.ok(filter.startsWith('toStartOfMinute(timestamp)'));
+  });
+
   it('selects sampled tables based on sample rate', () => {
     assert.strictEqual(getSampledTable(1), 'cdn_requests_v2');
     assert.strictEqual(getSampledTable(0.1), 'cdn_requests_v2_sampled_10');
@@ -122,5 +130,13 @@ describe('time helpers', () => {
   it('uses hour rounding for sampled filters', () => {
     const filter = getTimeFilter(0.1);
     assert.ok(filter.startsWith('toStartOfHour(timestamp)'));
+  });
+
+  it('uses hour-aligned fill bounds for sampled series', () => {
+    const bounds = getTimeRangeBounds(0.1);
+    assert.strictEqual(bounds.start.toISOString(), '2026-01-20T11:00:00.000Z');
+    assert.strictEqual(bounds.end.toISOString(), '2026-01-20T12:59:50.000Z');
+    assert.ok(getTimeRangeStart(0.1).includes('2026-01-20 11:00:00'));
+    assert.ok(getTimeRangeEnd(0.1).includes('2026-01-20 12:59:50'));
   });
 });

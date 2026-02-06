@@ -248,7 +248,7 @@ export function renderChart(data) {
   const labelInset = 24;
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  const timeRangeBounds = getTimeRangeBounds();
+  const timeRangeBounds = getTimeRangeBounds(state.sampleRate);
 
   ctx.clearRect(0, 0, width, height);
   const styles = getComputedStyle(document.documentElement);
@@ -905,8 +905,6 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const facetFilters = getFacetFilters();
   const bucket = getTimeBucket();
   const step = getTimeBucketStep();
-  const rangeStart = getTimeRangeStart();
-  const rangeEnd = getTimeRangeEnd();
   const samplingPlan = options.samplingPlan || getSamplingPlan();
   const disableTimeouts = options.disableTimeouts === true;
   const preserveSampleRate = options.preserveSampleRate === true;
@@ -921,6 +919,8 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
     const sampleRate = samplingPlan[idx];
     if (!isCurrent()) return;
     const timeFilter = getTimeFilter(sampleRate);
+    const rangeStart = getTimeRangeStart(sampleRate);
+    const rangeEnd = getTimeRangeEnd(sampleRate);
     const { table, mult } = getChartSamplingConfig(sampleRate);
     const maxExecutionTime = getSampleRateTimeout(sampleRate, { disableTimeouts });
     // Progressive refinement requires sequential queries.
@@ -944,9 +944,9 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
       const result = await query(sql, { signal, maxExecutionTime });
       if (!isCurrent()) return;
       state.chartData = result.data;
+      setTimelineSampleRate(sampleRate);
       renderChart(result.data);
       hasRendered = true;
-      setTimelineSampleRate(sampleRate);
       setChartRefineTarget(null);
     } catch (err) {
       if (!isCurrent() || isAbortError(err)) return;

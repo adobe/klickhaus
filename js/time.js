@@ -22,7 +22,6 @@ const SECOND_MS = 1000;
 const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
-const TWELVE_HOURS_MS = 12 * HOUR_MS;
 
 const BASE_TABLE = 'cdn_requests_v2';
 const SAMPLED_TABLE_10 = 'cdn_requests_v2_sampled_10';
@@ -98,17 +97,16 @@ export function getSelectedRange() {
   return { start, end };
 }
 
-function getTimeAlignmentMs(sampleRate = null) {
+function getTimeAlignmentMs(sampleRate = null, periodMs = getPeriodMs()) {
   if (Number.isFinite(sampleRate) && normalizeSampleRate(sampleRate) < SAMPLE_RATES.full) {
     return HOUR_MS;
   }
-  const periodMs = getPeriodMs();
-  return periodMs > TWELVE_HOURS_MS ? HOUR_MS : MINUTE_MS;
+  return periodMs > DAY_MS ? HOUR_MS : MINUTE_MS;
 }
 
 function getTimeFilterBounds(sampleRate = null) {
   const { start, end } = getSelectedRange();
-  const alignmentMs = getTimeAlignmentMs(sampleRate);
+  const alignmentMs = getTimeAlignmentMs(sampleRate, getPeriodMs());
   return {
     start: floorToInterval(start, alignmentMs),
     end: floorToInterval(end, alignmentMs),
@@ -116,11 +114,11 @@ function getTimeFilterBounds(sampleRate = null) {
   };
 }
 
-function getFillBounds() {
-  const { start, end } = getTimeFilterBounds();
+function getFillBounds(sampleRate = null) {
+  const { start, end, alignmentMs } = getTimeFilterBounds(sampleRate);
   const stepMs = parseIntervalToMs(getTimeBucketStep());
   const alignedStart = floorToInterval(start, stepMs);
-  const endInclusive = new Date(end.getTime() + MINUTE_MS - 1);
+  const endInclusive = new Date(end.getTime() + alignmentMs - 1);
   const alignedEnd = floorToInterval(endInclusive, stepMs);
 
   return {
@@ -145,7 +143,7 @@ export function setQueryTimestamp(ts) {
 
 export function setCustomTimeRange(start, end) {
   const durationMs = end.getTime() - start.getTime();
-  const alignmentMs = durationMs > TWELVE_HOURS_MS ? HOUR_MS : MINUTE_MS;
+  const alignmentMs = getTimeAlignmentMs(null, durationMs);
   // Round to full minutes/hours for projection compatibility
   const roundedStart = new Date(Math.floor(start.getTime() / alignmentMs) * alignmentMs);
   const roundedEnd = new Date(Math.ceil(end.getTime() / alignmentMs) * alignmentMs);
@@ -254,20 +252,20 @@ export function getHostFilter() {
 }
 
 // Get aligned time range for chart rendering and WITH FILL bounds
-export function getTimeRangeBounds() {
-  const { start, end } = getFillBounds();
+export function getTimeRangeBounds(sampleRate = null) {
+  const { start, end } = getFillBounds(sampleRate);
   return { start, end };
 }
 
 // Get start time for WITH FILL FROM clause
-export function getTimeRangeStart() {
-  const { start } = getFillBounds();
+export function getTimeRangeStart(sampleRate = null) {
+  const { start } = getFillBounds(sampleRate);
   return `toDateTime('${formatSqlDateTime(start)}')`;
 }
 
 // Get end time for WITH FILL TO clause
-export function getTimeRangeEnd() {
-  const { end } = getFillBounds();
+export function getTimeRangeEnd(sampleRate = null) {
+  const { end } = getFillBounds(sampleRate);
   return `toDateTime('${formatSqlDateTime(end)}')`;
 }
 
