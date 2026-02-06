@@ -14,6 +14,7 @@ import { state } from '../state.js';
 import {
   getFiltersForColumn,
   getNextTopN,
+  renderBreakdownTable,
   renderBreakdownError,
 } from './render.js';
 import { TOP_N_OPTIONS } from '../constants.js';
@@ -21,6 +22,7 @@ import { TOP_N_OPTIONS } from '../constants.js';
 beforeEach(() => {
   state.filters = [];
   state.pinnedFacets = [];
+  state.contentTypeMode = 'count';
 });
 
 describe('getFiltersForColumn', () => {
@@ -132,5 +134,309 @@ describe('renderBreakdownError', () => {
 
     renderBreakdownError('breakdown-test-error', {});
     assert.include(card.innerHTML, 'Custom Title');
+  });
+});
+
+describe('renderBreakdownTable', () => {
+  const cardId = 'breakdown-render-table-test';
+  let card;
+
+  beforeEach(() => {
+    card = document.getElementById(cardId);
+    if (!card) {
+      card = document.createElement('div');
+      card.id = cardId;
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Test Table';
+      card.appendChild(h3);
+      document.body.appendChild(card);
+    }
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.remove();
+    }
+  });
+
+  it('renders empty state when data length is 0', () => {
+    renderBreakdownTable(
+      cardId,
+      [],
+      null,
+      '`request.host`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'No data');
+    assert.include(card.innerHTML, 'Test Table');
+    assert.include(card.innerHTML, 'empty');
+  });
+
+  it('renders empty state with clear button when column has filters', () => {
+    state.filters = [{ col: '`request.host`', value: 'example.com', exclude: false }];
+    renderBreakdownTable(
+      cardId,
+      [],
+      null,
+      '`request.host`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'clear-facet-btn');
+    assert.include(card.innerHTML, 'Clear');
+  });
+
+  it('renders table with data and stores facet data on card', () => {
+    const data = [
+      {
+        dim: 'a.com', cnt: 100, cnt_ok: 98, cnt_4xx: 1, cnt_5xx: 1,
+      },
+      {
+        dim: 'b.com', cnt: 50, cnt_ok: 50, cnt_4xx: 0, cnt_5xx: 0,
+      },
+    ];
+    const totals = {
+      cnt: 150, cnt_ok: 148, cnt_4xx: 1, cnt_5xx: 1, summary_cnt: 0,
+    };
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`request.host`',
+      null,
+      null,
+      null,
+      500,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'breakdown-table');
+    assert.include(card.innerHTML, 'a.com');
+    assert.include(card.innerHTML, 'b.com');
+    assert.ok(card.dataset.facetData);
+    const stored = JSON.parse(card.dataset.facetData);
+    assert.strictEqual(stored.data.length, 2);
+    assert.strictEqual(stored.totals.cnt, 150);
+  });
+
+  it('uses fast speed class when elapsed < 2500', () => {
+    const data = [{
+      dim: 'x', cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    }];
+    const totals = {
+      cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    };
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`col`',
+      null,
+      null,
+      null,
+      1000,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'speed-indicator fast');
+  });
+
+  it('uses medium speed class when elapsed 2500–4000', () => {
+    const data = [{
+      dim: 'x', cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    }];
+    const totals = {
+      cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    };
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`col`',
+      null,
+      null,
+      null,
+      3000,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'speed-indicator medium');
+  });
+
+  it('uses slow speed class when elapsed >= 4000', () => {
+    const data = [{
+      dim: 'x', cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    }];
+    const totals = {
+      cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    };
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`col`',
+      null,
+      null,
+      null,
+      5000,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'speed-indicator slow');
+  });
+
+  it('renders mode toggle and summary when provided', () => {
+    const data = [{
+      dim: 'x', cnt: 10, cnt_ok: 8, cnt_4xx: 1, cnt_5xx: 1,
+    }];
+    const totals = {
+      cnt: 10, cnt_ok: 8, cnt_4xx: 1, cnt_5xx: 1, summary_cnt: 1,
+    };
+    state.contentTypeMode = 'count';
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`col`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      0.2,
+      'error rate',
+      'error',
+      'contentTypeMode',
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'mode-toggle');
+    assert.include(card.innerHTML, 'summary-metric');
+    assert.include(card.innerHTML, '20%');
+  });
+
+  it('renders pinned facet title in speed indicator', () => {
+    state.pinnedFacets = [cardId];
+    const data = [{
+      dim: 'x', cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    }];
+    const totals = {
+      cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+    };
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`col`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'Unpin facet');
+  });
+
+  it('renders bytes mode when modeToggle is set and state is bytes', () => {
+    state.contentTypeMode = 'bytes';
+    const data = [{
+      dim: 'x', cnt: 1024, cnt_ok: 1024, cnt_4xx: 0, cnt_5xx: 0,
+    }];
+    const totals = {
+      cnt: 1024, cnt_ok: 1024, cnt_4xx: 0, cnt_5xx: 0,
+    };
+    renderBreakdownTable(
+      cardId,
+      data,
+      totals,
+      '`col`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      'contentTypeMode',
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'mode-toggle active');
+    assert.ok(card.dataset.facetData);
+    const stored = JSON.parse(card.dataset.facetData);
+    assert.strictEqual(stored.mode, 'bytes');
   });
 });

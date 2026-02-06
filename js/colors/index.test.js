@@ -15,10 +15,21 @@ import {
   getColorIndicatorHtml,
   getStatusColor,
   getHostColor,
-  getMethodColor,
-  getPathColor,
+  getContentTypeColor,
   getCacheStatusColor,
   getRequestTypeColor,
+  getBackendTypeColor,
+  getMethodColor,
+  getAsnColor,
+  getErrorColor,
+  getIPColor,
+  getUserAgentColor,
+  getRefererColor,
+  getPathColor,
+  getAcceptColor,
+  getAcceptEncodingColor,
+  getCacheControlColor,
+  getByoCdnColor,
   getLocationColor,
 } from './index.js';
 
@@ -133,5 +144,60 @@ describe('legacy color getters', () => {
   it('getLocationColor returns location color', () => {
     assert.strictEqual(getLocationColor('https://example.com'), 'var(--loc-absolute)');
     assert.strictEqual(getLocationColor('/relative'), 'var(--loc-relative)');
+  });
+
+  it('getContentTypeColor returns content type color', () => {
+    assert.strictEqual(getContentTypeColor('text/html'), 'var(--ct-text)');
+    assert.strictEqual(getContentTypeColor('image/png'), 'var(--ct-image)');
+  });
+
+  it('getBackendTypeColor returns backend type color', () => {
+    assert.strictEqual(getBackendTypeColor('fastly / aws'), 'var(--ts-fastly-aws)');
+    assert.strictEqual(getBackendTypeColor('cloudflare / r2'), 'var(--ts-cf-r2)');
+  });
+
+  it('getAsnColor returns ASN color', () => {
+    assert.strictEqual(getAsnColor('14340 - Adobe Inc.'), 'var(--asn-adobe)');
+    assert.strictEqual(getAsnColor('54113 - Fastly'), 'var(--asn-good-cdn)');
+  });
+
+  it('getErrorColor returns error color', () => {
+    assert.strictEqual(getErrorColor('moved'), 'var(--err-redirect)');
+    assert.strictEqual(getErrorColor('not allowed'), 'var(--err-security)');
+  });
+
+  it('getIPColor returns IP color', () => {
+    assert.strictEqual(getIPColor('192.168.1.1'), 'var(--ip-v4)');
+    assert.strictEqual(getIPColor('2001:db8::1'), 'var(--ip-v6)');
+  });
+
+  it('getUserAgentColor returns user agent color', () => {
+    assert.strictEqual(getUserAgentColor('Mozilla/5.0 (iPhone)'), 'var(--ua-ios)');
+    assert.strictEqual(getUserAgentColor('curl/7.0'), 'var(--ua-bad-bot)');
+  });
+
+  it('getRefererColor returns referer color', () => {
+    assert.strictEqual(getRefererColor('https://www.google.com/'), 'var(--ref-google)');
+    assert.strictEqual(getRefererColor('https://example.com/'), 'var(--ref-other)');
+  });
+
+  it('getAcceptColor returns accept header color', () => {
+    assert.strictEqual(getAcceptColor('text/html'), 'var(--ct-text)');
+    assert.strictEqual(getAcceptColor('*/*'), 'var(--ct-binary)');
+  });
+
+  it('getAcceptEncodingColor returns encoding color', () => {
+    assert.strictEqual(getAcceptEncodingColor('gzip, br'), 'var(--enc-br)');
+    assert.strictEqual(getAcceptEncodingColor('gzip'), 'var(--enc-gzip)');
+  });
+
+  it('getCacheControlColor returns cache-control color', () => {
+    assert.strictEqual(getCacheControlColor('no-store'), 'var(--cc-no-store)');
+    assert.strictEqual(getCacheControlColor('max-age=3600'), 'var(--cc-max-age)');
+  });
+
+  it('getByoCdnColor returns BYO CDN color', () => {
+    assert.strictEqual(getByoCdnColor('fastly'), 'var(--cdn-fastly)');
+    assert.strictEqual(getByoCdnColor('cloudfront'), 'var(--cdn-cloudfront)');
   });
 });

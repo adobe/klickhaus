@@ -18,6 +18,7 @@ import {
   getFacetFiltersExcluding,
   markSlowestFacet,
   increaseTopN,
+  loadBreakdown,
   facetTimings,
 } from './index.js';
 import { allBreakdowns } from './definitions.js';
@@ -27,6 +28,7 @@ import { TOP_N_OPTIONS } from '../constants.js';
 beforeEach(() => {
   state.breakdowns = null;
   state.filters = [];
+  state.hiddenFacets = [];
   resetFacetTimings();
 });
 
@@ -163,5 +165,39 @@ describe('increaseTopN', () => {
     );
     assert.isFalse(saveCalled);
     assert.isFalse(loadCalled);
+  });
+});
+
+describe('loadBreakdown', () => {
+  const hiddenFacetId = 'breakdown-hidden-facet-test';
+  let card;
+
+  beforeEach(() => {
+    card = document.getElementById(hiddenFacetId);
+    if (!card) {
+      card = document.createElement('div');
+      card.id = hiddenFacetId;
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Hidden Facet';
+      card.appendChild(h3);
+      document.body.appendChild(card);
+    }
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.remove();
+    }
+    state.hiddenFacets = [];
+  });
+
+  it('renders hidden facet and returns early when facet is in hiddenFacets', async () => {
+    state.hiddenFacets = [hiddenFacetId];
+    const b = { id: hiddenFacetId, col: '`level`' };
+    await loadBreakdown(b, '1=1', '');
+    assert.isTrue(card.classList.contains('facet-hidden'));
+    assert.include(card.innerHTML, 'Hidden Facet');
+    assert.include(card.innerHTML, 'facet-hide-btn');
+    assert.include(card.innerHTML, 'Show facet');
   });
 });
