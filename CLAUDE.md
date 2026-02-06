@@ -130,7 +130,13 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `cdn_requests_v2` and dictGet access to `asn_dict`.
+New users get SELECT access to `cdn_requests_v2` and dictGet access to `asn_dict`, plus the following performance/safety settings:
+
+- `enable_parallel_replicas = 1` — queries are distributed across all replicas
+- `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
+- `max_memory_usage = 4000000000` — 4 GB per-query memory limit to protect small replicas
+
+Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`) get only the memory limit (no parallel replicas for inserts).
 
 ## Data Pipeline Architecture
 

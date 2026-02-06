@@ -102,6 +102,16 @@ async function main() {
       console.log(`Granted dictGet on ${DATABASE}.${dict}`);
     }
 
+    // Apply parallel replicas and memory limit settings
+    const settingsSql = [
+      `ALTER USER ${newUsername} SETTINGS`,
+      'enable_parallel_replicas = 1,',
+      'max_parallel_replicas = 6,',
+      'max_memory_usage = 4000000000',
+    ].join(' ');
+    await query(settingsSql, adminUser, adminPassword);
+    console.log('Applied parallel replicas and memory limit settings');
+
     console.log('\n--- Credentials ---');
     console.log(`Username: ${newUsername}`);
     console.log(`Password: ${password}`);
