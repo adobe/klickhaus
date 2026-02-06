@@ -120,8 +120,8 @@ export function getContentLengthLabels(topN) {
  * @param {number} topN - Number of buckets
  * @returns {string} SQL multiIf expression
  */
-export function contentLengthBuckets(topN) {
-  const col = '`response.headers.content_length`';
+export function contentLengthBuckets(topN, colOverride) {
+  const col = colOverride || '`response.headers.content_length`';
   const numBoundaries = Math.max(1, topN - 2);
   const boundaries = selectBoundaries(CONTENT_LENGTH_SEQUENCE, numBoundaries);
   const labels = getContentLengthLabels(topN);
@@ -172,8 +172,8 @@ export function getTimeElapsedLabels(topN) {
  * @param {number} topN - Number of buckets
  * @returns {string} SQL multiIf expression
  */
-export function timeElapsedBuckets(topN) {
-  const col = '`cdn.time_elapsed_msec`';
+export function timeElapsedBuckets(topN, colOverride) {
+  const col = colOverride || '`cdn.time_elapsed_msec`';
   const numBoundaries = Math.max(1, topN - 1);
   const boundaries = selectBoundaries(TIME_ELAPSED_SEQUENCE, numBoundaries);
   const labels = getTimeElapsedLabels(topN);
