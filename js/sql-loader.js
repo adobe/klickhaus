@@ -66,6 +66,7 @@ const ALL_TEMPLATES = [
   'breakdown-missing',
   'autocomplete-hosts',
   'autocomplete-forwarded',
+  'autocomplete-functions',
   'releases',
   'facet-search-initial',
   'facet-search-pattern',

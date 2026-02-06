@@ -17,7 +17,7 @@
 
 import { getTimeFilter } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
-import { allBreakdowns } from './breakdowns/definitions.js';
+import { getBreakdowns } from './breakdowns/index.js';
 import { parseUTC } from './chart-state.js';
 import {
   CACHE_TOP_N,
@@ -397,7 +397,7 @@ export async function investigateAnomalies(anomalies, chartData) {
   const fullEnd = parseUTC(chartData[chartData.length - 1].t);
 
   // Select facets to investigate
-  const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
+  const facetsToInvestigate = getBreakdowns().filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
@@ -640,7 +640,7 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
   clearSelectionHighlights();
 
   // Select facets to investigate (same as anomaly investigation)
-  const facetsToInvestigate = allBreakdowns.filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
+  const facetsToInvestigate = getBreakdowns().filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
     'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));

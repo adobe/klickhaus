@@ -149,7 +149,7 @@ export function getCustomTimeRange() {
 }
 
 export function getTable() {
-  return 'cdn_requests_v2';
+  return state.tableName || 'cdn_requests_v2';
 }
 
 export function getInterval() {
@@ -204,6 +204,9 @@ export function getTimeFilter() {
 export function getHostFilter() {
   if (!state.hostFilter) return '';
   const escaped = state.hostFilter.replace(/'/g, "\\'");
+  if (state.hostFilterColumn) {
+    return `AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`;
+  }
   return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
 }
 

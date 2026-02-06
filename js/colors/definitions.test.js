@@ -13,7 +13,19 @@ import { assert } from 'chai';
 import { colorRules } from './definitions.js';
 
 describe('colorRules.status', () => {
-  const { getColor } = colorRules.status;
+  const { getColor, transform } = colorRules.status;
+
+  it('transform extracts first digit and multiplies by 100', () => {
+    assert.strictEqual(transform('2xx'), 200);
+    assert.strictEqual(transform('4xx'), 400);
+    assert.strictEqual(transform('5'), 500);
+    assert.strictEqual(transform('3'), 300);
+  });
+
+  it('transform returns value as-is when no leading digit', () => {
+    assert.strictEqual(transform('xx'), 'xx');
+    assert.strictEqual(transform(''), '');
+  });
 
   it('returns ok color for 2xx/3xx', () => {
     assert.strictEqual(getColor('200'), 'var(--status-ok)');

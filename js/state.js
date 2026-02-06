@@ -37,6 +37,11 @@ export const state = {
   pinnedFacets: [], // Facet IDs pinned to top
   hiddenFacets: [], // Facet IDs hidden at bottom
   additionalWhereClause: '', // Additional WHERE clause for queries (e.g., delivery exclusions)
+  tableName: 'cdn_requests_v2', // Table to query (e.g. lambda_logs for Lambda dashboard)
+  timeSeriesTemplate: 'time-series', // SQL template name for chart (e.g. time-series-lambda)
+  aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
+  hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
+  breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
 };
 
 // Callback for re-rendering logs table when pinned columns change

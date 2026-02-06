@@ -15,11 +15,15 @@ import {
   setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
   getTimeFilter, getTimeBucket, getPeriodMs,
   getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
+  getTable, getHostFilter,
 } from './time.js';
 
 beforeEach(() => {
   clearCustomTimeRange();
   state.timeRange = '1h';
+  state.hostFilter = '';
+  state.hostFilterColumn = null;
+  state.tableName = null;
   setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
 });
 
@@ -69,5 +73,48 @@ describe('time helpers', () => {
     state.timeRange = '12h';
     clearCustomTimeRange();
     assert.strictEqual(getPeriodMs(), 12 * 60 * 60 * 1000);
+  });
+});
+
+describe('getTable', () => {
+  it('returns cdn_requests_v2 when state.tableName is not set', () => {
+    state.tableName = null;
+    assert.strictEqual(getTable(), 'cdn_requests_v2');
+  });
+
+  it('returns state.tableName when set', () => {
+    state.tableName = 'lambda_logs';
+    assert.strictEqual(getTable(), 'lambda_logs');
+  });
+});
+
+describe('getHostFilter', () => {
+  it('returns empty string when no hostFilter', () => {
+    state.hostFilter = '';
+    assert.strictEqual(getHostFilter(), '');
+  });
+
+  it('returns CDN host filter when hostFilterColumn not set', () => {
+    state.hostFilter = 'example';
+    state.hostFilterColumn = null;
+    const result = getHostFilter();
+    assert.include(result, 'request.host');
+    assert.include(result, 'x_forwarded_host');
+    assert.include(result, 'example');
+  });
+
+  it('returns column filter when hostFilterColumn is set', () => {
+    state.hostFilter = 'myFunc';
+    state.hostFilterColumn = 'function_name';
+    const result = getHostFilter();
+    assert.include(result, '`function_name`');
+    assert.include(result, 'myFunc');
+  });
+
+  it('escapes single quotes in hostFilter', () => {
+    state.hostFilter = "o'Brien";
+    state.hostFilterColumn = 'function_name';
+    const result = getHostFilter();
+    assert.include(result, "\\'");
   });
 });
