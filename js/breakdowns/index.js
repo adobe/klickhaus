@@ -234,6 +234,37 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
   const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
   const aggs = buildAggregations(params.isBytes, params.mult);
+
+  // Two-level query for bucket facets with rawCol (hits raw-value projection)
+  if (b.rawCol && typeof b.col === 'function') {
+    const bucketExpr = b.col(state.topN, 'val');
+    const innerSummary = b.summaryCountIf
+      ? `,\n    countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
+      : '';
+    const outerSummary = b.summaryCountIf
+      ? ',\n  sum(summary_cnt) as summary_cnt'
+      : '';
+
+    const sql = await loadSql('breakdown-bucketed', {
+      bucketExpr,
+      rawCol: b.rawCol,
+      ...aggs,
+      innerSummaryCol: innerSummary,
+      outerSummaryCol: outerSummary,
+      database: DATABASE,
+      table: getTable(),
+      sampleClause: params.sampleClause,
+      timeFilter,
+      hostFilter,
+      facetFilters: params.facetFilters,
+      extra: params.extra,
+      additionalWhereClause: state.additionalWhereClause,
+      topN: String(state.topN),
+    });
+
+    return { sql, params, aggs };
+  }
+
   const summaryColWithMult = b.summaryCountIf
     ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
     : '';
