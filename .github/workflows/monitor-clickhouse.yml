@@ -99,9 +99,20 @@ jobs:
           if [ "$MEM_HTTP_CODE" = "200" ] && [ -s /tmp/mem-result.txt ]; then
             echo "Top queries by memory retrieved."
             echo "has_mem_data=true" >> "$GITHUB_ENV"
+
+            # Write to step summary
+            echo "### Top Queries by Memory Usage (last 65 min)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Query ID | Time | User | Duration (ms) | Memory | Rows Read | Read | Query |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---|---|---|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/mem-result.txt | jq -r '"| `\(.query_id[0:8])` | \(.event_time) | \(.user) | \(.query_duration_ms) | \(.mem_mb) MB | \(.read_rows) | \(.read_mb) MB | `\(.query_snippet | gsub("[\\n\\r]"; " ") | .[0:80])…` |"' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::warning::Failed to fetch top memory queries (HTTP $MEM_HTTP_CODE)"
             echo "has_mem_data=false" >> "$GITHUB_ENV"
+            echo "### Top Queries by Memory Usage" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ Query failed (HTTP $MEM_HTTP_CODE)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           # Top 10 queries by duration
@@ -134,9 +145,20 @@ jobs:
           if [ "$DUR_HTTP_CODE" = "200" ] && [ -s /tmp/dur-result.txt ]; then
             echo "Top queries by duration retrieved."
             echo "has_dur_data=true" >> "$GITHUB_ENV"
+
+            # Write to step summary
+            echo "### Top Queries by Duration (last 65 min)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Query ID | Time | User | Duration (ms) | Memory | Rows Read | Read | Query |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---|---|---|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/dur-result.txt | jq -r '"| `\(.query_id[0:8])` | \(.event_time) | \(.user) | \(.query_duration_ms) | \(.mem_mb) MB | \(.read_rows) | \(.read_mb) MB | `\(.query_snippet | gsub("[\\n\\r]"; " ") | .[0:80])…` |"' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::warning::Failed to fetch top duration queries (HTTP $DUR_HTTP_CODE)"
             echo "has_dur_data=false" >> "$GITHUB_ENV"
+            echo "### Top Queries by Duration" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ Query failed (HTTP $DUR_HTTP_CODE)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Create or update GitHub Issue
