@@ -137,7 +137,13 @@ describe('increaseTopN', () => {
     const [first, second] = TOP_N_OPTIONS;
     state.topN = first;
     const topNSelectEl = document.createElement('select');
-    topNSelectEl.value = '5';
+    TOP_N_OPTIONS.forEach((n) => {
+      const opt = document.createElement('option');
+      opt.value = String(n);
+      opt.textContent = String(n);
+      topNSelectEl.appendChild(opt);
+    });
+    topNSelectEl.value = String(first);
     let saveCalled = false;
     let loadCalled = false;
     increaseTopN(
