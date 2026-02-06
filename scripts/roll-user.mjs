@@ -26,6 +26,7 @@ const TABLES = [
   'cdn_requests_v2_sampled_1',
   'releases',
   'oncall_shifts',
+  'lambda_logs',
 ];
 const DICTIONARIES = ['asn_dict'];
 
