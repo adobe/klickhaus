@@ -82,6 +82,7 @@ jobs:
               substring(query, 1, 200) as query_snippet
           FROM system.query_log
           WHERE type = 'QueryFinish'
+            AND query_kind = 'Select'
             AND event_time > now() - INTERVAL 65 MINUTE
             AND user NOT IN ('operator-internal', 'monitoring-internal', 'observability-internal')
           ORDER BY memory_usage DESC
@@ -128,6 +129,7 @@ jobs:
               substring(query, 1, 200) as query_snippet
           FROM system.query_log
           WHERE type = 'QueryFinish'
+            AND query_kind = 'Select'
             AND event_time > now() - INTERVAL 65 MINUTE
             AND user NOT IN ('operator-internal', 'monitoring-internal', 'observability-internal')
           ORDER BY query_duration_ms DESC
