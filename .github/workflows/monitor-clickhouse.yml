@@ -34,21 +34,109 @@ jobs:
             AND user NOT IN ('operator-internal', 'monitoring-internal', 'observability-internal')
           GROUP BY exception_code, user
           FORMAT JSONEachRow
+          SETTINGS max_memory_usage = 500000000
           SQL
           )
 
-          RESULT=$(curl -sf "https://${CLICKHOUSE_HOST}:8443/" \
+          HTTP_CODE=$(curl -s -o /tmp/oom-result.txt -w '%{http_code}' \
+            "https://${CLICKHOUSE_HOST}:8443/" \
             -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
             --data "$QUERY")
 
-          if [ -z "$RESULT" ]; then
+          RESULT=$(cat /tmp/oom-result.txt)
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::ClickHouse query failed with HTTP $HTTP_CODE"
+            echo "Response body: $RESULT"
+            echo "has_errors=true" >> "$GITHUB_ENV"
+            echo "query_unreachable=true" >> "$GITHUB_ENV"
+            echo "$RESULT" > /tmp/query-error.txt
+          elif [ -z "$RESULT" ]; then
             echo "No critical errors found in the last hour."
             echo "has_errors=false" >> "$GITHUB_ENV"
+            echo "query_unreachable=false" >> "$GITHUB_ENV"
           else
             echo "Critical errors detected:"
             echo "$RESULT" | jq .
             echo "has_errors=true" >> "$GITHUB_ENV"
+            echo "query_unreachable=false" >> "$GITHUB_ENV"
             echo "$RESULT" > /tmp/errors.jsonl
+          fi
+
+      - name: Query top resource-consuming queries
+        env:
+          CLICKHOUSE_HOST: ${{ secrets.CLICKHOUSE_HOST }}
+          CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_MONITORING_USER }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_MONITORING_PASSWORD }}
+        run: |
+          # Top 10 queries by memory usage
+          MEM_QUERY=$(cat <<'SQL'
+          SELECT
+              query_id,
+              event_time,
+              user,
+              query_duration_ms,
+              read_rows,
+              round(memory_usage / 1024 / 1024, 0) as mem_mb,
+              round(read_bytes / 1024 / 1024, 0) as read_mb,
+              substring(query, 1, 200) as query_snippet
+          FROM system.query_log
+          WHERE type = 'QueryFinish'
+            AND event_time > now() - INTERVAL 65 MINUTE
+            AND user NOT IN ('operator-internal', 'monitoring-internal', 'observability-internal')
+          ORDER BY memory_usage DESC
+          LIMIT 10
+          FORMAT JSONEachRow
+          SETTINGS max_memory_usage = 500000000
+          SQL
+          )
+
+          MEM_HTTP_CODE=$(curl -s -o /tmp/mem-result.txt -w '%{http_code}' \
+            "https://${CLICKHOUSE_HOST}:8443/" \
+            -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+            --data "$MEM_QUERY")
+
+          if [ "$MEM_HTTP_CODE" = "200" ] && [ -s /tmp/mem-result.txt ]; then
+            echo "Top queries by memory retrieved."
+            echo "has_mem_data=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Failed to fetch top memory queries (HTTP $MEM_HTTP_CODE)"
+            echo "has_mem_data=false" >> "$GITHUB_ENV"
+          fi
+
+          # Top 10 queries by duration
+          DUR_QUERY=$(cat <<'SQL'
+          SELECT
+              query_id,
+              event_time,
+              user,
+              query_duration_ms,
+              read_rows,
+              round(memory_usage / 1024 / 1024, 0) as mem_mb,
+              round(read_bytes / 1024 / 1024, 0) as read_mb,
+              substring(query, 1, 200) as query_snippet
+          FROM system.query_log
+          WHERE type = 'QueryFinish'
+            AND event_time > now() - INTERVAL 65 MINUTE
+            AND user NOT IN ('operator-internal', 'monitoring-internal', 'observability-internal')
+          ORDER BY query_duration_ms DESC
+          LIMIT 10
+          FORMAT JSONEachRow
+          SETTINGS max_memory_usage = 500000000
+          SQL
+          )
+
+          DUR_HTTP_CODE=$(curl -s -o /tmp/dur-result.txt -w '%{http_code}' \
+            "https://${CLICKHOUSE_HOST}:8443/" \
+            -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+            --data "$DUR_QUERY")
+
+          if [ "$DUR_HTTP_CODE" = "200" ] && [ -s /tmp/dur-result.txt ]; then
+            echo "Top queries by duration retrieved."
+            echo "has_dur_data=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Failed to fetch top duration queries (HTTP $DUR_HTTP_CODE)"
+            echo "has_dur_data=false" >> "$GITHUB_ENV"
           fi
 
       - name: Create or update GitHub Issue
@@ -56,25 +144,78 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ERRORS=$(cat /tmp/errors.jsonl)
-
-          TABLE_ROWS=$(echo "$ERRORS" | jq -r '"| \(.exception_code) | \(.user) | \(.cnt) | \(.sample_error | gsub("[\\n\\r]"; " ") | .[0:120]) |"')
-          SAMPLE_QUERIES=$(echo "$ERRORS" | jq -r '.sample_query' | head -5)
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
 
-          cat > /tmp/issue-body.md <<ISSUE_EOF
+          # Start building the issue body
+          cat > /tmp/issue-body.md <<HEADER_EOF
           ## ClickHouse Critical Errors Detected
 
-          The hourly monitoring check found critical errors in \`system.query_log\`.
+          The hourly monitoring check found critical errors.
 
           **Time window**: last 65 minutes (as of ${TIMESTAMP})
+          HEADER_EOF
 
-          ### Errors
+          # Query health section
+          if [ "${{ env.query_unreachable }}" = "true" ]; then
+            QUERY_ERROR=$(cat /tmp/query-error.txt 2>/dev/null || echo "Unknown error")
+            cat >> /tmp/issue-body.md <<UNREACHABLE_EOF
+
+          ### :rotating_light: Query Unreachable
+
+          The monitoring query itself failed — ClickHouse may be under severe memory pressure or unreachable.
+
+          \`\`\`
+          ${QUERY_ERROR}
+          \`\`\`
+          UNREACHABLE_EOF
+          fi
+
+          # OOM errors table
+          if [ -f /tmp/errors.jsonl ] && [ -s /tmp/errors.jsonl ]; then
+            ERRORS=$(cat /tmp/errors.jsonl)
+            TABLE_ROWS=$(echo "$ERRORS" | jq -r '"| \(.exception_code) | \(.user) | \(.cnt) | \(.sample_error | gsub("[\\n\\r]"; " ") | .[0:120]) |"')
+
+            cat >> /tmp/issue-body.md <<ERRORS_EOF
+
+          ### OOM and Critical Errors
 
           | Exception Code | User | Count | Sample Error |
           |---|---|---|---|
           ${TABLE_ROWS}
+          ERRORS_EOF
+          fi
+
+          # Top queries by memory
+          if [ "${{ env.has_mem_data }}" = "true" ] && [ -s /tmp/mem-result.txt ]; then
+            MEM_ROWS=$(cat /tmp/mem-result.txt | jq -r '"| \(.query_id) | \(.event_time) | \(.user) | \(.query_duration_ms) | \(.mem_mb) MB | \(.read_rows) | \(.query_snippet | gsub("[\\n\\r]"; " ") | .[0:80]) |"')
+
+            cat >> /tmp/issue-body.md <<MEM_EOF
+
+          ### Top Queries by Memory Usage
+
+          | Query ID | Time | User | Duration (ms) | Memory | Rows Read | Query |
+          |---|---|---|---|---|---|---|
+          ${MEM_ROWS}
+          MEM_EOF
+          fi
+
+          # Top queries by duration
+          if [ "${{ env.has_dur_data }}" = "true" ] && [ -s /tmp/dur-result.txt ]; then
+            DUR_ROWS=$(cat /tmp/dur-result.txt | jq -r '"| \(.query_id) | \(.event_time) | \(.user) | \(.query_duration_ms) | \(.mem_mb) MB | \(.read_rows) | \(.query_snippet | gsub("[\\n\\r]"; " ") | .[0:80]) |"')
+
+            cat >> /tmp/issue-body.md <<DUR_EOF
+
+          ### Top Queries by Duration
+
+          | Query ID | Time | User | Duration (ms) | Memory | Rows Read | Query |
+          |---|---|---|---|---|---|---|
+          ${DUR_ROWS}
+          DUR_EOF
+          fi
+
+          # Error codes reference and footer
+          cat >> /tmp/issue-body.md <<FOOTER_EOF
 
           ### Error Codes Reference
 
@@ -84,15 +225,9 @@ jobs:
           | 242 | TABLE_SIZE_EXCEEDED | Table size limit exceeded |
           | 243 | QUERY_WAS_CANCELLED | Query cancelled (often memory-related) |
 
-          ### Sample Queries
-
-          \`\`\`
-          ${SAMPLE_QUERIES}
-          \`\`\`
-
           ---
           *Auto-generated by [monitor-clickhouse](${RUN_URL}) workflow.*
-          ISSUE_EOF
+          FOOTER_EOF
 
           # Remove leading whitespace from heredoc lines
           sed -i 's/^          //' /tmp/issue-body.md
