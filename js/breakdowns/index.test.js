@@ -16,14 +16,18 @@ import {
   resetFacetTimings,
   getFacetFilters,
   getFacetFiltersExcluding,
+  markSlowestFacet,
+  increaseTopN,
   facetTimings,
 } from './index.js';
 import { allBreakdowns } from './definitions.js';
 import { lambdaBreakdowns } from './definitions-lambda.js';
+import { TOP_N_OPTIONS } from '../constants.js';
 
 beforeEach(() => {
   state.breakdowns = null;
   state.filters = [];
+  resetFacetTimings();
 });
 
 describe('getBreakdowns', () => {
@@ -80,5 +84,84 @@ describe('getFacetFiltersExcluding', () => {
     const sql = getFacetFiltersExcluding('`request.host`');
     assert.ok(sql.includes("`request.method` = 'GET'"));
     assert.notInclude(sql, 'a.com');
+  });
+});
+
+describe('markSlowestFacet', () => {
+  let queryTimerEl;
+  let facetCard;
+
+  beforeEach(() => {
+    queryTimerEl = document.getElementById('queryTimer');
+    if (!queryTimerEl) {
+      queryTimerEl = document.createElement('span');
+      queryTimerEl.id = 'queryTimer';
+      document.body.appendChild(queryTimerEl);
+    }
+    facetCard = document.getElementById('breakdown-level');
+    if (!facetCard) {
+      facetCard = document.createElement('div');
+      facetCard.id = 'breakdown-level';
+      facetCard.dataset.title = 'Level';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Level';
+      facetCard.appendChild(h3);
+      document.body.appendChild(facetCard);
+    }
+  });
+
+  afterEach(() => {
+    if (facetTimings['breakdown-level'] !== undefined) delete facetTimings['breakdown-level'];
+    if (facetTimings['breakdown-host'] !== undefined) delete facetTimings['breakdown-host'];
+  });
+
+  it('sets queryTimer title to slowest facet when facetTimings has entries', () => {
+    facetTimings['breakdown-level'] = 150;
+    facetTimings['breakdown-host'] = 80;
+    markSlowestFacet();
+    assert.include(queryTimerEl.title, 'Level');
+    assert.include(queryTimerEl.title, '150');
+  });
+
+  it('clears queryTimer title when no facet timings', () => {
+    queryTimerEl.title = 'previous';
+    markSlowestFacet();
+    assert.strictEqual(queryTimerEl.title, '');
+  });
+});
+
+describe('increaseTopN', () => {
+  it('updates state and select value when next option exists', () => {
+    const [first, second] = TOP_N_OPTIONS;
+    state.topN = first;
+    const topNSelectEl = document.createElement('select');
+    topNSelectEl.value = '5';
+    let saveCalled = false;
+    let loadCalled = false;
+    increaseTopN(
+      topNSelectEl,
+      () => { saveCalled = true; },
+      () => { loadCalled = true; },
+    );
+    assert.strictEqual(state.topN, second);
+    assert.strictEqual(topNSelectEl.value, String(second));
+    assert.isTrue(saveCalled);
+    assert.isTrue(loadCalled);
+  });
+
+  it('does not call save or load when already at max topN', () => {
+    const last = TOP_N_OPTIONS.at(-1);
+    state.topN = last;
+    const topNSelectEl = document.createElement('select');
+    topNSelectEl.value = '100';
+    let saveCalled = false;
+    let loadCalled = false;
+    increaseTopN(
+      topNSelectEl,
+      () => { saveCalled = true; },
+      () => { loadCalled = true; },
+    );
+    assert.isFalse(saveCalled);
+    assert.isFalse(loadCalled);
   });
 });
