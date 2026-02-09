@@ -107,4 +107,32 @@ describe('sanitizeUrl', () => {
     assert.isNull(sanitizeUrl('   '));
     assert.isNull(sanitizeUrl('not a url'));
   });
+
+  it('returns null for null and undefined', () => {
+    assert.isNull(sanitizeUrl(null));
+    assert.isNull(sanitizeUrl(undefined));
+  });
+
+  it('returns null for non-string types', () => {
+    assert.isNull(sanitizeUrl(42));
+    assert.isNull(sanitizeUrl(true));
+    assert.isNull(sanitizeUrl({}));
+  });
+
+  it('handles URLs with port numbers', () => {
+    assert.strictEqual(sanitizeUrl('https://example.com:8443/path'), 'https://example.com:8443/path');
+    assert.strictEqual(sanitizeUrl('http://localhost:3000'), 'http://localhost:3000');
+  });
+
+  it('returns null for protocol-relative URLs', () => {
+    assert.isNull(sanitizeUrl('//example.com/path'));
+  });
+
+  it('trims leading and trailing whitespace', () => {
+    assert.strictEqual(sanitizeUrl('  https://example.com/path  '), 'https://example.com/path');
+  });
+
+  it('handles URLs with fragments only', () => {
+    assert.strictEqual(sanitizeUrl('https://example.com#top'), 'https://example.com#top');
+  });
 });

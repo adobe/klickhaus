@@ -21,6 +21,7 @@ import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
+import { PAGE_SIZE, PaginationState } from './pagination.js';
 
 /**
  * Build ordered log column list from available columns.
@@ -95,10 +96,7 @@ let viewToggleBtn = null;
 let filtersView = null;
 
 // Pagination state
-const PAGE_SIZE = 500;
-let logsOffset = 0;
-let hasMoreLogs = true;
-let loadingMore = false;
+const pagination = new PaginationState();
 
 // Show brief "Copied!" feedback
 function showCopyFeedback() {
@@ -415,8 +413,8 @@ export function renderLogsTable(data) {
 }
 
 async function loadMoreLogs() {
-  if (loadingMore || !hasMoreLogs) return;
-  loadingMore = true;
+  if (!pagination.canLoadMore()) return;
+  pagination.loading = true;
   const requestContext = getRequestContext('dashboard');
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
@@ -433,7 +431,7 @@ async function loadMoreLogs() {
     facetFilters,
     additionalWhereClause: state.additionalWhereClause,
     pageSize: String(PAGE_SIZE),
-    offset: String(logsOffset),
+    offset: String(pagination.offset),
   });
 
   try {
@@ -442,17 +440,15 @@ async function loadMoreLogs() {
     if (result.data.length > 0) {
       state.logsData = [...state.logsData, ...result.data];
       appendLogsRows(result.data);
-      logsOffset += result.data.length;
     }
-    // Check if there might be more data
-    hasMoreLogs = result.data.length === PAGE_SIZE;
+    pagination.recordPage(result.data.length);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Load more logs error:', err);
   } finally {
     if (isCurrent()) {
-      loadingMore = false;
+      pagination.loading = false;
     }
   }
 }
@@ -467,7 +463,7 @@ function handleLogsScroll() {
 
   // Load more when scrolled to last 50%
   const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
-  if (scrollPercent > 0.5 && hasMoreLogs && !loadingMore && !state.logsLoading) {
+  if (pagination.shouldTriggerLoad(scrollPercent, state.logsLoading)) {
     loadMoreLogs();
   }
 }
@@ -518,11 +514,9 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
 
   state.logsLoading = true;
   state.logsReady = false;
-  loadingMore = false;
 
   // Reset pagination state
-  logsOffset = 0;
-  hasMoreLogs = true;
+  pagination.reset();
 
   // Apply blur effect while loading
   const container = logsView.querySelector('.logs-table-container');
@@ -548,9 +542,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     state.logsData = result.data;
     renderLogsTable(result.data);
     state.logsReady = true;
-    // Check if there might be more data
-    hasMoreLogs = result.data.length === PAGE_SIZE;
-    logsOffset = result.data.length;
+    pagination.recordPage(result.data.length);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
