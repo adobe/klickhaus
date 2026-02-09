@@ -45,6 +45,12 @@ async function main() {
     process.exit(1);
   }
 
+  // Validate username to prevent SQL injection
+  if (!/^[A-Za-z0-9_]+$/.test(username)) {
+    console.error('Error: username must contain only letters, digits, and underscores');
+    process.exit(1);
+  }
+
   // Safety check
   const protectedUsers = ['default', 'admin'];
   if (protectedUsers.includes(username.toLowerCase())) {
