@@ -130,7 +130,13 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `cdn_requests_v2` and dictGet access to `asn_dict`.
+New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
+
+- `enable_parallel_replicas = 1` — queries are distributed across all replicas
+- `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
+- `max_memory_usage = 4000000000` — 4 GB per-query memory limit to protect small replicas
+
+Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`) get only the memory limit (no parallel replicas for inserts).
 
 ## Data Pipeline Architecture
 
@@ -220,46 +226,60 @@ These skip indexes accelerate queries by excluding granules that definitely don'
 
 #### Projections (Pre-aggregated Facets)
 
-The table has projections for all dashboard facets, enabling sub-second GROUP BY queries. Each projection pre-aggregates data by hour and facet value with status code breakdowns.
+The table has two types of projections for dashboard facets:
+
+**Minute-level projections** (`proj_minute_*`) pre-aggregate by `toStartOfMinute(timestamp)` and facet column. These are the primary projections used by all dashboard breakdown and investigation queries.
 
 | Projection | Facet Column | Dashboard Use |
 |------------|--------------|---------------|
-| `proj_facet_url` | `request.url` | Top paths |
-| `proj_facet_user_agent` | `request.headers.user_agent` | User agents |
-| `proj_facet_referer` | `request.headers.referer` | Referrers |
-| `proj_facet_x_forwarded_host` | `request.headers.x_forwarded_host` | Origin hostnames |
-| `proj_facet_x_error` | `response.headers.x_error` | Error messages |
-| `proj_facet_host` | `request.host` | Edge hostnames |
-| `proj_facet_method` | `request.method` | HTTP methods |
-| `proj_facet_datacenter` | `cdn.datacenter` | Edge locations |
-| `proj_facet_request_type` | `helix.request_type` | AEM request types |
-| `proj_facet_backend_type` | `helix.backend_type` | Backend types |
-| `proj_facet_content_type` | `response.headers.content_type` | Content types |
-| `proj_facet_cache_status` | `upper(cdn.cache_status)` | Cache status |
-| `proj_facet_client_ip` | `if(x_forwarded_for != '', x_forwarded_for, client.ip)` | Client IPs |
-| `proj_facet_status_range` | `concat(intDiv(response.status, 100), 'xx')` | Status ranges (2xx, 4xx) |
-| `proj_facet_status` | `toString(response.status)` | HTTP status codes |
-| `proj_facet_asn` | `concat(client.asn, ' - ', client.name)` | ASN breakdown (legacy) |
-| `proj_facet_asn_num` | `client.asn` | ASN breakdown (v2, integer-based) |
+| `proj_minute_url` | `request.url` | Top paths |
+| `proj_minute_user_agent` | `request.headers.user_agent` | User agents |
+| `proj_minute_referer` | `request.headers.referer` | Referrers |
+| `proj_minute_x_forwarded_host` | `request.headers.x_forwarded_host` | Origin hostnames |
+| `proj_minute_x_error` | `response.headers.x_error` | Error messages |
+| `proj_minute_x_error_grouped` | `REGEXP_REPLACE(x_error, '/[a-zA-Z0-9/_.-]+', '/...')` | Grouped errors |
+| `proj_minute_host` | `request.host` | Edge hostnames |
+| `proj_minute_method` | `request.method` | HTTP methods |
+| `proj_minute_datacenter` | `cdn.datacenter` | Edge locations |
+| `proj_minute_request_type` | `helix.request_type` | AEM request types |
+| `proj_minute_backend_type` | `helix.backend_type` | Backend types |
+| `proj_minute_content_type` | `response.headers.content_type` | Content types |
+| `proj_minute_cache_status` | `upper(cdn.cache_status)` | Cache status |
+| `proj_minute_client_ip` | `if(x_forwarded_for != '', x_forwarded_for, client.ip)` | Client IPs |
+| `proj_minute_status_range` | `concat(intDiv(response.status, 100), 'xx')` | Status ranges (2xx, 4xx) |
+| `proj_minute_status` | `toString(response.status)` | HTTP status codes |
+| `proj_minute_asn` | `client.asn` | ASN breakdown (integer-based) |
+| `proj_minute_source` | `source` | CDN source (cloudflare/fastly) |
+| `proj_minute_accept` | `request.headers.accept` | Accept header |
+| `proj_minute_accept_encoding` | `request.headers.accept_encoding` | Accept-Encoding header |
+| `proj_minute_cache_control` | `request.headers.cache_control` | Cache-Control header |
+| `proj_minute_byo_cdn` | `request.headers.x_byo_cdn_type` | BYO CDN type |
+| `proj_minute_location` | `response.headers.location` | Redirect location |
+| `proj_minute_time_elapsed` | `cdn.time_elapsed_msec` | Response time (raw value for bucketed queries) |
+| `proj_minute_content_length` | `response.headers.content_length` | Content length (raw value for bucketed queries) |
+
+**Bucketed facets** (time-elapsed, content-length) use a two-level query: the inner query groups by the raw column value (hitting `proj_minute_*`), the outer query applies `multiIf()` bucketing. This allows dynamic bucket boundaries while still benefiting from projections. See `sql/queries/breakdown-bucketed.sql`.
 
 Projections are automatically used by ClickHouse when the query matches the projection's GROUP BY. Dashboard facet queries that previously took 8-15s now complete in <1s.
+
+There is a **25 projection limit** on ClickHouse Cloud. Check current count before adding new ones.
 
 To add a new projection:
 ```sql
 ALTER TABLE helix_logs_production.cdn_requests_v2
-ADD PROJECTION proj_facet_example (
+ADD PROJECTION proj_minute_example (
     SELECT
-        toStartOfHour(timestamp) as hour,
+        toStartOfMinute(timestamp) as minute,
         `column.name`,
         count() as cnt,
         countIf(`response.status` < 400) as cnt_ok,
         countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
         countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY hour, `column.name`
+    GROUP BY minute, `column.name`
 );
--- Materialize for existing data (runs in background)
+-- Materialize for existing data (runs in background, one at a time)
 ALTER TABLE helix_logs_production.cdn_requests_v2
-MATERIALIZE PROJECTION proj_facet_example;
+MATERIALIZE PROJECTION proj_minute_example;
 ```
 
 #### Column Groups

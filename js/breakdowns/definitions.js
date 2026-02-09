@@ -102,10 +102,10 @@ export const allBreakdowns = [
   },
   { id: 'breakdown-push-invalidation', col: '`request.headers.x_push_invalidation`', extraFilter: "AND `request.headers.x_push_invalidation` != ''" },
   {
-    id: 'breakdown-content-length', col: contentLengthBuckets, orderBy: 'min(`response.headers.content_length`)', modeToggle: 'contentTypeMode', getExpectedLabels: getContentLengthLabels,
+    id: 'breakdown-content-length', col: contentLengthBuckets, rawCol: '`response.headers.content_length`', orderBy: 'min(`response.headers.content_length`)', modeToggle: 'contentTypeMode', getExpectedLabels: getContentLengthLabels,
   },
   { id: 'breakdown-location', col: COLUMN_DEFS.location.facetCol, extraFilter: "AND `response.headers.location` != ''" },
   {
-    id: 'breakdown-time-elapsed', col: timeElapsedBuckets, orderBy: 'min(`cdn.time_elapsed_msec`)', summaryCountIf: '`cdn.time_elapsed_msec` >= 1000', summaryLabel: 'slow (≥1s)', summaryColor: 'warning', getExpectedLabels: getTimeElapsedLabels,
+    id: 'breakdown-time-elapsed', col: timeElapsedBuckets, rawCol: '`cdn.time_elapsed_msec`', orderBy: 'min(`cdn.time_elapsed_msec`)', summaryCountIf: '`cdn.time_elapsed_msec` >= 1000', summaryLabel: 'slow (≥1s)', summaryColor: 'warning', getExpectedLabels: getTimeElapsedLabels,
   },
 ];

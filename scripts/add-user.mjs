@@ -76,6 +76,12 @@ async function main() {
     process.exit(1);
   }
 
+  // Validate username to prevent SQL injection
+  if (!/^[A-Za-z0-9_]+$/.test(newUsername)) {
+    console.error('Error: username must contain only letters, digits, and underscores');
+    process.exit(1);
+  }
+
   // Remove backslash escaping that shells may add
   const cleanPassword = providedPassword ? providedPassword.replace(/\\([!@#$%^&*])/g, '$1') : null;
   const password = cleanPassword || generatePassword();
@@ -101,6 +107,16 @@ async function main() {
       await query(grantSql, adminUser, adminPassword);
       console.log(`Granted dictGet on ${DATABASE}.${dict}`);
     }
+
+    // Apply parallel replicas and memory limit settings
+    const settingsSql = [
+      `ALTER USER ${newUsername} SETTINGS`,
+      'enable_parallel_replicas = 1,',
+      'max_parallel_replicas = 6,',
+      'max_memory_usage = 4000000000',
+    ].join(' ');
+    await query(settingsSql, adminUser, adminPassword);
+    console.log('Applied parallel replicas and memory limit settings');
 
     console.log('\n--- Credentials ---');
     console.log(`Username: ${newUsername}`);
