@@ -130,7 +130,7 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `cdn_requests_v2` and dictGet access to `asn_dict`, plus the following performance/safety settings:
+New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
 
 - `enable_parallel_replicas = 1` — queries are distributed across all replicas
 - `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
