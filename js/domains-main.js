@@ -42,8 +42,7 @@ WHERE \`request.host\` LIKE '%.aem.live'
   AND \`request.headers.x_forwarded_host\` NOT LIKE '%oast%'
   AND timestamp > now() - INTERVAL 7 DAY
 GROUP BY domain, owner, repo, cdn_type
-HAVING (req_per_hour >= 1 OR total >= 1000)
-  AND NOT match(domain, '^[0-9.]+$')
+HAVING NOT match(domain, '^[0-9.]+$')
   AND domain NOT IN ('da.live', 'da.page', 'aem.live', 'docs.da.live', 'docs.da.page')
   AND domain NOT LIKE '%.aem.reviews'
   AND match(domain, '^[a-z0-9][a-z0-9.-]+\\.[a-z]{2,}$')
@@ -52,8 +51,8 @@ ORDER BY total DESC
 
 // State
 let rows = [];
-let sortCol = 'total';
-let sortAsc = false;
+let sortCol = 'age_days';
+let sortAsc = true;
 
 // DOM refs
 const els = {
@@ -85,6 +84,9 @@ function renderTable() {
     }
     if (va < vb) return sortAsc ? -1 : 1;
     if (va > vb) return sortAsc ? 1 : -1;
+    // Secondary sort: total descending
+    if (a.total > b.total) return -1;
+    if (a.total < b.total) return 1;
     return 0;
   });
 
@@ -104,7 +106,7 @@ function renderTable() {
       : `<span class="badge badge-existing">${row.age_days}d</span>`;
 
     return `<tr class="${matchesFilter ? '' : 'hidden'}">
-      <td class="domain-cell">${escapeHtml(row.domain)}</td>
+      <td class="domain-cell"><a href="https://${escapeHtml(row.domain)}" target="_blank" rel="noopener">${escapeHtml(row.domain)}</a></td>
       <td class="owner-cell">${escapeHtml(row.owner)}</td>
       <td class="repo-cell">${escapeHtml(row.repo)}</td>
       <td class="cdn-cell">${escapeHtml(row.cdn_type || '\u2014')}</td>

@@ -156,6 +156,16 @@ html {
   display: none;
 }
 
+/* Domain links */
+.domain-cell a {
+  color: var(--host-delivery);
+  text-decoration: none;
+}
+
+.domain-cell a:hover {
+  text-decoration: underline;
+}
+
 /* Status badges */
 .badge {
   display: inline-block;
