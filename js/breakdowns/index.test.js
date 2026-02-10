@@ -50,7 +50,7 @@ describe('getBreakdowns', () => {
     state.breakdowns = lambdaBreakdowns;
     const result = getBreakdowns();
     assert.strictEqual(result, lambdaBreakdowns);
-    assert.strictEqual(result.length, 6);
+    assert.strictEqual(result.length, 9);
   });
 });
 
