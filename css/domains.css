@@ -8,81 +8,25 @@ html {
   overflow: auto;
 }
 
-/* Dashboard layout */
-#dashboard {
-  display: none;
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
+/* Ensure dialog sits above sticky thead */
+#moreMenu[open] {
+  z-index: 10;
 }
 
-#dashboard.visible {
-  display: block;
-}
-
-/* Header */
-.domains-header {
-  margin-bottom: 20px;
-}
-
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.header-top h1 {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.search-input {
-  flex: 1;
-  max-width: 400px;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  background: var(--input-bg);
-  color: var(--text);
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(235, 16, 0, 0.15);
-}
-
+/* Row count in header */
 .row-count {
   font-size: 13px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.query-timer {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-/* Table */
+/* Table wrapper */
 .domains-main {
   background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid var(--border);
   overflow: hidden;
+  margin: 0 24px 24px;
 }
 
 .table-container {
@@ -214,27 +158,8 @@ html {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  #dashboard {
-    padding: 12px;
-  }
-
-  .header-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .header-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .search-input {
-    max-width: none;
-  }
-
-  .row-count {
-    text-align: right;
+@media (max-width: 600px) {
+  .domains-main {
+    margin: 0 12px 16px;
   }
 }

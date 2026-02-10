@@ -180,13 +180,37 @@ els.searchInput.addEventListener('input', () => {
   renderTable();
 });
 
+// Kebab menu
+const moreMenu = document.getElementById('moreMenu');
+const moreBtn = document.getElementById('moreBtn');
+
+moreBtn.addEventListener('click', () => {
+  if (moreMenu.open) {
+    moreMenu.close();
+    return;
+  }
+  const rect = moreBtn.getBoundingClientRect();
+  moreMenu.style.top = `${rect.bottom + 4}px`;
+  moreMenu.style.right = `${document.documentElement.clientWidth - rect.right}px`;
+  moreMenu.style.left = 'auto';
+  moreMenu.show();
+});
+
+document.addEventListener('click', (e) => {
+  if (moreMenu.open && !moreMenu.contains(e.target) && !moreBtn.contains(e.target)) {
+    moreMenu.close();
+  }
+});
+
 // Refresh
 document.getElementById('refreshBtn').addEventListener('click', () => {
+  moreMenu.close();
   loadData();
 });
 
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', () => {
+  moreMenu.close();
   handleLogout();
 });
 

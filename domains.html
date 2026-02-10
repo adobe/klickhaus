@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/modals.css">
   <link rel="stylesheet" href="css/domains.css">
 </head>
 <body>
@@ -49,18 +51,35 @@
 
   <!-- Dashboard -->
   <div id="dashboard">
-    <header class="domains-header">
-      <div class="header-top">
+    <header>
+      <div class="header-left">
+        <a href="index.html" class="menu-btn" title="Quick Links">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <rect y="3" width="20" height="2" rx="1"/>
+            <rect y="9" width="20" height="2" rx="1"/>
+            <rect y="15" width="20" height="2" rx="1"/>
+          </svg>
+        </a>
         <h1>Domain Explorer <span id="queryTimer" class="query-timer"></span></h1>
-        <div class="header-actions">
-          <button id="refreshBtn" class="btn btn-secondary" title="Refresh data">Refresh</button>
-          <button id="logoutBtn" class="btn btn-secondary" title="Sign out">Logout</button>
-        </div>
-      </div>
-      <div class="header-controls">
-        <input type="text" id="searchInput" class="search-input" placeholder="Filter by domain, owner, or repo...">
         <span id="rowCount" class="row-count"></span>
       </div>
+      <div class="header-right">
+        <input type="text" id="searchInput" placeholder="Filter by domain, owner, or repo...">
+        <button id="moreBtn" class="menu-btn" title="More actions">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.5"/>
+            <circle cx="10" cy="10" r="1.5"/>
+            <circle cx="10" cy="16" r="1.5"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- More Actions Menu -->
+      <dialog id="moreMenu">
+        <button id="refreshBtn" class="menu-item">Refresh</button>
+        <div class="menu-divider"></div>
+        <button id="logoutBtn" class="menu-item">Logout</button>
+      </dialog>
     </header>
 
     <main class="domains-main">
