@@ -509,3 +509,50 @@ describe('colorRules.byoCdn', () => {
     assert.strictEqual(getColor('bunny'), 'var(--cdn-other)');
   });
 });
+
+describe('colorRules.lambdaLevel', () => {
+  const { getColor } = colorRules.lambdaLevel;
+
+  it('returns server error for ERROR', () => {
+    assert.strictEqual(getColor('ERROR'), 'var(--status-server-error)');
+  });
+
+  it('returns client error for WARN/WARNING', () => {
+    assert.strictEqual(getColor('WARN'), 'var(--status-client-error)');
+    assert.strictEqual(getColor('WARNING'), 'var(--status-client-error)');
+  });
+
+  it('returns ok for INFO/DEBUG/TRACE', () => {
+    assert.strictEqual(getColor('INFO'), 'var(--status-ok)');
+    assert.strictEqual(getColor('DEBUG'), 'var(--status-ok)');
+    assert.strictEqual(getColor('TRACE'), 'var(--status-ok)');
+  });
+});
+
+describe('colorRules.lambdaAdminMethod', () => {
+  const { getColor } = colorRules.lambdaAdminMethod;
+
+  it('maps HTTP methods to method colors', () => {
+    assert.strictEqual(getColor('GET'), 'var(--method-get)');
+    assert.strictEqual(getColor('POST'), 'var(--method-post)');
+    assert.strictEqual(getColor('DELETE'), 'var(--method-delete)');
+  });
+
+  it('returns path-clean for unknown method', () => {
+    assert.strictEqual(getColor('CUSTOM'), 'var(--path-clean)');
+  });
+});
+
+describe('colorRules.lambdaAppName', () => {
+  const { getColor } = colorRules.lambdaAppName;
+
+  it('returns a deterministic color for any value', () => {
+    const c = getColor('my-app');
+    assert.match(c, /^var\(--/);
+    assert.strictEqual(getColor('my-app'), c);
+  });
+
+  it('returns empty for falsy', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+});

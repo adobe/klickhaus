@@ -11,6 +11,24 @@
  */
 // Each rule maps column patterns to color determination logic
 
+/** Deterministic color for Lambda high-cardinality facets (app_name, subsystem, log_group). */
+function hashToLambdaColor(value) {
+  const LAMBDA_COLORS = [
+    'var(--path-clean)',
+    'var(--path-document)',
+    'var(--path-script)',
+    'var(--ct-image)',
+    'var(--host-delivery)',
+    'var(--host-authoring)',
+  ];
+  let h = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    h = (h * 31 + value.charCodeAt(i)) % 2147483647;
+  }
+  const idx = Math.abs(h) % LAMBDA_COLORS.length;
+  return LAMBDA_COLORS[idx];
+}
+
 export const colorRules = {
   status: {
     patterns: ['response.status'],
@@ -306,6 +324,59 @@ export const colorRules = {
       }
       // Relative URLs (start with / or don't have protocol)
       return 'var(--loc-relative)';
+    },
+  },
+
+  // Lambda dashboard facets
+  lambdaLevel: {
+    patterns: ['`level`', 'level'],
+    getColor: (value) => {
+      if (!value) return '';
+      const v = value.toUpperCase();
+      if (v === 'ERROR') return 'var(--status-server-error)';
+      if (v === 'WARN' || v === 'WARNING') return 'var(--status-client-error)';
+      if (v === 'INFO' || v === 'DEBUG' || v === 'TRACE') return 'var(--status-ok)';
+      return 'var(--status-ok)';
+    },
+  },
+
+  lambdaAdminMethod: {
+    patterns: ['admin.method', 'message_json.admin'],
+    getColor: (value) => {
+      if (!value) return '';
+      const m = value.toUpperCase();
+      if (m === 'GET') return 'var(--method-get)';
+      if (m === 'POST') return 'var(--method-post)';
+      if (m === 'PUT') return 'var(--method-put)';
+      if (m === 'PATCH') return 'var(--method-patch)';
+      if (m === 'HEAD') return 'var(--method-head)';
+      if (m === 'OPTIONS') return 'var(--method-options)';
+      if (m === 'DELETE') return 'var(--method-delete)';
+      return 'var(--path-clean)';
+    },
+  },
+
+  lambdaAppName: {
+    patterns: ['app_name'],
+    getColor: (value) => {
+      if (!value) return '';
+      return hashToLambdaColor(value);
+    },
+  },
+
+  lambdaSubsystem: {
+    patterns: ['subsystem'],
+    getColor: (value) => {
+      if (!value) return '';
+      return hashToLambdaColor(value);
+    },
+  },
+
+  lambdaLogGroup: {
+    patterns: ['log_group'],
+    getColor: (value) => {
+      if (!value) return '';
+      return hashToLambdaColor(value);
     },
   },
 };
