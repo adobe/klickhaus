@@ -26,7 +26,7 @@ html {
   border-radius: 12px;
   border: 1px solid var(--border);
   overflow: hidden;
-  margin: 0 24px 24px;
+  margin: 16px 24px 24px;
 }
 
 .table-container {
@@ -63,11 +63,17 @@ html {
   text-align: right;
 }
 
-.domains-table th.sortable {
+.domains-table th.sortable button {
+  all: unset;
   cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
 }
 
-.domains-table th.sortable:hover {
+.domains-table th.sortable:hover,
+.domains-table th.sortable button:hover {
   color: var(--text);
 }
 

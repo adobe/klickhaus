@@ -10,44 +10,14 @@
  * governing permissions and limitations under the License.
  */
 import { state } from './state.js';
-import { query } from './api.js';
+import { query, setForceRefresh } from './api.js';
 import { DATABASE } from './config.js';
 import { formatNumber, formatQueryTime } from './format.js';
+import { escapeHtml } from './utils.js';
+import { loadSql } from './sql-loader.js';
 import {
   setElements, loadStoredCredentials, handleLogin, handleLogout, showLogin, showDashboard,
 } from './auth.js';
-
-const DOMAIN_QUERY = `
-SELECT
-  lower(trimRight(splitByChar(':',
-    trimBoth(splitByChar(',', \`request.headers.x_forwarded_host\`)[1])
-  )[1], '.')) AS domain,
-  splitByString('--', replaceOne(\`request.host\`, '.aem.live', ''))[3] AS owner,
-  splitByString('--', replaceOne(\`request.host\`, '.aem.live', ''))[2] AS repo,
-  \`request.headers.x_byo_cdn_type\` AS cdn_type,
-  round(count() / (dateDiff('hour', min(timestamp), max(timestamp)) + 1), 1) AS req_per_hour,
-  count() AS total,
-  dateDiff('day', min(timestamp), now()) AS age_days
-FROM {database}.cdn_requests_v2
-WHERE \`request.host\` LIKE '%.aem.live'
-  AND \`request.headers.x_forwarded_host\` != ''
-  AND \`request.headers.x_forwarded_host\` != \`request.host\`
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%.aem.live'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%.aem.page'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE 'localhost%'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%.workers.dev%'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%<%'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%{%'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%/%'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%oast%'
-  AND timestamp > now() - INTERVAL 7 DAY
-GROUP BY domain, owner, repo, cdn_type
-HAVING NOT match(domain, '^[0-9.]+$')
-  AND domain NOT IN ('da.live', 'da.page', 'aem.live', 'docs.da.live', 'docs.da.page')
-  AND domain NOT LIKE '%.aem.reviews'
-  AND match(domain, '^[a-z0-9][a-z0-9.-]+\\.[a-z]{2,}$')
-ORDER BY total DESC
-`.replace('{database}', DATABASE);
 
 // State
 let rows = [];
@@ -68,10 +38,16 @@ const els = {
   domainsBody: document.getElementById('domainsBody'),
 };
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+function updateAriaSort() {
+  document.querySelectorAll('.domains-table th.sortable').forEach((th) => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === sortCol) {
+      th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+      th.setAttribute('aria-sort', sortAsc ? 'ascending' : 'descending');
+    } else {
+      th.setAttribute('aria-sort', 'none');
+    }
+  });
 }
 
 function renderTable() {
@@ -121,24 +97,21 @@ function renderTable() {
     ? `${visibleCount} of ${rows.length} domains`
     : `${rows.length} domains`;
 
-  // Update sort indicators
-  document.querySelectorAll('.domains-table th').forEach((th) => {
-    th.classList.remove('sort-asc', 'sort-desc');
-    if (th.dataset.col === sortCol) {
-      th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
-    }
-  });
+  updateAriaSort();
 }
 
-async function loadData() {
+async function loadData(refresh = false) {
   els.loadingState.style.display = '';
   els.errorState.classList.remove('visible');
   els.tableContainer.style.display = 'none';
 
   try {
+    setForceRefresh(refresh);
+    const sql = await loadSql('domains', { database: DATABASE });
     const start = performance.now();
-    const data = await query(DOMAIN_QUERY, { cacheTtl: 300 });
+    const data = await query(sql, { cacheTtl: 300 });
     const elapsed = performance.now() - start;
+    setForceRefresh(false);
 
     rows = data.data.map((r) => ({
       domain: r.domain,
@@ -155,6 +128,7 @@ async function loadData() {
     els.tableContainer.style.display = '';
     renderTable();
   } catch (err) {
+    setForceRefresh(false);
     els.loadingState.style.display = 'none';
     els.errorState.textContent = `Failed to load: ${err.message}`;
     els.errorState.classList.add('visible');
@@ -205,7 +179,7 @@ document.addEventListener('click', (e) => {
 // Refresh
 document.getElementById('refreshBtn').addEventListener('click', () => {
   moreMenu.close();
-  loadData();
+  loadData(true);
 });
 
 // Logout

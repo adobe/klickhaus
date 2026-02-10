@@ -92,13 +92,13 @@
         <table id="domainsTable" class="domains-table">
           <thead>
             <tr>
-              <th data-col="domain" class="sortable">Domain</th>
-              <th data-col="owner" class="sortable">Owner</th>
-              <th data-col="repo" class="sortable">Repo</th>
-              <th data-col="cdn_type" class="sortable">CDN Type</th>
-              <th data-col="req_per_hour" class="sortable numeric">Req/hour</th>
-              <th data-col="total" class="sortable numeric">Total</th>
-              <th data-col="age_days" class="sortable">Status</th>
+              <th data-col="domain" class="sortable" aria-sort="none"><button type="button">Domain</button></th>
+              <th data-col="owner" class="sortable" aria-sort="none"><button type="button">Owner</button></th>
+              <th data-col="repo" class="sortable" aria-sort="none"><button type="button">Repo</button></th>
+              <th data-col="cdn_type" class="sortable" aria-sort="none"><button type="button">CDN Type</button></th>
+              <th data-col="req_per_hour" class="sortable numeric" aria-sort="none"><button type="button">Req/hour</button></th>
+              <th data-col="total" class="sortable numeric" aria-sort="none"><button type="button">Total</button></th>
+              <th data-col="age_days" class="sortable" aria-sort="ascending"><button type="button">Status</button></th>
             </tr>
           </thead>
           <tbody id="domainsBody"></tbody>
