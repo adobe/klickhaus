@@ -19,7 +19,9 @@ import {
 
 const DOMAIN_QUERY = `
 SELECT
-  \`request.headers.x_forwarded_host\` AS domain,
+  lower(trimRight(splitByChar(':',
+    trimBoth(splitByChar(',', \`request.headers.x_forwarded_host\`)[1])
+  )[1], '.')) AS domain,
   splitByString('--', replaceOne(\`request.host\`, '.aem.live', ''))[3] AS owner,
   splitByString('--', replaceOne(\`request.host\`, '.aem.live', ''))[2] AS repo,
   \`request.headers.x_byo_cdn_type\` AS cdn_type,
@@ -33,8 +35,18 @@ WHERE \`request.host\` LIKE '%.aem.live'
   AND \`request.headers.x_forwarded_host\` NOT LIKE '%.aem.live'
   AND \`request.headers.x_forwarded_host\` NOT LIKE '%.aem.page'
   AND \`request.headers.x_forwarded_host\` NOT LIKE 'localhost%'
-  AND \`request.headers.x_forwarded_host\` NOT LIKE '%.workers.dev'
+  AND \`request.headers.x_forwarded_host\` NOT LIKE '%.workers.dev%'
+  AND \`request.headers.x_forwarded_host\` NOT LIKE '%<%'
+  AND \`request.headers.x_forwarded_host\` NOT LIKE '%{%'
+  AND \`request.headers.x_forwarded_host\` NOT LIKE '%/%'
+  AND \`request.headers.x_forwarded_host\` NOT LIKE '%oast%'
+  AND timestamp > now() - INTERVAL 7 DAY
 GROUP BY domain, owner, repo, cdn_type
+HAVING (req_per_hour >= 1 OR total >= 1000)
+  AND NOT match(domain, '^[0-9.]+$')
+  AND domain NOT IN ('da.live', 'da.page', 'aem.live', 'docs.da.live', 'docs.da.page')
+  AND domain NOT LIKE '%.aem.reviews'
+  AND match(domain, '^[a-z0-9][a-z0-9.-]+\\.[a-z]{2,}$')
 ORDER BY total DESC
 `.replace('{database}', DATABASE);
 
@@ -87,9 +99,9 @@ function renderTable() {
 
     if (matchesFilter) visibleCount += 1;
 
-    const statusBadge = row.age_days <= 7
+    const statusBadge = row.age_days <= 1
       ? `<span class="badge badge-new">New (${row.age_days}d)</span>`
-      : '<span class="badge badge-existing">Existing</span>';
+      : `<span class="badge badge-existing">${row.age_days}d</span>`;
 
     return `<tr class="${matchesFilter ? '' : 'hidden'}">
       <td class="domain-cell">${escapeHtml(row.domain)}</td>
