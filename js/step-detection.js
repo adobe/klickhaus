@@ -354,16 +354,17 @@ export function detectSteps(series, maxCount = 5, options = {}) {
   candidates.sort((a, b) => b.score - a.score);
 
   // Greedily select non-overlapping regions (higher score wins)
-  // Use a buffer of 2 indices to account for visual band padding
-  const minGap = 2;
+  // Each selected anomaly creates an exclusion zone of half its width on each side,
+  // so wider anomalies push neighbors further away while narrow spikes allow closer detections
   const selected = [];
   for (const candidate of candidates) {
     if (selected.length >= maxCount) break;
 
     // Check if this candidate overlaps or is too close to any already selected region
-    const overlaps = selected.some(
-      (s) => !(candidate.end < s.start - minGap || candidate.start > s.end + minGap),
-    );
+    const overlaps = selected.some((s) => {
+      const gap = Math.ceil((s.end - s.start + 1) / 2);
+      return !(candidate.end < s.start - gap || candidate.start > s.end + gap);
+    });
 
     if (!overlaps) {
       selected.push(candidate);

@@ -221,7 +221,7 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
   const magnitudeLabel = mag >= 1
     ? `${mag >= 10 ? Math.round(mag) : mag.toFixed(1).replace(/\.0$/, '')}x`
     : `${Math.round(mag * 100)}%`;
-  ctx.font = 'bold 11px -apple-system, sans-serif';
+  ctx.font = '500 11px -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = `rgb(${cr}, ${cg}, ${cb})`;
   const arrow = step.type === 'spike' ? '\u25B2' : '\u25BC';
