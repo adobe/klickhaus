@@ -14,50 +14,36 @@ import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
 import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
 import {
-  getTimeFilter, getHostFilter, getTable, getPeriodMs,
+  getTimeFilter, getHostFilter, getTable, getSamplingConfig, getFacetTimeFilter,
 } from '../time.js';
 import { allBreakdowns as defaultBreakdowns } from './definitions.js';
-
-export function getBreakdowns() {
-  return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
-}
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
 
+export function getBreakdowns() {
+  return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
+}
+
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
 
-// Sampling thresholds: use sampling for high-cardinality facets when time range > 1 hour
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
 /**
- * Get sampling configuration based on facet type and time range
- * @param {boolean} highCardinality - Whether this facet has high cardinality
- * @returns {{ sampleClause: string, multiplier: number }} - SQL SAMPLE clause and count multiplier
+ * Check whether a breakdown can use the pre-aggregated cdn_facet_minutes table.
+ * Requires: facetName set, no active filters, no bytes mode, not bucketed.
  */
-function getSamplingConfig(highCardinality) {
-  if (!highCardinality) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  const periodMs = getPeriodMs();
-
-  // No sampling for time ranges <= 1 hour
-  if (periodMs <= ONE_HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  // Use 1% sampling for 7d (very large time ranges)
-  // 7d = 604800000ms
-  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
-    return { sampleClause: 'SAMPLE 0.01', multiplier: 100 };
-  }
-
-  // Use 10% sampling for medium time ranges (12h, 24h)
-  // This gives ~3x speedup while maintaining accurate top-K ranking
-  return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
+export function canUseFacetTable(b) {
+  if (!b.facetName) return false;
+  if (b.rawCol) return false; // bucketed facets need raw table
+  if (state.hostFilter) return false;
+  if (state.filters && state.filters.length > 0) return false;
+  if (state.additionalWhereClause) return false;
+  const mode = b.modeToggle ? state[b.modeToggle] : 'count';
+  if (mode === 'bytes') return false;
+  // ASN uses dictGet which produces different dim values than the facet table
+  if (b.id === 'breakdown-asn') return false;
+  return true;
 }
 
 export function resetFacetTimings() {
@@ -203,7 +189,7 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
+  const { sampleClause, multiplier } = getSamplingConfig();
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
@@ -244,6 +230,36 @@ function prepareBreakdownCard(card, b) {
 
 async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
+  // Use pre-aggregated facet table when no filters are active
+  if (canUseFacetTable(b)) {
+    const { startTime, endTime } = getFacetTimeFilter();
+    const dimFilter = b.extraFilter ? "AND dim != ''" : '';
+    const sql = await loadSql('breakdown-facet', {
+      database: DATABASE,
+      facetName: b.facetName,
+      startTime,
+      endTime,
+      dimFilter,
+      orderBy: b.orderBy || 'cnt DESC',
+      topN: String(state.topN),
+    });
+
+    const params = {
+      col: baseCol,
+      originalCol: baseCol,
+      hasActiveFilter: false,
+      isBytes: false,
+      sampleClause: '',
+      mult: '',
+      extra: '',
+      facetFilters: '',
+      timeFilter,
+      hostFilter,
+    };
+    return { sql, params, aggs: buildAggregations(false, '') };
+  }
+
   const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
   const aggs = buildAggregations(params.isBytes, params.mult);
 
