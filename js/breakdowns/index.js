@@ -238,12 +238,19 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
   if (canUseFacetTable(b)) {
     const { startTime, endTime } = getFacetTimeFilter();
     const dimFilter = b.extraFilter ? "AND dim != ''" : '';
+    const hasSummary = !!b.summaryDimCondition;
     const sql = await loadSql('breakdown-facet', {
       database: DATABASE,
       facetName: b.facetName,
       startTime,
       endTime,
       dimFilter,
+      innerSummaryCol: hasSummary
+        ? `,\n    if(${b.summaryDimCondition}, cnt, 0) as summary_cnt`
+        : '',
+      summaryCol: hasSummary
+        ? ',\n  sum(summary_cnt) as summary_cnt'
+        : '',
       orderBy: b.orderBy || 'cnt DESC',
       topN: String(state.topN),
     });

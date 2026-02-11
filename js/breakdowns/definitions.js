@@ -38,16 +38,16 @@ export function formatForwardedHost(dim) {
 
 export const allBreakdowns = [
   {
-    id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", facetName: 'status_range', summaryCountIf: '`response.status` >= 500', summaryLabel: 'error rate', summaryColor: 'error',
+    id: 'breakdown-status-range', col: "concat(toString(intDiv(`response.status`, 100)), 'xx')", facetName: 'status_range', summaryCountIf: '`response.status` >= 500', summaryDimCondition: "dim = '5xx'", summaryLabel: 'error rate', summaryColor: 'error',
   },
   {
-    id: 'breakdown-source', col: '`source`', facetName: 'source', summaryCountIf: '`source` = \'fastly\'', summaryLabel: 'fastly',
+    id: 'breakdown-source', col: '`source`', facetName: 'source', summaryCountIf: '`source` = \'fastly\'', summaryDimCondition: "dim = 'fastly'", summaryLabel: 'fastly',
   },
   {
-    id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, facetName: 'host', linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryLabel: 'live', highCardinality: true,
+    id: 'breakdown-hosts', col: COLUMN_DEFS.host.facetCol, facetName: 'host', linkFn: hostLink, dimPrefixes: ['main--'], summaryCountIf: "`request.host` LIKE '%.aem.live'", summaryDimCondition: "dim LIKE '%.aem.live'", summaryLabel: 'live', highCardinality: true,
   },
   {
-    id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`', facetName: 'x_forwarded_host', linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost, summaryCountIf: "`request.headers.x_forwarded_host` != ''", summaryLabel: 'production', highCardinality: true,
+    id: 'breakdown-forwarded-hosts', col: '`request.headers.x_forwarded_host`', facetName: 'x_forwarded_host', linkFn: forwardedHostLink, dimFormatFn: formatForwardedHost, summaryCountIf: "`request.headers.x_forwarded_host` != ''", summaryDimCondition: "dim != ''", summaryLabel: 'production', highCardinality: true,
   },
   {
     id: 'breakdown-content-types', col: COLUMN_DEFS.contentType.facetCol, facetName: 'content_type', modeToggle: 'contentTypeMode',
@@ -66,7 +66,7 @@ export const allBreakdowns = [
     extraFilter: "AND `response.headers.x_error` != ''",
   },
   {
-    id: 'breakdown-cache', col: COLUMN_DEFS.cacheStatus.facetCol, facetName: 'cache_status', summaryCountIf: "upper(`cdn.cache_status`) LIKE 'HIT%'", summaryLabel: 'cache efficiency',
+    id: 'breakdown-cache', col: COLUMN_DEFS.cacheStatus.facetCol, facetName: 'cache_status', summaryCountIf: "upper(`cdn.cache_status`) LIKE 'HIT%'", summaryDimCondition: "dim LIKE 'HIT%'", summaryLabel: 'cache efficiency',
   },
   {
     id: 'breakdown-paths', col: COLUMN_DEFS.url.facetCol, facetName: 'url', linkFn: pathLink, modeToggle: 'contentTypeMode', highCardinality: true,
@@ -75,10 +75,10 @@ export const allBreakdowns = [
     id: 'breakdown-referers', col: COLUMN_DEFS.referer.facetCol, facetName: 'referer', linkFn: refererLink, dimPrefixes: ['https://', 'http://'], highCardinality: true,
   },
   {
-    id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, facetName: 'user_agent', dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,
+    id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, facetName: 'user_agent', dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryDimCondition: "NOT dim LIKE 'Mozilla/%' OR dim LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,
   },
   {
-    id: 'breakdown-ips', col: COLUMN_DEFS.clientIp.facetCol, facetName: 'client_ip', linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
+    id: 'breakdown-ips', col: COLUMN_DEFS.clientIp.facetCol, facetName: 'client_ip', linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%'", summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
   },
   {
     id: 'breakdown-request-type', col: COLUMN_DEFS.requestType.facetCol, facetName: 'request_type', extraFilter: "AND `helix.request_type` != ''", modeToggle: 'contentTypeMode',
@@ -87,7 +87,7 @@ export const allBreakdowns = [
     id: 'breakdown-tech-stack', col: COLUMN_DEFS.backendType.facetCol, facetName: 'backend_type', modeToggle: 'contentTypeMode',
   },
   {
-    id: 'breakdown-methods', col: COLUMN_DEFS.method.facetCol, facetName: 'method', summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning',
+    id: 'breakdown-methods', col: COLUMN_DEFS.method.facetCol, facetName: 'method', summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryDimCondition: "dim IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning',
   },
   {
     id: 'breakdown-datacenters', col: '`cdn.datacenter`', facetName: 'datacenter', modeToggle: 'contentTypeMode',
