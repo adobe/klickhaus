@@ -351,14 +351,18 @@ export function formatScrubberTime(time) {
   const diffMs = now - time;
   const diffMinutes = Math.floor(diffMs / 60000);
 
-  // Format like x-axis: HH:MM:SS UTC
-  const timeStr = time.toLocaleTimeString('en-US', {
+  // Format like x-axis: HH:MM:SS UTC, with weekday prefix if > 24h ago
+  const hms = time.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
     timeZone: 'UTC',
   });
+  const diffHours = diffMs / (60 * 60 * 1000);
+  const timeStr = diffHours > 24
+    ? `${time.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} ${hms}`
+    : hms;
 
   // Add relative time if < 120 minutes ago
   let relativeStr = '';
