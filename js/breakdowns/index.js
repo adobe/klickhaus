@@ -21,6 +21,9 @@ import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './rende
 import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
+import { createLimiter } from '../concurrency-limiter.js';
+
+const queryLimiter = createLimiter(4);
 
 export function getBreakdowns() {
   return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
@@ -325,7 +328,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const { isCurrent, signal } = requestStatus;
   const { sql, params, aggs } = await buildBreakdownSql(b, timeFilter, hostFilter);
   const startTime = performance.now();
-  const result = await query(sql, { signal });
+  const result = await queryLimiter(() => query(sql, { signal }));
   if (!isCurrent()) return null;
 
   const elapsed = result.networkTime ?? (performance.now() - startTime);
