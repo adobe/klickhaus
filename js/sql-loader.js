@@ -63,6 +63,7 @@ const ALL_TEMPLATES = [
   'logs',
   'logs-more',
   'breakdown',
+  'breakdown-facet',
   'breakdown-missing',
   'autocomplete-hosts',
   'autocomplete-forwarded',
