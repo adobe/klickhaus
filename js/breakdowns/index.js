@@ -321,6 +321,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
 
 function getSummaryRatio(b, totals) {
   if (!b.summaryCountIf || !totals || totals.cnt <= 0) return null;
+  if (totals.summary_cnt === undefined) return null;
   return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
 }
 
