@@ -39,6 +39,7 @@ export const facetTimings = {};
 export function canUseFacetTable(b) {
   if (!b.facetName) return false;
   if (b.rawCol) return false; // bucketed facets need raw table
+  if (b.highCardinality) return false; // sampled raw table is faster
   if (state.hostFilter) return false;
   if (state.filters && state.filters.length > 0) return false;
   if (state.additionalWhereClause) return false;
