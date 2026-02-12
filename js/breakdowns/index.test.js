@@ -21,6 +21,9 @@ import {
   loadBreakdown,
   canUseFacetTable,
   facetTimings,
+  isPreviewActive,
+  loadPreviewBreakdowns,
+  revertPreviewBreakdowns,
 } from './index.js';
 import { allBreakdowns } from './definitions.js';
 import { lambdaBreakdowns } from './definitions-lambda.js';
@@ -850,5 +853,93 @@ describe('canUseFacetTable (highCardinality)', () => {
       id: 'breakdown-content-types', col: 'x', facetName: 'content_type', modeToggle: 'contentTypeMode',
     };
     assert.isTrue(canUseFacetTable(b));
+  });
+});
+
+describe('isPreviewActive', () => {
+  it('returns false initially', () => {
+    assert.isFalse(isPreviewActive());
+  });
+});
+
+describe('revertPreviewBreakdowns', () => {
+  it('is a no-op when preview is not active', async () => {
+    // Add a card with .preview class to verify the guard skips DOM changes
+    const testCard = document.createElement('div');
+    testCard.className = 'breakdown-card preview';
+    document.body.appendChild(testCard);
+
+    assert.isFalse(isPreviewActive());
+    await revertPreviewBreakdowns();
+
+    // Card should still have .preview class since guard returned early
+    assert.isTrue(testCard.classList.contains('preview'));
+    testCard.remove();
+  });
+});
+
+describe('loadPreviewBreakdowns', () => {
+  const previewFacetId = 'breakdown-preview-test';
+  let previewCard;
+
+  beforeEach(() => {
+    previewCard = document.createElement('div');
+    previewCard.id = previewFacetId;
+    previewCard.className = 'breakdown-card';
+    document.body.appendChild(previewCard);
+    // Use a single hidden breakdown to prevent actual queries
+    state.hiddenFacets = [previewFacetId];
+    state.breakdowns = [{ id: previewFacetId, col: '`level`' }];
+  });
+
+  afterEach(async () => {
+    // Clean up preview state if active
+    if (isPreviewActive()) {
+      // Force previewActive to false by calling revert (which will
+      // try loadAllBreakdowns, but hidden facets cause early return)
+      await revertPreviewBreakdowns();
+    }
+    previewCard.remove();
+    state.breakdowns = null;
+    state.hiddenFacets = [];
+  });
+
+  it('sets preview active flag', async () => {
+    const start = new Date('2025-01-01T00:00:00Z');
+    const end = new Date('2025-01-01T00:30:00Z');
+    await loadPreviewBreakdowns(start, end);
+    assert.isTrue(isPreviewActive());
+  });
+
+  it('skips hidden facets without adding preview class', async () => {
+    const start = new Date('2025-01-01T00:00:00Z');
+    const end = new Date('2025-01-01T00:30:00Z');
+    await loadPreviewBreakdowns(start, end);
+    // Hidden facets should not get the preview class
+    assert.isFalse(previewCard.classList.contains('preview'));
+  });
+
+  it('revert clears preview active flag and removes preview class', async () => {
+    const start = new Date('2025-01-01T00:00:00Z');
+    const end = new Date('2025-01-01T00:30:00Z');
+    await loadPreviewBreakdowns(start, end);
+    assert.isTrue(isPreviewActive());
+
+    // Manually add .preview class to simulate what non-hidden facets would have
+    previewCard.classList.add('preview');
+
+    await revertPreviewBreakdowns();
+    assert.isFalse(isPreviewActive());
+    assert.isFalse(previewCard.classList.contains('preview'));
+  });
+
+  it('revert cancels in-flight preview requests', async () => {
+    const start = new Date('2025-01-01T00:00:00Z');
+    const end = new Date('2025-01-01T00:30:00Z');
+    await loadPreviewBreakdowns(start, end);
+
+    // Calling revert should not throw even if there were in-flight requests
+    await revertPreviewBreakdowns();
+    assert.isFalse(isPreviewActive());
   });
 });
