@@ -25,6 +25,8 @@ import { PAGE_SIZE, PaginationState } from './pagination.js';
 import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
 
+const TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/;
+
 /**
  * Build ordered log column list from available columns.
  * @param {string[]} allColumns
@@ -260,11 +262,17 @@ function showDetailLoading() {
  */
 async function fetchFullRow(partialRow) {
   const { timestamp } = partialRow;
+  const tsStr = String(timestamp);
+  if (!TIMESTAMP_RE.test(tsStr)) {
+    // eslint-disable-next-line no-console
+    console.warn('fetchFullRow: invalid timestamp format, aborting', tsStr);
+    return null;
+  }
   const host = partialRow['request.host'] || '';
   const sql = await loadSql('log-detail', {
     database: DATABASE,
     table: getTable(),
-    timestamp: String(timestamp),
+    timestamp: tsStr,
     host: host.replace(/'/g, "\\'"),
   });
   const result = await query(sql);
@@ -476,6 +484,14 @@ export function renderLogsTable(data) {
 
 async function loadMoreLogs() {
   if (!pagination.canLoadMore()) return;
+
+  // Validate cursor format before interpolating into SQL
+  if (!TIMESTAMP_RE.test(pagination.cursor)) {
+    // eslint-disable-next-line no-console
+    console.warn('loadMoreLogs: invalid cursor format, aborting', pagination.cursor);
+    return;
+  }
+
   pagination.loading = true;
   const requestContext = getRequestContext('dashboard');
   const { requestId, signal, scope } = requestContext;
@@ -522,7 +538,7 @@ function updateCollapseToggleLabel() {
   if (!btn) return;
   const chartSection = document.querySelector('.chart-section');
   const collapsed = chartSection?.classList.contains('chart-collapsed');
-  btn.innerHTML = collapsed ? '&#9660; Show chart' : '&#9650; Hide chart';
+  btn.innerHTML = collapsed ? '<span aria-hidden="true">&#9660;</span> Show chart' : '<span aria-hidden="true">&#9650;</span> Hide chart';
   btn.title = collapsed ? 'Expand chart' : 'Collapse chart';
 }
 
@@ -538,12 +554,14 @@ export function initChartCollapseToggle() {
     localStorage.setItem('chartCollapsed', collapsed ? 'true' : 'false');
     updateCollapseToggleLabel();
   });
+  updateCollapseToggleLabel();
 }
 
 // Throttle helper
 function throttle(fn, delay) {
   let lastCall = 0;
   let timer = null;
+  let pendingArgs = null;
   return (...args) => {
     const now = Date.now();
     const remaining = delay - (now - lastCall);
@@ -552,14 +570,20 @@ function throttle(fn, delay) {
         clearTimeout(timer);
         timer = null;
       }
+      pendingArgs = null;
       lastCall = now;
       fn(...args);
-    } else if (!timer) {
-      timer = setTimeout(() => {
-        lastCall = Date.now();
-        timer = null;
-        fn(...args);
-      }, remaining);
+    } else {
+      pendingArgs = args;
+      if (!timer) {
+        timer = setTimeout(() => {
+          lastCall = Date.now();
+          timer = null;
+          const latestArgs = pendingArgs;
+          pendingArgs = null;
+          fn(...latestArgs);
+        }, remaining);
+      }
     }
   };
 }
@@ -607,7 +631,7 @@ export function scrollLogsToTimestamp(timestamp) {
   for (let i = 0; i < state.logsData.length; i += 1) {
     const row = state.logsData[i];
     if (!row.timestamp) {
-      closestIdx += 0; // eslint: no-continue workaround - skip rows without timestamp
+      continue; // eslint-disable-line no-continue
     } else {
       const rowMs = parseUTC(row.timestamp).getTime();
       const diff = Math.abs(rowMs - targetMs);

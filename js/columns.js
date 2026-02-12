@@ -194,10 +194,13 @@ const ALWAYS_NEEDED_COLUMNS = ['timestamp', 'source', 'sample_hash'];
  * @param {string[]} [pinnedColumns] - Additional pinned columns to include.
  * @returns {string} Comma-separated, backtick-quoted column list for SQL SELECT.
  */
+const VALID_COLUMN_RE = /^[a-z][a-z0-9_.]*$/i;
+
 export function buildLogColumnsSql(pinnedColumns = []) {
   const seen = new Set();
   const cols = [];
-  for (const col of [...ALWAYS_NEEDED_COLUMNS, ...LOG_COLUMN_ORDER, ...pinnedColumns]) {
+  const safePinned = pinnedColumns.filter((col) => VALID_COLUMN_RE.test(col));
+  for (const col of [...ALWAYS_NEEDED_COLUMNS, ...LOG_COLUMN_ORDER, ...safePinned]) {
     if (!seen.has(col)) {
       seen.add(col);
       cols.push(`\`${col}\``);

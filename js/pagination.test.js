@@ -141,9 +141,15 @@ describe('PaginationState', () => {
   });
 
   describe('canLoadMore', () => {
-    it('returns true when hasMore and not loading', () => {
+    it('returns true when hasMore, not loading, and cursor is set', () => {
       const ps = new PaginationState();
+      ps.cursor = '2025-01-15 10:30:00.000';
       assert.strictEqual(ps.canLoadMore(), true);
+    });
+
+    it('returns false when cursor is null', () => {
+      const ps = new PaginationState();
+      assert.strictEqual(ps.canLoadMore(), false);
     });
 
     it('returns false when loading', () => {
@@ -169,6 +175,7 @@ describe('PaginationState', () => {
   describe('shouldTriggerLoad', () => {
     it('triggers when scrolled past 50% and can load more', () => {
       const ps = new PaginationState();
+      ps.cursor = '2025-01-15 10:30:00.000';
       assert.strictEqual(ps.shouldTriggerLoad(0.6, false), true);
     });
 
