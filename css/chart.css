@@ -9,11 +9,16 @@
   margin: 0 -24px 24px -24px;
 }
 
-/* Sticky chart when logs view is active */
-.logs-active .chart-section {
+/* Sticky chart when logs view is active (not collapsed) */
+.logs-active:not(.logs-collapsed) .chart-section {
   position: sticky;
-  top: 0;
+  top: var(--header-height);
   z-index: 20;
+}
+
+/* When collapsed, nothing is sticky - normal scroll behavior */
+.logs-active.logs-collapsed .chart-section {
+  position: relative;
 }
 
 /* Collapse/expand toggle */

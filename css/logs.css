@@ -63,6 +63,17 @@
   user-select: none;
 }
 
+/* When logs view is active and not collapsed, table header sticks below chart */
+.logs-active:not(.logs-collapsed) .logs-table th {
+  top: calc(var(--header-height) + var(--chart-height) + var(--chart-toggle-height));
+}
+
+/* When chart is collapsed, table header sticks below header + toggle only */
+.logs-active.logs-collapsed .logs-table th {
+  top: 0; /* Not sticky when collapsed */
+  position: relative;
+}
+
 .logs-table th:hover {
   background: var(--border);
 }

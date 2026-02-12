@@ -652,13 +652,13 @@ export function setupLogRowClickHandler() {
   });
 }
 
-// Collapse toggle label helper
+// Update collapse toggle button label based on current state
 function updateCollapseToggleLabel() {
   const btn = document.getElementById('chartCollapseToggle');
-  if (!btn) return;
-  const chartSection = document.querySelector('.chart-section');
-  const collapsed = chartSection?.classList.contains('chart-collapsed');
-  btn.innerHTML = collapsed ? '<span aria-hidden="true">&#9660;</span> Show chart' : '<span aria-hidden="true">&#9650;</span> Hide chart';
+  const dc = document.getElementById('dashboardContent');
+  if (!btn || !dc) return;
+  const collapsed = dc.classList.contains('logs-collapsed');
+  btn.innerHTML = collapsed ? '&#9660; Show chart' : '&#9650; Hide chart';
   btn.title = collapsed ? 'Expand chart' : 'Collapse chart';
 }
 
@@ -667,10 +667,12 @@ export function initChartCollapseToggle() {
   const btn = document.getElementById('chartCollapseToggle');
   if (!btn) return;
   btn.addEventListener('click', () => {
-    const chartSection = document.querySelector('.chart-section');
-    if (!chartSection) return;
-    chartSection.classList.toggle('chart-collapsed');
-    const collapsed = chartSection.classList.contains('chart-collapsed');
+    const dc = document.getElementById('dashboardContent');
+    const cs = document.querySelector('.chart-section');
+    if (!dc) return;
+    const collapsed = !dc.classList.contains('logs-collapsed');
+    dc.classList.toggle('logs-collapsed', collapsed);
+    cs?.classList.toggle('chart-collapsed', collapsed);
     localStorage.setItem('chartCollapsed', collapsed ? 'true' : 'false');
     updateCollapseToggleLabel();
   });
@@ -909,6 +911,7 @@ export function setOnShowFiltersView(callback) {
 export function toggleLogsView(saveStateToURL) {
   state.showLogs = !state.showLogs;
   const dashboardContent = document.getElementById('dashboardContent');
+  const chartSection = document.querySelector('.chart-section');
   if (state.showLogs) {
     // Cancel in-flight facet requests to prioritize log loading
     startRequestContext('facets');
@@ -917,16 +920,18 @@ export function toggleLogsView(saveStateToURL) {
     viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
     dashboardContent.classList.add('logs-active');
     // Restore collapse state from localStorage
-    const chartSection = document.querySelector('.chart-section');
-    if (chartSection && localStorage.getItem('chartCollapsed') === 'true') {
-      chartSection.classList.add('chart-collapsed');
-      updateCollapseToggleLabel();
+    if (localStorage.getItem('chartCollapsed') === 'true') {
+      dashboardContent.classList.add('logs-collapsed');
+      if (chartSection) chartSection.classList.add('chart-collapsed');
     }
+    updateCollapseToggleLabel();
   } else {
     logsView.classList.remove('visible');
     filtersView.classList.add('visible');
     viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
     dashboardContent.classList.remove('logs-active');
+    dashboardContent.classList.remove('logs-collapsed');
+    if (chartSection) chartSection.classList.remove('chart-collapsed');
     // Redraw chart after view becomes visible
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());
