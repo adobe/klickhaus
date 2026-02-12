@@ -91,6 +91,59 @@ describe('copyFacetAsTsv', () => {
     assert.strictEqual(result, false, 'Should return false for missing facet');
   });
 
+  it('should return false and show error feedback when clipboard fails', async () => {
+    createFacetCard('fail-facet', {
+      title: 'Fail Test',
+      data: [
+        {
+          dim: 'x', cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+        },
+      ],
+      mode: 'count',
+    });
+
+    navigator.clipboard.writeText = async () => {
+      throw new Error('Clipboard blocked');
+    };
+
+    const result = await copyFacetAsTsv('fail-facet');
+    assert.strictEqual(result, false, 'Should return false on clipboard error');
+
+    const btn = document.querySelector('[data-action="copy-facet-tsv"]');
+    assert.strictEqual(btn.textContent, '\u2717', 'Should show failure icon');
+  });
+
+  it('should restore button text after feedback timeout', async () => {
+    const origSetTimeout = window.setTimeout;
+    const pendingCallbacks = [];
+    window.setTimeout = (fn) => {
+      pendingCallbacks.push(fn);
+    };
+
+    createFacetCard('timeout-facet', {
+      title: 'Timeout Test',
+      data: [
+        {
+          dim: 'a', cnt: 1, cnt_ok: 1, cnt_4xx: 0, cnt_5xx: 0,
+        },
+      ],
+      mode: 'count',
+    });
+
+    await copyFacetAsTsv('timeout-facet');
+
+    const btn = document.querySelector('[data-action="copy-facet-tsv"]');
+    assert.strictEqual(btn.textContent, '\u2713', 'Should show success icon');
+
+    // Execute the pending setTimeout callback
+    pendingCallbacks.forEach((cb) => cb());
+
+    assert.strictEqual(btn.textContent, 'copy', 'Should restore original text');
+    assert.strictEqual(btn.style.color, '', 'Should clear color');
+
+    window.setTimeout = origSetTimeout;
+  });
+
   it('should handle empty dimension as (empty)', async () => {
     createFacetCard('empty-facet', {
       title: 'Empty Test',

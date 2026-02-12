@@ -95,6 +95,10 @@ beforeEach(() => {
   setupCallbacks();
 });
 
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
 describe('setFilterCallbacks', () => {
   it('sets saveStateToURL and loadDashboard callbacks', () => {
     // Verify callbacks are wired by triggering clearAllFilters which calls them
