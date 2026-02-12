@@ -620,11 +620,8 @@ function syncScrubberToScroll() {
 
 const throttledSyncScrubber = throttle(syncScrubberToScroll, 100);
 
-// Scroll log table to the row closest to a given timestamp
-export function scrollLogsToTimestamp(timestamp) {
-  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
-
-  const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
+// Find the index of the log row closest to a given timestamp (in ms)
+function findClosestRowIdx(targetMs) {
   let closestIdx = 0;
   let closestDiff = Infinity;
 
@@ -641,12 +638,35 @@ export function scrollLogsToTimestamp(timestamp) {
       }
     }
   }
+  return closestIdx;
+}
+
+// Scroll log table to the row closest to a given timestamp,
+// progressively loading more rows if the target is beyond what's loaded.
+const MAX_SCROLL_LOAD_RETRIES = 5;
+
+export async function scrollLogsToTimestamp(timestamp, retryCount = 0) {
+  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
+
+  const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
+  const closestIdx = findClosestRowIdx(targetMs);
+
+  // Check if target timestamp is older than the oldest loaded row (logs are newest-first)
+  const lastRow = state.logsData[state.logsData.length - 1];
+  const lastRowMs = lastRow?.timestamp ? parseUTC(lastRow.timestamp).getTime() : null;
+  const needsMore = lastRowMs != null && targetMs < lastRowMs
+    && pagination.canLoadMore() && retryCount < MAX_SCROLL_LOAD_RETRIES;
 
   const container = logsView?.querySelector('.logs-table-container');
   if (!container) return;
   const targetRow = container.querySelector(`tr[data-row-idx="${closestIdx}"]`);
   if (targetRow) {
     targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  if (needsMore) {
+    await loadMoreLogs();
+    await scrollLogsToTimestamp(timestamp, retryCount + 1);
   }
 }
 
