@@ -1,0 +1,371 @@
+/*
+ * Copyright 2026 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+import { assert } from 'chai';
+import { VirtualTable } from './virtual-table.js';
+
+function makeContainer(height = 280) {
+  const el = document.createElement('div');
+  // Simulate a sized container
+  Object.defineProperty(el, 'clientHeight', { value: height, writable: true });
+  Object.defineProperty(el, 'scrollTop', { value: 0, writable: true });
+  document.body.appendChild(el);
+  return el;
+}
+
+function makeColumns() {
+  return [
+    { key: 'timestamp', label: 'Time', width: 180 },
+    { key: 'status', label: 'Status', width: 60 },
+  ];
+}
+
+function makeGetData(rows) {
+  const calls = [];
+  const fn = async (startIdx, count) => {
+    calls.push({ startIdx, count });
+    return rows.slice(startIdx, startIdx + count);
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+function renderCell(col, value) {
+  return value != null ? String(value) : '';
+}
+
+describe('VirtualTable', () => {
+  let container;
+  let vt;
+
+  afterEach(() => {
+    if (vt) vt.destroy();
+    if (container && container.parentNode) container.parentNode.removeChild(container);
+  });
+
+  describe('constructor', () => {
+    it('creates table elements in the container', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      assert.ok(container.querySelector('table'));
+      assert.ok(container.querySelector('thead'));
+      assert.ok(container.querySelector('tbody'));
+    });
+
+    it('renders column headers', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      const ths = container.querySelectorAll('thead th');
+      assert.strictEqual(ths.length, 2);
+      assert.strictEqual(ths[0].textContent, 'Time');
+      assert.strictEqual(ths[1].textContent, 'Status');
+    });
+
+    it('sets container overflow-y to auto', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      assert.strictEqual(container.style.overflowY, 'auto');
+    });
+  });
+
+  describe('setTotalRows', () => {
+    it('updates spacer height', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1000);
+      const spacer = container.querySelector('div');
+      assert.strictEqual(spacer.style.height, '28000px');
+    });
+
+    it('uses custom row height', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell, rowHeight: 40,
+      });
+      vt.setTotalRows(500);
+      const spacer = container.querySelector('div');
+      assert.strictEqual(spacer.style.height, '20000px');
+    });
+  });
+
+  describe('row index calculation', () => {
+    it('calculates start index from scroll position', () => {
+      container = makeContainer(280); // 10 visible rows at 28px
+      const getData = makeGetData(Array.from({ length: 100 }, (_, i) => ({
+        timestamp: `2026-01-01 00:00:00.${String(i).padStart(3, '0')}`,
+        status: 200,
+      })));
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(100);
+
+      // Scroll to row 20 (scrollTop = 20 * 28 = 560)
+      Object.defineProperty(container, 'scrollTop', { value: 560, writable: true });
+      vt.invalidate();
+
+      const rows = container.querySelectorAll('tbody tr');
+      assert.ok(rows.length > 0, 'should render some rows');
+      // First row should be around index 10 (20 - overscan of 10)
+      const firstIdx = parseInt(rows[0].dataset.rowIdx, 10);
+      assert.strictEqual(firstIdx, 10, 'first rendered row should be start index minus overscan');
+    });
+  });
+
+  describe('visible range with overscan', () => {
+    it('renders overscan rows above and below viewport', () => {
+      container = makeContainer(280);
+      const totalRows = 200;
+      const allRows = Array.from({ length: totalRows }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      const getData = makeGetData(allRows);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(totalRows);
+
+      // Scroll to middle
+      Object.defineProperty(container, 'scrollTop', { value: 100 * 28, writable: true });
+      vt.invalidate();
+
+      const rows = container.querySelectorAll('tbody tr');
+      // With overscan=10, visible=10, total rendered should be ~30
+      assert.ok(rows.length >= 20, `should render at least 20 rows but got ${rows.length}`);
+      assert.ok(rows.length <= 40, `should render at most 40 rows but got ${rows.length}`);
+    });
+  });
+
+  describe('cache', () => {
+    it('calls getData for missing rows', () => {
+      container = makeContainer(280);
+      const getData = makeGetData([]);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(50);
+
+      // getData should have been called for the visible range
+      assert.ok(getData.calls.length > 0, 'should call getData');
+    });
+
+    it('does not re-fetch cached rows', async () => {
+      container = makeContainer(280);
+      const allRows = Array.from({ length: 50 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      const getData = makeGetData(allRows);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(50);
+
+      // Wait for initial fetch
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+      const initialCalls = getData.calls.length;
+
+      // Invalidate without scrolling — same range, data cached
+      vt.invalidate();
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+      assert.strictEqual(getData.calls.length, initialCalls, 'should not re-fetch cached data');
+    });
+
+    it('clearCache empties the cache', async () => {
+      container = makeContainer(280);
+      const allRows = Array.from({ length: 50 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      const getData = makeGetData(allRows);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(50);
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+
+      const callsBefore = getData.calls.length;
+      vt.clearCache();
+      vt.invalidate();
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+      assert.ok(getData.calls.length > callsBefore, 'should re-fetch after cache clear');
+    });
+  });
+
+  describe('scrollToRow', () => {
+    it('sets scrollTop to row index times row height', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(100);
+      vt.scrollToRow(25);
+      assert.strictEqual(container.scrollTop, 25 * 28);
+    });
+
+    it('clamps to zero for negative index', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(100);
+      vt.scrollToRow(-5);
+      assert.strictEqual(container.scrollTop, 0);
+    });
+  });
+
+  describe('scrollToTimestamp', () => {
+    it('scrolls to the row closest to the target timestamp', async () => {
+      // Use 30 rows so all fit in visible + overscan range and get cached
+      container = makeContainer(840); // 30 rows * 28px = 840px
+      const rows = Array.from({ length: 30 }, (_, i) => ({
+        timestamp: 1000 - i * 10, // descending: 1000, 990, 980, ...
+        status: 200,
+      }));
+      const getData = makeGetData(rows);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(30);
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+
+      vt.scrollToTimestamp(800, (row) => row.timestamp);
+      // Row with ts=800 is at index 20 => scrollTop = 20*28 = 560
+      assert.strictEqual(container.scrollTop, 20 * 28);
+    });
+  });
+
+  describe('placeholder rendering', () => {
+    it('adds loading-row class for rows without data', () => {
+      container = makeContainer(280);
+      // getData returns empty — simulates data not yet loaded
+      const getData = async () => [];
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+      vt.setTotalRows(50);
+
+      const loadingRows = container.querySelectorAll('tbody tr.loading-row');
+      assert.ok(loadingRows.length > 0, 'should have loading placeholder rows');
+    });
+  });
+
+  describe('onVisibleRangeChange', () => {
+    it('fires with visible row indices', () => {
+      container = makeContainer(280);
+      const ranges = [];
+      const allRows = Array.from({ length: 50 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      vt = new VirtualTable({
+        container,
+        columns: makeColumns(),
+        getData: makeGetData(allRows),
+        renderCell,
+        onVisibleRangeChange: (first, last) => ranges.push({ first, last }),
+      });
+      vt.setTotalRows(50);
+
+      assert.ok(ranges.length > 0, 'should fire onVisibleRangeChange');
+      assert.ok(ranges[0].first >= 0);
+      assert.ok(ranges[0].last > ranges[0].first);
+    });
+  });
+
+  describe('onRowClick', () => {
+    it('fires when a row is clicked', async () => {
+      container = makeContainer(280);
+      const allRows = Array.from({ length: 50 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      const clicks = [];
+      vt = new VirtualTable({
+        container,
+        columns: makeColumns(),
+        getData: makeGetData(allRows),
+        renderCell,
+        onRowClick: (idx, row) => clicks.push({ idx, row }),
+      });
+      vt.setTotalRows(50);
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+
+      // Simulate click on first rendered row's td
+      const td = container.querySelector('tbody tr[data-row-idx] td');
+      if (td) td.click();
+      assert.ok(clicks.length > 0, 'should fire onRowClick');
+    });
+  });
+
+  describe('setColumns', () => {
+    it('re-renders header with new columns', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setColumns([
+        { key: 'a', label: 'A' },
+        { key: 'b', label: 'B' },
+        { key: 'c', label: 'C' },
+      ]);
+      const ths = container.querySelectorAll('thead th');
+      assert.strictEqual(ths.length, 3);
+      assert.strictEqual(ths[2].textContent, 'C');
+    });
+  });
+
+  describe('pinned columns', () => {
+    it('applies sticky positioning to pinned header cells', () => {
+      container = makeContainer();
+      const cols = [
+        {
+          key: 'ts', label: 'Time', pinned: true, width: 180,
+        },
+        { key: 'status', label: 'Status', width: 60 },
+      ];
+      vt = new VirtualTable({
+        container, columns: cols, getData: makeGetData([]), renderCell,
+      });
+      const th = container.querySelector('thead th');
+      assert.strictEqual(th.style.position, 'sticky');
+      assert.strictEqual(th.style.left, '0px');
+    });
+  });
+
+  describe('destroy', () => {
+    it('cleans up without errors', () => {
+      container = makeContainer();
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.destroy();
+      // Should not throw
+      vt = null;
+    });
+  });
+});

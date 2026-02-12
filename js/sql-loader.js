@@ -62,6 +62,7 @@ const ALL_TEMPLATES = [
   'time-series',
   'logs',
   'logs-more',
+  'logs-at',
   'breakdown',
   'breakdown-facet',
   'breakdown-missing',

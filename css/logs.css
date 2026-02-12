@@ -25,6 +25,8 @@
   border: 1px solid var(--border);
   overflow-x: auto;
   transition: filter 0.2s ease-out;
+  height: calc(100vh - 200px);
+  min-height: 400px;
 }
 
 @media (max-width: 600px) {
@@ -173,6 +175,12 @@
   justify-content: center;
   padding: 60px;
   color: var(--text-secondary);
+}
+
+/* Virtual table loading placeholder rows */
+.logs-table .loading-row td {
+  background: var(--card-bg);
+  color: transparent;
 }
 
 /* Copy feedback toast */

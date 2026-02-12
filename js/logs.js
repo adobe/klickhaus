@@ -20,10 +20,11 @@ import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, buildLogColumnsSql } from './columns.js';
 import { loadSql } from './sql-loader.js';
-import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
-import { PAGE_SIZE, PaginationState } from './pagination.js';
+import { formatLogCell } from './templates/logs-table.js';
+import { PAGE_SIZE } from './pagination.js';
 import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
+import { VirtualTable } from './virtual-table.js';
 
 const TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/;
 
@@ -41,56 +42,19 @@ function getLogColumns(allColumns) {
 }
 
 /**
- * Build approximate left offsets for pinned columns.
- * @param {string[]} pinned
- * @param {number} width
- * @returns {Record<string, number>}
+ * Build VirtualTable column descriptors from column name list.
+ * @param {string[]} columns - ordered column names
+ * @returns {Array<{key:string, label:string, pinned?:boolean, width?:number}>}
  */
-function getApproxPinnedOffsets(pinned, width) {
-  const offsets = {};
-  pinned.forEach((col, index) => {
-    offsets[col] = index * width;
-  });
-  return offsets;
-}
-
-/**
- * Update pinned column offsets based on actual column widths.
- * @param {HTMLElement} container
- * @param {string[]} pinned
- */
-function updatePinnedOffsets(container, pinned) {
-  if (pinned.length === 0) return;
-
-  requestAnimationFrame(() => {
-    const table = container.querySelector('.logs-table');
-    if (!table) return;
-    const headerCells = table.querySelectorAll('thead th');
-    const pinnedWidths = [];
-    let cumLeft = 0;
-
-    for (let i = 0; i < pinned.length; i += 1) {
-      pinnedWidths.push(cumLeft);
-      cumLeft += headerCells[i].offsetWidth;
-    }
-
-    headerCells.forEach((headerCell, idx) => {
-      if (idx < pinned.length) {
-        const th = headerCell;
-        th.style.left = `${pinnedWidths[idx]}px`;
-      }
-    });
-
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach((row) => {
-      const cells = row.querySelectorAll('td');
-      cells.forEach((cell, idx) => {
-        if (idx < pinned.length) {
-          const td = cell;
-          td.style.left = `${pinnedWidths[idx]}px`;
-        }
-      });
-    });
+function buildVirtualColumns(columns) {
+  const pinned = state.pinnedColumns;
+  return columns.map((col) => {
+    const isPinned = pinned.includes(col);
+    const label = LOG_COLUMN_SHORT_LABELS[col] || col;
+    const entry = { key: col, label };
+    if (isPinned) entry.pinned = true;
+    if (col === 'timestamp') entry.width = 180;
+    return entry;
   });
 }
 
@@ -99,8 +63,13 @@ let logsView = null;
 let viewToggleBtn = null;
 let filtersView = null;
 
-// Pagination state
-const pagination = new PaginationState();
+// VirtualTable instance
+let virtualTable = null;
+
+// Page cache for cursor-based pagination
+// Maps pageIndex → { rows, cursor (timestamp of last row) }
+const pageCache = new Map();
+let currentColumns = [];
 
 // Show brief "Copied!" feedback
 function showCopyFeedback() {
@@ -309,12 +278,25 @@ function initLogDetailModal() {
 }
 
 /**
+ * Look up a row from the page cache by virtual index.
+ * @param {number} rowIdx
+ * @returns {Object|null}
+ */
+function getRowFromCache(rowIdx) {
+  const pageIdx = Math.floor(rowIdx / PAGE_SIZE);
+  const page = pageCache.get(pageIdx);
+  if (!page) return null;
+  const offset = rowIdx - pageIdx * PAGE_SIZE;
+  return offset < page.rows.length ? page.rows[offset] : null;
+}
+
+/**
  * Open log detail modal for a row.
  * Fetches full row data on demand if not already present.
  * @param {number} rowIdx
+ * @param {Object} row
  */
-export async function openLogDetailModal(rowIdx) {
-  const row = state.logsData[rowIdx];
+export async function openLogDetailModal(rowIdx, row) {
   if (!row) return;
 
   initLogDetailModal();
@@ -324,17 +306,9 @@ export async function openLogDetailModal(rowIdx) {
   showDetailLoading();
   logDetailModal.showModal();
 
-  // Check if row already has full data (e.g. from a previous fetch)
-  if (row.fullRowData) {
-    renderLogDetailContent(row.fullRowData);
-    return;
-  }
-
   try {
     const fullRow = await fetchFullRow(row);
     if (fullRow) {
-      // Cache the full row for future opens
-      row.fullRowData = fullRow;
       renderLogDetailContent(fullRow);
     } else {
       // Fallback: render with partial data
@@ -350,7 +324,7 @@ export async function openLogDetailModal(rowIdx) {
 
 // Copy row data as JSON when clicking on row background
 export function copyLogRow(rowIdx) {
-  const row = state.logsData[rowIdx];
+  const row = getRowFromCache(rowIdx);
   if (!row) return;
 
   // Convert flat dot notation to nested object
@@ -380,156 +354,9 @@ export function copyLogRow(rowIdx) {
   });
 }
 
-// Set up click handler for row background clicks
-export function setupLogRowClickHandler() {
-  const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
-
-  container.addEventListener('click', (e) => {
-    // Only handle clicks directly on td or tr (not on links, buttons, or spans)
-    const { target } = e;
-    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
-
-    // Don't open modal if clicking on a clickable cell (filter action)
-    if (target.classList.contains('clickable')) return;
-
-    // Find the row
-    const row = target.closest('tr');
-    if (!row || !row.dataset.rowIdx) return;
-
-    const rowIdx = parseInt(row.dataset.rowIdx, 10);
-    openLogDetailModal(rowIdx);
-  });
-}
-
 function renderLogsError(message) {
   const container = logsView.querySelector('.logs-table-container');
   container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
-}
-
-// Append rows to existing logs table (for infinite scroll)
-function appendLogsRows(data) {
-  const container = logsView.querySelector('.logs-table-container');
-  const tbody = container.querySelector('.logs-table tbody');
-  if (!tbody || data.length === 0) return;
-
-  // Get columns from existing table header
-  const headerCells = container.querySelectorAll('.logs-table thead th');
-  const columns = Array.from(headerCells).map((th) => th.title || th.textContent);
-
-  // Map short names back to full names
-  const shortToFull = Object.fromEntries(
-    Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full]),
-  );
-
-  const fullColumns = columns.map((col) => shortToFull[col] || col);
-  const pinned = state.pinnedColumns.filter((col) => fullColumns.includes(col));
-
-  // Get starting index from existing rows
-  const existingRows = tbody.querySelectorAll('tr').length;
-
-  let html = '';
-  for (let i = 0; i < data.length; i += 1) {
-    const rowIdx = existingRows + i;
-    html += buildLogRowHtml({
-      row: data[i], columns: fullColumns, rowIdx, pinned,
-    });
-  }
-
-  tbody.insertAdjacentHTML('beforeend', html);
-
-  updatePinnedOffsets(container, pinned);
-}
-
-export function renderLogsTable(data) {
-  const container = logsView.querySelector('.logs-table-container');
-
-  if (data.length === 0) {
-    container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
-    return;
-  }
-
-  // Get all column names from first row
-  const allColumns = Object.keys(data[0]);
-
-  // Sort columns: pinned first, then preferred order, then the rest
-  const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
-  const columns = getLogColumns(allColumns);
-
-  // Calculate left offsets for sticky pinned columns
-  const COL_WIDTH = 120;
-  const pinnedOffsets = getApproxPinnedOffsets(pinned, COL_WIDTH);
-
-  let html = `
-    <table class="logs-table">
-      <thead>
-        <tr>
-          ${buildLogTableHeaderHtml(columns, pinned, pinnedOffsets)}
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  for (let rowIdx = 0; rowIdx < data.length; rowIdx += 1) {
-    html += buildLogRowHtml({
-      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets,
-    });
-  }
-
-  html += '</tbody></table>';
-  container.innerHTML = html;
-
-  updatePinnedOffsets(container, pinned);
-}
-
-async function loadMoreLogs() {
-  if (!pagination.canLoadMore()) return;
-
-  // Validate cursor format before interpolating into SQL
-  if (!TIMESTAMP_RE.test(pagination.cursor)) {
-    // eslint-disable-next-line no-console
-    console.warn('loadMoreLogs: invalid cursor format, aborting', pagination.cursor);
-    return;
-  }
-
-  pagination.loading = true;
-  const requestContext = getRequestContext('dashboard');
-  const { requestId, signal, scope } = requestContext;
-  const isCurrent = () => isRequestCurrent(requestId, scope);
-
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
-
-  const sql = await loadSql('logs-more', {
-    database: DATABASE,
-    table: getTable(),
-    columns: buildLogColumnsSql(state.pinnedColumns),
-    timeFilter,
-    hostFilter,
-    facetFilters,
-    additionalWhereClause: state.additionalWhereClause,
-    pageSize: String(PAGE_SIZE),
-    cursor: pagination.cursor,
-  });
-
-  try {
-    const result = await query(sql, { signal });
-    if (!isCurrent()) return;
-    if (result.data.length > 0) {
-      state.logsData = [...state.logsData, ...result.data];
-      appendLogsRows(result.data);
-    }
-    pagination.recordPage(result.data);
-  } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
-    // eslint-disable-next-line no-console
-    console.error('Load more logs error:', err);
-  } finally {
-    if (isCurrent()) {
-      pagination.loading = false;
-    }
-  }
 }
 
 // Collapse toggle label helper
@@ -557,115 +384,150 @@ export function initChartCollapseToggle() {
   updateCollapseToggleLabel();
 }
 
-// Throttle helper
-function throttle(fn, delay) {
-  let lastCall = 0;
-  let timer = null;
-  let pendingArgs = null;
-  return (...args) => {
-    const now = Date.now();
-    const remaining = delay - (now - lastCall);
-    if (remaining <= 0) {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      pendingArgs = null;
-      lastCall = now;
-      fn(...args);
-    } else {
-      pendingArgs = args;
-      if (!timer) {
-        timer = setTimeout(() => {
-          lastCall = Date.now();
-          timer = null;
-          const latestArgs = pendingArgs;
-          pendingArgs = null;
-          fn(...latestArgs);
-        }, remaining);
-      }
-    }
-  };
+/**
+ * renderCell callback for VirtualTable.
+ * Returns HTML string for a single cell.
+ */
+function renderCell(col, value) {
+  const { displayValue, cellClass, colorIndicator } = formatLogCell(col.key, value);
+  const escaped = escapeHtml(displayValue);
+  const cls = cellClass ? ` class="${cellClass}"` : '';
+  return `<span${cls} title="${escaped}">${colorIndicator}${escaped}</span>`;
 }
 
-// Scroll→Chart sync: update scrubber to match topmost visible log row
-function syncScrubberToScroll() {
-  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
+/**
+ * getData callback for VirtualTable.
+ * Fetches a page of log rows from ClickHouse using cursor-based pagination.
+ */
+async function getData(startIdx, count) {
+  const pageIdx = Math.floor(startIdx / PAGE_SIZE);
 
-  const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
+  // Return from cache if available
+  if (pageCache.has(pageIdx)) {
+    const page = pageCache.get(pageIdx);
+    const offset = startIdx - pageIdx * PAGE_SIZE;
+    return page.rows.slice(offset, offset + count);
+  }
 
-  // Find the topmost visible row below the sticky chart
-  const chartSection = document.querySelector('.chart-section');
-  const chartBottom = chartSection ? chartSection.getBoundingClientRect().bottom : 0;
+  const timeFilter = getTimeFilter();
+  const hostFilter = getHostFilter();
+  const facetFilters = getFacetFilters();
+  const sqlParams = {
+    database: DATABASE,
+    table: getTable(),
+    columns: buildLogColumnsSql(state.pinnedColumns),
+    timeFilter,
+    hostFilter,
+    facetFilters,
+    additionalWhereClause: state.additionalWhereClause,
+    pageSize: String(PAGE_SIZE),
+  };
 
-  const rows = container.querySelectorAll('.logs-table tbody tr');
-  let topRow = null;
-  for (const row of rows) {
-    const rect = row.getBoundingClientRect();
-    if (rect.bottom > chartBottom) {
-      topRow = row;
-      break;
+  let sql;
+  if (pageIdx === 0) {
+    // Initial page — no cursor needed
+    sql = await loadSql('logs', sqlParams);
+  } else {
+    // Find the cursor from the nearest previous cached page
+    let cursor = null;
+    for (let p = pageIdx - 1; p >= 0; p -= 1) {
+      const prev = pageCache.get(p);
+      if (prev && prev.cursor) {
+        cursor = prev.cursor;
+        break;
+      }
+    }
+
+    if (cursor && TIMESTAMP_RE.test(cursor)) {
+      sql = await loadSql('logs-more', { ...sqlParams, cursor });
+    } else {
+      // No cursor available — fall back to initial query
+      sql = await loadSql('logs', sqlParams);
     }
   }
 
-  if (!topRow || !topRow.dataset.rowIdx) return;
-  const rowIdx = parseInt(topRow.dataset.rowIdx, 10);
-  const rowData = state.logsData[rowIdx];
-  if (!rowData || !rowData.timestamp) return;
+  try {
+    const result = await query(sql);
+    const rows = result.data;
+    const cursor = rows.length > 0 ? rows[rows.length - 1].timestamp : null;
+    pageCache.set(pageIdx, { rows, cursor });
 
-  const timestamp = parseUTC(rowData.timestamp);
-  setScrubberPosition(timestamp);
+    // Update columns on first data load
+    if (rows.length > 0 && currentColumns.length === 0) {
+      currentColumns = getLogColumns(Object.keys(rows[0]));
+      if (virtualTable) {
+        virtualTable.setColumns(buildVirtualColumns(currentColumns));
+      }
+    }
+
+    // Also update logsData on state for backwards compat with detail modal
+    if (pageIdx === 0) {
+      state.logsData = rows;
+    }
+
+    const offset = startIdx - pageIdx * PAGE_SIZE;
+    return rows.slice(offset, offset + count);
+  } catch (err) {
+    if (!isAbortError(err)) {
+      // eslint-disable-next-line no-console
+      console.error('getData error:', err);
+    }
+    return [];
+  }
 }
 
-const throttledSyncScrubber = throttle(syncScrubberToScroll, 100);
+/**
+ * Destroy the current virtual table if it exists.
+ */
+function destroyVirtualTable() {
+  if (virtualTable) {
+    virtualTable.destroy();
+    virtualTable = null;
+  }
+}
+
+/**
+ * Create or reconfigure the VirtualTable instance.
+ */
+function ensureVirtualTable() {
+  const container = logsView.querySelector('.logs-table-container');
+  if (!container) return;
+
+  if (virtualTable) {
+    // Already exists — just clear cache and re-render
+    virtualTable.clearCache();
+    virtualTable.setTotalRows(0);
+    return;
+  }
+
+  // Clear loading placeholder
+  container.innerHTML = '';
+
+  virtualTable = new VirtualTable({
+    container,
+    rowHeight: 28,
+    columns: currentColumns.length > 0 ? buildVirtualColumns(currentColumns) : [],
+    getData,
+    renderCell,
+    onVisibleRangeChange(firstRow, lastRow) {
+      // Sync chart scrubber to the middle visible row
+      const midIdx = Math.floor((firstRow + lastRow) / 2);
+      const row = getRowFromCache(midIdx);
+      if (row && row.timestamp) {
+        setScrubberPosition(parseUTC(row.timestamp));
+      }
+    },
+    onRowClick(idx, row) {
+      openLogDetailModal(idx, row);
+    },
+  });
+}
 
 // Scroll log table to the row closest to a given timestamp
 export function scrollLogsToTimestamp(timestamp) {
-  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
-
+  if (!state.showLogs || !virtualTable) return;
   const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
-  let closestIdx = 0;
-  let closestDiff = Infinity;
-
-  for (let i = 0; i < state.logsData.length; i += 1) {
-    const row = state.logsData[i];
-    if (!row.timestamp) {
-      continue; // eslint-disable-line no-continue
-    } else {
-      const rowMs = parseUTC(row.timestamp).getTime();
-      const diff = Math.abs(rowMs - targetMs);
-      if (diff < closestDiff) {
-        closestDiff = diff;
-        closestIdx = i;
-      }
-    }
-  }
-
-  const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
-  const targetRow = container.querySelector(`tr[data-row-idx="${closestIdx}"]`);
-  if (targetRow) {
-    targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-}
-
-function handleLogsScroll() {
-  // Only handle scroll when logs view is visible
-  if (!state.showLogs) return;
-
-  const { scrollHeight } = document.documentElement;
-  const scrollTop = window.scrollY;
-  const clientHeight = window.innerHeight;
-
-  // Load more when scrolled to last 50%
-  const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
-  if (pagination.shouldTriggerLoad(scrollPercent, state.logsLoading)) {
-    loadMoreLogs();
-  }
-
-  // Sync chart scrubber to topmost visible log row
-  throttledSyncScrubber();
+  virtualTable.scrollToTimestamp(targetMs, (row) => parseUTC(row.timestamp).getTime());
 }
 
 export function setLogsElements(view, toggleBtn, filtersViewEl) {
@@ -673,18 +535,22 @@ export function setLogsElements(view, toggleBtn, filtersViewEl) {
   viewToggleBtn = toggleBtn;
   filtersView = filtersViewEl;
 
-  // Set up scroll listener for infinite scroll on window
-  window.addEventListener('scroll', handleLogsScroll);
-
-  // Set up click handler for copying row data
-  setupLogRowClickHandler();
-
   // Set up chart collapse toggle
   initChartCollapseToggle();
 }
 
 // Register callback for pinned column changes
-setOnPinnedColumnsChange(renderLogsTable);
+setOnPinnedColumnsChange(() => {
+  if (!virtualTable || currentColumns.length === 0) return;
+
+  // Rebuild column list with new pinned state
+  // Re-derive from current data keys if available
+  const page0 = pageCache.get(0);
+  if (page0 && page0.rows.length > 0) {
+    currentColumns = getLogColumns(Object.keys(page0.rows[0]));
+  }
+  virtualTable.setColumns(buildVirtualColumns(currentColumns));
+});
 
 // Callback for redrawing chart when switching views
 let onShowFiltersView = null;
@@ -716,8 +582,19 @@ export function toggleLogsView(saveStateToURL) {
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());
     }
+    // Clean up virtual table when leaving logs view
+    destroyVirtualTable();
   }
   saveStateToURL();
+}
+
+/**
+ * Estimate total rows from chart data bucket counts.
+ * @returns {number}
+ */
+function estimateTotalRows() {
+  if (!state.chartData || !state.chartData.buckets) return 0;
+  return state.chartData.buckets.reduce((sum, b) => sum + (b.total || b.count || 0), 0);
 }
 
 export async function loadLogs(requestContext = getRequestContext('dashboard')) {
@@ -727,12 +604,16 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   state.logsLoading = true;
   state.logsReady = false;
 
-  // Reset pagination state
-  pagination.reset();
+  // Reset page cache
+  pageCache.clear();
+  currentColumns = [];
 
   // Apply blur effect while loading
   const container = logsView.querySelector('.logs-table-container');
   container.classList.add('updating');
+
+  // Set up virtual table
+  ensureVirtualTable();
 
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
@@ -752,10 +633,31 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   try {
     const result = await query(sql, { signal });
     if (!isCurrent()) return;
-    state.logsData = result.data;
-    renderLogsTable(result.data);
+
+    const rows = result.data;
+    state.logsData = rows;
     state.logsReady = true;
-    pagination.recordPage(result.data);
+
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
+      destroyVirtualTable();
+      return;
+    }
+
+    // Populate initial page cache
+    const cursor = rows.length > 0 ? rows[rows.length - 1].timestamp : null;
+    pageCache.set(0, { rows, cursor });
+
+    // Set columns from data
+    currentColumns = getLogColumns(Object.keys(rows[0]));
+    if (virtualTable) {
+      virtualTable.setColumns(buildVirtualColumns(currentColumns));
+
+      // Estimate total rows: use chart data if available, otherwise extrapolate
+      const estimated = estimateTotalRows();
+      const total = estimated > rows.length ? estimated : rows.length * 10;
+      virtualTable.setTotalRows(total);
+    }
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
