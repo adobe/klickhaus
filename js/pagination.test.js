@@ -22,7 +22,7 @@ describe('PaginationState', () => {
   describe('constructor', () => {
     it('initializes with default page size', () => {
       const ps = new PaginationState();
-      assert.strictEqual(ps.offset, 0);
+      assert.strictEqual(ps.cursor, null);
       assert.strictEqual(ps.hasMore, true);
       assert.strictEqual(ps.loading, false);
       assert.strictEqual(ps.pageSize, PAGE_SIZE);
@@ -35,22 +35,22 @@ describe('PaginationState', () => {
   });
 
   describe('reset', () => {
-    it('resets offset, hasMore, and loading', () => {
+    it('resets cursor, hasMore, and loading', () => {
       const ps = new PaginationState();
-      ps.offset = 250;
+      ps.cursor = '2025-01-15 10:30:00.123';
       ps.hasMore = false;
       ps.loading = true;
 
       ps.reset();
 
-      assert.strictEqual(ps.offset, 0);
+      assert.strictEqual(ps.cursor, null);
       assert.strictEqual(ps.hasMore, true);
       assert.strictEqual(ps.loading, false);
     });
 
     it('preserves pageSize', () => {
       const ps = new PaginationState(100);
-      ps.offset = 50;
+      ps.cursor = '2025-01-15 10:30:00.123';
 
       ps.reset();
 
@@ -60,45 +60,82 @@ describe('PaginationState', () => {
 
   describe('recordPage', () => {
     it('sets hasMore=true when result is a full page', () => {
+      const rows = Array.from({ length: PAGE_SIZE }, (_, i) => ({
+        timestamp: `2025-01-15 10:30:00.${String(i).padStart(3, '0')}`,
+      }));
       const ps = new PaginationState();
-      ps.recordPage(PAGE_SIZE);
+      ps.recordPage(rows);
 
-      assert.strictEqual(ps.offset, PAGE_SIZE);
       assert.strictEqual(ps.hasMore, true);
     });
 
     it('sets hasMore=false when result is smaller than page size', () => {
+      const rows = [
+        { timestamp: '2025-01-15 10:30:00.100' },
+        { timestamp: '2025-01-15 10:30:00.050' },
+        { timestamp: '2025-01-15 10:30:00.001' },
+      ];
       const ps = new PaginationState();
-      ps.recordPage(123);
+      ps.recordPage(rows);
 
-      assert.strictEqual(ps.offset, 123);
       assert.strictEqual(ps.hasMore, false);
     });
 
     it('sets hasMore=false when result is empty', () => {
       const ps = new PaginationState();
-      ps.recordPage(0);
+      ps.recordPage([]);
 
-      assert.strictEqual(ps.offset, 0);
       assert.strictEqual(ps.hasMore, false);
     });
 
-    it('accumulates offset across multiple pages', () => {
+    it('extracts cursor from last row timestamp', () => {
+      const rows = [
+        { timestamp: '2025-01-15 10:30:00.300' },
+        { timestamp: '2025-01-15 10:30:00.200' },
+        { timestamp: '2025-01-15 10:30:00.100' },
+      ];
       const ps = new PaginationState();
-      ps.recordPage(PAGE_SIZE);
-      ps.recordPage(PAGE_SIZE);
-      ps.recordPage(200);
+      ps.recordPage(rows);
 
-      assert.strictEqual(ps.offset, PAGE_SIZE * 2 + 200);
+      assert.strictEqual(ps.cursor, '2025-01-15 10:30:00.100');
+    });
+
+    it('does not update cursor when result is empty', () => {
+      const ps = new PaginationState();
+      ps.cursor = '2025-01-15 10:30:00.100';
+      ps.recordPage([]);
+
+      assert.strictEqual(ps.cursor, '2025-01-15 10:30:00.100');
+    });
+
+    it('updates cursor across multiple pages', () => {
+      const ps = new PaginationState(2);
+
+      ps.recordPage([
+        { timestamp: '2025-01-15 10:30:00.300' },
+        { timestamp: '2025-01-15 10:30:00.200' },
+      ]);
+      assert.strictEqual(ps.cursor, '2025-01-15 10:30:00.200');
+      assert.strictEqual(ps.hasMore, true);
+
+      ps.recordPage([
+        { timestamp: '2025-01-15 10:30:00.100' },
+      ]);
+      assert.strictEqual(ps.cursor, '2025-01-15 10:30:00.100');
       assert.strictEqual(ps.hasMore, false);
     });
 
     it('uses custom page size for hasMore check', () => {
-      const ps = new PaginationState(10);
-      ps.recordPage(10);
+      const ps = new PaginationState(2);
+      ps.recordPage([
+        { timestamp: '2025-01-15 10:30:00.200' },
+        { timestamp: '2025-01-15 10:30:00.100' },
+      ]);
       assert.strictEqual(ps.hasMore, true);
 
-      ps.recordPage(5);
+      ps.recordPage([
+        { timestamp: '2025-01-15 10:30:00.050' },
+      ]);
       assert.strictEqual(ps.hasMore, false);
     });
   });

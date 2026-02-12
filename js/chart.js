@@ -90,6 +90,34 @@ let isDragging = false;
 let dragStartX = null;
 let justCompletedDrag = false;
 
+// Callback for chart→scroll sync (set by logs.js)
+let onChartHoverTimestamp = null;
+
+/**
+ * Set callback for chart hover → scroll sync
+ * @param {Function} callback - Called with timestamp when hovering chart in logs view
+ */
+export function setOnChartHoverTimestamp(callback) {
+  onChartHoverTimestamp = callback;
+}
+
+/**
+ * Position the scrubber line at a given timestamp (called from logs.js scroll sync)
+ * @param {Date} timestamp - Timestamp to position scrubber at
+ */
+export function setScrubberPosition(timestamp) {
+  if (!scrubberLine) return;
+  const x = getXAtTime(timestamp);
+  const chartLayout = getChartLayout();
+  if (!chartLayout) return;
+
+  const { padding, height } = chartLayout;
+  scrubberLine.style.left = `${x}px`;
+  scrubberLine.style.top = `${padding.top}px`;
+  scrubberLine.style.height = `${height - padding.top - padding.bottom}px`;
+  scrubberLine.classList.add('visible');
+}
+
 /**
  * Initialize canvas for chart rendering
  */
@@ -739,6 +767,14 @@ export function setupChartNavigation(callback) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     updateScrubber(x, y);
+
+    // Chart→Scroll sync: when hovering chart in logs view, scroll to matching time
+    if (onChartHoverTimestamp && state.showLogs) {
+      const hoverTime = getTimeAtX(x);
+      if (hoverTime) {
+        onChartHoverTimestamp(hoverTime);
+      }
+    }
 
     // Ship tooltip on hover (handled here since nav overlay captures canvas events)
     const ship = getShipAtPoint(getShipPositions(), x, y);

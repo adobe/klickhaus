@@ -181,3 +181,27 @@ export const LOG_COLUMN_SHORT_LABELS = Object.fromEntries(
     .filter((def) => def.shortLabel)
     .map((def) => [def.logKey, def.shortLabel]),
 );
+
+/**
+ * Columns always included in logs queries (needed for internal use, not display).
+ * @type {string[]}
+ */
+const ALWAYS_NEEDED_COLUMNS = ['timestamp', 'source', 'sample_hash'];
+
+/**
+ * Build the backtick-quoted column list for logs SQL queries.
+ * Includes LOG_COLUMN_ORDER columns plus always-needed columns plus any pinned columns.
+ * @param {string[]} [pinnedColumns] - Additional pinned columns to include.
+ * @returns {string} Comma-separated, backtick-quoted column list for SQL SELECT.
+ */
+export function buildLogColumnsSql(pinnedColumns = []) {
+  const seen = new Set();
+  const cols = [];
+  for (const col of [...ALWAYS_NEEDED_COLUMNS, ...LOG_COLUMN_ORDER, ...pinnedColumns]) {
+    if (!seen.has(col)) {
+      seen.add(col);
+      cols.push(`\`${col}\``);
+    }
+  }
+  return cols.join(', ');
+}
