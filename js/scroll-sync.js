@@ -41,6 +41,15 @@ function handleWorkerMessage(e) {
   const { type, timestamp } = e.data;
 
   switch (type) {
+    case 'checkLoaded':
+      // Worker asks: is data loaded for this timestamp?
+      // This is the only place we call isTimestampLoadedFn (once per selection)
+      requestAnimationFrame(() => {
+        const loaded = isTimestampLoadedFn?.(timestamp);
+        worker?.postMessage({ type: 'loaded', timestamp, loaded });
+      });
+      break;
+
     case 'fetch':
       // Worker says: fetch data for this timestamp
       updateScrubberState(false, true);
@@ -86,6 +95,7 @@ function initWorker() {
 
 /**
  * Called on every chart mousemove - just posts to worker (instant)
+ * MUST NOT call any functions that iterate over data - that blocks the UI
  */
 function handleChartHover(timestamp) {
   if (!state.showLogs) return;
@@ -93,12 +103,8 @@ function handleChartHover(timestamp) {
   // Initialize worker on first hover
   if (!worker) initWorker();
 
-  // Post to worker (non-blocking)
+  // Post to worker (non-blocking) - worker will request loaded status when needed
   worker?.postMessage({ type: 'hover', timestamp: timestamp.getTime() });
-
-  // Also tell worker if data is already loaded (quick check)
-  const loaded = isTimestampLoadedFn?.(timestamp);
-  worker?.postMessage({ type: 'loaded', timestamp: timestamp.getTime(), loaded });
 }
 
 function handleChartLeave() {

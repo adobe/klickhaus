@@ -32,11 +32,21 @@ function stopChecking() {
   }
 }
 
+// Track if we've requested loaded status for current selection
+let loadedCheckRequested = false;
+
 function checkSelection() {
   if (!selectionTimestamp) return;
 
   const now = Date.now();
   const age = now - selectionTime;
+
+  // Only check loaded status after selection delay, and only once per selection
+  if (age >= SELECTION_DELAY && !loadedCheckRequested && !isLoading) {
+    loadedCheckRequested = true;
+    self.postMessage({ type: 'checkLoaded', timestamp: selectionTimestamp });
+    return; // Wait for response
+  }
 
   if (isDataLoaded) {
     // Data is ready - check if we should scroll
@@ -47,10 +57,9 @@ function checkSelection() {
     } else {
       self.postMessage({ type: 'waiting' });
     }
-  } else if (!isLoading && age >= SELECTION_DELAY) {
-    // Need to fetch data
-    isLoading = true;
-    self.postMessage({ type: 'fetch', timestamp: selectionTimestamp });
+  } else if (isLoading) {
+    // Already loading - just wait
+    self.postMessage({ type: 'waiting' });
   }
 }
 
@@ -70,6 +79,7 @@ self.onmessage = (e) => {
         selectionTime = Date.now();
         isDataLoaded = false;
         isLoading = false;
+        loadedCheckRequested = false;
       }
       startChecking();
       break;
@@ -79,15 +89,22 @@ self.onmessage = (e) => {
       selectionTimestamp = null;
       isDataLoaded = false;
       isLoading = false;
+      loadedCheckRequested = false;
       stopChecking();
       self.postMessage({ type: 'clear' });
       break;
 
     case 'loaded':
-      // Main thread reports data status
+      // Main thread reports data status (response to checkLoaded)
       if (timestamp === selectionTimestamp) {
-        isDataLoaded = loaded;
-        isLoading = false;
+        if (loaded) {
+          isDataLoaded = true;
+          isLoading = false;
+        } else {
+          // Need to fetch
+          isLoading = true;
+          self.postMessage({ type: 'fetch', timestamp: selectionTimestamp });
+        }
       }
       break;
 
