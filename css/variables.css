@@ -5,7 +5,7 @@
 
 :root {
   /* Sticky layout heights for logs view */
-  --header-height: 57px;
+  --header-height: 69px;
   --chart-height: 250px;
   --chart-toggle-height: 24px;
   --primary: #eb1000;
