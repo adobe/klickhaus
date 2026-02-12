@@ -402,7 +402,7 @@ export function formatScrubberTime(time) {
   const diffHours = diffMs / (60 * 60 * 1000);
   const longRange = diffHours > 24;
   const timeStr = longRange
-    ? `${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} ${time.toLocaleTimeString('en-US', {
+    ? `${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${time.toLocaleTimeString('en-US', {
       hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
     })}`
     : time.toLocaleTimeString('en-US', {
