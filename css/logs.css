@@ -14,6 +14,28 @@
   display: block;
 }
 
+/* Logs-active: make main a flex column that fills the viewport */
+.logs-active#dashboardContent {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body.header-fixed .logs-active#dashboardContent {
+  height: calc(100vh - 70px);
+}
+
+/* Logs View fills remaining flex space */
+.logs-active #logsView.visible {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
 /* Logs View */
 #logsView {
   padding: 16px 0 24px 0;
@@ -27,6 +49,14 @@
   transition: filter 0.2s ease-out;
   height: calc(100vh - 200px);
   min-height: 400px;
+}
+
+/* In logs-active mode, container fills remaining flex space */
+.logs-active .logs-table-container {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  overflow: auto;
 }
 
 @media (max-width: 600px) {
@@ -46,7 +76,7 @@
 }
 
 .logs-table {
-  width: 100%;
+  min-width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 12px;

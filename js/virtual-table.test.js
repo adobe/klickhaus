@@ -277,6 +277,33 @@ describe('VirtualTable', () => {
       assert.strictEqual(colEls[1].style.width, '60px');
     });
 
+    it('sets table width to sum of column widths for horizontal scrolling', () => {
+      container = makeContainer();
+      const cols = [
+        { key: 'timestamp', label: 'Time', width: 180 },
+        { key: 'status', label: 'Status', width: 60 },
+        { key: 'host', label: 'Host', width: 200 },
+      ];
+      vt = new VirtualTable({
+        container, columns: cols, getData: makeGetData([]), renderCell,
+      });
+      assert.strictEqual(vt.table.style.width, '440px');
+    });
+
+    it('defaults column width to 120 when not specified', () => {
+      container = makeContainer();
+      const cols = [
+        { key: 'timestamp', label: 'Time', width: 180 },
+        { key: 'other', label: 'Other' },
+      ];
+      vt = new VirtualTable({
+        container, columns: cols, getData: makeGetData([]), renderCell,
+      });
+      const colEls = container.querySelectorAll('colgroup col');
+      assert.strictEqual(colEls[1].style.width, '120px');
+      assert.strictEqual(vt.table.style.width, '300px');
+    });
+
     it('sets tbody paddingTop and paddingBottom for virtual scroll area', () => {
       container = makeContainer(280);
       const allRows = Array.from({ length: 100 }, (_, i) => ({

@@ -9,10 +9,9 @@
   margin: 0 -24px 24px -24px;
 }
 
-/* Sticky chart when logs view is active */
+/* Chart section takes its natural size in flex layout */
 .logs-active .chart-section {
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 20;
 }
 

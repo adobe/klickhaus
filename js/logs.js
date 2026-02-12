@@ -12,7 +12,9 @@
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
 import { query, isAbortError } from './api.js';
-import { getTimeFilter, getHostFilter, getTable } from './time.js';
+import {
+  getTimeFilter, getHostFilter, getTable, getTimeRangeBounds,
+} from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
@@ -41,6 +43,18 @@ function getLogColumns(allColumns) {
   return [...pinned, ...preferred, ...rest];
 }
 
+const COLUMN_WIDTHS = {
+  timestamp: 180,
+  'response.status': 70,
+  'request.method': 80,
+  'request.host': 200,
+  'request.url': 300,
+  'response.body_size': 100,
+  'cdn.cache_status': 100,
+  'cdn.datacenter': 100,
+};
+const DEFAULT_COLUMN_WIDTH = 150;
+
 /**
  * Build VirtualTable column descriptors from column name list.
  * @param {string[]} columns - ordered column names
@@ -51,9 +65,9 @@ function buildVirtualColumns(columns) {
   return columns.map((col) => {
     const isPinned = pinned.includes(col);
     const label = LOG_COLUMN_SHORT_LABELS[col] || col;
-    const entry = { key: col, label };
+    const width = COLUMN_WIDTHS[col] || DEFAULT_COLUMN_WIDTH;
+    const entry = { key: col, label, width };
     if (isPinned) entry.pinned = true;
-    if (col === 'timestamp') entry.width = 180;
     return entry;
   });
 }
@@ -396,6 +410,58 @@ function renderCell(col, value) {
 }
 
 /**
+ * Find the nearest cached cursor for a given page index.
+ * @param {number} pageIdx
+ * @returns {string|null}
+ */
+function findCachedCursor(pageIdx) {
+  for (let p = pageIdx - 1; p >= 0; p -= 1) {
+    const prev = pageCache.get(p);
+    if (prev && prev.cursor) return prev.cursor;
+  }
+  return null;
+}
+
+/**
+ * Interpolate a timestamp from the time range for a given row index.
+ * Used when no cursor chain is available for direct page jumps.
+ * @param {number} startIdx
+ * @param {number} totalRows
+ * @returns {string} timestamp in 'YYYY-MM-DD HH:MM:SS.mmm' format
+ */
+function interpolateTimestamp(startIdx, totalRows) {
+  const { start, end } = getTimeRangeBounds();
+  const totalMs = end.getTime() - start.getTime();
+  const fraction = Math.min(startIdx / totalRows, 1);
+  const targetTs = new Date(end.getTime() - fraction * totalMs);
+  const pad = (n) => String(n).padStart(2, '0');
+  const ms = String(targetTs.getUTCMilliseconds()).padStart(3, '0');
+  return `${targetTs.getUTCFullYear()}-${pad(targetTs.getUTCMonth() + 1)}-${pad(targetTs.getUTCDate())} ${pad(targetTs.getUTCHours())}:${pad(targetTs.getUTCMinutes())}:${pad(targetTs.getUTCSeconds())}.${ms}`;
+}
+
+/**
+ * Build the SQL query for a given page, using cursor, interpolation, or initial query.
+ * @param {number} pageIdx
+ * @param {number} startIdx
+ * @param {Object} sqlParams
+ * @returns {Promise<{sql: string, isInterpolated: boolean}>}
+ */
+async function buildPageQuery(pageIdx, startIdx, sqlParams) {
+  if (pageIdx === 0) {
+    return { sql: await loadSql('logs', sqlParams), isInterpolated: false };
+  }
+
+  const cursor = findCachedCursor(pageIdx);
+  if (cursor && TIMESTAMP_RE.test(cursor)) {
+    return { sql: await loadSql('logs-more', { ...sqlParams, cursor }), isInterpolated: false };
+  }
+
+  const total = virtualTable ? virtualTable.totalRows : PAGE_SIZE * 10;
+  const interpolatedCursor = interpolateTimestamp(startIdx, total);
+  return { sql: await loadSql('logs-at', { ...sqlParams, cursor: interpolatedCursor }), isInterpolated: true };
+}
+
+/**
  * getData callback for VirtualTable.
  * Fetches a page of log rows from ClickHouse using cursor-based pagination.
  */
@@ -409,48 +475,32 @@ async function getData(startIdx, count) {
     return page.rows.slice(offset, offset + count);
   }
 
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
   const sqlParams = {
     database: DATABASE,
     table: getTable(),
     columns: buildLogColumnsSql(state.pinnedColumns),
-    timeFilter,
-    hostFilter,
-    facetFilters,
+    timeFilter: getTimeFilter(),
+    hostFilter: getHostFilter(),
+    facetFilters: getFacetFilters(),
     additionalWhereClause: state.additionalWhereClause,
     pageSize: String(PAGE_SIZE),
   };
 
-  let sql;
-  if (pageIdx === 0) {
-    // Initial page — no cursor needed
-    sql = await loadSql('logs', sqlParams);
-  } else {
-    // Find the cursor from the nearest previous cached page
-    let cursor = null;
-    for (let p = pageIdx - 1; p >= 0; p -= 1) {
-      const prev = pageCache.get(p);
-      if (prev && prev.cursor) {
-        cursor = prev.cursor;
-        break;
-      }
-    }
-
-    if (cursor && TIMESTAMP_RE.test(cursor)) {
-      sql = await loadSql('logs-more', { ...sqlParams, cursor });
-    } else {
-      // No cursor available — fall back to initial query
-      sql = await loadSql('logs', sqlParams);
-    }
-  }
+  const { sql, isInterpolated } = await buildPageQuery(pageIdx, startIdx, sqlParams);
 
   try {
     const result = await query(sql);
     const rows = result.data;
     const cursor = rows.length > 0 ? rows[rows.length - 1].timestamp : null;
     pageCache.set(pageIdx, { rows, cursor });
+
+    // Cap totalRows when a sequential (cursor-based) page is short
+    if (!isInterpolated && rows.length < PAGE_SIZE && virtualTable) {
+      const actualTotal = pageIdx * PAGE_SIZE + rows.length;
+      if (actualTotal < virtualTable.totalRows) {
+        virtualTable.setTotalRows(actualTotal);
+      }
+    }
 
     // Update columns on first data load
     if (rows.length > 0 && currentColumns.length === 0) {

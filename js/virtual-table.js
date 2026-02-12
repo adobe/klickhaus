@@ -101,10 +101,18 @@ export class VirtualTable {
   updateHeader() {
     // Build colgroup for deterministic column widths
     this.colgroup.innerHTML = '';
+    let totalWidth = 0;
     for (const col of this.columns) {
       const colEl = document.createElement('col');
-      if (col.width) colEl.style.width = `${col.width}px`;
+      const w = col.width || 120;
+      colEl.style.width = `${w}px`;
+      totalWidth += w;
       this.colgroup.appendChild(colEl);
+    }
+
+    // Set explicit table width so it can exceed container (enables horizontal scroll)
+    if (totalWidth > 0) {
+      this.table.style.width = `${totalWidth}px`;
     }
 
     const tr = document.createElement('tr');
