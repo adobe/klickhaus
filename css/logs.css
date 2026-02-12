@@ -190,7 +190,7 @@
 }
 
 .logs-gap-cell {
-  text-align: center;
+  text-align: left;
   padding: 8px 12px;
   background: var(--bg);
   height: 33px; /* Match regular row height to prevent layout shift */
@@ -211,6 +211,9 @@
   transition: color 0.15s;
   height: 17px; /* Fixed height to prevent layout shift */
   line-height: 17px;
+  /* Keep button visible when table is wider than viewport */
+  position: sticky;
+  left: 12px;
 }
 
 .logs-gap-button:hover {

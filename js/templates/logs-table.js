@@ -167,6 +167,18 @@ function formatGapDuration(gapStart, gapEnd) {
 }
 
 /**
+ * Format a timestamp for display in gap label (time only, no date).
+ * @param {string} ts - Timestamp string like '2026-02-12 10:00:00.000'
+ * @returns {string} Time like "10:00"
+ */
+function formatGapTime(ts) {
+  const d = parseUTC(ts);
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/**
  * Format a number with locale-aware thousands separators.
  * @param {number} num
  * @returns {string}
@@ -185,15 +197,18 @@ function formatCount(num) {
  */
 export function buildGapRowHtml({ gap, rowIdx, colCount }) {
   const duration = formatGapDuration(gap.gapStart, gap.gapEnd);
+  const startTime = formatGapTime(gap.gapStart);
+  const endTime = formatGapTime(gap.gapEnd);
+  const timeRange = `${startTime}\u2013${endTime}`;
   const loadingClass = gap.gapLoading ? ' loading' : '';
 
   let labelText;
   if (gap.gapLoading) {
-    labelText = 'Loading\u2026';
+    labelText = `Loading ${timeRange} (${duration})\u2026`;
   } else if (gap.gapCount !== undefined && gap.gapCount > 0) {
-    labelText = `\u2026 and ${formatCount(gap.gapCount)} more entries (${duration})`;
+    labelText = `\u2026 ${formatCount(gap.gapCount)} more entries (${duration})`;
   } else {
-    labelText = `\u2026 ${duration} of logs`;
+    labelText = `\u2026 ${duration} of logs (${timeRange})`;
   }
 
   const iconHtml = gap.gapLoading
