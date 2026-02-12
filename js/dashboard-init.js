@@ -408,9 +408,17 @@ export function initDashboard(config = {}) {
     elements.viewToggleBtn.addEventListener('click', () => toggleLogsView(saveStateToURL));
 
     window.addEventListener('login-success', () => {
-      preloadAllTemplates();
-      syncUIFromState();
-      showDashboard();
+      try {
+        preloadAllTemplates();
+        syncUIFromState();
+        reorderFacets();
+        showDashboard();
+        updateTimeRangeHint();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Error during login-success setup:', err);
+        showDashboard();
+      }
       loadDashboard();
     });
   }
