@@ -22,7 +22,7 @@ import {
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter,
+  getTimeFilter, getHostFilter, getSamplingConfig,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -32,7 +32,12 @@ import {
   renderChart,
 } from './chart.js';
 import {
-  loadAllBreakdowns, loadBreakdown, getBreakdowns, markSlowestFacet, resetFacetTimings,
+  loadAllBreakdowns,
+  loadAllBreakdownsRefined,
+  loadBreakdown,
+  getBreakdowns,
+  markSlowestFacet,
+  resetFacetTimings,
 } from './breakdowns/index.js';
 import { getNextTopN } from './breakdowns/render.js';
 import {
@@ -144,6 +149,16 @@ export function initDashboard(config = {}) {
       Promise.all(facetPromises).then(() => {
         if (isFacetsCurrent()) markSlowestFacet();
       });
+    }
+
+    // Schedule refinement pass if initial load used sampling
+    const { multiplier } = getSamplingConfig();
+    if (multiplier > 1) {
+      const refinedSampling = { sampleClause: '', multiplier: 1 };
+      const refinementDashCtx = startRequestContext('dashboard');
+      const refinementFacetsCtx = startRequestContext('facets');
+      loadTimeSeries(refinementDashCtx, refinedSampling);
+      loadAllBreakdownsRefined(refinementFacetsCtx);
     }
   }
 

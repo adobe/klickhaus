@@ -19,6 +19,7 @@ import {
   markSlowestFacet,
   increaseTopN,
   loadBreakdown,
+  loadAllBreakdownsRefined,
   canUseFacetTable,
   facetTimings,
   isPreviewActive,
@@ -941,5 +942,59 @@ describe('loadPreviewBreakdowns', () => {
     // Calling revert should not throw even if there were in-flight requests
     await revertPreviewBreakdowns();
     assert.isFalse(isPreviewActive());
+  });
+});
+
+describe('gradual refinement', () => {
+  const refId = 'breakdown-refinement-test';
+  let card;
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = window.fetch;
+    card = createCard(refId, 'Refinement');
+  });
+
+  afterEach(() => {
+    window.fetch = originalFetch;
+    state.breakdowns = null;
+    if (card && card.parentNode) card.remove();
+  });
+
+  it('adds dedup clause when samplingOverride has multiplier=1', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    const ctx = startRequestContext('facets');
+    await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
+    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    assert.notInclude(body, 'SAMPLE');
+    assert.include(body, 'sample_hash >= 0');
+  });
+
+  it('skips dedup clause when override has multiplier > 1', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    const ctx = startRequestContext('facets');
+    await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: 'SAMPLE 0.5', multiplier: 2 });
+    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    assert.include(body, 'SAMPLE 0.5');
+    assert.notInclude(body, 'sample_hash');
+  });
+
+  it('loadAllBreakdownsRefined uses dedup clause', async () => {
+    state.breakdowns = [{ id: refId, col: '`source`' }];
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    await loadAllBreakdownsRefined(startRequestContext('facets'));
+    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    assert.include(body, 'sample_hash >= 0');
+  });
+
+  it('loadAllBreakdownsRefined skips facet-table-eligible breakdowns', async () => {
+    state.breakdowns = [{ id: refId, col: '`source`', facetName: 'source' }];
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    await loadAllBreakdownsRefined(startRequestContext('facets'));
+    assert.strictEqual(calls.filter((c) => c.options?.method === 'POST').length, 0);
   });
 });

@@ -190,7 +190,7 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
 /**
  * Build SQL query parameters for breakdown
  */
-function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
+function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, samplingOverride) {
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
   const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
     && state.filters.some((f) => f.col === originalCol);
@@ -198,7 +198,7 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = getSamplingConfig();
+  const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
@@ -213,6 +213,20 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
     timeFilter,
     hostFilter,
   };
+}
+
+/**
+ * Build the WHERE clause, appending a dedup-defeating condition when
+ * a refinement pass overrides sampling to full fidelity (multiplier === 1).
+ */
+function buildDedupClause(samplingOverride) {
+  const base = state.additionalWhereClause || '';
+  if (!samplingOverride || samplingOverride.multiplier !== 1 || samplingOverride.sampleClause) {
+    return base;
+  }
+  return base
+    ? `${base}\n  AND sample_hash >= 0`
+    : 'AND sample_hash >= 0';
 }
 
 function createRequestStatus(requestContext) {
@@ -237,7 +251,43 @@ function prepareBreakdownCard(card, b) {
   return true;
 }
 
-async function buildBreakdownSql(b, timeFilter, hostFilter) {
+/**
+ * Check whether a refinement pass should use the approx_top_count template.
+ * High-cardinality GROUP BY over the full dataset can OOM; approx_top_count
+ * finds top-N candidates in bounded memory, then computes exact counts.
+ */
+function isApproxTopRefinement(b, samplingOverride) {
+  if (!b.highCardinality) return false;
+  if (!samplingOverride) return false;
+  // Refinement pass: no SAMPLE clause, multiplier === 1
+  return samplingOverride.multiplier === 1 && !samplingOverride.sampleClause;
+}
+
+async function buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostFilter) {
+  const summaryCol = b.summaryCountIf
+    ? `,\n  countIf(${b.summaryCountIf}) as summary_cnt`
+    : '';
+
+  const sql = await loadSql('breakdown-approx-top', {
+    col: params.col,
+    ...aggs,
+    summaryCol,
+    database: DATABASE,
+    table: getTable(),
+    sampleClause: params.sampleClause || '',
+    timeFilter,
+    hostFilter,
+    extra: params.extra,
+    additionalWhereClause: dedupClause,
+    topN: String(state.topN),
+  });
+
+  return {
+    sql, params, aggs, approxTop: true,
+  };
+}
+
+async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
 
   // Use pre-aggregated facet table when no filters are active
@@ -276,8 +326,10 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     return { sql, params, aggs: buildAggregations(false, '') };
   }
 
-  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
+  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter, samplingOverride);
   const aggs = buildAggregations(params.isBytes, params.mult);
+
+  const dedupClause = buildDedupClause(samplingOverride);
 
   // Two-level query for bucket facets with rawCol (hits raw-value projection)
   if (b.rawCol && typeof b.col === 'function') {
@@ -302,11 +354,16 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
       hostFilter,
       facetFilters: params.facetFilters,
       extra: params.extra,
-      additionalWhereClause: state.additionalWhereClause,
+      additionalWhereClause: dedupClause,
       topN: String(state.topN),
     });
 
     return { sql, params, aggs };
+  }
+
+  // High-cardinality refinement: use approx_top_count to avoid OOM
+  if (isApproxTopRefinement(b, samplingOverride)) {
+    return buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostFilter);
   }
 
   const summaryColWithMult = b.summaryCountIf
@@ -324,7 +381,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     hostFilter,
     facetFilters: params.facetFilters,
     extra: params.extra,
-    additionalWhereClause: state.additionalWhereClause,
+    additionalWhereClause: dedupClause,
     orderBy: b.orderBy || 'cnt DESC',
     topN: String(state.topN),
   });
@@ -338,24 +395,54 @@ function getSummaryRatio(b, totals) {
   return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
 }
 
-async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
+/**
+ * Extract the synthetic totals row from an approx_top_count UNION ALL result.
+ * The last row has dim === '' and contains aggregate totals over the full dataset.
+ */
+function extractApproxTopTotals(result) {
+  const { data } = result;
+  if (!data || data.length === 0) return { data: [], totals: {} };
+
+  const lastRow = data[data.length - 1];
+  if (lastRow.dim === '') {
+    return { data: data.slice(0, -1), totals: lastRow };
+  }
+  // Fallback: no totals row found (shouldn't happen with correct template)
+  return { data, totals: result.totals || {} };
+}
+
+async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samplingOverride) {
   const { isCurrent, signal } = requestStatus;
-  const { sql, params, aggs } = await buildBreakdownSql(b, timeFilter, hostFilter);
+  const built = await buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride);
+  const {
+    sql, params, aggs, approxTop,
+  } = built;
   const startTime = performance.now();
   const result = await queryLimiter(() => query(sql, { signal }));
   if (!isCurrent()) return null;
 
   const elapsed = result.networkTime ?? (performance.now() - startTime);
   facetTimings[b.id] = elapsed;
-  const summaryRatio = getSummaryRatio(b, result.totals);
 
-  let data = fillExpectedLabels(result.data, b);
+  // For approx_top_count queries, extract totals from the UNION ALL result
+  let resultData;
+  let totals;
+  if (approxTop) {
+    ({ data: resultData, totals } = extractApproxTopTotals(result));
+  } else {
+    resultData = result.data;
+    totals = result.totals;
+  }
+
+  const summaryRatio = getSummaryRatio(b, totals);
+
+  let data = fillExpectedLabels(resultData, b);
   data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
   if (!isCurrent()) return null;
 
   return {
     data,
-    totals: result.totals,
+    totals,
     params,
     elapsed,
     summaryRatio,
@@ -366,14 +453,26 @@ function shouldIgnoreBreakdownError(requestStatus, err) {
   return !requestStatus.isCurrent() || isAbortError(err);
 }
 
-export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = null) {
+export async function loadBreakdown(
+  b,
+  timeFilter,
+  hostFilter,
+  requestContext = null,
+  samplingOverride = null,
+) {
   const requestStatus = createRequestStatus(requestContext);
   const card = document.getElementById(b.id);
 
   if (!prepareBreakdownCard(card, b)) return;
 
   try {
-    const result = await fetchBreakdownData(b, timeFilter, hostFilter, requestStatus);
+    const result = await fetchBreakdownData(
+      b,
+      timeFilter,
+      hostFilter,
+      requestStatus,
+      samplingOverride,
+    );
     if (!result) return;
 
     renderBreakdownTable(
@@ -409,12 +508,29 @@ export async function loadBreakdown(b, timeFilter, hostFilter, requestContext = 
   }
 }
 
-export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
+export async function loadAllBreakdowns(
+  requestContext = getRequestContext('facets'),
+  samplingOverride = null,
+) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const breakdowns = getBreakdowns();
   await Promise.all(
-    breakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
+    breakdowns.map(
+      (b) => loadBreakdown(b, timeFilter, hostFilter, requestContext, samplingOverride),
+    ),
+  );
+}
+
+export async function loadAllBreakdownsRefined(requestContext = getRequestContext('facets')) {
+  const timeFilter = getTimeFilter();
+  const hostFilter = getHostFilter();
+  const breakdowns = getBreakdowns();
+  const refinedSampling = { sampleClause: '', multiplier: 1 };
+  await Promise.all(
+    breakdowns
+      .filter((b) => !canUseFacetTable(b))
+      .map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext, refinedSampling)),
   );
 }
 
