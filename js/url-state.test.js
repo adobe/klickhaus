@@ -406,10 +406,10 @@ describe('saveStateToURL', () => {
   });
 
   it('encodes time range into URL', () => {
-    state.timeRange = '7d';
+    state.timeRange = '24h';
     saveStateToURL();
     const params = new URLSearchParams(window.location.search);
-    assert.strictEqual(params.get('t'), '7d');
+    assert.strictEqual(params.get('t'), '24h');
   });
 
   it('omits default time range', () => {
