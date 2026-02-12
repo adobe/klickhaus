@@ -13,10 +13,11 @@ import { assert } from 'chai';
 import { state } from './state.js';
 import {
   setQueryTimestamp, setCustomTimeRange, clearCustomTimeRange,
-  getTimeFilter, getTimeBucket, getPeriodMs,
-  getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
+  isCustomTimeRange, getCustomTimeRange, customTimeRange,
+  getTimeFilter, getTimeBucket, getTimeBucketStep, getPeriodMs,
+  getInterval, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
   getTable, getHostFilter,
-  getSamplingConfig, getFacetTimeFilter,
+  getSamplingConfig, getFacetTimeFilter, zoomOut,
 } from './time.js';
 
 beforeEach(() => {
@@ -206,5 +207,273 @@ describe('getFacetTimeFilter', () => {
     const { startTime, endTime } = getFacetTimeFilter();
     assert.strictEqual(startTime, '2026-01-20 11:34:00');
     assert.strictEqual(endTime, '2026-01-20 12:34:00');
+  });
+
+  it('returns formatted times for custom time range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T11:00:00Z'),
+    );
+    const { startTime, endTime } = getFacetTimeFilter();
+    assert.strictEqual(startTime, '2026-01-20 10:00:00');
+    assert.strictEqual(endTime, '2026-01-20 11:00:00');
+  });
+});
+
+describe('custom time range state', () => {
+  it('isCustomTimeRange returns false when no custom range set', () => {
+    clearCustomTimeRange();
+    assert.isFalse(isCustomTimeRange());
+  });
+
+  it('isCustomTimeRange returns true when custom range is set', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T11:00:00Z'),
+    );
+    assert.isTrue(isCustomTimeRange());
+  });
+
+  it('getCustomTimeRange returns null when no custom range set', () => {
+    clearCustomTimeRange();
+    assert.isNull(getCustomTimeRange());
+  });
+
+  it('getCustomTimeRange returns the range when set', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T11:00:00Z'),
+    );
+    const range = getCustomTimeRange();
+    assert.ok(range);
+    assert.ok(range.start instanceof Date);
+    assert.ok(range.end instanceof Date);
+  });
+
+  it('customTimeRange getter returns same as getCustomTimeRange', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T11:00:00Z'),
+    );
+    assert.deepEqual(customTimeRange(), getCustomTimeRange());
+  });
+
+  it('clearCustomTimeRange clears an active range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T11:00:00Z'),
+    );
+    assert.isTrue(isCustomTimeRange());
+    clearCustomTimeRange();
+    assert.isFalse(isCustomTimeRange());
+    assert.isNull(getCustomTimeRange());
+  });
+
+  it('setCustomTimeRange with range exceeding min duration stores rounded bounds', () => {
+    // 30 min range, well above 3 min minimum
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:30Z'),
+      new Date('2026-01-20T10:30:45Z'),
+    );
+    const range = getCustomTimeRange();
+    // start rounds down to minute, end rounds up to minute
+    assert.strictEqual(range.start.toISOString(), '2026-01-20T10:00:00.000Z');
+    assert.strictEqual(range.end.toISOString(), '2026-01-20T10:31:00.000Z');
+  });
+});
+
+describe('getInterval', () => {
+  it('returns predefined interval for standard range', () => {
+    state.timeRange = '1h';
+    clearCustomTimeRange();
+    assert.strictEqual(getInterval(), 'INTERVAL 1 HOUR');
+  });
+
+  it('returns calculated interval for custom time range', () => {
+    // 30 min range
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T10:30:00Z'),
+    );
+    assert.strictEqual(getInterval(), 'INTERVAL 30 MINUTE');
+  });
+
+  it('returns interval proportional to custom range duration', () => {
+    // 2 hour range = 120 minutes
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T12:00:00Z'),
+    );
+    assert.strictEqual(getInterval(), 'INTERVAL 120 MINUTE');
+  });
+});
+
+describe('getTimeBucket for various custom durations', () => {
+  it('uses 10 second bucket for 15-60 min custom range', () => {
+    // 30 min range
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T10:30:00Z'),
+    );
+    assert.strictEqual(getTimeBucket(), 'toStartOfInterval(timestamp, INTERVAL 10 SECOND)');
+  });
+
+  it('uses 1 minute bucket for 1-12 hour custom range', () => {
+    // 6 hour range
+    setCustomTimeRange(
+      new Date('2026-01-20T06:00:00Z'),
+      new Date('2026-01-20T12:00:00Z'),
+    );
+    assert.strictEqual(getTimeBucket(), 'toStartOfMinute(timestamp)');
+  });
+
+  it('uses 5 minute bucket for 12-24 hour custom range', () => {
+    // 18 hour range
+    setCustomTimeRange(
+      new Date('2026-01-20T00:00:00Z'),
+      new Date('2026-01-20T18:00:00Z'),
+    );
+    assert.strictEqual(getTimeBucket(), 'toStartOfFiveMinutes(timestamp)');
+  });
+
+  it('uses 10 minute bucket for >24 hour custom range', () => {
+    // 48 hour range
+    setCustomTimeRange(
+      new Date('2026-01-18T00:00:00Z'),
+      new Date('2026-01-20T00:00:00Z'),
+    );
+    assert.strictEqual(getTimeBucket(), 'toStartOfTenMinutes(timestamp)');
+  });
+
+  it('returns predefined bucket for standard range', () => {
+    state.timeRange = '1h';
+    clearCustomTimeRange();
+    assert.strictEqual(getTimeBucket(), 'toStartOfInterval(timestamp, INTERVAL 10 SECOND)');
+  });
+});
+
+describe('getTimeBucketStep for various custom durations', () => {
+  it('returns 5 second step for <=15 min custom range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T12:00:00Z'),
+      new Date('2026-01-20T12:10:00Z'),
+    );
+    assert.strictEqual(getTimeBucketStep(), 'INTERVAL 5 SECOND');
+  });
+
+  it('returns 10 second step for 15-60 min custom range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T12:00:00Z'),
+      new Date('2026-01-20T12:30:00Z'),
+    );
+    assert.strictEqual(getTimeBucketStep(), 'INTERVAL 10 SECOND');
+  });
+
+  it('returns 1 minute step for 1-12 hour custom range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T06:00:00Z'),
+      new Date('2026-01-20T12:00:00Z'),
+    );
+    assert.strictEqual(getTimeBucketStep(), 'INTERVAL 1 MINUTE');
+  });
+
+  it('returns 5 minute step for 12-24 hour custom range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T00:00:00Z'),
+      new Date('2026-01-20T18:00:00Z'),
+    );
+    assert.strictEqual(getTimeBucketStep(), 'INTERVAL 5 MINUTE');
+  });
+
+  it('returns 10 minute step for >24 hour custom range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-18T00:00:00Z'),
+      new Date('2026-01-20T00:00:00Z'),
+    );
+    assert.strictEqual(getTimeBucketStep(), 'INTERVAL 10 MINUTE');
+  });
+
+  it('returns predefined step for standard range', () => {
+    state.timeRange = '1h';
+    clearCustomTimeRange();
+    assert.strictEqual(getTimeBucketStep(), 'INTERVAL 10 SECOND');
+  });
+});
+
+describe('getPeriodMs', () => {
+  it('returns custom range duration when set', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T10:00:00Z'),
+      new Date('2026-01-20T11:00:00Z'),
+    );
+    assert.strictEqual(getPeriodMs(), 60 * 60 * 1000);
+  });
+
+  it('returns predefined period when no custom range', () => {
+    state.timeRange = '7d';
+    clearCustomTimeRange();
+    assert.strictEqual(getPeriodMs(), 7 * 24 * 60 * 60 * 1000);
+  });
+});
+
+describe('zoomOut', () => {
+  it('zooms from 15m to 1h', () => {
+    state.timeRange = '15m';
+    clearCustomTimeRange();
+    setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
+    const result = zoomOut();
+    assert.ok(result);
+    assert.strictEqual(result.timeRange, '1h');
+    assert.ok(result.queryTimestamp instanceof Date);
+  });
+
+  it('zooms from 1h to 12h', () => {
+    state.timeRange = '1h';
+    clearCustomTimeRange();
+    setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
+    const result = zoomOut();
+    assert.ok(result);
+    assert.strictEqual(result.timeRange, '12h');
+  });
+
+  it('zooms from custom range to next larger predefined period', () => {
+    // 30 min custom range -> next larger is 1h
+    setCustomTimeRange(
+      new Date('2026-01-20T12:00:00Z'),
+      new Date('2026-01-20T12:30:00Z'),
+    );
+    const result = zoomOut();
+    assert.ok(result);
+    assert.strictEqual(result.timeRange, '1h');
+  });
+
+  it('returns null when already at 7d (largest range)', () => {
+    state.timeRange = '7d';
+    clearCustomTimeRange();
+    setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
+    const result = zoomOut();
+    assert.isNull(result);
+  });
+
+  it('clamps end to now when zoom would go into the future', () => {
+    state.timeRange = '15m';
+    clearCustomTimeRange();
+    // Use current time so the zoom-out stays anchored near now
+    const now = new Date();
+    setQueryTimestamp(now);
+    const result = zoomOut();
+    assert.ok(result);
+    assert.ok(result.queryTimestamp <= new Date());
+  });
+
+  it('clamps start to two weeks ago when zoom would exceed retention', () => {
+    state.timeRange = '24h';
+    clearCustomTimeRange();
+    // Set timestamp far in the past (just over 2 weeks ago)
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    setQueryTimestamp(new Date(twoWeeksAgo.getTime() + 12 * 60 * 60 * 1000));
+    const result = zoomOut();
+    assert.ok(result);
+    assert.strictEqual(result.timeRange, '7d');
   });
 });
