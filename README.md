@@ -125,7 +125,7 @@ npm install
 npm start
 ```
 
-This starts a development server with auto-reload. The port is deterministic per worktree and printed on startup. Use `node scripts/dev-server.js --dry-run` to get the port without starting the server.
+This starts a development server with auto-reload. The port is deterministic per worktree and printed on startup. Use `node scripts/dev-server.mjs --dry-run` to get the port without starting the server.
 
 For ClickHouse CLI access:
 

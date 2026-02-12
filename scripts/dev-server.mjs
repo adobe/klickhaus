@@ -14,6 +14,9 @@
 
 import { spawn } from 'node:child_process';
 
+const NULL_DEVICE = process.platform === 'win32' ? 'NUL' : '/dev/null';
+const PATH_SEP = process.platform === 'win32' ? ';' : ':';
+
 const PORT_MIN = 5000;
 const PORT_RANGE = 1000;
 
@@ -23,7 +26,7 @@ const PORT_RANGE = 1000;
 function hashString(str) {
   let hash = 5381;
   for (let i = 0; i < str.length; i += 1) {
-    hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0;
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0; // eslint-disable-line no-bitwise
   }
   return hash;
 }
@@ -51,14 +54,20 @@ const args = [
 ];
 
 if (noReload) {
-  args.push('--no-browser', '--watch=/dev/null');
+  args.push('--no-browser', `--watch=${NULL_DEVICE}`);
 } else {
   args.push('--open=/');
 }
 
 const child = spawn('live-server', args, {
   stdio: 'inherit',
-  shell: true,
+  shell: false,
+  env: { ...process.env, PATH: `./node_modules/.bin${PATH_SEP}${process.env.PATH}` },
+});
+
+child.on('error', (err) => {
+  console.error('Failed to start dev server:', err.message);
+  process.exit(1);
 });
 
 child.on('exit', (code) => {
