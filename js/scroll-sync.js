@@ -21,80 +21,78 @@ import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
 
 let scrubberLine = null;
-let chartHoverTimer = null;
-let fetchDelayTimer = null;
+let restTimer = null; // Timer for "cursor at rest" detection
 let checkAndLoadGapFn = null;
 let scrollToTimestampFn = null;
+let isTimestampLoadedFn = null;
 let pendingTimestamp = null;
+let isLoading = false;
 
-// Visual feedback helpers
-function showScrubberActive() {
-  scrubberLine?.classList.add('active');
-}
-function hideScrubberActive() {
-  scrubberLine?.classList.remove('active');
-}
-function showScrubberWaiting() {
-  scrubberLine?.classList.add('waiting');
-}
-function hideScrubberWaiting() {
-  scrubberLine?.classList.remove('waiting');
-}
-function showScrubberLoading() {
-  scrubberLine?.classList.add('loading');
-}
-function hideScrubberLoading() {
-  scrubberLine?.classList.remove('loading');
-}
+// Debounce: only process after cursor rests for this duration
+const REST_DELAY_LOADED = 1000; // 1s if data is loaded
+const REST_DELAY_GAP = 100; // 100ms if data needs loading
 
-function clearTimers() {
-  if (chartHoverTimer) {
-    clearTimeout(chartHoverTimer);
-    chartHoverTimer = null;
-  }
-  if (fetchDelayTimer) {
-    clearTimeout(fetchDelayTimer);
-    fetchDelayTimer = null;
+function clearRestTimer() {
+  if (restTimer) {
+    clearTimeout(restTimer);
+    restTimer = null;
   }
 }
 
-function handleChartHover(timestamp, isTimestampLoaded) {
-  if (!state.showLogs) return;
-  clearTimers();
-  pendingTimestamp = timestamp;
-  const loaded = isTimestampLoaded(timestamp);
+function updateScrubberState(waiting, loading) {
+  if (!scrubberLine) return;
+  scrubberLine.classList.toggle('waiting', waiting);
+  scrubberLine.classList.toggle('loading', loading);
+}
 
+async function handleRestingCursor(timestamp) {
+  if (pendingTimestamp !== timestamp || isLoading) return;
+
+  const loaded = isTimestampLoadedFn?.(timestamp);
   if (loaded) {
-    showScrubberWaiting();
-    chartHoverTimer = setTimeout(() => {
+    // Data is loaded - wait additional time before scrolling
+    updateScrubberState(true, false);
+    restTimer = setTimeout(() => {
       if (pendingTimestamp === timestamp) {
-        hideScrubberWaiting();
+        updateScrubberState(false, false);
         scrollToTimestampFn?.(timestamp);
       }
-    }, 1000);
+    }, REST_DELAY_LOADED - REST_DELAY_GAP);
   } else {
-    showScrubberWaiting();
-    fetchDelayTimer = setTimeout(async () => {
-      if (pendingTimestamp !== timestamp) return;
-      showScrubberLoading();
-      try {
-        await checkAndLoadGapFn?.(timestamp);
-        if (pendingTimestamp === timestamp) {
-          hideScrubberLoading();
-          scrollToTimestampFn?.(timestamp);
-        }
-      } finally {
-        hideScrubberLoading();
+    // Need to load gap data
+    updateScrubberState(false, true);
+    isLoading = true;
+    try {
+      await checkAndLoadGapFn?.(timestamp);
+      if (pendingTimestamp === timestamp) {
+        updateScrubberState(false, false);
+        scrollToTimestampFn?.(timestamp);
       }
-    }, 100);
+    } finally {
+      isLoading = false;
+      updateScrubberState(false, false);
+    }
   }
+}
+
+function handleChartHover(timestamp) {
+  if (!state.showLogs) return;
+
+  // Update pending timestamp
+  pendingTimestamp = timestamp;
+
+  // Clear previous rest timer
+  clearRestTimer();
+
+  // Use shorter delay initially, then check if loaded when timer fires
+  // This avoids calling isTimestampLoaded on every mousemove
+  restTimer = setTimeout(() => handleRestingCursor(timestamp), REST_DELAY_GAP);
 }
 
 function handleChartLeave() {
-  clearTimers();
+  clearRestTimer();
   pendingTimestamp = null;
-  hideScrubberWaiting();
-  hideScrubberLoading();
+  updateScrubberState(false, false);
 }
 
 /**
@@ -103,21 +101,24 @@ function handleChartLeave() {
 export function initScrollSync({ checkAndLoadGap, scrollToTimestamp, isTimestampLoaded }) {
   checkAndLoadGapFn = checkAndLoadGap;
   scrollToTimestampFn = scrollToTimestamp;
+  isTimestampLoadedFn = isTimestampLoaded;
   scrubberLine = document.querySelector('.chart-scrubber-line');
   return {
-    onChartHover: (ts) => handleChartHover(ts, isTimestampLoaded),
+    onChartHover: handleChartHover,
     onChartLeave: handleChartLeave,
   };
 }
 
-/** Handle row hover - move scrubber to row's timestamp */
+/** Handle row hover - move scrubber to row's timestamp (debounced via rAF) */
 export function handleRowHover(rowData) {
   if (!rowData?.timestamp || !state.showLogs) return;
-  setScrubberPosition(parseUTC(rowData.timestamp));
-  showScrubberActive();
+  requestAnimationFrame(() => {
+    setScrubberPosition(parseUTC(rowData.timestamp));
+    scrubberLine?.classList.add('active');
+  });
 }
 
 /** Handle row hover end */
 export function handleRowLeave() {
-  hideScrubberActive();
+  scrubberLine?.classList.remove('active');
 }
