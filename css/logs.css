@@ -179,22 +179,26 @@
 /* Gap rows — unloaded time ranges between log islands */
 .logs-gap-row {
   cursor: default;
+  height: 33px; /* Match regular row height */
+  max-height: 33px;
 }
 
 .logs-gap-row td {
   border-bottom: 1px solid var(--border);
+  background: var(--card-bg); /* Match table background */
 }
 
 .logs-gap-row:hover td {
-  background: transparent;
+  background: var(--card-bg);
 }
 
 .logs-gap-cell {
   text-align: left;
   padding: 8px 12px;
-  background: var(--bg);
-  height: 33px; /* Match regular row height to prevent layout shift */
+  height: 33px; /* Match regular row height */
+  max-height: 33px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .logs-gap-button {
