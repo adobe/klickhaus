@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { assert } from 'chai';
-import { detectStep } from './step-detection.js';
+import { detectStep, detectSteps } from './step-detection.js';
 
 // Real data from ClickHouse - 1 hour of CDN traffic (2026-01-12 21:04 - 22:04 UTC)
 // Notable events:
@@ -410,5 +410,78 @@ describe('CDN operational requirements', () => {
       const isErrorDrop = result.category === 'error' && result.type === 'dip';
       assert.ok(!isErrorDrop, 'Should not highlight red drops - they are good!');
     }
+  });
+});
+
+describe('detectSteps (multi-anomaly)', () => {
+  it('should score red drop, yellow drop, and green spike candidates', () => {
+    // Data with simultaneous anomalies in all three categories:
+    // - Green (ok) spike at index 4 (2x traffic)
+    // - Yellow (client/4xx) drop at index 5 (80% drop)
+    // - Red (server/5xx) drop at index 6 (90% drop)
+    const data = [
+      [0, 50000, 10000, 500],
+      [1, 52000, 10200, 480],
+      [2, 51000, 10100, 520], // start of valid range (margin=2)
+      [3, 50000, 10000, 500],
+      [4, 100000, 10000, 500], // green spike (2x)
+      [5, 50000, 2000, 500], // yellow drop (80%)
+      [6, 50000, 10000, 50], // red drop (90%)
+      [7, 51000, 10100, 480],
+      [8, 50000, 10000, 500],
+      [9, 52000, 10200, 520],
+      [10, 50000, 10000, 500],
+      [11, 51000, 10100, 480], // end of valid range (margin=2)
+      [12, 50000, 10000, 500],
+      [13, 52000, 10200, 520],
+    ];
+    const series = toSeries(data);
+    const results = detectSteps(series, 5);
+
+    assert.ok(results.length > 0, 'Should detect at least one anomaly');
+
+    const categories = results.map((r) => `${r.category}:${r.type}`);
+    // Verify that the multi-category anomalies are found
+    assert.ok(
+      categories.some((c) => c === 'green:spike'),
+      `Should find green spike in: ${categories.join(', ')}`,
+    );
+  });
+
+  it('should detect yellow spike anomalies', () => {
+    // Data with a prominent yellow (4xx) spike
+    const data = [
+      [0, 50000, 5000, 100],
+      [1, 52000, 5100, 105],
+      [2, 51000, 5050, 98],
+      [3, 50000, 5000, 100],
+      [4, 50000, 25000, 100], // 5x yellow spike
+      [5, 50000, 5100, 105],
+      [6, 52000, 5050, 98],
+      [7, 50000, 5000, 100],
+      [8, 51000, 5100, 102],
+      [9, 50000, 5050, 100],
+      [10, 52000, 5000, 98],
+      [11, 50000, 5100, 100],
+    ];
+    const series = toSeries(data);
+    const results = detectSteps(series, 5);
+
+    assert.ok(results.length > 0, 'Should detect anomalies');
+    const hasYellowSpike = results.some(
+      (r) => r.category === 'yellow' && r.type === 'spike',
+    );
+    assert.ok(hasYellowSpike, 'Should find yellow spike');
+  });
+
+  it('should return results with rank field', () => {
+    const series = toSeries(realData);
+    const results = detectSteps(series, 3);
+
+    assert.ok(results.length > 0, 'Should have results');
+    results.forEach((r, i) => {
+      assert.strictEqual(r.rank, i + 1, `Rank should be ${i + 1}`);
+      assert.ok(r.score > 0, 'Score should be positive');
+    });
   });
 });
