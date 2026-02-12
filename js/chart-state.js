@@ -33,6 +33,7 @@ let onNavigate = null;
 // Chart state - anomaly and step detection
 let lastAnomalyBoundsList = []; // Array of { left, right, startTime, endTime, rank }
 let lastChartData = null; // Store data for timestamp lookups
+let lastChartTimestamps = null; // Pre-parsed timestamps for binary search in getDataAtTime
 let lastDetectedSteps = []; // Store detected steps for investigation
 
 // Ship positions for tooltip hit-testing
@@ -99,11 +100,29 @@ export function getChartLayout() {
 }
 
 /**
+ * Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
+ * @param {string|Date} timestamp - Timestamp to parse
+ * @returns {Date} Parsed date
+ */
+export function parseUTC(timestamp) {
+  const str = String(timestamp);
+  // If already has Z suffix, parse directly
+  if (str.endsWith('Z')) {
+    return new Date(str);
+  }
+  // Otherwise, normalize and append Z to treat as UTC
+  return new Date(`${str.replace(' ', 'T')}Z`);
+}
+
+/**
  * Set last chart data
  * @param {Array} data - Chart data points
  */
 export function setLastChartData(data) {
   lastChartData = data;
+  lastChartTimestamps = data && data.length > 0
+    ? data.map((d) => parseUTC(d.t).getTime())
+    : null;
 }
 
 /**
@@ -230,21 +249,6 @@ export function getDetectedAnomalies() {
 }
 
 /**
- * Parse timestamp as UTC (ClickHouse returns UTC times without Z suffix)
- * @param {string|Date} timestamp - Timestamp to parse
- * @returns {Date} Parsed date
- */
-export function parseUTC(timestamp) {
-  const str = String(timestamp);
-  // If already has Z suffix, parse directly
-  if (str.endsWith('Z')) {
-    return new Date(str);
-  }
-  // Otherwise, normalize and append Z to treat as UTC
-  return new Date(`${str.replace(' ', 'T')}Z`);
-}
-
-/**
  * Get the time range for the most recent section (last 20% of timeline)
  * @returns {Object|null} Time range { start, end } or null
  */
@@ -267,6 +271,29 @@ export function getMostRecentTimeRange() {
 export function getDataAtTime(time) {
   if (!lastChartData || lastChartData.length === 0) return null;
   const targetMs = time instanceof Date ? time.getTime() : time;
+
+  // Binary search on pre-parsed timestamps for O(log n) lookups
+  if (lastChartTimestamps && lastChartTimestamps.length === lastChartData.length) {
+    let lo = 0;
+    let hi = lastChartTimestamps.length - 1;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (lastChartTimestamps[mid] < targetMs) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    // lo is the first index >= targetMs; check if lo-1 is closer
+    if (lo > 0
+      && Math.abs(lastChartTimestamps[lo - 1] - targetMs)
+        <= Math.abs(lastChartTimestamps[lo] - targetMs)) {
+      return lastChartData[lo - 1];
+    }
+    return lastChartData[lo];
+  }
+
+  // Fallback: linear scan if cache is stale
   let bestIdx = 0;
   let bestDiff = Math.abs(parseUTC(lastChartData[0].t).getTime() - targetMs);
   for (let i = 1; i < lastChartData.length; i += 1) {

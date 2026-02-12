@@ -698,6 +698,7 @@ export async function loadPreviewBreakdowns(selectionStart, selectionEnd) {
 }
 
 export async function revertPreviewBreakdowns() {
+  if (!previewActive) return;
   previewActive = false;
   // Cancel any in-flight preview queries
   startRequestContext('preview');

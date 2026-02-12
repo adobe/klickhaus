@@ -16,7 +16,9 @@
  */
 
 import { query, isAbortError } from './api.js';
-import { getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns } from './breakdowns/index.js';
+import {
+  getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
+} from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -486,7 +488,9 @@ export function setupChartNavigation(callback) {
     // Clear blue highlights when selection is cleared
     clearSelectionHighlights();
     // Revert facets to full time range
-    revertPreviewBreakdowns();
+    if (isPreviewActive()) {
+      revertPreviewBreakdowns();
+    }
     // Redraw chart to remove blue band
     const lastData = getLastChartData();
     if (lastData) {
@@ -933,6 +937,13 @@ export function setupChartNavigation(callback) {
   navOverlay.addEventListener('mouseleave', () => {
     navOverlay.classList.remove('over-anomaly');
     navOverlay.classList.remove('over-ship');
+  });
+
+  // Escape key clears active selection/preview
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && getPendingSelection()) {
+      hideSelectionOverlay();
+    }
   });
 }
 
