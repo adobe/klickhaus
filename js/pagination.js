@@ -35,7 +35,7 @@ export class PaginationState {
   }
 
   canLoadMore() {
-    return this.hasMore && !this.loading;
+    return this.hasMore && !this.loading && this.cursor != null;
   }
 
   shouldTriggerLoad(scrollPercent, globalLoading) {
