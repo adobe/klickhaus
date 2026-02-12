@@ -4,7 +4,8 @@
   "description": "ClickHouse CDN Analytics Dashboard",
   "type": "module",
   "scripts": {
-    "start": "live-server --port=5391 --open=/ --ignore=scripts,.github,.claude,hars,node_modules --ignorePattern=\"\\\\.md$|package.*\\\\.json$|screenshot\\.png$|\\.playwright-cli\"",
+    "start": "node scripts/dev-server.js",
+    "start:no-reload": "node scripts/dev-server.js --no-reload",
     "test": "web-test-runner",
     "lint": "eslint .",
     "dead-code": "knip",
