@@ -14,16 +14,24 @@
   display: block;
 }
 
-/* Logs-active: make main a flex column that fills the viewport */
-.logs-active#dashboardContent {
+/* Logs-active: make #dashboard a flex column so header + main fill exactly 100vh */
+#dashboard:has(.logs-active) {
   height: 100vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-body.header-fixed .logs-active#dashboardContent {
-  height: calc(100vh - 70px);
+#dashboard:has(.logs-active) > header {
+  flex-shrink: 0;
+}
+
+.logs-active#dashboardContent {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Logs View fills remaining flex space */
