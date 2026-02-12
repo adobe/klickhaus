@@ -22,6 +22,7 @@ A real-time analytics dashboard for CDN log analysis, built with ClickHouse and 
 - **Flexible time ranges** - Last hour, 12 hours, 24 hours, or 7 days
 - **Dark mode support** - Automatic theme based on system preference
 - **Query caching** - Intelligent cache TTLs based on time range
+- **Fast facet queries** - Pre-aggregated facet table with proportional sampling for longer time ranges
 
 ## Architecture
 
