@@ -13,10 +13,20 @@ allowed-tools: Bash(npx playwright-cli:*)
 The dashboard stores credentials in `localStorage` under the key `clickhouse_credentials`. To log in programmatically (look up the password in `README.local.md`):
 
 ```bash
-npx playwright-cli open http://localhost:5391/dashboard.html
+npx playwright-cli open http://localhost:$(node scripts/dev-server.js --dry-run)/dashboard.html
 npx playwright-cli eval 'localStorage.setItem("clickhouse_credentials", JSON.stringify({user: "<username>", password: "<password>"}))'
 npx playwright-cli reload
 ```
+
+## Starting the dev server for testing
+
+When using playwright-cli to test the local dashboard, start the dev server with auto-reload disabled. This prevents live-server from reloading the page when files change, which interferes with browser automation:
+
+```bash
+npm run start:no-reload
+```
+
+You can also use the environment variable: `NO_RELOAD=1 npm start`.
 
 ## Quick start
 

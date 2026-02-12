@@ -125,7 +125,7 @@ npm install
 npm start
 ```
 
-This starts a development server with auto-reload at http://localhost:5391/dashboard.html.
+This starts a development server with auto-reload. The port is deterministic per worktree and printed on startup. Use `node scripts/dev-server.js --dry-run` to get the port without starting the server.
 
 For ClickHouse CLI access:
 

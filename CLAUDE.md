@@ -50,7 +50,7 @@ npm install
 npm start
 ```
 
-This starts a dev server with auto-reload at http://localhost:5391/dashboard.html.
+This starts a dev server with auto-reload. The port is deterministic per worktree and printed on startup. Use `node scripts/dev-server.js --dry-run` to get the port without starting the server.
 
 ## Browser Exploration with playwright-cli
 
@@ -70,7 +70,7 @@ This project includes the `playwright-cli` skill (`.claude/skills/playwright-cli
 npm start
 
 # Open the dashboard and explore
-playwright-cli open http://localhost:5391/dashboard.html
+playwright-cli open http://localhost:$(node scripts/dev-server.js --dry-run)/dashboard.html
 playwright-cli snapshot
 playwright-cli fill e3 "<username>"
 playwright-cli fill e5 "<password>"
