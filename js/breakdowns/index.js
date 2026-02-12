@@ -23,6 +23,9 @@ import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
 import { createLimiter } from '../concurrency-limiter.js';
 
+// Intentionally limits only breakdown queries: breakdowns fan out 20+ parallel
+// queries (one per facet), the only code path with bulk parallelism. Chart, logs,
+// and autocomplete each fire 1-2 queries and don't need limiting.
 const queryLimiter = createLimiter(4);
 
 export function getBreakdowns() {
