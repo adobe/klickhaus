@@ -194,6 +194,10 @@ export function getTimeBucket() {
 // Re-export getTimeBucketStep for external use
 export { getTimeBucketStep };
 
+// Pitfall: `timestamp` is DateTime64(3) (millisecond precision). Using toDateTime()
+// (second precision) for bounds causes sub-second rows at bucket edges to be
+// double-counted or missed. toStartOfMinute() normalises both sides to the same
+// minute-level precision, avoiding the DateTime64 truncation mismatch.
 export function getTimeFilter() {
   const { start, end } = getTimeFilterBounds();
   const startIso = formatSqlDateTime(start);

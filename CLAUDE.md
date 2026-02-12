@@ -403,6 +403,14 @@ ORDER BY cnt DESC
 LIMIT 10;
 ```
 
+## ClickHouse Cloud Pitfalls
+
+### DateTime64 Boundary Precision
+The `timestamp` column is `DateTime64(3)` (millisecond precision). When constructing time filters, ensure both bounds use matching precision. Using `toDateTime()` (second precision) for bounds against a `DateTime64(3)` column causes rows at bucket boundaries to be double-counted or missed. The current implementation uses `toStartOfMinute()` to normalize both sides (see `getTimeFilter()` in `js/time.js`).
+
+### Query Deduplication vs SAMPLE Clauses
+ClickHouse Cloud's query deduplication layer caches results based on the execution plan but **ignores the `SAMPLE` clause**. This means two identical queries with different `SAMPLE` rates return the same cached result. If implementing incremental refinement (e.g., fast sampled preview followed by a full query), you must vary the `WHERE` clause between passes to defeat deduplication — for example, adding a tautological condition like `AND sample_hash >= 0` to the refinement query. The current architecture avoids this issue for low-cardinality facets by routing them through the `cdn_facet_minutes` table (no sampling needed), while high-cardinality facets use a single sampling pass without refinement.
+
 ## CLI Notes
 
 When running queries from shell, use heredocs for complex queries with backticks:
