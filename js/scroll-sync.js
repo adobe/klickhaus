@@ -37,13 +37,12 @@ let selectionTimestamp = null;
 let selectionTime = 0;
 
 // Background processing
-let processingInterval = null;
+let idleCallbackId = null;
 let currentFetchTimestamp = null;
 let fetchAbortController = null;
 
 const SELECTION_DELAY = 100; // ms before cursor is considered "at rest"
 const SCROLL_DELAY = 1000; // ms before scrolling to loaded data
-const PROCESS_INTERVAL = 50; // ms between background checks
 
 function updateScrubberState(waiting, loading) {
   if (!scrubberLine) return;
@@ -99,17 +98,33 @@ async function processSelection() {
   }
 }
 
-function startBackgroundProcessor() {
-  if (processingInterval) return;
-  processingInterval = setInterval(processSelection, PROCESS_INTERVAL);
-}
-
-function stopBackgroundProcessor() {
-  if (processingInterval) {
-    clearInterval(processingInterval);
-    processingInterval = null;
+// Use arrow functions to avoid use-before-define with mutual recursion
+const scheduleIdleProcessing = () => {
+  if (idleCallbackId) return;
+  const callback = () => {
+    idleCallbackId = null;
+    processSelection();
+    if (selectionTimestamp && state.showLogs) {
+      scheduleIdleProcessing();
+    }
+  };
+  if (typeof requestIdleCallback === 'function') {
+    idleCallbackId = requestIdleCallback(callback, { timeout: 500 });
+  } else {
+    // Fallback for Safari (no requestIdleCallback)
+    idleCallbackId = setTimeout(callback, 100);
   }
-}
+};
+
+const cancelIdleProcessing = () => {
+  if (!idleCallbackId) return;
+  if (typeof cancelIdleCallback === 'function') {
+    cancelIdleCallback(idleCallbackId);
+  } else {
+    clearTimeout(idleCallbackId);
+  }
+  idleCallbackId = null;
+};
 
 /**
  * Called on every chart mousemove - must be fast and non-blocking
@@ -121,9 +136,9 @@ function handleChartHover(timestamp) {
     selectionTime = Date.now();
   }
 
-  // Ensure background processor is running
+  // Schedule idle processing
   if (state.showLogs) {
-    startBackgroundProcessor();
+    scheduleIdleProcessing();
   }
 }
 
@@ -133,7 +148,7 @@ function handleChartLeave() {
   fetchAbortController?.abort();
   fetchAbortController = null;
   updateScrubberState(false, false);
-  stopBackgroundProcessor();
+  cancelIdleProcessing();
 }
 
 /**
