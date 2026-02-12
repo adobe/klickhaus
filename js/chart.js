@@ -148,10 +148,12 @@ function drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intended
     const time = parseUTC(data[i].t);
     const elapsed = time.getTime() - intendedStartTime;
     const x = padding.left + (elapsed / intendedTimeRange) * chartWidth;
-    const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const timeStr = time.toLocaleTimeString('en-US', {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
+    });
     const showDate = intendedTimeRange > 24 * 60 * 60 * 1000;
     const label = showDate
-      ? `${time.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} ${timeStr}`
+      ? `${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${timeStr}`
       : timeStr;
     const yPos = height - padding.bottom + 20;
 

@@ -398,11 +398,14 @@ export function formatScrubberTime(time) {
   const diffMs = now - time;
   const diffMinutes = Math.floor(diffMs / 60000);
 
-  // Format time, with weekday prefix and no seconds if > 24h ago
+  // Format time, with date prefix and no seconds if chart covers > 24h
   const diffHours = diffMs / (60 * 60 * 1000);
-  const longRange = diffHours > 24;
+  const layout = getChartLayout();
+  const longRange = layout
+    ? (layout.intendedEndTime - layout.intendedStartTime) > 24 * 60 * 60 * 1000
+    : diffHours > 24;
   const timeStr = longRange
-    ? `${time.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} ${time.toLocaleTimeString('en-US', {
+    ? `${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${time.toLocaleTimeString('en-US', {
       hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
     })}`
     : time.toLocaleTimeString('en-US', {

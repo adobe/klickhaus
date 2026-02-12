@@ -676,11 +676,11 @@ describe('getTimeAtX fallback to chart data', () => {
 });
 
 describe('formatScrubberTime long range', () => {
-  it('includes weekday for timestamps > 24h ago', () => {
+  it('includes date for timestamps > 24h ago', () => {
     const old = new Date(Date.now() - 48 * 60 * 60 * 1000); // 2 days ago
     const result = formatScrubberTime(old);
-    // Should include a weekday abbreviation (Mon, Tue, etc.)
-    assert.match(result.timeStr, /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/);
+    // Should include month and day with comma before time (e.g., "Feb 10, 11:24")
+    assert.match(result.timeStr, /^[A-Z][a-z]{2} \d{1,2}, \d{2}:\d{2}$/);
     assert.strictEqual(result.relativeStr, '');
   });
 
