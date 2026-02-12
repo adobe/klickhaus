@@ -81,17 +81,12 @@ export class VirtualTable {
 
   initDom() {
     this.container.style.overflowY = 'auto';
-    this.container.style.position = 'relative';
-
-    this.spacer = document.createElement('div');
-    this.spacer.style.width = '1px';
-    this.spacer.style.height = '0px';
-    this.spacer.style.pointerEvents = 'none';
 
     this.table = document.createElement('table');
     this.table.className = 'logs-table';
-    this.table.style.position = 'sticky';
-    this.table.style.top = '0';
+
+    this.colgroup = document.createElement('colgroup');
+    this.table.appendChild(this.colgroup);
 
     this.thead = document.createElement('thead');
     this.tbody = document.createElement('tbody');
@@ -99,19 +94,25 @@ export class VirtualTable {
     this.table.appendChild(this.tbody);
 
     this.container.appendChild(this.table);
-    this.container.appendChild(this.spacer);
 
     this.updateHeader();
   }
 
   updateHeader() {
+    // Build colgroup for deterministic column widths
+    this.colgroup.innerHTML = '';
+    for (const col of this.columns) {
+      const colEl = document.createElement('col');
+      if (col.width) colEl.style.width = `${col.width}px`;
+      this.colgroup.appendChild(colEl);
+    }
+
     const tr = document.createElement('tr');
     let pinnedLeft = 0;
     for (const col of this.columns) {
       const th = document.createElement('th');
       th.textContent = col.label || col.key;
       th.title = col.key;
-      if (col.width) th.style.width = `${col.width}px`;
       if (col.pinned) {
         th.style.position = 'sticky';
         th.style.left = `${pinnedLeft}px`;
@@ -167,6 +168,8 @@ export class VirtualTable {
 
   renderRows() {
     if (this.totalRows === 0) {
+      this.tbody.style.paddingTop = '0px';
+      this.tbody.style.paddingBottom = '0px';
       this.tbody.innerHTML = '';
       this.lastRange = null;
       return;
@@ -187,22 +190,16 @@ export class VirtualTable {
 
     for (let i = start; i < end; i += 1) {
       const row = findInCache(this.cache, i);
-      const top = i * this.rowHeight;
 
       if (row) {
-        html += `<tr data-row-idx="${i}" style="height:${
-          this.rowHeight}px;position:absolute;top:${
-          top}px;width:100%">`;
+        html += `<tr data-row-idx="${i}" style="height:${this.rowHeight}px">`;
         for (const col of this.columns) {
           const sty = makeCellStyle(col, offsets);
           html += `<td${sty}>${this.renderCellFn(col, row[col.key], row)}</td>`;
         }
         html += '</tr>';
       } else {
-        html += `<tr data-row-idx="${i
-        }" class="loading-row" style="height:${
-          this.rowHeight}px;position:absolute;top:${
-          top}px;width:100%">`;
+        html += `<tr data-row-idx="${i}" class="loading-row" style="height:${this.rowHeight}px">`;
         for (const col of this.columns) {
           html += `<td${makeCellStyle(col, offsets)}>&nbsp;</td>`;
         }
@@ -211,8 +208,9 @@ export class VirtualTable {
       }
     }
 
-    this.tbody.style.position = 'relative';
-    this.tbody.style.height = `${this.totalRows * this.rowHeight}px`;
+    // Padding-based virtual scroll: push visible rows into correct position
+    this.tbody.style.paddingTop = `${start * this.rowHeight}px`;
+    this.tbody.style.paddingBottom = `${Math.max(0, (this.totalRows - end) * this.rowHeight)}px`;
     this.tbody.innerHTML = html;
 
     if (fetchStart !== -1) {
@@ -261,7 +259,6 @@ export class VirtualTable {
 
   setTotalRows(n) {
     this.totalRows = n;
-    this.spacer.style.height = `${n * this.rowHeight}px`;
     this.lastRange = null;
     this.renderRows();
   }
@@ -306,6 +303,10 @@ export class VirtualTable {
     this.renderRows();
   }
 
+  seedCache(startIdx, rows) {
+    this.cache.set(startIdx, { startIdx, rows });
+  }
+
   clearCache() {
     this.cache.clear();
     this.pending.clear();
@@ -318,5 +319,6 @@ export class VirtualTable {
     }
     if (this.rafId) cancelAnimationFrame(this.rafId);
     this.cache.clear();
+    this.container.innerHTML = '';
   }
 }

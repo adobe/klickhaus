@@ -653,6 +653,9 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     if (virtualTable) {
       virtualTable.setColumns(buildVirtualColumns(currentColumns));
 
+      // Seed VirtualTable cache with pre-fetched page 0 to avoid re-fetch
+      virtualTable.seedCache(0, rows);
+
       // Estimate total rows: use chart data if available, otherwise extrapolate
       const estimated = estimateTotalRows();
       const total = estimated > rows.length ? estimated : rows.length * 10;

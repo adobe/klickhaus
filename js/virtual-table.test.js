@@ -83,14 +83,18 @@ describe('VirtualTable', () => {
   });
 
   describe('setTotalRows', () => {
-    it('updates spacer height', () => {
+    it('sets tbody padding to create virtual scroll space', () => {
       container = makeContainer();
       vt = new VirtualTable({
         container, columns: makeColumns(), getData: makeGetData([]), renderCell,
       });
       vt.setTotalRows(1000);
-      const spacer = container.querySelector('div');
-      assert.strictEqual(spacer.style.height, '28000px');
+      const { tbody } = vt;
+      const topPad = parseInt(tbody.style.paddingTop, 10);
+      const bottomPad = parseInt(tbody.style.paddingBottom, 10);
+      const renderedRows = tbody.querySelectorAll('tr').length;
+      // Total virtual height = topPad + renderedRows*rowHeight + bottomPad
+      assert.strictEqual(topPad + renderedRows * 28 + bottomPad, 1000 * 28);
     });
 
     it('uses custom row height', () => {
@@ -99,8 +103,11 @@ describe('VirtualTable', () => {
         container, columns: makeColumns(), getData: makeGetData([]), renderCell, rowHeight: 40,
       });
       vt.setTotalRows(500);
-      const spacer = container.querySelector('div');
-      assert.strictEqual(spacer.style.height, '20000px');
+      const { tbody } = vt;
+      const topPad = parseInt(tbody.style.paddingTop, 10);
+      const bottomPad = parseInt(tbody.style.paddingBottom, 10);
+      const renderedRows = tbody.querySelectorAll('tr').length;
+      assert.strictEqual(topPad + renderedRows * 40 + bottomPad, 500 * 40);
     });
   });
 
@@ -211,6 +218,81 @@ describe('VirtualTable', () => {
         setTimeout(r, 50);
       });
       assert.ok(getData.calls.length > callsBefore, 'should re-fetch after cache clear');
+    });
+
+    it('seedCache pre-populates rows so getData is not called', () => {
+      container = makeContainer(280);
+      const allRows = Array.from({ length: 20 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      const getData = makeGetData([]);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData, renderCell,
+      });
+
+      // Seed cache before setting total rows
+      vt.seedCache(0, allRows);
+      const callsBefore = getData.calls.length;
+      vt.setTotalRows(20);
+
+      // Should render cached rows without calling getData
+      const rows = container.querySelectorAll('tbody tr:not(.loading-row)');
+      assert.ok(rows.length > 0, 'should render seeded rows');
+      assert.strictEqual(getData.calls.length, callsBefore, 'should not call getData for seeded data');
+    });
+  });
+
+  describe('layout', () => {
+    it('renders rows in normal flow without position absolute', async () => {
+      container = makeContainer(280);
+      const allRows = Array.from({ length: 30 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData(allRows), renderCell,
+      });
+      vt.setTotalRows(30);
+      await new Promise((r) => {
+        setTimeout(r, 50);
+      });
+
+      const rows = container.querySelectorAll('tbody tr');
+      for (const row of rows) {
+        assert.notInclude(row.style.position, 'absolute', 'rows should not be absolute positioned');
+      }
+    });
+
+    it('uses colgroup for column widths', () => {
+      container = makeContainer();
+      const cols = [
+        { key: 'timestamp', label: 'Time', width: 180 },
+        { key: 'status', label: 'Status', width: 60 },
+      ];
+      vt = new VirtualTable({
+        container, columns: cols, getData: makeGetData([]), renderCell,
+      });
+      const colEls = container.querySelectorAll('colgroup col');
+      assert.strictEqual(colEls.length, 2);
+      assert.strictEqual(colEls[0].style.width, '180px');
+      assert.strictEqual(colEls[1].style.width, '60px');
+    });
+
+    it('sets tbody paddingTop and paddingBottom for virtual scroll area', () => {
+      container = makeContainer(280);
+      const allRows = Array.from({ length: 100 }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      }));
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData(allRows), renderCell,
+      });
+      vt.setTotalRows(100);
+
+      const { tbody } = vt;
+      const topPad = parseInt(tbody.style.paddingTop, 10);
+      const bottomPad = parseInt(tbody.style.paddingBottom, 10);
+      // With scrollTop=0, paddingTop should be 0 (start=0)
+      assert.strictEqual(topPad, 0, 'paddingTop should be 0 at scroll position 0');
+      assert.ok(bottomPad > 0, 'paddingBottom should be positive');
     });
   });
 
