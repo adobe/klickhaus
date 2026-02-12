@@ -79,4 +79,43 @@ describe('detectSteps', () => {
     );
     assert.ok(noMarginHitsSpike, 'endMargin=0 should include last points');
   });
+
+  it('uses proportional exclusion zones based on both region widths', () => {
+    // Build a 40-point series with two wide anomalies close together.
+    // Anomaly A: indices 10-15 (width 6, gap = 3)
+    // Anomaly B: indices 19-24 (width 6, gap = 3)
+    // Combined exclusion = 3 + 3 = 6, so B.start (19) must be > A.end (15) + 6 = 21
+    // 19 is NOT > 21, so B should be excluded by the proportional gap.
+    // With only the selected region's gap (3), B.start (19) > A.end (15) + 3 = 18,
+    // so B would NOT be excluded — proving the two-sided logic matters.
+    const data = [];
+    for (let i = 0; i < 40; i += 1) {
+      data.push({ ok: 100, client: 5, server: 1 });
+    }
+    // Anomaly A: wide error spike at indices 10-15
+    for (let i = 10; i <= 15; i += 1) {
+      data[i] = { ok: 100, client: 60, server: 10 };
+    }
+    // Anomaly B: wide error spike at indices 19-24
+    for (let i = 19; i <= 24; i += 1) {
+      data[i] = { ok: 100, client: 55, server: 9 };
+    }
+    const series = toSeries(data);
+
+    const results = detectSteps(series, 5, { endMargin: 0 });
+
+    // Both anomalies should be detected individually
+    const hitsA = results.some((r) => r.startIndex <= 15 && r.endIndex >= 10);
+    assert.ok(hitsA, 'Should detect anomaly A');
+
+    // With proportional exclusion (gap = 3+3 = 6), anomaly B is too close to A
+    // and should be suppressed. Only one of the two close anomalies should survive.
+    const hitsB = results.some(
+      (r) => r.startIndex >= 19 && r.startIndex <= 24,
+    );
+    assert.ok(
+      !hitsB,
+      'Anomaly B should be excluded by proportional gap from wider anomaly A',
+    );
+  });
 });

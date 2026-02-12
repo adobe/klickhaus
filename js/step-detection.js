@@ -362,8 +362,10 @@ export function detectSteps(series, maxCount = 5, options = {}) {
 
     // Check if this candidate overlaps or is too close to any already selected region
     const overlaps = selected.some((s) => {
-      const gap = Math.ceil((s.end - s.start + 1) / 2);
-      return !(candidate.end < s.start - gap || candidate.start > s.end + gap);
+      const sGap = Math.ceil((s.end - s.start + 1) / 2);
+      const candidateGap = Math.ceil((candidate.end - candidate.start + 1) / 2);
+      const exclusion = sGap + candidateGap;
+      return !(candidate.end < s.start - exclusion || candidate.start > s.end + exclusion);
     });
 
     if (!overlaps) {
