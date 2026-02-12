@@ -609,35 +609,6 @@ export function setOnShowFiltersView(callback) {
   onShowFiltersView = callback;
 }
 
-export function toggleLogsView(saveStateToURL) {
-  state.showLogs = !state.showLogs;
-  const dashboardContent = document.getElementById('dashboardContent');
-  if (state.showLogs) {
-    logsView.classList.add('visible');
-    filtersView.classList.remove('visible');
-    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
-    dashboardContent.classList.add('logs-active');
-    // Restore collapse state from localStorage
-    const chartSection = document.querySelector('.chart-section');
-    if (chartSection && localStorage.getItem('chartCollapsed') === 'true') {
-      chartSection.classList.add('chart-collapsed');
-      updateCollapseToggleLabel();
-    }
-  } else {
-    logsView.classList.remove('visible');
-    filtersView.classList.add('visible');
-    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
-    dashboardContent.classList.remove('logs-active');
-    // Redraw chart after view becomes visible
-    if (onShowFiltersView) {
-      requestAnimationFrame(() => onShowFiltersView());
-    }
-    // Clean up virtual table when leaving logs view
-    destroyVirtualTable();
-  }
-  saveStateToURL();
-}
-
 /**
  * Estimate total rows from chart data bucket counts.
  * @returns {number}
@@ -722,4 +693,48 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
       container.classList.remove('updating');
     }
   }
+}
+
+export function toggleLogsView(saveStateToURL) {
+  state.showLogs = !state.showLogs;
+  const dashboardContent = document.getElementById('dashboardContent');
+  if (state.showLogs) {
+    logsView.classList.add('visible');
+    filtersView.classList.remove('visible');
+    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    dashboardContent.classList.add('logs-active');
+    // Restore collapse state from localStorage
+    const chartSection = document.querySelector('.chart-section');
+    if (chartSection && localStorage.getItem('chartCollapsed') === 'true') {
+      chartSection.classList.add('chart-collapsed');
+      updateCollapseToggleLabel();
+    }
+    ensureVirtualTable();
+    // Re-seed virtual table from page cache, or trigger a fresh load
+    if (state.logsReady && pageCache.size > 0) {
+      const page0 = pageCache.get(0);
+      if (page0 && page0.rows.length > 0) {
+        currentColumns = getLogColumns(Object.keys(page0.rows[0]));
+        virtualTable.setColumns(buildVirtualColumns(currentColumns));
+        virtualTable.seedCache(0, page0.rows);
+        const estimated = estimateTotalRows();
+        const total = estimated > page0.rows.length ? estimated : page0.rows.length * 10;
+        virtualTable.setTotalRows(total);
+      }
+    } else {
+      loadLogs();
+    }
+  } else {
+    logsView.classList.remove('visible');
+    filtersView.classList.add('visible');
+    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
+    dashboardContent.classList.remove('logs-active');
+    // Redraw chart after view becomes visible
+    if (onShowFiltersView) {
+      requestAnimationFrame(() => onShowFiltersView());
+    }
+    // Clean up virtual table when leaving logs view
+    destroyVirtualTable();
+  }
+  saveStateToURL();
 }
