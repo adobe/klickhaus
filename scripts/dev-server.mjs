@@ -12,10 +12,7 @@
  * governing permissions and limitations under the License.
  */
 
-import { spawn } from 'node:child_process';
-
-const NULL_DEVICE = process.platform === 'win32' ? 'NUL' : '/dev/null';
-const PATH_SEP = process.platform === 'win32' ? ';' : ':';
+import liveServer from 'live-server';
 
 const PORT_MIN = 5000;
 const PORT_RANGE = 1000;
@@ -47,29 +44,11 @@ if (process.argv.includes('--dry-run')) {
 
 console.log(`Starting dev server on port ${port}...`);
 
-const args = [
-  `--port=${port}`,
-  '--ignore=scripts,.github,.claude,hars,node_modules',
-  '--ignorePattern=\\.md$|package.*\\.json$|screenshot\\.png$|\\.playwright-cli',
-];
-
-if (noReload) {
-  args.push('--no-browser', `--watch=${NULL_DEVICE}`);
-} else {
-  args.push('--open=/');
-}
-
-const child = spawn('live-server', args, {
-  stdio: 'inherit',
-  shell: false,
-  env: { ...process.env, PATH: `./node_modules/.bin${PATH_SEP}${process.env.PATH}` },
-});
-
-child.on('error', (err) => {
-  console.error('Failed to start dev server:', err.message);
-  process.exit(1);
-});
-
-child.on('exit', (code) => {
-  process.exit(code ?? 0);
+liveServer.start({
+  port,
+  root: '.',
+  ignore: 'scripts,.github,.claude,hars,node_modules',
+  ignorePattern: /\.md$|package.*\.json$|screenshot\.png$|\.playwright-cli/,
+  open: noReload ? false : '/',
+  watch: noReload ? [] : undefined,
 });
