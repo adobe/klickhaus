@@ -12,7 +12,7 @@
 
 import { timeElapsedBuckets, getTimeElapsedLabels } from './buckets.js';
 
-/** Raw column for admin.duration in ms (message_json.admin.duration assumed to be seconds). */
+/** Raw column for admin.duration in ms (message_json.admin.duration is in milliseconds). */
 const ADMIN_DURATION_MS = 'toFloat64OrZero(CAST(message_json.admin.duration, \'String\'))';
 
 /**

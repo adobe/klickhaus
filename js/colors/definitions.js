@@ -25,7 +25,7 @@ function hashToLambdaColor(value) {
   for (let i = 0; i < value.length; i += 1) {
     h = (h * 31 + value.charCodeAt(i)) % 2147483647;
   }
-  const idx = Math.abs(h) % LAMBDA_COLORS.length;
+  const idx = h % LAMBDA_COLORS.length;
   return LAMBDA_COLORS[idx];
 }
 
@@ -329,13 +329,12 @@ export const colorRules = {
 
   // Lambda dashboard facets
   lambdaLevel: {
-    patterns: ['`level`', 'level'],
+    patterns: ['`level`'],
     getColor: (value) => {
       if (!value) return '';
       const v = value.toUpperCase();
       if (v === 'ERROR') return 'var(--status-server-error)';
       if (v === 'WARN' || v === 'WARNING') return 'var(--status-client-error)';
-      if (v === 'INFO' || v === 'DEBUG' || v === 'TRACE') return 'var(--status-ok)';
       return 'var(--status-ok)';
     },
   },
@@ -352,7 +351,7 @@ export const colorRules = {
       if (m === 'HEAD') return 'var(--method-head)';
       if (m === 'OPTIONS') return 'var(--method-options)';
       if (m === 'DELETE') return 'var(--method-delete)';
-      return 'var(--path-clean)';
+      return '';
     },
   },
 

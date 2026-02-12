@@ -76,7 +76,6 @@ describe('lambdaBreakdowns', () => {
     assert.ok(adminDuration);
     assert.strictEqual(typeof adminDuration.col, 'function');
     assert.include(adminDuration.rawCol, 'message_json.admin.duration');
-    // assert.include(adminDuration.rawCol, '* 1000');
     assert.strictEqual(typeof adminDuration.getExpectedLabels, 'function');
   });
 });

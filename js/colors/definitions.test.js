@@ -538,8 +538,8 @@ describe('colorRules.lambdaAdminMethod', () => {
     assert.strictEqual(getColor('DELETE'), 'var(--method-delete)');
   });
 
-  it('returns path-clean for unknown method', () => {
-    assert.strictEqual(getColor('CUSTOM'), 'var(--path-clean)');
+  it('returns empty string for unknown method', () => {
+    assert.strictEqual(getColor('CUSTOM'), '');
   });
 });
 
@@ -550,6 +550,46 @@ describe('colorRules.lambdaAppName', () => {
     const c = getColor('my-app');
     assert.match(c, /^var\(--/);
     assert.strictEqual(getColor('my-app'), c);
+  });
+
+  it('returns empty for falsy', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+
+  it('is deterministic across repeated calls', () => {
+    const inputs = ['helix-admin', 'helix-pipeline', 'content-bus', 'rum-collector'];
+    for (const input of inputs) {
+      assert.strictEqual(getColor(input), getColor(input));
+    }
+  });
+
+  it('different inputs can produce different colors', () => {
+    const colors = new Set(['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta'].map(getColor));
+    assert.isAbove(colors.size, 1, 'expected at least two distinct colors from six inputs');
+  });
+});
+
+describe('colorRules.lambdaSubsystem', () => {
+  const { getColor } = colorRules.lambdaSubsystem;
+
+  it('returns a deterministic CSS variable for a value', () => {
+    const c = getColor('my-subsystem');
+    assert.match(c, /^var\(--/);
+    assert.strictEqual(getColor('my-subsystem'), c);
+  });
+
+  it('returns empty for falsy', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+});
+
+describe('colorRules.lambdaLogGroup', () => {
+  const { getColor } = colorRules.lambdaLogGroup;
+
+  it('returns a deterministic CSS variable for a value', () => {
+    const c = getColor('/aws/lambda/my-function');
+    assert.match(c, /^var\(--/);
+    assert.strictEqual(getColor('/aws/lambda/my-function'), c);
   });
 
   it('returns empty for falsy', () => {
