@@ -16,8 +16,7 @@
  */
 
 import { getTimeFilter } from './time.js';
-import { getFacetFilters } from './breakdowns/index.js';
-import { getBreakdowns } from './breakdowns/index.js';
+import { getFacetFilters, getBreakdowns } from './breakdowns/index.js';
 import { parseUTC } from './chart-state.js';
 import {
   CACHE_TOP_N,
