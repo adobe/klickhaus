@@ -140,8 +140,6 @@ function updatePinnedOffsets(container, pinned) {
 let logsView = null;
 let viewToggleBtn = null;
 let filtersView = null;
-
-// Pagination state
 const pagination = new PaginationState();
 
 // Show brief "Copied!" feedback
@@ -455,6 +453,27 @@ function updateGapRowDom(gapIdx) {
   if (newRow) gapTr.replaceWith(newRow);
 }
 
+// IntersectionObserver for auto-loading bottom gap
+let gapObserver = null;
+let loadGapFn = null;
+
+function setupGapObserver() {
+  if (gapObserver) gapObserver.disconnect();
+  if (!loadGapFn) return;
+  gapObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting || !state.showLogs) return;
+      const lastIdx = state.logsData.length - 1;
+      const gap = state.logsData[lastIdx];
+      if (gap && isGapRow(gap) && !gap.gapLoading) loadGapFn(lastIdx);
+    });
+  }, { rootMargin: '200px 0px', threshold: 0 });
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+  const lastGapRow = container.querySelector('tr.logs-gap-row:last-of-type');
+  if (lastGapRow) gapObserver.observe(lastGapRow);
+}
+
 export function renderLogsTable(data) {
   const container = logsView.querySelector('.logs-table-container');
 
@@ -502,6 +521,9 @@ export function renderLogsTable(data) {
   container.innerHTML = html;
 
   updatePinnedOffsets(container, pinned);
+
+  // Set up IntersectionObserver for auto-loading bottom gap
+  setupGapObserver();
 }
 
 /**
@@ -606,16 +628,7 @@ async function loadGap(gapIdx) {
   }
 }
 
-/**
- * Load more logs via the bottom gap (infinite scroll).
- */
-async function loadMoreLogs() {
-  const lastIdx = state.logsData.length - 1;
-  const lastItem = state.logsData[lastIdx];
-  if (!lastItem || !isGapRow(lastItem)) return;
-  if (lastItem.gapLoading) return;
-  await loadGap(lastIdx);
-}
+loadGapFn = loadGap; // Enable IntersectionObserver gap loading
 
 // Set up click handler for row background clicks
 export function setupLogRowClickHandler() {
@@ -866,19 +879,6 @@ function handleLogsScroll() {
   // Only handle scroll when logs view is visible
   if (!state.showLogs) return;
 
-  const { scrollHeight } = document.documentElement;
-  const scrollTop = window.scrollY;
-  const clientHeight = window.innerHeight;
-
-  // Auto-load bottom gap on scroll (infinite scroll behavior)
-  const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
-  if (scrollPercent > 0.5 && !state.logsLoading) {
-    const lastItem = state.logsData[state.logsData.length - 1];
-    if (lastItem && isGapRow(lastItem) && !lastItem.gapLoading) {
-      loadMoreLogs();
-    }
-  }
-
   // Sync chart scrubber to topmost visible log row
   throttledSyncScrubber();
 }
@@ -888,8 +888,8 @@ export function setLogsElements(view, toggleBtn, filtersViewEl) {
   viewToggleBtn = toggleBtn;
   filtersView = filtersViewEl;
 
-  // Set up scroll listener for infinite scroll on window
-  window.addEventListener('scroll', handleLogsScroll);
+  // Set up scroll listener for scrubber sync
+  document.body.addEventListener('scroll', handleLogsScroll);
 
   // Set up click handler for copying row data
   setupLogRowClickHandler();
