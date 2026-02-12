@@ -365,6 +365,13 @@
   margin-bottom: 12px;
 }
 
+.log-detail-loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
 @media (max-width: 600px) {
   #logDetailModal {
     width: 100vw;

@@ -29,7 +29,7 @@ import {
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart,
+  renderChart, setOnChartHoverTimestamp,
 } from './chart.js';
 import {
   loadAllBreakdowns, loadBreakdown, getBreakdowns, markSlowestFacet, resetFacetTimings,
@@ -40,7 +40,7 @@ import {
   getFilterForValue,
 } from './filters.js';
 import {
-  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
+  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView, scrollLogsToTimestamp,
 } from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
@@ -200,6 +200,15 @@ export function initDashboard(config = {}) {
     if (state.chartData) {
       renderChart(state.chartData);
     }
+  });
+
+  // Chart→Scroll sync: throttled to avoid excessive scrolling
+  let lastHoverScroll = 0;
+  setOnChartHoverTimestamp((timestamp) => {
+    const now = Date.now();
+    if (now - lastHoverScroll < 300) return;
+    lastHoverScroll = now;
+    scrollLogsToTimestamp(timestamp);
   });
 
   setFilterCallbacks(saveStateToURL, loadDashboard);

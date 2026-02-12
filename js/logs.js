@@ -18,10 +18,12 @@ import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
-import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS } from './columns.js';
+import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, buildLogColumnsSql } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
 import { PAGE_SIZE, PaginationState } from './pagination.js';
+import { setScrubberPosition } from './chart.js';
+import { parseUTC } from './chart-state.js';
 
 /**
  * Build ordered log column list from available columns.
@@ -242,40 +244,100 @@ export function closeLogDetailModal() {
 }
 
 /**
+ * Show loading state in the detail modal.
+ */
+function showDetailLoading() {
+  const table = document.getElementById('logDetailTable');
+  if (table) {
+    table.innerHTML = '<tbody><tr><td class="log-detail-loading">Loading full row data\u2026</td></tr></tbody>';
+  }
+}
+
+/**
+ * Fetch full row data for a single log entry.
+ * @param {Object} partialRow - Row with at least timestamp and request.host
+ * @returns {Promise<Object|null>} Full row data or null on failure
+ */
+async function fetchFullRow(partialRow) {
+  const { timestamp } = partialRow;
+  const host = partialRow['request.host'] || '';
+  const sql = await loadSql('log-detail', {
+    database: DATABASE,
+    table: getTable(),
+    timestamp: String(timestamp),
+    host: host.replace(/'/g, "\\'"),
+  });
+  const result = await query(sql);
+  return result.data.length > 0 ? result.data[0] : null;
+}
+
+/**
+ * Initialize the log detail modal element and event listeners.
+ */
+function initLogDetailModal() {
+  if (logDetailModal) return;
+  logDetailModal = document.getElementById('logDetailModal');
+  if (!logDetailModal) return;
+
+  // Close on backdrop click
+  logDetailModal.addEventListener('click', (e) => {
+    if (e.target === logDetailModal) {
+      closeLogDetailModal();
+    }
+  });
+
+  // Close on Escape
+  logDetailModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeLogDetailModal();
+    }
+  });
+
+  // Close button handler
+  const closeBtn = logDetailModal.querySelector('[data-action="close-log-detail"]');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeLogDetailModal);
+  }
+}
+
+/**
  * Open log detail modal for a row.
+ * Fetches full row data on demand if not already present.
  * @param {number} rowIdx
  */
-export function openLogDetailModal(rowIdx) {
+export async function openLogDetailModal(rowIdx) {
   const row = state.logsData[rowIdx];
   if (!row) return;
 
-  if (!logDetailModal) {
-    logDetailModal = document.getElementById('logDetailModal');
-    if (!logDetailModal) return;
+  initLogDetailModal();
+  if (!logDetailModal) return;
 
-    // Close on backdrop click
-    logDetailModal.addEventListener('click', (e) => {
-      if (e.target === logDetailModal) {
-        closeLogDetailModal();
-      }
-    });
+  // Show modal immediately with loading state
+  showDetailLoading();
+  logDetailModal.showModal();
 
-    // Close on Escape
-    logDetailModal.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeLogDetailModal();
-      }
-    });
-
-    // Close button handler
-    const closeBtn = logDetailModal.querySelector('[data-action="close-log-detail"]');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', closeLogDetailModal);
-    }
+  // Check if row already has full data (e.g. from a previous fetch)
+  if (row.fullRowData) {
+    renderLogDetailContent(row.fullRowData);
+    return;
   }
 
-  renderLogDetailContent(row);
-  logDetailModal.showModal();
+  try {
+    const fullRow = await fetchFullRow(row);
+    if (fullRow) {
+      // Cache the full row for future opens
+      row.fullRowData = fullRow;
+      renderLogDetailContent(fullRow);
+    } else {
+      // Fallback: render with partial data
+      renderLogDetailContent(row);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to fetch full row:', err);
+    // Fallback: render with partial data
+    renderLogDetailContent(row);
+  }
 }
 
 // Copy row data as JSON when clicking on row background
@@ -426,12 +488,13 @@ async function loadMoreLogs() {
   const sql = await loadSql('logs-more', {
     database: DATABASE,
     table: getTable(),
+    columns: buildLogColumnsSql(state.pinnedColumns),
     timeFilter,
     hostFilter,
     facetFilters,
     additionalWhereClause: state.additionalWhereClause,
     pageSize: String(PAGE_SIZE),
-    offset: String(pagination.offset),
+    cursor: pagination.cursor,
   });
 
   try {
@@ -441,7 +504,7 @@ async function loadMoreLogs() {
       state.logsData = [...state.logsData, ...result.data];
       appendLogsRows(result.data);
     }
-    pagination.recordPage(result.data.length);
+    pagination.recordPage(result.data);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
@@ -450,6 +513,116 @@ async function loadMoreLogs() {
     if (isCurrent()) {
       pagination.loading = false;
     }
+  }
+}
+
+// Collapse toggle label helper
+function updateCollapseToggleLabel() {
+  const btn = document.getElementById('chartCollapseToggle');
+  if (!btn) return;
+  const chartSection = document.querySelector('.chart-section');
+  const collapsed = chartSection?.classList.contains('chart-collapsed');
+  btn.innerHTML = collapsed ? '&#9660; Show chart' : '&#9650; Hide chart';
+  btn.title = collapsed ? 'Expand chart' : 'Collapse chart';
+}
+
+// Set up collapse toggle click handler
+export function initChartCollapseToggle() {
+  const btn = document.getElementById('chartCollapseToggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const chartSection = document.querySelector('.chart-section');
+    if (!chartSection) return;
+    chartSection.classList.toggle('chart-collapsed');
+    const collapsed = chartSection.classList.contains('chart-collapsed');
+    localStorage.setItem('chartCollapsed', collapsed ? 'true' : 'false');
+    updateCollapseToggleLabel();
+  });
+}
+
+// Throttle helper
+function throttle(fn, delay) {
+  let lastCall = 0;
+  let timer = null;
+  return (...args) => {
+    const now = Date.now();
+    const remaining = delay - (now - lastCall);
+    if (remaining <= 0) {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      lastCall = now;
+      fn(...args);
+    } else if (!timer) {
+      timer = setTimeout(() => {
+        lastCall = Date.now();
+        timer = null;
+        fn(...args);
+      }, remaining);
+    }
+  };
+}
+
+// Scroll→Chart sync: update scrubber to match topmost visible log row
+function syncScrubberToScroll() {
+  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
+
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+
+  // Find the topmost visible row below the sticky chart
+  const chartSection = document.querySelector('.chart-section');
+  const chartBottom = chartSection ? chartSection.getBoundingClientRect().bottom : 0;
+
+  const rows = container.querySelectorAll('.logs-table tbody tr');
+  let topRow = null;
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    if (rect.bottom > chartBottom) {
+      topRow = row;
+      break;
+    }
+  }
+
+  if (!topRow || !topRow.dataset.rowIdx) return;
+  const rowIdx = parseInt(topRow.dataset.rowIdx, 10);
+  const rowData = state.logsData[rowIdx];
+  if (!rowData || !rowData.timestamp) return;
+
+  const timestamp = parseUTC(rowData.timestamp);
+  setScrubberPosition(timestamp);
+}
+
+const throttledSyncScrubber = throttle(syncScrubberToScroll, 100);
+
+// Scroll log table to the row closest to a given timestamp
+export function scrollLogsToTimestamp(timestamp) {
+  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
+
+  const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
+  let closestIdx = 0;
+  let closestDiff = Infinity;
+
+  for (let i = 0; i < state.logsData.length; i += 1) {
+    const row = state.logsData[i];
+    if (!row.timestamp) {
+      closestIdx += 0; // eslint: no-continue workaround - skip rows without timestamp
+    } else {
+      const rowMs = parseUTC(row.timestamp).getTime();
+      const diff = Math.abs(rowMs - targetMs);
+      if (diff < closestDiff) {
+        closestDiff = diff;
+        closestIdx = i;
+      }
+    }
+  }
+
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+  const targetRow = container.querySelector(`tr[data-row-idx="${closestIdx}"]`);
+  if (targetRow) {
+    targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 }
 
@@ -466,6 +639,9 @@ function handleLogsScroll() {
   if (pagination.shouldTriggerLoad(scrollPercent, state.logsLoading)) {
     loadMoreLogs();
   }
+
+  // Sync chart scrubber to topmost visible log row
+  throttledSyncScrubber();
 }
 
 export function setLogsElements(view, toggleBtn, filtersViewEl) {
@@ -478,6 +654,9 @@ export function setLogsElements(view, toggleBtn, filtersViewEl) {
 
   // Set up click handler for copying row data
   setupLogRowClickHandler();
+
+  // Set up chart collapse toggle
+  initChartCollapseToggle();
 }
 
 // Register callback for pinned column changes
@@ -492,14 +671,23 @@ export function setOnShowFiltersView(callback) {
 
 export function toggleLogsView(saveStateToURL) {
   state.showLogs = !state.showLogs;
+  const dashboardContent = document.getElementById('dashboardContent');
   if (state.showLogs) {
     logsView.classList.add('visible');
     filtersView.classList.remove('visible');
     viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    dashboardContent.classList.add('logs-active');
+    // Restore collapse state from localStorage
+    const chartSection = document.querySelector('.chart-section');
+    if (chartSection && localStorage.getItem('chartCollapsed') === 'true') {
+      chartSection.classList.add('chart-collapsed');
+      updateCollapseToggleLabel();
+    }
   } else {
     logsView.classList.remove('visible');
     filtersView.classList.add('visible');
     viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
+    dashboardContent.classList.remove('logs-active');
     // Redraw chart after view becomes visible
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());
@@ -529,6 +717,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   const sql = await loadSql('logs', {
     database: DATABASE,
     table: getTable(),
+    columns: buildLogColumnsSql(state.pinnedColumns),
     timeFilter,
     hostFilter,
     facetFilters,
@@ -542,7 +731,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     state.logsData = result.data;
     renderLogsTable(result.data);
     state.logsReady = true;
-    pagination.recordPage(result.data.length);
+    pagination.recordPage(result.data);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
