@@ -14,13 +14,9 @@
  * Scroll-Scrubber Synchronization Module
  *
  * Architecture:
- * - UI thread: Updates scrubber position immediately on mousemove (non-blocking)
- * - Background: Checks selection age, loads data, scrolls when ready
- *
- * State:
- * - targetTimestamp: Current mouse position timestamp (updates on every move)
- * - selectionTimestamp: Timestamp when cursor "rested" (set after 100ms of no movement)
- * - selectionTime: When selectionTimestamp was set (for age checking)
+ * - Main thread: Updates scrubber position immediately (non-blocking)
+ * - Web Worker: Handles timing logic (selection age, delays)
+ * - Main thread responds to worker messages for fetch/scroll actions
  */
 
 import { state } from './state.js';
@@ -32,17 +28,8 @@ let checkAndLoadGapFn = null;
 let scrollToTimestampFn = null;
 let isTimestampLoadedFn = null;
 
-// State for tracking cursor position and selection
-let selectionTimestamp = null;
-let selectionTime = 0;
-
-// Background processing
-let idleCallbackId = null;
-let currentFetchTimestamp = null;
-let fetchAbortController = null;
-
-const SELECTION_DELAY = 100; // ms before cursor is considered "at rest"
-const SCROLL_DELAY = 1000; // ms before scrolling to loaded data
+// Web Worker for background timing
+let worker = null;
 
 function updateScrubberState(waiting, loading) {
   if (!scrubberLine) return;
@@ -50,105 +37,73 @@ function updateScrubberState(waiting, loading) {
   scrubberLine.classList.toggle('loading', loading);
 }
 
-/**
- * Background processor - runs periodically to handle data loading and scrolling
- */
-async function processSelection() {
-  if (!selectionTimestamp || !state.showLogs) return;
+function handleWorkerMessage(e) {
+  const { type, timestamp } = e.data;
 
-  const now = Date.now();
-  const selectionAge = now - selectionTime;
-
-  // Check if we need to abort a fetch for a different timestamp
-  if (currentFetchTimestamp && currentFetchTimestamp !== selectionTimestamp) {
-    fetchAbortController?.abort();
-    currentFetchTimestamp = null;
-    fetchAbortController = null;
-    updateScrubberState(false, false);
-  }
-
-  // Check if data is ready
-  const loaded = isTimestampLoadedFn?.(selectionTimestamp);
-
-  if (loaded) {
-    // Data is ready - scroll after delay
-    if (selectionAge >= SCROLL_DELAY) {
-      updateScrubberState(false, false);
-      scrollToTimestampFn?.(selectionTimestamp);
-      selectionTimestamp = null; // Clear to prevent repeated scrolling
-    } else {
-      updateScrubberState(true, false); // Show waiting state
-    }
-  } else if (selectionAge >= SELECTION_DELAY && !currentFetchTimestamp) {
-    // Need to fetch data - start loading
-    currentFetchTimestamp = selectionTimestamp;
-    updateScrubberState(false, true);
-
-    try {
-      await checkAndLoadGapFn?.(selectionTimestamp);
-      // After loading, the next iteration will handle scrolling
-    } catch {
-      // Fetch was aborted or failed - ignore
-    } finally {
-      if (currentFetchTimestamp === selectionTimestamp) {
-        currentFetchTimestamp = null;
+  switch (type) {
+    case 'fetch':
+      // Worker says: fetch data for this timestamp
+      updateScrubberState(false, true);
+      checkAndLoadGapFn?.(timestamp).then(() => {
+        worker?.postMessage({ type: 'fetchComplete', timestamp });
         updateScrubberState(false, false);
-      }
-    }
+      }).catch(() => {
+        updateScrubberState(false, false);
+      });
+      break;
+
+    case 'scroll':
+      // Worker says: scroll to this timestamp
+      updateScrubberState(false, false);
+      scrollToTimestampFn?.(timestamp);
+      break;
+
+    case 'waiting':
+      // Worker says: show waiting state
+      updateScrubberState(true, false);
+      break;
+
+    case 'clear':
+      // Worker says: clear all states
+      updateScrubberState(false, false);
+      break;
+
+    default:
+      break;
   }
 }
 
-// Use arrow functions to avoid use-before-define with mutual recursion
-const scheduleIdleProcessing = () => {
-  if (idleCallbackId) return;
-  const callback = () => {
-    idleCallbackId = null;
-    processSelection();
-    if (selectionTimestamp && state.showLogs) {
-      scheduleIdleProcessing();
-    }
-  };
-  if (typeof requestIdleCallback === 'function') {
-    idleCallbackId = requestIdleCallback(callback, { timeout: 500 });
-  } else {
-    // Fallback for Safari (no requestIdleCallback)
-    idleCallbackId = setTimeout(callback, 100);
+function initWorker() {
+  if (worker) return;
+  try {
+    worker = new Worker(new URL('./scroll-sync-worker.js', import.meta.url));
+    worker.onmessage = handleWorkerMessage;
+  } catch {
+    // Worker failed to load - fall back to no-op
+    worker = null;
   }
-};
-
-const cancelIdleProcessing = () => {
-  if (!idleCallbackId) return;
-  if (typeof cancelIdleCallback === 'function') {
-    cancelIdleCallback(idleCallbackId);
-  } else {
-    clearTimeout(idleCallbackId);
-  }
-  idleCallbackId = null;
-};
+}
 
 /**
- * Called on every chart mousemove - must be fast and non-blocking
+ * Called on every chart mousemove - just posts to worker (instant)
  */
 function handleChartHover(timestamp) {
-  // If cursor moved to a new position, update selection tracking
-  if (selectionTimestamp !== timestamp) {
-    selectionTimestamp = timestamp;
-    selectionTime = Date.now();
-  }
+  if (!state.showLogs) return;
 
-  // Schedule idle processing
-  if (state.showLogs) {
-    scheduleIdleProcessing();
-  }
+  // Initialize worker on first hover
+  if (!worker) initWorker();
+
+  // Post to worker (non-blocking)
+  worker?.postMessage({ type: 'hover', timestamp: timestamp.getTime() });
+
+  // Also tell worker if data is already loaded (quick check)
+  const loaded = isTimestampLoadedFn?.(timestamp);
+  worker?.postMessage({ type: 'loaded', timestamp: timestamp.getTime(), loaded });
 }
 
 function handleChartLeave() {
-  selectionTimestamp = null;
-  currentFetchTimestamp = null;
-  fetchAbortController?.abort();
-  fetchAbortController = null;
+  worker?.postMessage({ type: 'leave' });
   updateScrubberState(false, false);
-  cancelIdleProcessing();
 }
 
 /**
@@ -168,7 +123,6 @@ export function initScrollSync({ checkAndLoadGap, scrollToTimestamp, isTimestamp
 /** Handle row hover - move scrubber to row's timestamp */
 export function handleRowHover(rowData) {
   if (!rowData?.timestamp || !state.showLogs) return;
-  // Use rAF to batch with other rendering
   requestAnimationFrame(() => {
     setScrubberPosition(parseUTC(rowData.timestamp));
     scrubberLine?.classList.add('active');
