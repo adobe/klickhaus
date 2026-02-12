@@ -22,7 +22,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-level',
     col: '`level`',
-    summaryCountIf: "`level` = 'ERROR'",
+    summaryCountIf: "lower(`level`) = 'error'",
     summaryLabel: 'error rate',
     summaryColor: 'error',
   },

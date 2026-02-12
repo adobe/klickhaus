@@ -38,7 +38,7 @@ describe('lambdaBreakdowns', () => {
   it('level facet has summaryCountIf for error rate', () => {
     const levelFacet = lambdaBreakdowns.find((b) => b.id === 'breakdown-level');
     assert.ok(levelFacet);
-    assert.strictEqual(levelFacet.summaryCountIf, "`level` = 'ERROR'");
+    assert.strictEqual(levelFacet.summaryCountIf, "lower(`level`) = 'error'");
     assert.strictEqual(levelFacet.summaryLabel, 'error rate');
   });
 
