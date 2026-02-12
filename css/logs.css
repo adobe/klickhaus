@@ -195,10 +195,11 @@
 .logs-gap-cell {
   text-align: left;
   padding: 8px 12px;
-  height: 33px; /* Match regular row height */
-  max-height: 33px;
-  box-sizing: border-box;
+  height: 17px; /* Content height only, padding adds to 33px total */
+  line-height: 17px;
+  box-sizing: content-box;
   overflow: hidden;
+  overflow-y: clip;
 }
 
 .logs-gap-button {
