@@ -12,8 +12,15 @@
 
 /**
  * Scroll-Scrubber Synchronization Module
- * - Row hover → move scrubber to row's timestamp
- * - Chart hover → scroll to timestamp (with delay and loading states)
+ *
+ * Architecture:
+ * - UI thread: Updates scrubber position immediately on mousemove (non-blocking)
+ * - Background: Checks selection age, loads data, scrolls when ready
+ *
+ * State:
+ * - targetTimestamp: Current mouse position timestamp (updates on every move)
+ * - selectionTimestamp: Timestamp when cursor "rested" (set after 100ms of no movement)
+ * - selectionTime: When selectionTimestamp was set (for age checking)
  */
 
 import { state } from './state.js';
@@ -21,23 +28,22 @@ import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
 
 let scrubberLine = null;
-let restTimer = null; // Timer for "cursor at rest" detection
 let checkAndLoadGapFn = null;
 let scrollToTimestampFn = null;
 let isTimestampLoadedFn = null;
-let pendingTimestamp = null;
-let isLoading = false;
 
-// Debounce: only process after cursor rests for this duration
-const REST_DELAY_LOADED = 1000; // 1s if data is loaded
-const REST_DELAY_GAP = 100; // 100ms if data needs loading
+// State for tracking cursor position and selection
+let selectionTimestamp = null;
+let selectionTime = 0;
 
-function clearRestTimer() {
-  if (restTimer) {
-    clearTimeout(restTimer);
-    restTimer = null;
-  }
-}
+// Background processing
+let processingInterval = null;
+let currentFetchTimestamp = null;
+let fetchAbortController = null;
+
+const SELECTION_DELAY = 100; // ms before cursor is considered "at rest"
+const SCROLL_DELAY = 1000; // ms before scrolling to loaded data
+const PROCESS_INTERVAL = 50; // ms between background checks
 
 function updateScrubberState(waiting, loading) {
   if (!scrubberLine) return;
@@ -45,54 +51,89 @@ function updateScrubberState(waiting, loading) {
   scrubberLine.classList.toggle('loading', loading);
 }
 
-async function handleRestingCursor(timestamp) {
-  if (pendingTimestamp !== timestamp || isLoading) return;
+/**
+ * Background processor - runs periodically to handle data loading and scrolling
+ */
+async function processSelection() {
+  if (!selectionTimestamp || !state.showLogs) return;
 
-  const loaded = isTimestampLoadedFn?.(timestamp);
+  const now = Date.now();
+  const selectionAge = now - selectionTime;
+
+  // Check if we need to abort a fetch for a different timestamp
+  if (currentFetchTimestamp && currentFetchTimestamp !== selectionTimestamp) {
+    fetchAbortController?.abort();
+    currentFetchTimestamp = null;
+    fetchAbortController = null;
+    updateScrubberState(false, false);
+  }
+
+  // Check if data is ready
+  const loaded = isTimestampLoadedFn?.(selectionTimestamp);
+
   if (loaded) {
-    // Data is loaded - wait additional time before scrolling
-    updateScrubberState(true, false);
-    restTimer = setTimeout(() => {
-      if (pendingTimestamp === timestamp) {
-        updateScrubberState(false, false);
-        scrollToTimestampFn?.(timestamp);
-      }
-    }, REST_DELAY_LOADED - REST_DELAY_GAP);
-  } else {
-    // Need to load gap data
-    updateScrubberState(false, true);
-    isLoading = true;
-    try {
-      await checkAndLoadGapFn?.(timestamp);
-      if (pendingTimestamp === timestamp) {
-        updateScrubberState(false, false);
-        scrollToTimestampFn?.(timestamp);
-      }
-    } finally {
-      isLoading = false;
+    // Data is ready - scroll after delay
+    if (selectionAge >= SCROLL_DELAY) {
       updateScrubberState(false, false);
+      scrollToTimestampFn?.(selectionTimestamp);
+      selectionTimestamp = null; // Clear to prevent repeated scrolling
+    } else {
+      updateScrubberState(true, false); // Show waiting state
+    }
+  } else if (selectionAge >= SELECTION_DELAY && !currentFetchTimestamp) {
+    // Need to fetch data - start loading
+    currentFetchTimestamp = selectionTimestamp;
+    updateScrubberState(false, true);
+
+    try {
+      await checkAndLoadGapFn?.(selectionTimestamp);
+      // After loading, the next iteration will handle scrolling
+    } catch {
+      // Fetch was aborted or failed - ignore
+    } finally {
+      if (currentFetchTimestamp === selectionTimestamp) {
+        currentFetchTimestamp = null;
+        updateScrubberState(false, false);
+      }
     }
   }
 }
 
+function startBackgroundProcessor() {
+  if (processingInterval) return;
+  processingInterval = setInterval(processSelection, PROCESS_INTERVAL);
+}
+
+function stopBackgroundProcessor() {
+  if (processingInterval) {
+    clearInterval(processingInterval);
+    processingInterval = null;
+  }
+}
+
+/**
+ * Called on every chart mousemove - must be fast and non-blocking
+ */
 function handleChartHover(timestamp) {
-  if (!state.showLogs) return;
+  // If cursor moved to a new position, update selection tracking
+  if (selectionTimestamp !== timestamp) {
+    selectionTimestamp = timestamp;
+    selectionTime = Date.now();
+  }
 
-  // Update pending timestamp
-  pendingTimestamp = timestamp;
-
-  // Clear previous rest timer
-  clearRestTimer();
-
-  // Use shorter delay initially, then check if loaded when timer fires
-  // This avoids calling isTimestampLoaded on every mousemove
-  restTimer = setTimeout(() => handleRestingCursor(timestamp), REST_DELAY_GAP);
+  // Ensure background processor is running
+  if (state.showLogs) {
+    startBackgroundProcessor();
+  }
 }
 
 function handleChartLeave() {
-  clearRestTimer();
-  pendingTimestamp = null;
+  selectionTimestamp = null;
+  currentFetchTimestamp = null;
+  fetchAbortController?.abort();
+  fetchAbortController = null;
   updateScrubberState(false, false);
+  stopBackgroundProcessor();
 }
 
 /**
@@ -109,9 +150,10 @@ export function initScrollSync({ checkAndLoadGap, scrollToTimestamp, isTimestamp
   };
 }
 
-/** Handle row hover - move scrubber to row's timestamp (debounced via rAF) */
+/** Handle row hover - move scrubber to row's timestamp */
 export function handleRowHover(rowData) {
   if (!rowData?.timestamp || !state.showLogs) return;
+  // Use rAF to batch with other rendering
   requestAnimationFrame(() => {
     setScrubberPosition(parseUTC(rowData.timestamp));
     scrubberLine?.classList.add('active');
