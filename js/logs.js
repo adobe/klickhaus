@@ -19,7 +19,7 @@ import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
-import { getRequestContext, isRequestCurrent } from './request-context.js';
+import { getRequestContext, isRequestCurrent, startRequestContext } from './request-context.js';
 import { LOG_COLUMN_ORDER, buildLogColumnsSql } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml, buildGapRowHtml } from './templates/logs-table.js';
@@ -28,20 +28,27 @@ import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
 
 const TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/;
+// Host validation: alphanumeric, dots, hyphens, underscores (standard hostname chars)
+const HOST_RE = /^[a-z0-9._-]*$/i;
 
 /**
  * Create a gap row object representing an unloaded time range.
  * @param {string} gapStart - Newest boundary (timestamp of last loaded row above)
  * @param {string} gapEnd - Oldest boundary (first row below or range start)
+ * @param {number} [gapCount] - Optional estimated count of entries in the gap
  * @returns {Object}
  */
-function createGapRow(gapStart, gapEnd) {
-  return {
+function createGapRow(gapStart, gapEnd, gapCount) {
+  const gap = {
     isGap: true,
     gapStart,
     gapEnd,
     gapLoading: false,
   };
+  if (gapCount !== undefined) {
+    gap.gapCount = gapCount;
+  }
+  return gap;
 }
 
 /**
@@ -304,6 +311,11 @@ async function fetchFullRow(partialRow) {
     return null;
   }
   const host = partialRow['request.host'] || '';
+  if (!HOST_RE.test(host)) {
+    // eslint-disable-next-line no-console
+    console.warn('fetchFullRow: invalid host format, aborting', host);
+    return null;
+  }
   const sql = await loadSql('log-detail', {
     database: DATABASE,
     table: getTable(),
@@ -731,30 +743,72 @@ function syncScrubberToScroll() {
 const throttledSyncScrubber = throttle(syncScrubberToScroll, 100);
 
 /**
- * Find the closest item in state.logsData to a target timestamp.
+ * Get the timestamp (in ms) for an item, handling both regular rows and gap rows.
+ * For gap rows, returns the gapStart (newest boundary).
+ * @param {Object} item
+ * @returns {number|null}
+ */
+function getItemTimestampMs(item) {
+  if (isGapRow(item)) {
+    return parseUTC(item.gapStart).getTime();
+  }
+  if (item.timestamp) {
+    return parseUTC(item.timestamp).getTime();
+  }
+  return null;
+}
+
+/**
+ * Find the closest item in state.logsData to a target timestamp using binary search.
+ * Data is sorted by timestamp DESC (newest first).
  * Returns { index, isGap } indicating whether the closest match is a gap row.
  * @param {number} targetMs
  * @returns {{ index: number, isGap: boolean }}
  */
 function findClosestItem(targetMs) {
+  const data = state.logsData;
+  const n = data.length;
+  if (n === 0) return { index: 0, isGap: false };
+
+  // Binary search for insertion point (data sorted DESC by timestamp)
+  let low = 0;
+  let high = n - 1;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    const midMs = getItemTimestampMs(data[mid]);
+    if (midMs === null) {
+      // Skip items without timestamps by expanding search
+      low = mid + 1;
+    } else if (midMs > targetMs) {
+      // Target is older (smaller ms), search right half
+      low = mid + 1;
+    } else {
+      // Target is newer or equal, search left half
+      high = mid;
+    }
+  }
+
+  // Check candidates around the insertion point
+  const candidates = [];
+  for (let i = Math.max(0, low - 1); i <= Math.min(n - 1, low + 1); i += 1) {
+    candidates.push(i);
+  }
+
   let closestIdx = 0;
   let closestDiff = Infinity;
   let closestIsGap = false;
 
-  for (let i = 0; i < state.logsData.length; i += 1) {
-    const item = state.logsData[i];
+  for (const i of candidates) {
+    const item = data[i];
     if (isGapRow(item)) {
-      // Check if target falls within this gap's time range
       const gapStartMs = parseUTC(item.gapStart).getTime();
       const gapEndMs = parseUTC(item.gapEnd).getTime();
+      // Check if target falls within this gap
       if (targetMs <= gapStartMs && targetMs >= gapEndMs) {
-        // Target is inside this gap
         return { index: i, isGap: true };
       }
-      // Otherwise check distance to gap boundaries
-      const diffStart = Math.abs(gapStartMs - targetMs);
-      const diffEnd = Math.abs(gapEndMs - targetMs);
-      const diff = Math.min(diffStart, diffEnd);
+      const diff = Math.min(Math.abs(gapStartMs - targetMs), Math.abs(gapEndMs - targetMs));
       if (diff < closestDiff) {
         closestDiff = diff;
         closestIdx = i;
@@ -770,6 +824,7 @@ function findClosestItem(targetMs) {
       }
     }
   }
+
   return { index: closestIdx, isGap: closestIsGap };
 }
 
@@ -855,6 +910,8 @@ export function toggleLogsView(saveStateToURL) {
   state.showLogs = !state.showLogs;
   const dashboardContent = document.getElementById('dashboardContent');
   if (state.showLogs) {
+    // Cancel in-flight facet requests to prioritize log loading
+    startRequestContext('facets');
     logsView.classList.add('visible');
     filtersView.classList.remove('visible');
     viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';

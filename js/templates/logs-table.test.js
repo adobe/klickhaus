@@ -196,7 +196,7 @@ describe('buildGapRowHtml', () => {
     assert.include(html, 'colspan="8"');
     assert.include(html, 'load-gap');
     assert.include(html, 'data-gap-idx="5"');
-    assert.include(html, '4h gap');
+    assert.include(html, '4h of logs');
   });
 
   it('renders loading state', () => {
@@ -224,7 +224,7 @@ describe('buildGapRowHtml', () => {
     const html = buildGapRowHtml({
       gap, rowIdx: 0, colCount: 3,
     });
-    assert.include(html, '30m gap');
+    assert.include(html, '30m of logs');
   });
 
   it('shows days for multi-day gaps', () => {
@@ -237,6 +237,22 @@ describe('buildGapRowHtml', () => {
     const html = buildGapRowHtml({
       gap, rowIdx: 0, colCount: 3,
     });
-    assert.include(html, '3d gap');
+    assert.include(html, '3d of logs');
+  });
+
+  it('shows count when gapCount is provided', () => {
+    const gap = {
+      isGap: true,
+      gapStart: '2026-02-12 10:00:00.000',
+      gapEnd: '2026-02-12 06:00:00.000',
+      gapLoading: false,
+      gapCount: 1234567,
+    };
+    const html = buildGapRowHtml({
+      gap, rowIdx: 0, colCount: 3,
+    });
+    // Should show formatted count with locale separators
+    assert.include(html, 'more entries');
+    assert.include(html, '4h');
   });
 });

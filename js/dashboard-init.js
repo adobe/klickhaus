@@ -160,7 +160,6 @@ export function initDashboard(config = {}) {
   // Load Dashboard Data
   async function loadDashboard(refresh = false) {
     const dashboardContext = startRequestContext('dashboard');
-    const facetsContext = startRequestContext('facets');
     setForceRefresh(refresh);
     if (refresh) {
       invalidateInvestigationCache();
@@ -185,9 +184,16 @@ export function initDashboard(config = {}) {
     const hostFilter = getHostFilter();
 
     if (state.showLogs) {
+      // When logs view is active, prioritize log requests:
+      // 1. Cancel any in-flight facet requests
+      // 2. Load logs first
+      // 3. Only start facet requests after logs are loaded
+      startRequestContext('facets'); // Cancel in-flight facet requests
       await loadLogs(dashboardContext);
+      const facetsContext = startRequestContext('facets');
       loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
     } else {
+      const facetsContext = startRequestContext('facets');
       await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
       loadLogs(dashboardContext);
     }

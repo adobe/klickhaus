@@ -152,7 +152,7 @@ export function buildLogTableHeaderHtml(columns, pinned, pinnedOffsets) {
  * Format a duration between two timestamps for display.
  * @param {string} gapStart - Newest boundary timestamp (e.g. '2026-02-12 10:00:00.000')
  * @param {string} gapEnd - Oldest boundary timestamp (e.g. '2026-02-12 06:00:00.000')
- * @returns {string} Human-readable duration like "4h gap" or "30m gap"
+ * @returns {string} Human-readable duration like "4h" or "30m"
  */
 function formatGapDuration(gapStart, gapEnd) {
   const startMs = parseUTC(gapStart).getTime();
@@ -167,37 +167,43 @@ function formatGapDuration(gapStart, gapEnd) {
 }
 
 /**
- * Format a timestamp for display in gap label.
- * @param {string} ts
+ * Format a number with locale-aware thousands separators.
+ * @param {number} num
  * @returns {string}
  */
-function formatGapTime(ts) {
-  const date = parseUTC(ts);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatCount(num) {
+  return num.toLocaleString();
 }
 
 /**
  * Build HTML for a gap row placeholder.
  * @param {Object} params
- * @param {Object} params.gap - Gap row object with gapStart, gapEnd, gapLoading
+ * @param {Object} params.gap - Gap row object with gapStart, gapEnd, gapLoading, gapCount
  * @param {number} params.rowIdx - Index in state.logsData
  * @param {number} params.colCount - Number of columns for colspan
  * @returns {string}
  */
 export function buildGapRowHtml({ gap, rowIdx, colCount }) {
   const duration = formatGapDuration(gap.gapStart, gap.gapEnd);
-  const startTime = formatGapTime(gap.gapStart);
-  const endTime = formatGapTime(gap.gapEnd);
   const loadingClass = gap.gapLoading ? ' loading' : '';
 
-  const buttonContent = gap.gapLoading
-    ? '<span class="logs-gap-spinner"></span><span class="logs-gap-label">Loading\u2026</span>'
-    : `<span class="logs-gap-icon">\u22EF</span><span class="logs-gap-label">Load logs from ${escapeHtml(startTime)} \u2013 ${escapeHtml(endTime)} (${escapeHtml(duration)} gap)</span>`;
+  let labelText;
+  if (gap.gapLoading) {
+    labelText = 'Loading\u2026';
+  } else if (gap.gapCount !== undefined && gap.gapCount > 0) {
+    labelText = `\u2026 and ${formatCount(gap.gapCount)} more entries (${duration})`;
+  } else {
+    labelText = `\u2026 ${duration} of logs`;
+  }
+
+  const iconHtml = gap.gapLoading
+    ? '<span class="logs-gap-spinner"></span>'
+    : '<span class="logs-gap-icon">\u2193</span>';
 
   return `<tr class="logs-gap-row${loadingClass}" data-row-idx="${rowIdx}" data-gap="true">
   <td colspan="${colCount}" class="logs-gap-cell">
     <button class="logs-gap-button" data-action="load-gap" data-gap-idx="${rowIdx}">
-      ${buttonContent}
+      ${iconHtml}<span class="logs-gap-label">${escapeHtml(labelText)}</span>
     </button>
   </td>
 </tr>`;
