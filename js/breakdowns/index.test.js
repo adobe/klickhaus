@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Adobe. All rights reserved.
+ * Copyright 2026 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License. You may obtain a copy
  * of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -19,6 +19,7 @@ import {
   markSlowestFacet,
   increaseTopN,
   loadBreakdown,
+  canUseFacetTable,
   facetTimings,
 } from './index.js';
 import { allBreakdowns } from './definitions.js';
@@ -171,6 +172,63 @@ describe('increaseTopN', () => {
     );
     assert.isFalse(saveCalled);
     assert.isFalse(loadCalled);
+  });
+});
+
+describe('canUseFacetTable', () => {
+  beforeEach(() => {
+    state.hostFilter = '';
+    state.filters = [];
+    state.additionalWhereClause = '';
+  });
+
+  it('returns true for a simple facet with facetName and no filters', () => {
+    const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
+    assert.isTrue(canUseFacetTable(b));
+  });
+
+  it('returns false when facetName is missing', () => {
+    const b = { id: 'breakdown-push-invalidation', col: 'x' };
+    assert.isFalse(canUseFacetTable(b));
+  });
+
+  it('returns false for bucketed facets (rawCol set)', () => {
+    const b = {
+      id: 'breakdown-time-elapsed', col: () => 'x', facetName: 'time_elapsed', rawCol: '`cdn.time_elapsed_msec`',
+    };
+    assert.isFalse(canUseFacetTable(b));
+  });
+
+  it('returns false when host filter is active', () => {
+    state.hostFilter = 'example.com';
+    const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
+    assert.isFalse(canUseFacetTable(b));
+  });
+
+  it('returns false when facet filters are active', () => {
+    state.filters = [{ col: '`request.host`', value: 'a.com', exclude: false }];
+    const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
+    assert.isFalse(canUseFacetTable(b));
+  });
+
+  it('returns false for ASN breakdown (dictGet mismatch)', () => {
+    const b = { id: 'breakdown-asn', col: 'x', facetName: 'asn' };
+    assert.isFalse(canUseFacetTable(b));
+  });
+
+  it('returns false when bytes mode is active', () => {
+    state.contentTypeMode = 'bytes';
+    const b = {
+      id: 'breakdown-content-types', col: 'x', facetName: 'content_type', modeToggle: 'contentTypeMode',
+    };
+    assert.isFalse(canUseFacetTable(b));
+    state.contentTypeMode = 'count';
+  });
+
+  it('returns false when additionalWhereClause is set', () => {
+    state.additionalWhereClause = "AND source = 'fastly'";
+    const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
+    assert.isFalse(canUseFacetTable(b));
   });
 });
 

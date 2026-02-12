@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Adobe. All rights reserved.
+ * Copyright 2026 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License. You may obtain a copy
  * of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -9,7 +9,8 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { getBreakdowns } from './breakdowns/index.js';
+import { state } from './state.js';
+import { allBreakdowns } from './breakdowns/definitions.js';
 import { COLUMN_DEFS } from './columns.js';
 
 /**
@@ -33,7 +34,8 @@ let allowedColumnsCache = null;
 export function getAllowedColumns() {
   if (allowedColumnsCache) return allowedColumnsCache;
   const cols = new Set();
-  for (const b of getBreakdowns()) {
+  const breakdowns = state.breakdowns?.length ? state.breakdowns : allBreakdowns;
+  for (const b of breakdowns) {
     if (typeof b.col === 'string') cols.add(b.col);
     if (b.filterCol) cols.add(b.filterCol);
   }

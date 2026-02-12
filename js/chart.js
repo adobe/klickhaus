@@ -28,6 +28,7 @@ import {
   getTimeBucket,
   getTimeBucketStep,
   getTimeFilter,
+  getSamplingConfig,
   setCustomTimeRange,
   getTimeRangeBounds,
   getTimeRangeStart,
@@ -921,11 +922,16 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
 
+  const { sampleClause, multiplier } = getSamplingConfig();
+  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
+
   const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
   const sql = await loadSql(timeSeriesTemplate, {
     bucket,
     database: DATABASE,
     table: getTable(),
+    sampleClause,
+    mult,
     timeFilter,
     hostFilter,
     facetFilters,

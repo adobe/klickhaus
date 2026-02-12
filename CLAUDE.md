@@ -130,7 +130,7 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
+New users get SELECT access to `cdn_requests_combined`, `cdn_requests_v2`, `cdn_facet_minutes`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
 
 - `enable_parallel_replicas = 1` — queries are distributed across all replicas
 - `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
@@ -224,63 +224,70 @@ If you add new tail workers that make outbound requests to external services, ad
 
 These skip indexes accelerate queries by excluding granules that definitely don't match. Most requests (~93%) have `x_forwarded_host` and `x_forwarded_for` populated from upstream CDNs.
 
-#### Projections (Pre-aggregated Facets)
+#### Facet Table Architecture
 
-The table has two types of projections for dashboard facets:
+Dashboard breakdown queries use a dedicated `cdn_facet_minutes` SummingMergeTree table instead of projections on `cdn_requests_v2`. A materialized view (`cdn_facet_minutes_mv`) uses ARRAY JOIN to fan each incoming row into 14 facet entries, pre-aggregating low-cardinality facets at minute granularity.
 
-**Minute-level projections** (`proj_minute_*`) pre-aggregate by `toStartOfMinute(timestamp)` and facet column. These are the primary projections used by all dashboard breakdown and investigation queries.
-
-| Projection | Facet Column | Dashboard Use |
-|------------|--------------|---------------|
-| `proj_minute_url` | `request.url` | Top paths |
-| `proj_minute_user_agent` | `request.headers.user_agent` | User agents |
-| `proj_minute_referer` | `request.headers.referer` | Referrers |
-| `proj_minute_x_forwarded_host` | `request.headers.x_forwarded_host` | Origin hostnames |
-| `proj_minute_x_error` | `response.headers.x_error` | Error messages |
-| `proj_minute_x_error_grouped` | `REGEXP_REPLACE(x_error, '/[a-zA-Z0-9/_.-]+', '/...')` | Grouped errors |
-| `proj_minute_host` | `request.host` | Edge hostnames |
-| `proj_minute_method` | `request.method` | HTTP methods |
-| `proj_minute_datacenter` | `cdn.datacenter` | Edge locations |
-| `proj_minute_request_type` | `helix.request_type` | AEM request types |
-| `proj_minute_backend_type` | `helix.backend_type` | Backend types |
-| `proj_minute_content_type` | `response.headers.content_type` | Content types |
-| `proj_minute_cache_status` | `upper(cdn.cache_status)` | Cache status |
-| `proj_minute_client_ip` | `if(x_forwarded_for != '', x_forwarded_for, client.ip)` | Client IPs |
-| `proj_minute_status_range` | `concat(intDiv(response.status, 100), 'xx')` | Status ranges (2xx, 4xx) |
-| `proj_minute_status` | `toString(response.status)` | HTTP status codes |
-| `proj_minute_asn` | `client.asn` | ASN breakdown (integer-based) |
-| `proj_minute_source` | `source` | CDN source (cloudflare/fastly) |
-| `proj_minute_accept` | `request.headers.accept` | Accept header |
-| `proj_minute_accept_encoding` | `request.headers.accept_encoding` | Accept-Encoding header |
-| `proj_minute_cache_control` | `request.headers.cache_control` | Cache-Control header |
-| `proj_minute_byo_cdn` | `request.headers.x_byo_cdn_type` | BYO CDN type |
-| `proj_minute_location` | `response.headers.location` | Redirect location |
-| `proj_minute_time_elapsed` | `cdn.time_elapsed_msec` | Response time (raw value for bucketed queries) |
-| `proj_minute_content_length` | `response.headers.content_length` | Content length (raw value for bucketed queries) |
-
-**Bucketed facets** (time-elapsed, content-length) use a two-level query: the inner query groups by the raw column value (hitting `proj_minute_*`), the outer query applies `multiIf()` bucketing. This allows dynamic bucket boundaries while still benefiting from projections. See `sql/queries/breakdown-bucketed.sql`.
-
-Projections are automatically used by ClickHouse when the query matches the projection's GROUP BY. Dashboard facet queries that previously took 8-15s now complete in <1s.
-
-There is a **25 projection limit** on ClickHouse Cloud. Check current count before adding new ones.
-
-To add a new projection:
+**Schema:**
 ```sql
-ALTER TABLE helix_logs_production.cdn_requests_v2
-ADD PROJECTION proj_minute_example (
-    SELECT
-        toStartOfMinute(timestamp) as minute,
-        `column.name`,
-        count() as cnt,
-        countIf(`response.status` < 400) as cnt_ok,
-        countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-        countIf(`response.status` >= 500) as cnt_5xx
-    GROUP BY minute, `column.name`
-);
--- Materialize for existing data (runs in background, one at a time)
-ALTER TABLE helix_logs_production.cdn_requests_v2
-MATERIALIZE PROJECTION proj_minute_example;
+CREATE TABLE cdn_facet_minutes (
+    minute DateTime,
+    facet LowCardinality(String),
+    dim String,
+    cnt UInt64,
+    cnt_ok UInt64,
+    cnt_4xx UInt64,
+    cnt_5xx UInt64
+) ENGINE = SummingMergeTree
+PARTITION BY toDate(minute)
+ORDER BY (facet, minute, dim)
+TTL minute + toIntervalDay(14)
 ```
+
+**Facets in `cdn_facet_minutes`** (14 low-cardinality):
+
+| Facet Name | Source Column | Dashboard Use |
+|------------|---------------|---------------|
+| `status_range` | `concat(intDiv(response.status, 100), 'xx')` | Status ranges (2xx, 4xx) |
+| `source` | `source` | CDN source (cloudflare/fastly) |
+| `content_type` | `response.headers.content_type` | Content types |
+| `status` | `toString(response.status)` | HTTP status codes |
+| `x_error_grouped` | `REGEXP_REPLACE(x_error, '/[a-zA-Z0-9/_.-]+', '/...')` | Grouped errors |
+| `cache_status` | `upper(cdn.cache_status)` | Cache status |
+| `request_type` | `helix.request_type` | AEM request types |
+| `backend_type` | `helix.backend_type` | Backend types |
+| `method` | `request.method` | HTTP methods |
+| `datacenter` | `cdn.datacenter` | Edge locations |
+| `accept` | `request.headers.accept` | Accept header |
+| `accept_encoding` | `request.headers.accept_encoding` | Accept-Encoding header |
+| `cache_control` | `request.headers.cache_control` | Cache-Control header |
+| `byo_cdn` | `request.headers.x_byo_cdn_type` | BYO CDN type |
+
+**High-cardinality facets** (`highCardinality: true` in `js/breakdowns/definitions.js`) skip the facet table and query `cdn_requests_v2` directly with sampling: hosts, forwarded hosts, URLs, referers, user agents, client IPs, and redirect locations.
+
+**Query routing**: `canUseFacetTable()` in `js/breakdowns/index.js` routes a breakdown to the facet table when all of these are true:
+- The breakdown has a `facetName`
+- Not a bucketed facet (`rawCol`)
+- Not marked `highCardinality`
+- No host filter, column filters, or additional WHERE clauses are active
+- Not in bytes aggregation mode
+- Not the ASN breakdown (uses `dictGet` which produces different dim values)
+
+When any condition fails, the query falls back to `cdn_requests_v2` with sampling.
+
+**Bucketed facets** (time-elapsed, content-length) always query `cdn_requests_v2` with a two-level query: the inner query groups by the raw column value, the outer query applies `multiIf()` bucketing. See `sql/queries/breakdown-bucketed.sql`.
+
+**Historical note**: All projections on `cdn_requests_v2` have been dropped (zero remain). The original definitions are backed up in `sql/backup-projections.sql`. ClickHouse Cloud has a **25 projection limit** per table — the facet table approach avoids this constraint entirely.
+
+#### Query Routing and Sampling
+
+**Proportional sampling**: `getSamplingConfig()` in `js/time.js` uses `SAMPLE (1h / period)` for time ranges longer than 1 hour. This keeps scanned row count roughly constant regardless of time range (e.g., a 24h query samples ~4% of data). Ranges ≤ 1 hour use no sampling.
+
+**Concurrency limiter**: Breakdown queries fan out 20+ parallel queries (one per facet). A concurrency limiter (`js/concurrency-limiter.js`) caps this at **4 concurrent queries** to reduce ClickHouse query contention.
+
+**Performance characteristics**:
+- Low-cardinality facets (facet table): 3–50ms
+- High-cardinality facets (sampled raw table): 0.1–0.4s
 
 #### Column Groups
 
@@ -308,6 +315,7 @@ MATERIALIZE PROJECTION proj_minute_example;
 | Table | TTL | Purpose |
 |-------|-----|---------|
 | `cdn_requests_v2` | 2 weeks | Unified CDN logs (primary analytics table, partitioned) |
+| `cdn_facet_minutes` | 2 weeks | Pre-aggregated facet counts (SummingMergeTree, 14 facets at minute level) |
 | `cloudflare_http_requests` | 1 day | Raw Cloudflare Logpush data |
 | `cloudflare_tail_incoming` | 1 day | Raw Cloudflare Tail Worker logs (legacy) |
 | `fastly_logs_incoming2` | 1 day | Raw Fastly logs - helix5 main service |
@@ -348,7 +356,6 @@ GROUP BY `client.asn`  -- Filter on integer, not string
 **Benefits:**
 - Cloudflare requests now show ASN names (resolved via dictionary)
 - Filtering uses integer comparison (`client.asn = 13335`) instead of string matching
-- Projection `proj_facet_asn_num` pre-aggregates by integer ASN for faster queries
 
 ### Raw Table Schemas
 
@@ -383,7 +390,26 @@ WHERE timestamp > now() - INTERVAL 1 HOUR
   AND `response.status` >= 400
 GROUP BY `response.status`
 ORDER BY count() DESC;
+
+-- Facet table query (low-cardinality breakdowns)
+SELECT dim, sum(cnt) as cnt, sum(cnt_ok) as cnt_ok,
+       sum(cnt_4xx) as cnt_4xx, sum(cnt_5xx) as cnt_5xx
+FROM helix_logs_production.cdn_facet_minutes
+WHERE facet = 'cache_status'
+  AND minute >= now() - INTERVAL 1 HOUR
+  AND minute <= now()
+GROUP BY dim WITH TOTALS
+ORDER BY cnt DESC
+LIMIT 10;
 ```
+
+## ClickHouse Cloud Pitfalls
+
+### DateTime64 Boundary Precision
+The `timestamp` column is `DateTime64(3)` (millisecond precision). When constructing time filters, ensure both bounds use matching precision. Using `toDateTime()` (second precision) for bounds against a `DateTime64(3)` column causes rows at bucket boundaries to be double-counted or missed. The current implementation uses `toStartOfMinute()` to normalize both sides (see `getTimeFilter()` in `js/time.js`).
+
+### Query Deduplication vs SAMPLE Clauses
+ClickHouse Cloud's query deduplication layer caches results based on the execution plan but **ignores the `SAMPLE` clause**. This means two identical queries with different `SAMPLE` rates return the same cached result. If implementing incremental refinement (e.g., fast sampled preview followed by a full query), you must vary the `WHERE` clause between passes to defeat deduplication — for example, adding a tautological condition like `AND sample_hash >= 0` to the refinement query. The current architecture avoids this issue for low-cardinality facets by routing them through the `cdn_facet_minutes` table (no sampling needed), while high-cardinality facets use a single sampling pass without refinement.
 
 ## CLI Notes
 

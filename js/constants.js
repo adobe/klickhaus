@@ -75,7 +75,7 @@ export const TIME_RANGES = {
 };
 
 /** @type {string} */
-export const DEFAULT_TIME_RANGE = '1h';
+export const DEFAULT_TIME_RANGE = '7d';
 
 /** @type {number[]} */
 export const TOP_N_OPTIONS = [5, 10, 20, 50, 100];

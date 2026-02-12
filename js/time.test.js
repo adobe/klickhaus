@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Adobe. All rights reserved.
+ * Copyright 2026 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License. You may obtain a copy
  * of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -16,6 +16,7 @@ import {
   getTimeFilter, getTimeBucket, getPeriodMs,
   getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
   getTable, getHostFilter,
+  getSamplingConfig, getFacetTimeFilter,
 } from './time.js';
 
 beforeEach(() => {
@@ -116,5 +117,94 @@ describe('getHostFilter', () => {
     state.hostFilterColumn = 'function_name';
     const result = getHostFilter();
     assert.include(result, "\\'");
+  });
+});
+
+describe('getSamplingConfig', () => {
+  it('returns no sampling for 15m range', () => {
+    state.timeRange = '15m';
+    clearCustomTimeRange();
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.strictEqual(sampleClause, '');
+    assert.strictEqual(multiplier, 1);
+  });
+
+  it('returns no sampling for 1h range', () => {
+    state.timeRange = '1h';
+    clearCustomTimeRange();
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.strictEqual(sampleClause, '');
+    assert.strictEqual(multiplier, 1);
+  });
+
+  it('returns sampling for 12h range', () => {
+    state.timeRange = '12h';
+    clearCustomTimeRange();
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.include(sampleClause, 'SAMPLE');
+    assert.isAbove(multiplier, 1);
+    // 12h = 12× baseline, so multiplier should be ~12
+    assert.strictEqual(multiplier, 12);
+  });
+
+  it('returns sampling for 7d range', () => {
+    state.timeRange = '7d';
+    clearCustomTimeRange();
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.include(sampleClause, 'SAMPLE');
+    // 7d = 168h; after rounding sample rate to 4 decimals, multiplier is 167
+    assert.strictEqual(multiplier, 167);
+  });
+
+  it('returns proportional sampling for 24h range', () => {
+    state.timeRange = '24h';
+    clearCustomTimeRange();
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.include(sampleClause, 'SAMPLE');
+    assert.strictEqual(multiplier, 24);
+  });
+
+  it('returns no sampling for short custom range', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T12:00:00Z'),
+      new Date('2026-01-20T12:30:00Z'),
+    );
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.strictEqual(sampleClause, '');
+    assert.strictEqual(multiplier, 1);
+  });
+
+  it('returns sampling for long custom range (6h)', () => {
+    setCustomTimeRange(
+      new Date('2026-01-20T06:00:00Z'),
+      new Date('2026-01-20T12:00:00Z'),
+    );
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.include(sampleClause, 'SAMPLE');
+    assert.strictEqual(multiplier, 6);
+  });
+
+  it('never returns Infinity or NaN multiplier for extreme time ranges', () => {
+    // 30-day custom range — ratio rounds to 0 without the floor clamp
+    setCustomTimeRange(
+      new Date('2025-12-21T00:00:00Z'),
+      new Date('2026-01-20T00:00:00Z'),
+    );
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.include(sampleClause, 'SAMPLE');
+    assert.isFinite(multiplier);
+    assert.isAbove(multiplier, 0);
+    assert.isFalse(Number.isNaN(multiplier));
+  });
+});
+
+describe('getFacetTimeFilter', () => {
+  it('returns formatted start and end times', () => {
+    state.timeRange = '1h';
+    clearCustomTimeRange();
+    setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
+    const { startTime, endTime } = getFacetTimeFilter();
+    assert.strictEqual(startTime, '2026-01-20 11:34:00');
+    assert.strictEqual(endTime, '2026-01-20 12:34:00');
   });
 });
