@@ -92,8 +92,9 @@ let isDragging = false;
 let dragStartX = null;
 let justCompletedDrag = false;
 
-// Callback for chart→scroll sync (set by logs.js)
+// Callbacks for chart→scroll sync (set by dashboard-init.js)
 let onChartHoverTimestamp = null;
+let onChartLeaveCallback = null;
 
 /**
  * Set callback for chart hover → scroll sync
@@ -101,6 +102,14 @@ let onChartHoverTimestamp = null;
  */
 export function setOnChartHoverTimestamp(callback) {
   onChartHoverTimestamp = callback;
+}
+
+/**
+ * Set callback for chart mouse leave
+ * @param {Function} callback - Called when mouse leaves chart
+ */
+export function setOnChartLeave(callback) {
+  onChartLeaveCallback = callback;
 }
 
 /**
@@ -592,6 +601,7 @@ export function setupChartNavigation(callback) {
     scrubberStatusBar.classList.remove('visible');
     hideReleaseTooltip();
     canvas.style.cursor = '';
+    if (onChartLeaveCallback) onChartLeaveCallback();
   });
 
   container.addEventListener('mousemove', (e) => {

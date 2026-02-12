@@ -29,7 +29,7 @@ import {
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart, setOnChartHoverTimestamp,
+  renderChart, setOnChartHoverTimestamp, setOnChartLeave,
 } from './chart.js';
 import {
   loadAllBreakdowns, loadBreakdown, getBreakdowns, markSlowestFacet, resetFacetTimings,
@@ -41,7 +41,9 @@ import {
 } from './filters.js';
 import {
   loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView, scrollLogsToTimestamp,
+  isTimestampLoaded, checkAndLoadGap, setRowHoverCallbacks,
 } from './logs.js';
+import { initScrollSync, handleRowHover, handleRowLeave } from './scroll-sync.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import {
@@ -208,14 +210,15 @@ export function initDashboard(config = {}) {
     }
   });
 
-  // Chart→Scroll sync: throttled to avoid excessive scrolling
-  let lastHoverScroll = 0;
-  setOnChartHoverTimestamp((timestamp) => {
-    const now = Date.now();
-    if (now - lastHoverScroll < 300) return;
-    lastHoverScroll = now;
-    scrollLogsToTimestamp(timestamp);
+  // Initialize scroll-scrubber sync (bidirectional)
+  const scrollSyncHandlers = initScrollSync({
+    checkAndLoadGap,
+    scrollToTimestamp: scrollLogsToTimestamp,
+    isTimestampLoaded,
   });
+  setOnChartHoverTimestamp(scrollSyncHandlers.onChartHover);
+  setOnChartLeave(scrollSyncHandlers.onChartLeave);
+  setRowHoverCallbacks(handleRowHover, handleRowLeave);
 
   setFilterCallbacks(saveStateToURL, loadDashboard);
   setOnBeforeRestore(() => invalidateInvestigationCache());

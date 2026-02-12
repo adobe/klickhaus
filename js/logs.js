@@ -142,6 +142,10 @@ let viewToggleBtn = null;
 let filtersView = null;
 const pagination = new PaginationState();
 
+// Scroll-sync callbacks (set during init)
+let onRowHoverFn = null;
+let onRowLeaveFn = null;
+
 // Show brief "Copied!" feedback
 function showCopyFeedback() {
   let feedback = document.getElementById('copy-feedback');
@@ -663,6 +667,21 @@ export function setupLogRowClickHandler() {
     const rowIdx = parseInt(row.dataset.rowIdx, 10);
     openLogDetailModal(rowIdx);
   });
+
+  // Row hover → scrubber sync
+  container.addEventListener('mouseover', (e) => {
+    const row = e.target.closest('tr');
+    if (!row || !row.dataset.rowIdx || row.dataset.gap === 'true') return;
+    const rowIdx = parseInt(row.dataset.rowIdx, 10);
+    const rowData = state.logsData[rowIdx];
+    if (rowData && onRowHoverFn) onRowHoverFn(rowData);
+  });
+
+  container.addEventListener('mouseout', (e) => {
+    const row = e.target.closest('tr');
+    if (!row) return;
+    if (onRowLeaveFn) onRowLeaveFn();
+  });
 }
 
 // Update collapse toggle button label based on current state
@@ -757,72 +776,35 @@ function syncScrubberToScroll() {
 
 const throttledSyncScrubber = throttle(syncScrubberToScroll, 100);
 
-/**
- * Get the timestamp (in ms) for an item, handling both regular rows and gap rows.
- * For gap rows, returns the gapStart (newest boundary).
- * @param {Object} item
- * @returns {number|null}
- */
+/** Get timestamp (ms) for item. Gap rows use gapStart. */
 function getItemTimestampMs(item) {
-  if (isGapRow(item)) {
-    return parseUTC(item.gapStart).getTime();
-  }
-  if (item.timestamp) {
-    return parseUTC(item.timestamp).getTime();
-  }
+  if (isGapRow(item)) return parseUTC(item.gapStart).getTime();
+  if (item.timestamp) return parseUTC(item.timestamp).getTime();
   return null;
 }
 
-/**
- * Find the closest item in state.logsData to a target timestamp using binary search.
- * Data is sorted by timestamp DESC (newest first).
- * Returns { index, isGap } indicating whether the closest match is a gap row.
- * @param {number} targetMs
- * @returns {{ index: number, isGap: boolean }}
- */
+/** Find closest item in logsData to target timestamp (binary search, DESC order). */
 function findClosestItem(targetMs) {
   const data = state.logsData;
   const n = data.length;
   if (n === 0) return { index: 0, isGap: false };
-
-  // Binary search for insertion point (data sorted DESC by timestamp)
   let low = 0;
   let high = n - 1;
-
   while (low < high) {
     const mid = Math.floor((low + high) / 2);
     const midMs = getItemTimestampMs(data[mid]);
-    if (midMs === null) {
-      // Skip items without timestamps by expanding search
-      low = mid + 1;
-    } else if (midMs > targetMs) {
-      // Target is older (smaller ms), search right half
-      low = mid + 1;
-    } else {
-      // Target is newer or equal, search left half
-      high = mid;
-    }
+    if (midMs === null || midMs > targetMs) low = mid + 1;
+    else high = mid;
   }
-
-  // Check candidates around the insertion point
-  const candidates = [];
-  for (let i = Math.max(0, low - 1); i <= Math.min(n - 1, low + 1); i += 1) {
-    candidates.push(i);
-  }
-
   let closestIdx = 0;
   let closestDiff = Infinity;
   let closestIsGap = false;
-
-  for (const i of candidates) {
+  for (let i = Math.max(0, low - 1); i <= Math.min(n - 1, low + 1); i += 1) {
     const item = data[i];
     if (isGapRow(item)) {
       const gapStartMs = parseUTC(item.gapStart).getTime();
       const gapEndMs = parseUTC(item.gapEnd).getTime();
-      // Check if target falls within this gap
-      if (targetMs <= gapStartMs && targetMs >= gapEndMs) {
-        return { index: i, isGap: true };
-      }
+      if (targetMs <= gapStartMs && targetMs >= gapEndMs) return { index: i, isGap: true };
       const diff = Math.min(Math.abs(gapStartMs - targetMs), Math.abs(gapEndMs - targetMs));
       if (diff < closestDiff) {
         closestDiff = diff;
@@ -830,8 +812,7 @@ function findClosestItem(targetMs) {
         closestIsGap = true;
       }
     } else if (item.timestamp) {
-      const rowMs = parseUTC(item.timestamp).getTime();
-      const diff = Math.abs(rowMs - targetMs);
+      const diff = Math.abs(parseUTC(item.timestamp).getTime() - targetMs);
       if (diff < closestDiff) {
         closestDiff = diff;
         closestIdx = i;
@@ -839,40 +820,49 @@ function findClosestItem(targetMs) {
       }
     }
   }
-
   return { index: closestIdx, isGap: closestIsGap };
 }
 
 /**
- * Scroll log table to the row closest to a given timestamp.
- * If the target is inside a gap, load data at that position first.
+ * Check if a timestamp has loaded data (not in a gap).
  * @param {Date|number} timestamp
+ * @returns {boolean}
  */
-export async function scrollLogsToTimestamp(timestamp) {
-  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
+export function isTimestampLoaded(timestamp) {
+  if (!state.logsData || state.logsData.length === 0) return false;
+  const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
+  const { isGap } = findClosestItem(targetMs);
+  return !isGap;
+}
 
+/**
+ * Check if timestamp is in a gap and load it if so.
+ * @param {Date|number} timestamp
+ * @returns {Promise<boolean>} True if a gap was loaded
+ */
+export async function checkAndLoadGap(timestamp) {
+  if (!state.logsData || state.logsData.length === 0) return false;
   const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
   const { index, isGap } = findClosestItem(targetMs);
-
   if (isGap) {
-    // Target is inside a gap — load data there, then scroll
     await loadGap(index);
-    // After loading, find the closest real row and scroll
-    const { index: newIdx } = findClosestItem(targetMs);
-    const container = logsView?.querySelector('.logs-table-container');
-    if (!container) return;
-    const targetRow = container.querySelector(`tr[data-row-idx="${newIdx}"]`);
-    if (targetRow) {
-      targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-  } else {
-    const container = logsView?.querySelector('.logs-table-container');
-    if (!container) return;
-    const targetRow = container.querySelector(`tr[data-row-idx="${index}"]`);
-    if (targetRow) {
-      targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
+    return true;
   }
+  return false;
+}
+
+/** Scroll log table to the row closest to a given timestamp. */
+export async function scrollLogsToTimestamp(timestamp) {
+  if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
+  const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
+  let result = findClosestItem(targetMs);
+  if (result.isGap) {
+    await loadGap(result.index);
+    result = findClosestItem(targetMs);
+  }
+  const container = logsView?.querySelector('.logs-table-container');
+  const targetRow = container?.querySelector(`tr[data-row-idx="${result.index}"]`);
+  targetRow?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 function handleLogsScroll() {
@@ -896,6 +886,16 @@ export function setLogsElements(view, toggleBtn, filtersViewEl) {
 
   // Set up chart collapse toggle
   initChartCollapseToggle();
+}
+
+/**
+ * Set callbacks for row hover → scrubber sync
+ * @param {Function} onHover - Called with rowData when hovering a row
+ * @param {Function} onLeave - Called when leaving a row
+ */
+export function setRowHoverCallbacks(onHover, onLeave) {
+  onRowHoverFn = onHover;
+  onRowLeaveFn = onLeave;
 }
 
 // Register callback for pinned column changes
