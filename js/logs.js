@@ -12,20 +12,55 @@
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
 import { query, isAbortError } from './api.js';
-import { getTimeFilter, getHostFilter, getTable } from './time.js';
+import {
+  getTimeFilter, getHostFilter, getTable, getTimeRangeBounds,
+} from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
-import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, buildLogColumnsSql } from './columns.js';
+import { LOG_COLUMN_ORDER, buildLogColumnsSql } from './columns.js';
 import { loadSql } from './sql-loader.js';
-import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
+import { buildLogRowHtml, buildLogTableHeaderHtml, buildGapRowHtml } from './templates/logs-table.js';
 import { PAGE_SIZE, PaginationState } from './pagination.js';
 import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
 
 const TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/;
+
+/**
+ * Create a gap row object representing an unloaded time range.
+ * @param {string} gapStart - Newest boundary (timestamp of last loaded row above)
+ * @param {string} gapEnd - Oldest boundary (first row below or range start)
+ * @returns {Object}
+ */
+function createGapRow(gapStart, gapEnd) {
+  return {
+    isGap: true,
+    gapStart,
+    gapEnd,
+    gapLoading: false,
+  };
+}
+
+/**
+ * Check if a data item is a gap row.
+ * @param {Object} item
+ * @returns {boolean}
+ */
+function isGapRow(item) {
+  return item && item.isGap === true;
+}
+
+/**
+ * Format a Date as a ClickHouse-compatible timestamp string.
+ * @param {Date} date
+ * @returns {string} e.g. '2026-02-12 10:00:00.000'
+ */
+function formatTimestampStr(date) {
+  return date.toISOString().replace('T', ' ').replace('Z', '');
+}
 
 /**
  * Build ordered log column list from available columns.
@@ -315,7 +350,7 @@ function initLogDetailModal() {
  */
 export async function openLogDetailModal(rowIdx) {
   const row = state.logsData[rowIdx];
-  if (!row) return;
+  if (!row || isGapRow(row)) return;
 
   initLogDetailModal();
   if (!logDetailModal) return;
@@ -351,7 +386,7 @@ export async function openLogDetailModal(rowIdx) {
 // Copy row data as JSON when clicking on row background
 export function copyLogRow(rowIdx) {
   const row = state.logsData[rowIdx];
-  if (!row) return;
+  if (!row || isGapRow(row)) return;
 
   // Convert flat dot notation to nested object
   const nested = {};
@@ -380,81 +415,51 @@ export function copyLogRow(rowIdx) {
   });
 }
 
-// Set up click handler for row background clicks
-export function setupLogRowClickHandler() {
-  const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
-
-  container.addEventListener('click', (e) => {
-    // Only handle clicks directly on td or tr (not on links, buttons, or spans)
-    const { target } = e;
-    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
-
-    // Don't open modal if clicking on a clickable cell (filter action)
-    if (target.classList.contains('clickable')) return;
-
-    // Find the row
-    const row = target.closest('tr');
-    if (!row || !row.dataset.rowIdx) return;
-
-    const rowIdx = parseInt(row.dataset.rowIdx, 10);
-    openLogDetailModal(rowIdx);
-  });
-}
-
 function renderLogsError(message) {
   const container = logsView.querySelector('.logs-table-container');
   container.innerHTML = `<div class="empty" style="padding: 60px;">Error loading logs: ${escapeHtml(message)}</div>`;
 }
 
-// Append rows to existing logs table (for infinite scroll)
-function appendLogsRows(data) {
-  const container = logsView.querySelector('.logs-table-container');
-  const tbody = container.querySelector('.logs-table tbody');
-  if (!tbody || data.length === 0) return;
-
-  // Get columns from existing table header
-  const headerCells = container.querySelectorAll('.logs-table thead th');
-  const columns = Array.from(headerCells).map((th) => th.title || th.textContent);
-
-  // Map short names back to full names
-  const shortToFull = Object.fromEntries(
-    Object.entries(LOG_COLUMN_SHORT_LABELS).map(([full, short]) => [short, full]),
+/**
+ * Update the DOM for a single gap row (e.g., to show/hide loading spinner).
+ * @param {number} gapIdx
+ */
+function updateGapRowDom(gapIdx) {
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+  const gapTr = container.querySelector(
+    `tr[data-row-idx="${gapIdx}"][data-gap="true"]`,
   );
+  if (!gapTr) return;
+  const gap = state.logsData[gapIdx];
+  if (!gap || !isGapRow(gap)) return;
 
-  const fullColumns = columns.map((col) => shortToFull[col] || col);
-  const pinned = state.pinnedColumns.filter((col) => fullColumns.includes(col));
+  const headerCells = container.querySelectorAll('.logs-table thead th');
+  const colCount = headerCells.length;
 
-  // Get starting index from existing rows
-  const existingRows = tbody.querySelectorAll('tr').length;
-
-  let html = '';
-  for (let i = 0; i < data.length; i += 1) {
-    const rowIdx = existingRows + i;
-    html += buildLogRowHtml({
-      row: data[i], columns: fullColumns, rowIdx, pinned,
-    });
-  }
-
-  tbody.insertAdjacentHTML('beforeend', html);
-
-  updatePinnedOffsets(container, pinned);
+  const temp = document.createElement('tbody');
+  temp.innerHTML = buildGapRowHtml({ gap, rowIdx: gapIdx, colCount });
+  const newRow = temp.querySelector('tr');
+  if (newRow) gapTr.replaceWith(newRow);
 }
 
 export function renderLogsTable(data) {
   const container = logsView.querySelector('.logs-table-container');
 
-  if (data.length === 0) {
+  // Find first real (non-gap) row
+  const firstRealRow = data.find((item) => !isGapRow(item));
+  if (!firstRealRow) {
     container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
     return;
   }
 
-  // Get all column names from first row
-  const allColumns = Object.keys(data[0]);
+  // Get all column names from first real row
+  const allColumns = Object.keys(firstRealRow);
 
   // Sort columns: pinned first, then preferred order, then the rest
   const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
   const columns = getLogColumns(allColumns);
+  const colCount = columns.length;
 
   // Calculate left offsets for sticky pinned columns
   const COL_WIDTH = 120;
@@ -471,9 +476,14 @@ export function renderLogsTable(data) {
   `;
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx += 1) {
-    html += buildLogRowHtml({
-      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets,
-    });
+    const item = data[rowIdx];
+    if (isGapRow(item)) {
+      html += buildGapRowHtml({ gap: item, rowIdx, colCount });
+    } else {
+      html += buildLogRowHtml({
+        row: item, columns, rowIdx, pinned, pinnedOffsets,
+      });
+    }
   }
 
   html += '</tbody></table>';
@@ -482,54 +492,152 @@ export function renderLogsTable(data) {
   updatePinnedOffsets(container, pinned);
 }
 
-async function loadMoreLogs() {
-  if (!pagination.canLoadMore()) return;
+/**
+ * Build the replacement array when loading data into a gap.
+ * @param {Object[]} newRows - Fetched rows
+ * @param {Object} gap - The gap being loaded
+ * @param {number} gapIdx - Index of the gap in state.logsData
+ * @returns {Object[]}
+ */
+function buildGapReplacement(newRows, gap, gapIdx) {
+  if (newRows.length === 0) return [];
 
-  // Validate cursor format before interpolating into SQL
-  if (!TIMESTAMP_RE.test(pagination.cursor)) {
+  const hasMoreInGap = newRows.length === PAGE_SIZE;
+  const replacement = [];
+  const newestNewTs = newRows[0].timestamp;
+  const oldestNewTs = newRows[newRows.length - 1].timestamp;
+
+  // Upper sub-gap: between the row above and the newest new row
+  const itemAbove = gapIdx > 0
+    ? state.logsData[gapIdx - 1] : null;
+  const aboveTs = itemAbove && !isGapRow(itemAbove)
+    ? itemAbove.timestamp : null;
+  if (aboveTs && aboveTs !== newestNewTs) {
+    const aboveMs = parseUTC(aboveTs).getTime();
+    const newestMs = parseUTC(newestNewTs).getTime();
+    if (Math.abs(aboveMs - newestMs) > 1000) {
+      replacement.push(createGapRow(aboveTs, newestNewTs));
+    }
+  }
+
+  replacement.push(...newRows);
+
+  // Lower sub-gap: between oldest new row and gap's old end
+  if (hasMoreInGap) {
+    replacement.push(createGapRow(oldestNewTs, gap.gapEnd));
+  }
+
+  return replacement;
+}
+
+/**
+ * Load data into a gap at the given index in state.logsData.
+ * @param {number} gapIdx - Index of the gap row in state.logsData
+ * @returns {Promise<void>}
+ */
+async function loadGap(gapIdx) {
+  const gap = state.logsData[gapIdx];
+  if (!gap || !isGapRow(gap) || gap.gapLoading) return;
+
+  if (!TIMESTAMP_RE.test(gap.gapStart)) {
     // eslint-disable-next-line no-console
-    console.warn('loadMoreLogs: invalid cursor format, aborting', pagination.cursor);
+    console.warn('loadGap: invalid gapStart format', gap.gapStart);
     return;
   }
 
-  pagination.loading = true;
+  gap.gapLoading = true;
+  updateGapRowDom(gapIdx);
+
   const requestContext = getRequestContext('dashboard');
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
 
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
-
-  const sql = await loadSql('logs-more', {
+  const sql = await loadSql('logs-at', {
     database: DATABASE,
     table: getTable(),
     columns: buildLogColumnsSql(state.pinnedColumns),
-    timeFilter,
-    hostFilter,
-    facetFilters,
+    timeFilter: getTimeFilter(),
+    hostFilter: getHostFilter(),
+    facetFilters: getFacetFilters(),
     additionalWhereClause: state.additionalWhereClause,
     pageSize: String(PAGE_SIZE),
-    cursor: pagination.cursor,
+    target: gap.gapStart,
   });
 
   try {
     const result = await query(sql, { signal });
     if (!isCurrent()) return;
-    if (result.data.length > 0) {
-      state.logsData = [...state.logsData, ...result.data];
-      appendLogsRows(result.data);
+
+    const newRows = result.data;
+    const replacement = buildGapReplacement(newRows, gap, gapIdx);
+    state.logsData.splice(gapIdx, 1, ...replacement);
+
+    // Update pagination cursor
+    if (newRows.length > 0) {
+      const lastNewRow = newRows[newRows.length - 1];
+      const cursorMs = pagination.cursor
+        ? parseUTC(pagination.cursor).getTime()
+        : Infinity;
+      const lastMs = parseUTC(lastNewRow.timestamp).getTime();
+      if (lastMs < cursorMs) {
+        pagination.cursor = lastNewRow.timestamp;
+      }
     }
-    pagination.recordPage(result.data);
+
+    renderLogsTable(state.logsData);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
-    console.error('Load more logs error:', err);
-  } finally {
-    if (isCurrent()) {
-      pagination.loading = false;
-    }
+    console.error('Load gap error:', err);
+    gap.gapLoading = false;
+    updateGapRowDom(gapIdx);
   }
+}
+
+/**
+ * Load more logs via the bottom gap (infinite scroll).
+ */
+async function loadMoreLogs() {
+  const lastIdx = state.logsData.length - 1;
+  const lastItem = state.logsData[lastIdx];
+  if (!lastItem || !isGapRow(lastItem)) return;
+  if (lastItem.gapLoading) return;
+  await loadGap(lastIdx);
+}
+
+// Set up click handler for row background clicks
+export function setupLogRowClickHandler() {
+  const container = logsView?.querySelector('.logs-table-container');
+  if (!container) return;
+
+  container.addEventListener('click', (e) => {
+    const { target } = e;
+
+    // Handle gap row button clicks
+    const gapBtn = target.closest('[data-action="load-gap"]');
+    if (gapBtn) {
+      const gapIdx = parseInt(gapBtn.dataset.gapIdx, 10);
+      if (!Number.isNaN(gapIdx)) {
+        loadGap(gapIdx);
+      }
+      return;
+    }
+
+    // Only handle clicks on td or tr (not buttons, spans)
+    if (target.tagName !== 'TD'
+      && target.tagName !== 'TR') return;
+
+    // Don't open modal for clickable cells (filter action)
+    if (target.classList.contains('clickable')) return;
+
+    // Find the row — skip gap rows
+    const row = target.closest('tr');
+    if (!row || !row.dataset.rowIdx) return;
+    if (row.dataset.gap === 'true') return;
+
+    const rowIdx = parseInt(row.dataset.rowIdx, 10);
+    openLogDetailModal(rowIdx);
+  });
 }
 
 // Collapse toggle label helper
@@ -610,9 +718,11 @@ function syncScrubberToScroll() {
   }
 
   if (!topRow || !topRow.dataset.rowIdx) return;
+  // Skip gap rows for scrubber sync
+  if (topRow.dataset.gap === 'true') return;
   const rowIdx = parseInt(topRow.dataset.rowIdx, 10);
   const rowData = state.logsData[rowIdx];
-  if (!rowData || !rowData.timestamp) return;
+  if (!rowData || isGapRow(rowData) || !rowData.timestamp) return;
 
   const timestamp = parseUTC(rowData.timestamp);
   setScrubberPosition(timestamp);
@@ -620,53 +730,78 @@ function syncScrubberToScroll() {
 
 const throttledSyncScrubber = throttle(syncScrubberToScroll, 100);
 
-// Find the index of the log row closest to a given timestamp (in ms)
-function findClosestRowIdx(targetMs) {
+/**
+ * Find the closest item in state.logsData to a target timestamp.
+ * Returns { index, isGap } indicating whether the closest match is a gap row.
+ * @param {number} targetMs
+ * @returns {{ index: number, isGap: boolean }}
+ */
+function findClosestItem(targetMs) {
   let closestIdx = 0;
   let closestDiff = Infinity;
+  let closestIsGap = false;
 
   for (let i = 0; i < state.logsData.length; i += 1) {
-    const row = state.logsData[i];
-    if (!row.timestamp) {
-      continue; // eslint-disable-line no-continue
-    } else {
-      const rowMs = parseUTC(row.timestamp).getTime();
+    const item = state.logsData[i];
+    if (isGapRow(item)) {
+      // Check if target falls within this gap's time range
+      const gapStartMs = parseUTC(item.gapStart).getTime();
+      const gapEndMs = parseUTC(item.gapEnd).getTime();
+      if (targetMs <= gapStartMs && targetMs >= gapEndMs) {
+        // Target is inside this gap
+        return { index: i, isGap: true };
+      }
+      // Otherwise check distance to gap boundaries
+      const diffStart = Math.abs(gapStartMs - targetMs);
+      const diffEnd = Math.abs(gapEndMs - targetMs);
+      const diff = Math.min(diffStart, diffEnd);
+      if (diff < closestDiff) {
+        closestDiff = diff;
+        closestIdx = i;
+        closestIsGap = true;
+      }
+    } else if (item.timestamp) {
+      const rowMs = parseUTC(item.timestamp).getTime();
       const diff = Math.abs(rowMs - targetMs);
       if (diff < closestDiff) {
         closestDiff = diff;
         closestIdx = i;
+        closestIsGap = false;
       }
     }
   }
-  return closestIdx;
+  return { index: closestIdx, isGap: closestIsGap };
 }
 
-// Scroll log table to the row closest to a given timestamp,
-// progressively loading more rows if the target is beyond what's loaded.
-const MAX_SCROLL_LOAD_RETRIES = 5;
-
-export async function scrollLogsToTimestamp(timestamp, retryCount = 0) {
+/**
+ * Scroll log table to the row closest to a given timestamp.
+ * If the target is inside a gap, load data at that position first.
+ * @param {Date|number} timestamp
+ */
+export async function scrollLogsToTimestamp(timestamp) {
   if (!state.showLogs || !state.logsData || state.logsData.length === 0) return;
 
   const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
-  const closestIdx = findClosestRowIdx(targetMs);
+  const { index, isGap } = findClosestItem(targetMs);
 
-  // Check if target timestamp is older than the oldest loaded row (logs are newest-first)
-  const lastRow = state.logsData[state.logsData.length - 1];
-  const lastRowMs = lastRow?.timestamp ? parseUTC(lastRow.timestamp).getTime() : null;
-  const needsMore = lastRowMs != null && targetMs < lastRowMs
-    && pagination.canLoadMore() && retryCount < MAX_SCROLL_LOAD_RETRIES;
-
-  const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
-  const targetRow = container.querySelector(`tr[data-row-idx="${closestIdx}"]`);
-  if (targetRow) {
-    targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-
-  if (needsMore) {
-    await loadMoreLogs();
-    await scrollLogsToTimestamp(timestamp, retryCount + 1);
+  if (isGap) {
+    // Target is inside a gap — load data there, then scroll
+    await loadGap(index);
+    // After loading, find the closest real row and scroll
+    const { index: newIdx } = findClosestItem(targetMs);
+    const container = logsView?.querySelector('.logs-table-container');
+    if (!container) return;
+    const targetRow = container.querySelector(`tr[data-row-idx="${newIdx}"]`);
+    if (targetRow) {
+      targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  } else {
+    const container = logsView?.querySelector('.logs-table-container');
+    if (!container) return;
+    const targetRow = container.querySelector(`tr[data-row-idx="${index}"]`);
+    if (targetRow) {
+      targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
   }
 }
 
@@ -678,10 +813,13 @@ function handleLogsScroll() {
   const scrollTop = window.scrollY;
   const clientHeight = window.innerHeight;
 
-  // Load more when scrolled to last 50%
+  // Auto-load bottom gap on scroll (infinite scroll behavior)
   const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
-  if (pagination.shouldTriggerLoad(scrollPercent, state.logsLoading)) {
-    loadMoreLogs();
+  if (scrollPercent > 0.5 && !state.logsLoading) {
+    const lastItem = state.logsData[state.logsData.length - 1];
+    if (lastItem && isGapRow(lastItem) && !lastItem.gapLoading) {
+      loadMoreLogs();
+    }
   }
 
   // Sync chart scrubber to topmost visible log row
@@ -773,9 +911,18 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     const result = await query(sql, { signal });
     if (!isCurrent()) return;
     state.logsData = result.data;
-    renderLogsTable(result.data);
-    state.logsReady = true;
     pagination.recordPage(result.data);
+
+    // If more data is available, append a bottom gap
+    if (pagination.hasMore && result.data.length > 0) {
+      const lastRow = result.data[result.data.length - 1];
+      const timeRangeBounds = getTimeRangeBounds();
+      const gapEnd = formatTimestampStr(timeRangeBounds.start);
+      state.logsData.push(createGapRow(lastRow.timestamp, gapEnd));
+    }
+
+    renderLogsTable(state.logsData);
+    state.logsReady = true;
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
