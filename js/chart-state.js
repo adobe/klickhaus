@@ -260,6 +260,26 @@ export function getMostRecentTimeRange() {
 }
 
 /**
+ * Get the nearest data point for a given timestamp
+ * @param {Date|number} time - Target time as Date or milliseconds
+ * @returns {Object|null} Nearest data point or null
+ */
+export function getDataAtTime(time) {
+  if (!lastChartData || lastChartData.length === 0) return null;
+  const targetMs = time instanceof Date ? time.getTime() : time;
+  let bestIdx = 0;
+  let bestDiff = Math.abs(parseUTC(lastChartData[0].t).getTime() - targetMs);
+  for (let i = 1; i < lastChartData.length; i += 1) {
+    const diff = Math.abs(parseUTC(lastChartData[i].t).getTime() - targetMs);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestIdx = i;
+    }
+  }
+  return lastChartData[bestIdx];
+}
+
+/**
  * Check if x position is within any anomaly region
  * @param {number} x - X coordinate
  * @returns {Object|null} Matching anomaly bounds or null
