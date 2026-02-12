@@ -949,7 +949,7 @@ export function setupChartNavigation(callback) {
   });
 }
 
-export async function loadTimeSeries(requestContext = getRequestContext('dashboard')) {
+export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), samplingOverride = null) {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
   const timeFilter = getTimeFilter();
@@ -960,8 +960,13 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
 
-  const { sampleClause, multiplier } = getSamplingConfig();
+  const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
+
+  const base = state.additionalWhereClause || '';
+  const needsDedup = samplingOverride && !samplingOverride.sampleClause;
+  const dedupSuffix = needsDedup ? '\n  AND sample_hash >= 0' : '';
+  const additionalWhere = (base || needsDedup) ? `${base} ${dedupSuffix}`.trim() : '';
 
   const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
   const sql = await loadSql(timeSeriesTemplate, {
@@ -973,7 +978,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
     timeFilter,
     hostFilter,
     facetFilters,
-    additionalWhereClause: state.additionalWhereClause,
+    additionalWhereClause: additionalWhere,
     rangeStart,
     rangeEnd,
     step,

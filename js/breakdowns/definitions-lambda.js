@@ -10,6 +10,11 @@
  * governing permissions and limitations under the License.
  */
 
+import { timeElapsedBuckets, getTimeElapsedLabels } from './buckets.js';
+
+/** Raw column for admin.duration in ms (message_json.admin.duration is in milliseconds). */
+const ADMIN_DURATION_MS = 'toFloat64OrZero(CAST(message_json.admin.duration, \'String\'))';
+
 /**
  * Breakdown (facet) definitions for the lambda_logs table.
  */
@@ -17,7 +22,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-level',
     col: '`level`',
-    summaryCountIf: "`level` = 'ERROR'",
+    summaryCountIf: "lower(`level`) = 'error'",
     summaryLabel: 'error rate',
     summaryColor: 'error',
   },
@@ -42,5 +47,25 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-admin-method',
     col: 'CAST(message_json.admin.method, \'String\')',
+  },
+  {
+    id: 'breakdown-message',
+    col: '`message`',
+    highCardinality: true,
+  },
+  {
+    id: 'breakdown-request-id',
+    col: '`request_id`',
+    highCardinality: true,
+  },
+  {
+    id: 'breakdown-admin-duration',
+    col: timeElapsedBuckets,
+    rawCol: ADMIN_DURATION_MS,
+    orderBy: `min(${ADMIN_DURATION_MS})`,
+    summaryCountIf: `${ADMIN_DURATION_MS} >= 1000`,
+    summaryLabel: 'slow (≥1s)',
+    summaryColor: 'warning',
+    getExpectedLabels: getTimeElapsedLabels,
   },
 ];

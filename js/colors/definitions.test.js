@@ -509,3 +509,90 @@ describe('colorRules.byoCdn', () => {
     assert.strictEqual(getColor('bunny'), 'var(--cdn-other)');
   });
 });
+
+describe('colorRules.lambdaLevel', () => {
+  const { getColor } = colorRules.lambdaLevel;
+
+  it('returns server error for ERROR', () => {
+    assert.strictEqual(getColor('ERROR'), 'var(--status-server-error)');
+  });
+
+  it('returns client error for WARN/WARNING', () => {
+    assert.strictEqual(getColor('WARN'), 'var(--status-client-error)');
+    assert.strictEqual(getColor('WARNING'), 'var(--status-client-error)');
+  });
+
+  it('returns ok for INFO/DEBUG/TRACE', () => {
+    assert.strictEqual(getColor('INFO'), 'var(--status-ok)');
+    assert.strictEqual(getColor('DEBUG'), 'var(--status-ok)');
+    assert.strictEqual(getColor('TRACE'), 'var(--status-ok)');
+  });
+});
+
+describe('colorRules.lambdaAdminMethod', () => {
+  const { getColor } = colorRules.lambdaAdminMethod;
+
+  it('maps HTTP methods to method colors', () => {
+    assert.strictEqual(getColor('GET'), 'var(--method-get)');
+    assert.strictEqual(getColor('POST'), 'var(--method-post)');
+    assert.strictEqual(getColor('DELETE'), 'var(--method-delete)');
+  });
+
+  it('returns empty string for unknown method', () => {
+    assert.strictEqual(getColor('CUSTOM'), '');
+  });
+});
+
+describe('colorRules.lambdaAppName', () => {
+  const { getColor } = colorRules.lambdaAppName;
+
+  it('returns a deterministic color for any value', () => {
+    const c = getColor('my-app');
+    assert.match(c, /^var\(--/);
+    assert.strictEqual(getColor('my-app'), c);
+  });
+
+  it('returns empty for falsy', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+
+  it('is deterministic across repeated calls', () => {
+    const inputs = ['helix-admin', 'helix-pipeline', 'content-bus', 'rum-collector'];
+    for (const input of inputs) {
+      assert.strictEqual(getColor(input), getColor(input));
+    }
+  });
+
+  it('different inputs can produce different colors', () => {
+    const colors = new Set(['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta'].map(getColor));
+    assert.isAbove(colors.size, 1, 'expected at least two distinct colors from six inputs');
+  });
+});
+
+describe('colorRules.lambdaSubsystem', () => {
+  const { getColor } = colorRules.lambdaSubsystem;
+
+  it('returns a deterministic CSS variable for a value', () => {
+    const c = getColor('my-subsystem');
+    assert.match(c, /^var\(--/);
+    assert.strictEqual(getColor('my-subsystem'), c);
+  });
+
+  it('returns empty for falsy', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+});
+
+describe('colorRules.lambdaLogGroup', () => {
+  const { getColor } = colorRules.lambdaLogGroup;
+
+  it('returns a deterministic CSS variable for a value', () => {
+    const c = getColor('/aws/lambda/my-function');
+    assert.match(c, /^var\(--/);
+    assert.strictEqual(getColor('/aws/lambda/my-function'), c);
+  });
+
+  it('returns empty for falsy', () => {
+    assert.strictEqual(getColor(''), '');
+  });
+});

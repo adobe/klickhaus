@@ -14,9 +14,9 @@ import { lambdaBreakdowns } from './breakdowns/definitions-lambda.js';
 
 const LAMBDA_AGGREGATIONS = {
   aggTotal: 'count()',
-  aggOk: "countIf(level NOT IN ('ERROR', 'WARN', 'WARNING'))",
-  agg4xx: "countIf(level IN ('WARN', 'WARNING'))",
-  agg5xx: "countIf(level = 'ERROR')",
+  aggOk: "countIf(lower(level) NOT IN ('error', 'warn', 'warning'))",
+  agg4xx: "countIf(lower(level) IN ('warn', 'warning'))",
+  agg5xx: "countIf(lower(level) = 'error')",
 };
 
 initDashboard({
