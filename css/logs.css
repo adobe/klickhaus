@@ -225,6 +225,11 @@
   color: var(--primary);
 }
 
+.logs-gap-row.loading {
+  display: table-row; /* Override base.css .loading display:flex */
+  padding: 0; /* Override base.css .loading padding:40px */
+}
+
 .logs-gap-row.loading .logs-gap-button {
   cursor: wait;
 }
