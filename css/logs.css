@@ -188,7 +188,7 @@
   background: var(--card-bg); /* Match table background */
 }
 
-.logs-gap-row:hover td {
+.logs-table tr.logs-gap-row:hover td {
   background: var(--card-bg);
 }
 
