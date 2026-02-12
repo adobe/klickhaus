@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Domain Explorer - CDN Analytics</title>
+  <script>
+    window.SAMPLE_PAGEVIEWS_AT_RATE = 'high';
+  </script>
+  <script defer type="text/javascript" src="https://ot.aem.live/.rum/@adobe/helix-rum-js@^2/dist/rum-standalone.js"></script>
+  <link rel="canonical" href="https://klickhaus.aemstatus.net/domains.html">
+
+  <!-- Favicon Icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/domains.css">
+</head>
+<body>
+  <!-- Login Form -->
+  <div id="login">
+    <div class="login-card">
+      <h1>Domain Explorer</h1>
+      <p>Sign in to explore AEM domain mappings</p>
+      <div id="loginError" class="error-message"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <div class="form-group form-option">
+          <label class="checkbox-label">
+            <input type="checkbox" id="forgetMe" name="forgetMe">
+            Forget me on this device
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <header>
+      <div class="header-left">
+        <a href="index.html" class="menu-btn" title="Quick Links">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <rect y="3" width="20" height="2" rx="1"/>
+            <rect y="9" width="20" height="2" rx="1"/>
+            <rect y="15" width="20" height="2" rx="1"/>
+          </svg>
+        </a>
+        <h1>Domain Explorer <span id="queryTimer" class="query-timer"></span></h1>
+        <span id="rowCount" class="row-count"></span>
+      </div>
+      <div class="header-right">
+        <input type="text" id="searchInput" placeholder="Filter by domain, owner, or repo...">
+        <button id="moreBtn" class="menu-btn" title="More actions">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.5"/>
+            <circle cx="10" cy="10" r="1.5"/>
+            <circle cx="10" cy="16" r="1.5"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- More Actions Menu -->
+      <dialog id="moreMenu">
+        <button id="refreshBtn" class="menu-item">Refresh</button>
+        <div class="menu-divider"></div>
+        <button id="logoutBtn" class="menu-item">Logout</button>
+      </dialog>
+    </header>
+
+    <main class="domains-main">
+      <div id="loadingState" class="loading">
+        <div class="spinner"></div>
+        Loading domain mappings...
+      </div>
+      <div id="errorState" class="error-message"></div>
+      <div id="tableContainer" class="table-container">
+        <table id="domainsTable" class="domains-table">
+          <thead>
+            <tr>
+              <th data-col="domain" class="sortable" aria-sort="none"><button type="button">Domain</button></th>
+              <th data-col="owner" class="sortable" aria-sort="none"><button type="button">Owner</button></th>
+              <th data-col="repo" class="sortable" aria-sort="none"><button type="button">Repo</button></th>
+              <th data-col="cdn_type" class="sortable" aria-sort="none"><button type="button">CDN Type</button></th>
+              <th data-col="req_per_hour" class="sortable numeric" aria-sort="none"><button type="button">Req/hour</button></th>
+              <th data-col="total" class="sortable numeric" aria-sort="none"><button type="button">Total</button></th>
+              <th data-col="age_days" class="sortable" aria-sort="ascending"><button type="button">Status</button></th>
+            </tr>
+          </thead>
+          <tbody id="domainsBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/domains-main.js"></script>
+</body>
+</html>

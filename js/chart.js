@@ -16,7 +16,9 @@
  */
 
 import { query, isAbortError } from './api.js';
-import { getFacetFilters } from './breakdowns/index.js';
+import {
+  getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
+} from './breakdowns/index.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -28,6 +30,7 @@ import {
   getTimeBucket,
   getTimeBucketStep,
   getTimeFilter,
+  getSamplingConfig,
   setCustomTimeRange,
   getTimeRangeBounds,
   getTimeRangeStart,
@@ -47,6 +50,7 @@ import {
   getChartLayout,
   setLastChartData,
   getLastChartData,
+  getDataAtTime,
   addAnomalyBounds,
   resetAnomalyBounds,
   setDetectedSteps,
@@ -144,7 +148,13 @@ function drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intended
     const time = parseUTC(data[i].t);
     const elapsed = time.getTime() - intendedStartTime;
     const x = padding.left + (elapsed / intendedTimeRange) * chartWidth;
-    const label = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const timeStr = time.toLocaleTimeString('en-US', {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
+    });
+    const showDate = intendedTimeRange > 24 * 60 * 60 * 1000;
+    const label = showDate
+      ? `${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${timeStr}`
+      : timeStr;
     const yPos = height - padding.bottom + 20;
 
     if (i === 0) {
@@ -221,7 +231,7 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
   const magnitudeLabel = mag >= 1
     ? `${mag >= 10 ? Math.round(mag) : mag.toFixed(1).replace(/\.0$/, '')}x`
     : `${Math.round(mag * 100)}%`;
-  ctx.font = 'bold 11px -apple-system, sans-serif';
+  ctx.font = '500 11px -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = `rgb(${cr}, ${cg}, ${cb})`;
   const arrow = step.type === 'spike' ? '\u25B2' : '\u25BC';
@@ -479,6 +489,10 @@ export function setupChartNavigation(callback) {
     setPendingSelection(null);
     // Clear blue highlights when selection is cleared
     clearSelectionHighlights();
+    // Revert facets to full time range
+    if (isPreviewActive()) {
+      revertPreviewBreakdowns();
+    }
     // Redraw chart to remove blue band
     const lastData = getLastChartData();
     if (lastData) {
@@ -536,6 +550,22 @@ export function setupChartNavigation(callback) {
       lastTap = now;
     }
   }, { passive: true });
+
+  /**
+   * Build value badges HTML for scrubber (2xx/4xx/5xx counts)
+   */
+  function buildValueBadges(time) {
+    const dataPoint = getDataAtTime(time);
+    if (!dataPoint) return '';
+    const ok = parseInt(dataPoint.cnt_ok, 10) || 0;
+    const client = parseInt(dataPoint.cnt_4xx, 10) || 0;
+    const server = parseInt(dataPoint.cnt_5xx, 10) || 0;
+    let html = '';
+    if (ok > 0) html += `<span class="scrubber-value scrubber-value-ok">${formatNumber(ok)}</span>`;
+    if (client > 0) html += `<span class="scrubber-value scrubber-value-4xx">${formatNumber(client)}</span>`;
+    if (server > 0) html += `<span class="scrubber-value scrubber-value-5xx">${formatNumber(server)}</span>`;
+    return html;
+  }
 
   /**
    * Build anomaly info HTML for scrubber
@@ -659,11 +689,14 @@ export function setupChartNavigation(callback) {
     // Build status bar content in two rows
     const { timeStr, relativeStr } = formatScrubberTime(time);
 
-    // Row 1: Time
+    // Row 1: Time + value badges
     let row1 = `<span class="scrubber-time">${timeStr} UTC</span>`;
     if (relativeStr) {
       row1 += `<span class="scrubber-relative">${relativeStr}</span>`;
     }
+
+    // Add color-coded value badges for the hovered data point
+    row1 += buildValueBadges(time);
 
     // Row 2: Anomaly and/or release info
     const row2Parts = [];
@@ -849,6 +882,9 @@ export function setupChartNavigation(callback) {
         const fullEnd = parseUTC(chartData[chartData.length - 1].t);
         investigateTimeRange(startTime, endTime, fullStart, fullEnd);
       }
+
+      // Load preview breakdowns for the selected time range
+      loadPreviewBreakdowns(startTime, endTime);
     } else {
       hideSelectionOverlay();
     }
@@ -904,6 +940,13 @@ export function setupChartNavigation(callback) {
     navOverlay.classList.remove('over-anomaly');
     navOverlay.classList.remove('over-ship');
   });
+
+  // Escape key clears active selection/preview
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && getPendingSelection()) {
+      hideSelectionOverlay();
+    }
+  });
 }
 
 export async function loadTimeSeries(requestContext = getRequestContext('dashboard')) {
@@ -917,11 +960,16 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
 
+  const { sampleClause, multiplier } = getSamplingConfig();
+  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
+
   const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
   const sql = await loadSql(timeSeriesTemplate, {
     bucket,
     database: DATABASE,
     table: getTable(),
+    sampleClause,
+    mult,
     timeFilter,
     hostFilter,
     facetFilters,

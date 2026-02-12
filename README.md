@@ -22,6 +22,7 @@ A real-time analytics dashboard for CDN log analysis, built with ClickHouse and 
 - **Flexible time ranges** - Last hour, 12 hours, 24 hours, or 7 days
 - **Dark mode support** - Automatic theme based on system preference
 - **Query caching** - Intelligent cache TTLs based on time range
+- **Fast facet queries** - Pre-aggregated facet table with proportional sampling for longer time ranges
 
 ## Architecture
 
@@ -124,7 +125,7 @@ npm install
 npm start
 ```
 
-This starts a development server with auto-reload at http://localhost:5391/dashboard.html.
+This starts a development server with auto-reload. The port is deterministic per worktree and printed on startup. Use `node scripts/dev-server.mjs --dry-run` to get the port without starting the server.
 
 For ClickHouse CLI access:
 

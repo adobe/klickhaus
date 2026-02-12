@@ -12,52 +12,47 @@
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
-import { getRequestContext, isRequestCurrent, mergeAbortSignals } from '../request-context.js';
 import {
-  getTimeFilter, getHostFilter, getTable, getPeriodMs,
+  startRequestContext, getRequestContext, isRequestCurrent, mergeAbortSignals,
+} from '../request-context.js';
+import {
+  getTimeFilter, getHostFilter, getTable, getSamplingConfig, getFacetTimeFilter,
 } from '../time.js';
 import { allBreakdowns as defaultBreakdowns } from './definitions.js';
-
-export function getBreakdowns() {
-  return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
-}
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
+import { createLimiter } from '../concurrency-limiter.js';
+
+// Intentionally limits only breakdown queries: breakdowns fan out 20+ parallel
+// queries (one per facet), the only code path with bulk parallelism. Chart, logs,
+// and autocomplete each fire 1-2 queries and don't need limiting.
+const queryLimiter = createLimiter(4);
+
+export function getBreakdowns() {
+  return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
+}
 
 // Track elapsed time per facet id for slowest detection
 export const facetTimings = {};
 
-// Sampling thresholds: use sampling for high-cardinality facets when time range > 1 hour
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
 /**
- * Get sampling configuration based on facet type and time range
- * @param {boolean} highCardinality - Whether this facet has high cardinality
- * @returns {{ sampleClause: string, multiplier: number }} - SQL SAMPLE clause and count multiplier
+ * Check whether a breakdown can use the pre-aggregated cdn_facet_minutes table.
+ * Requires: facetName set, no active filters, no bytes mode, not bucketed.
  */
-function getSamplingConfig(highCardinality) {
-  if (!highCardinality) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  const periodMs = getPeriodMs();
-
-  // No sampling for time ranges <= 1 hour
-  if (periodMs <= ONE_HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  // Use 1% sampling for 7d (very large time ranges)
-  // 7d = 604800000ms
-  if (periodMs >= 7 * 24 * ONE_HOUR_MS) {
-    return { sampleClause: 'SAMPLE 0.01', multiplier: 100 };
-  }
-
-  // Use 10% sampling for medium time ranges (12h, 24h)
-  // This gives ~3x speedup while maintaining accurate top-K ranking
-  return { sampleClause: 'SAMPLE 0.1', multiplier: 10 };
+export function canUseFacetTable(b) {
+  if (!b.facetName) return false;
+  if (b.rawCol) return false; // bucketed facets need raw table
+  if (b.highCardinality) return false; // sampled raw table is faster
+  if (state.hostFilter) return false;
+  if (state.filters && state.filters.length > 0) return false;
+  if (state.additionalWhereClause) return false;
+  const mode = b.modeToggle ? state[b.modeToggle] : 'count';
+  if (mode === 'bytes') return false;
+  // ASN uses dictGet which produces different dim values than the facet table
+  if (b.id === 'breakdown-asn') return false;
+  return true;
 }
 
 export function resetFacetTimings() {
@@ -203,7 +198,7 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = getSamplingConfig(b.highCardinality);
+  const { sampleClause, multiplier } = getSamplingConfig();
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
@@ -244,6 +239,43 @@ function prepareBreakdownCard(card, b) {
 
 async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
+  // Use pre-aggregated facet table when no filters are active
+  if (canUseFacetTable(b)) {
+    const { startTime, endTime } = getFacetTimeFilter();
+    const dimFilter = b.extraFilter ? "AND dim != ''" : '';
+    const hasSummary = !!b.summaryDimCondition;
+    const sql = await loadSql('breakdown-facet', {
+      database: DATABASE,
+      facetName: b.facetName,
+      startTime,
+      endTime,
+      dimFilter,
+      innerSummaryCol: hasSummary
+        ? `,\n    if(${b.summaryDimCondition}, cnt, 0) as summary_cnt`
+        : '',
+      summaryCol: hasSummary
+        ? ',\n  sum(summary_cnt) as summary_cnt'
+        : '',
+      orderBy: b.orderBy || 'cnt DESC',
+      topN: String(state.topN),
+    });
+
+    const params = {
+      col: baseCol,
+      originalCol: baseCol,
+      hasActiveFilter: false,
+      isBytes: false,
+      sampleClause: '',
+      mult: '',
+      extra: '',
+      facetFilters: '',
+      timeFilter,
+      hostFilter,
+    };
+    return { sql, params, aggs: buildAggregations(false, '') };
+  }
+
   const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
   const aggs = buildAggregations(params.isBytes, params.mult);
 
@@ -302,6 +334,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
 
 function getSummaryRatio(b, totals) {
   if (!b.summaryCountIf || !totals || totals.cnt <= 0) return null;
+  if (totals.summary_cnt === undefined) return null;
   return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
 }
 
@@ -309,7 +342,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const { isCurrent, signal } = requestStatus;
   const { sql, params, aggs } = await buildBreakdownSql(b, timeFilter, hostFilter);
   const startTime = performance.now();
-  const result = await query(sql, { signal });
+  const result = await queryLimiter(() => query(sql, { signal }));
   if (!isCurrent()) return null;
 
   const elapsed = result.networkTime ?? (performance.now() - startTime);
@@ -421,6 +454,261 @@ export function increaseTopN(topNSelectEl, saveStateToURL, loadAllBreakdownsFn) 
     saveStateToURL();
     loadAllBreakdownsFn();
   }
+}
+
+// --- Preview breakdowns during time range selection ---
+
+const HOUR_MS = 60 * 60 * 1000;
+
+function formatPreviewDateTime(date) {
+  return date.toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function getPreviewTimeFilter(start, end) {
+  const startIso = formatPreviewDateTime(start);
+  const endIso = formatPreviewDateTime(end);
+  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
+}
+
+function getPreviewSamplingConfig(durationMs) {
+  if (durationMs <= HOUR_MS) {
+    return { sampleClause: '', multiplier: 1 };
+  }
+  const ratio = HOUR_MS / durationMs;
+  const sampleRate = Math.max(Math.round(ratio * 10000) / 10000, 0.0001);
+  const multiplier = Math.round(1 / sampleRate);
+  return { sampleClause: `SAMPLE ${sampleRate}`, multiplier };
+}
+
+function buildPreviewQueryParams(b, col, timeFilter, hostFilter, sampling) {
+  const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
+    && state.filters.some((f) => f.col === originalCol);
+  const actualCol = hasActiveFilter ? b.filterCol : col;
+
+  const mode = b.modeToggle ? state[b.modeToggle] : 'count';
+  const isBytes = mode === 'bytes';
+  const { sampleClause, multiplier } = sampling;
+  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
+
+  return {
+    col: actualCol,
+    originalCol,
+    hasActiveFilter,
+    isBytes,
+    sampleClause,
+    mult,
+    extra: b.extraFilter || '',
+    facetFilters: getFacetFiltersExcluding(originalCol),
+    timeFilter,
+    hostFilter,
+  };
+}
+
+async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling) {
+  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
+  if (canUseFacetTable(b)) {
+    const { startTime, endTime } = facetTimes;
+    const dimFilter = b.extraFilter ? "AND dim != ''" : '';
+    const hasSummary = !!b.summaryDimCondition;
+    const sql = await loadSql('breakdown-facet', {
+      database: DATABASE,
+      facetName: b.facetName,
+      startTime,
+      endTime,
+      dimFilter,
+      innerSummaryCol: hasSummary
+        ? `,\n    if(${b.summaryDimCondition}, cnt, 0) as summary_cnt`
+        : '',
+      summaryCol: hasSummary
+        ? ',\n  sum(summary_cnt) as summary_cnt'
+        : '',
+      orderBy: b.orderBy || 'cnt DESC',
+      topN: String(state.topN),
+    });
+
+    const params = {
+      col: baseCol,
+      originalCol: baseCol,
+      hasActiveFilter: false,
+      isBytes: false,
+      sampleClause: '',
+      mult: '',
+      extra: '',
+      facetFilters: '',
+      timeFilter,
+      hostFilter,
+    };
+    return { sql, params, aggs: buildAggregations(false, '') };
+  }
+
+  const params = buildPreviewQueryParams(b, baseCol, timeFilter, hostFilter, sampling);
+  const aggs = buildAggregations(params.isBytes, params.mult);
+
+  if (b.rawCol && typeof b.col === 'function') {
+    const bucketExpr = b.col(state.topN, 'val');
+    const innerSummary = b.summaryCountIf
+      ? `,\n    countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
+      : '';
+    const outerSummary = b.summaryCountIf
+      ? ',\n  sum(summary_cnt) as summary_cnt'
+      : '';
+
+    const sql = await loadSql('breakdown-bucketed', {
+      bucketExpr,
+      rawCol: b.rawCol,
+      ...aggs,
+      innerSummaryCol: innerSummary,
+      outerSummaryCol: outerSummary,
+      database: DATABASE,
+      table: getTable(),
+      sampleClause: params.sampleClause,
+      timeFilter,
+      hostFilter,
+      facetFilters: params.facetFilters,
+      extra: params.extra,
+      additionalWhereClause: state.additionalWhereClause,
+      topN: String(state.topN),
+    });
+
+    return { sql, params, aggs };
+  }
+
+  const summaryColWithMult = b.summaryCountIf
+    ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
+    : '';
+
+  const sql = await loadSql('breakdown', {
+    col: params.col,
+    ...aggs,
+    summaryCol: summaryColWithMult,
+    database: DATABASE,
+    table: getTable(),
+    sampleClause: params.sampleClause,
+    timeFilter,
+    hostFilter,
+    facetFilters: params.facetFilters,
+    extra: params.extra,
+    additionalWhereClause: state.additionalWhereClause,
+    orderBy: b.orderBy || 'cnt DESC',
+    topN: String(state.topN),
+  });
+
+  return { sql, params, aggs };
+}
+
+// Track whether preview is active for CSS indicator
+let previewActive = false;
+
+export function isPreviewActive() {
+  return previewActive;
+}
+
+async function loadPreviewBreakdown(
+  b,
+  timeFilter,
+  hostFilter,
+  facetTimes,
+  sampling,
+  requestStatus,
+) {
+  const { isCurrent, signal } = requestStatus;
+  const card = document.getElementById(b.id);
+
+  if (state.hiddenFacets.includes(b.id)) return;
+
+  card.classList.add('updating');
+
+  try {
+    const built = await buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling);
+    const { sql, params, aggs } = built;
+    const startTime = performance.now();
+    const result = await queryLimiter(() => query(sql, { signal }));
+    if (!isCurrent()) return;
+
+    const elapsed = result.networkTime ?? (performance.now() - startTime);
+    const summaryRatio = getSummaryRatio(b, result.totals);
+
+    let data = fillExpectedLabels(result.data, b);
+    data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
+    if (!isCurrent()) return;
+
+    renderBreakdownTable(
+      b.id,
+      data,
+      result.totals,
+      params.col,
+      b.linkPrefix,
+      b.linkSuffix,
+      b.linkFn,
+      elapsed,
+      b.dimPrefixes,
+      b.dimFormatFn,
+      summaryRatio,
+      b.summaryLabel,
+      b.summaryColor,
+      b.modeToggle,
+      !!b.getExpectedLabels,
+      params.hasActiveFilter ? null : b.filterCol,
+      params.hasActiveFilter ? null : b.filterValueFn,
+      params.hasActiveFilter ? null : b.filterOp,
+    );
+
+    card.classList.add('preview');
+  } catch (err) {
+    if (!isCurrent() || isAbortError(err)) return;
+    const details = getQueryErrorDetails(err);
+    // eslint-disable-next-line no-console
+    console.error(`Preview breakdown error (${b.id}):`, err);
+    renderBreakdownError(b.id, details);
+  } finally {
+    if (isCurrent()) {
+      card.classList.remove('updating');
+    }
+  }
+}
+
+export async function loadPreviewBreakdowns(selectionStart, selectionEnd) {
+  const requestContext = startRequestContext('preview');
+  const requestStatus = {
+    isCurrent: () => isRequestCurrent(requestContext.requestId, 'preview'),
+    signal: requestContext.signal,
+  };
+
+  const durationMs = selectionEnd - selectionStart;
+  const start = new Date(Math.floor(selectionStart.getTime() / 60000) * 60000);
+  const end = new Date(Math.ceil(selectionEnd.getTime() / 60000) * 60000);
+
+  const timeFilter = getPreviewTimeFilter(start, end);
+  const hostFilter = getHostFilter();
+  const facetTimes = {
+    startTime: formatPreviewDateTime(start),
+    endTime: formatPreviewDateTime(end),
+  };
+  const sampling = getPreviewSamplingConfig(durationMs);
+
+  previewActive = true;
+  const breakdowns = getBreakdowns();
+  await Promise.all(
+    breakdowns.map(
+      (b) => loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, sampling, requestStatus),
+    ),
+  );
+}
+
+export async function revertPreviewBreakdowns() {
+  if (!previewActive) return;
+  previewActive = false;
+  // Cancel any in-flight preview queries
+  startRequestContext('preview');
+  // Remove preview indicator from all cards
+  document.querySelectorAll('.breakdown-card.preview').forEach((card) => {
+    card.classList.remove('preview');
+  });
+  // Reload original breakdowns using current global time range
+  const requestContext = startRequestContext('facets');
+  await loadAllBreakdowns(requestContext);
 }
 
 // Re-export for convenience

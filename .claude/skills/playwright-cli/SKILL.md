@@ -1,23 +1,45 @@
 ---
 name: playwright-cli
 description: Automates browser interactions for web testing, form filling, screenshots, and data extraction. Use when the user needs to navigate websites, interact with web pages, fill forms, take screenshots, test web applications, or extract information from web pages.
-allowed-tools: Bash(playwright-cli:*)
+allowed-tools: Bash(npx playwright-cli:*)
 ---
 
 # Browser Automation with playwright-cli
 
+`playwright-cli` is invoked via `npx playwright-cli <command>`. Do NOT try to install it — it is already available via npx.
+
+## Logging into the dashboard
+
+The dashboard stores credentials in `localStorage` under the key `clickhouse_credentials`. To log in programmatically (look up the password in `README.local.md`):
+
+```bash
+npx playwright-cli open http://localhost:$(node scripts/dev-server.mjs --dry-run)/dashboard.html
+npx playwright-cli eval 'localStorage.setItem("clickhouse_credentials", JSON.stringify({user: "<username>", password: "<password>"}))'
+npx playwright-cli reload
+```
+
+## Starting the dev server for testing
+
+When using playwright-cli to test the local dashboard, start the dev server with auto-reload disabled. This prevents live-server from reloading the page when files change, which interferes with browser automation:
+
+```bash
+npm run start:no-reload
+```
+
+You can also use the environment variable: `NO_RELOAD=1 npm start`.
+
 ## Quick start
 
 ```bash
-playwright-cli open https://playwright.dev
-playwright-cli click e15
-playwright-cli type "page.click"
-playwright-cli press Enter
+npx playwright-cli open https://playwright.dev
+npx playwright-cli click e15
+npx playwright-cli type "page.click"
+npx playwright-cli press Enter
 ```
 
 ## Core workflow
 
-1. Navigate: `playwright-cli open https://example.com`
+1. Navigate: `npx playwright-cli open https://example.com`
 2. Interact using refs from the snapshot
 3. Re-snapshot after significant changes
 
@@ -26,148 +48,148 @@ playwright-cli press Enter
 ### Core
 
 ```bash
-playwright-cli open https://example.com/
-playwright-cli close
-playwright-cli type "search query"
-playwright-cli click e3
-playwright-cli dblclick e7
-playwright-cli fill e5 "user@example.com"
-playwright-cli drag e2 e8
-playwright-cli hover e4
-playwright-cli select e9 "option-value"
-playwright-cli upload ./document.pdf
-playwright-cli check e12
-playwright-cli uncheck e12
-playwright-cli snapshot
-playwright-cli eval "document.title"
-playwright-cli eval "el => el.textContent" e5
-playwright-cli dialog-accept
-playwright-cli dialog-accept "confirmation text"
-playwright-cli dialog-dismiss
-playwright-cli resize 1920 1080
+npx playwright-cli open https://example.com/
+npx playwright-cli close
+npx playwright-cli type "search query"
+npx playwright-cli click e3
+npx playwright-cli dblclick e7
+npx playwright-cli fill e5 "user@example.com"
+npx playwright-cli drag e2 e8
+npx playwright-cli hover e4
+npx playwright-cli select e9 "option-value"
+npx playwright-cli upload ./document.pdf
+npx playwright-cli check e12
+npx playwright-cli uncheck e12
+npx playwright-cli snapshot
+npx playwright-cli eval "document.title"
+npx playwright-cli eval "el => el.textContent" e5
+npx playwright-cli dialog-accept
+npx playwright-cli dialog-accept "confirmation text"
+npx playwright-cli dialog-dismiss
+npx playwright-cli resize 1920 1080
 ```
 
 ### Navigation
 
 ```bash
-playwright-cli go-back
-playwright-cli go-forward
-playwright-cli reload
+npx playwright-cli go-back
+npx playwright-cli go-forward
+npx playwright-cli reload
 ```
 
 ### Keyboard
 
 ```bash
-playwright-cli press Enter
-playwright-cli press ArrowDown
-playwright-cli keydown Shift
-playwright-cli keyup Shift
+npx playwright-cli press Enter
+npx playwright-cli press ArrowDown
+npx playwright-cli keydown Shift
+npx playwright-cli keyup Shift
 ```
 
 ### Mouse
 
 ```bash
-playwright-cli mousemove 150 300
-playwright-cli mousedown
-playwright-cli mousedown right
-playwright-cli mouseup
-playwright-cli mouseup right
-playwright-cli mousewheel 0 100
+npx playwright-cli mousemove 150 300
+npx playwright-cli mousedown
+npx playwright-cli mousedown right
+npx playwright-cli mouseup
+npx playwright-cli mouseup right
+npx playwright-cli mousewheel 0 100
 ```
 
 ### Save as
 
 ```bash
-playwright-cli screenshot
-playwright-cli screenshot e5
-playwright-cli pdf
+npx playwright-cli screenshot
+npx playwright-cli screenshot e5
+npx playwright-cli pdf
 ```
 
 ### Tabs
 
 ```bash
-playwright-cli tab-list
-playwright-cli tab-new
-playwright-cli tab-new https://example.com/page
-playwright-cli tab-close
-playwright-cli tab-close 2
-playwright-cli tab-select 0
+npx playwright-cli tab-list
+npx playwright-cli tab-new
+npx playwright-cli tab-new https://example.com/page
+npx playwright-cli tab-close
+npx playwright-cli tab-close 2
+npx playwright-cli tab-select 0
 ```
 
 ### DevTools
 
 ```bash
-playwright-cli console
-playwright-cli console warning
-playwright-cli network
-playwright-cli run-code "async page => await page.context().grantPermissions(['geolocation'])"
-playwright-cli tracing-start
-playwright-cli tracing-stop
-playwright-cli video-start
-playwright-cli video-stop video.webm
+npx playwright-cli console
+npx playwright-cli console warning
+npx playwright-cli network
+npx playwright-cli run-code "async page => await page.context().grantPermissions(['geolocation'])"
+npx playwright-cli tracing-start
+npx playwright-cli tracing-stop
+npx playwright-cli video-start
+npx playwright-cli video-stop video.webm
 ```
 
 ### Configuration
 ```bash
 # Configure the session
-playwright-cli config --config my-config.json
-playwright-cli config --headed --isolated --browser=firefox
+npx playwright-cli config --config my-config.json
+npx playwright-cli config --headed --isolated --browser=firefox
 # Configure named session
-playwright-cli --session=mysession config my-config.json
+npx playwright-cli --session=mysession config my-config.json
 # Start with configured session
-playwright-cli open --config=my-config.json
+npx playwright-cli open --config=my-config.json
 ```
 
 ### Sessions
 
 ```bash
-playwright-cli --session=mysession open example.com
-playwright-cli --session=mysession click e6
-playwright-cli session-list
-playwright-cli session-stop mysession
-playwright-cli session-stop-all
-playwright-cli session-delete
-playwright-cli session-delete mysession
+npx playwright-cli --session=mysession open example.com
+npx playwright-cli --session=mysession click e6
+npx playwright-cli session-list
+npx playwright-cli session-stop mysession
+npx playwright-cli session-stop-all
+npx playwright-cli session-delete
+npx playwright-cli session-delete mysession
 ```
 
 ## Example: Form submission
 
 ```bash
-playwright-cli open https://example.com/form
-playwright-cli snapshot
+npx playwright-cli open https://example.com/form
+npx playwright-cli snapshot
 
-playwright-cli fill e1 "user@example.com"
-playwright-cli fill e2 "password123"
-playwright-cli click e3
-playwright-cli snapshot
+npx playwright-cli fill e1 "user@example.com"
+npx playwright-cli fill e2 "password123"
+npx playwright-cli click e3
+npx playwright-cli snapshot
 ```
 
 ## Example: Multi-tab workflow
 
 ```bash
-playwright-cli open https://example.com
-playwright-cli tab-new https://example.com/other
-playwright-cli tab-list
-playwright-cli tab-select 0
-playwright-cli snapshot
+npx playwright-cli open https://example.com
+npx playwright-cli tab-new https://example.com/other
+npx playwright-cli tab-list
+npx playwright-cli tab-select 0
+npx playwright-cli snapshot
 ```
 
 ## Example: Debugging with DevTools
 
 ```bash
-playwright-cli open https://example.com
-playwright-cli click e4
-playwright-cli fill e7 "test"
-playwright-cli console
-playwright-cli network
+npx playwright-cli open https://example.com
+npx playwright-cli click e4
+npx playwright-cli fill e7 "test"
+npx playwright-cli console
+npx playwright-cli network
 ```
 
 ```bash
-playwright-cli open https://example.com
-playwright-cli tracing-start
-playwright-cli click e4
-playwright-cli fill e7 "test"
-playwright-cli tracing-stop
+npx playwright-cli open https://example.com
+npx playwright-cli tracing-start
+npx playwright-cli click e4
+npx playwright-cli fill e7 "test"
+npx playwright-cli tracing-stop
 ```
 
 ## Specific tasks
