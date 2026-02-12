@@ -249,8 +249,8 @@ export function getSamplingConfig() {
 
   // Sample rate = 1h / period, so scanned rows stay roughly constant
   const ratio = HOUR_MS / periodMs;
-  // Round to 4 decimal places for clean SQL
-  const sampleRate = Math.round(ratio * 10000) / 10000;
+  // Round to 4 decimal places for clean SQL; floor at 0.0001 to avoid SAMPLE 0 / Infinity
+  const sampleRate = Math.max(Math.round(ratio * 10000) / 10000, 0.0001);
   const multiplier = Math.round(1 / sampleRate);
 
   return { sampleClause: `SAMPLE ${sampleRate}`, multiplier };

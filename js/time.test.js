@@ -183,6 +183,19 @@ describe('getSamplingConfig', () => {
     assert.include(sampleClause, 'SAMPLE');
     assert.strictEqual(multiplier, 6);
   });
+
+  it('never returns Infinity or NaN multiplier for extreme time ranges', () => {
+    // 30-day custom range — ratio rounds to 0 without the floor clamp
+    setCustomTimeRange(
+      new Date('2025-12-21T00:00:00Z'),
+      new Date('2026-01-20T00:00:00Z'),
+    );
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.include(sampleClause, 'SAMPLE');
+    assert.isFinite(multiplier);
+    assert.isAbove(multiplier, 0);
+    assert.isFalse(Number.isNaN(multiplier));
+  });
 });
 
 describe('getFacetTimeFilter', () => {
