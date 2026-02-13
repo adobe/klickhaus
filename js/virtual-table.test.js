@@ -563,6 +563,113 @@ describe('VirtualTable', () => {
     });
   });
 
+  describe('max scroll height capping', () => {
+    it('uses natural scroll height for small datasets (no behavioral change)', () => {
+      container = makeContainer(280);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1000);
+      // 1000 * 28 = 28000, well under MAX_SCROLL_HEIGHT (1_000_000)
+      assert.strictEqual(vt.getTotalScrollHeight(), 1000 * 28);
+      // Spacer heights should use original row height
+      const topH = parseInt(vt.spacerTop.style.height, 10);
+      const bottomH = parseInt(vt.spacerBottom.style.height, 10);
+      const renderedRows = vt.tbody.querySelectorAll('tr').length;
+      assert.strictEqual(topH + renderedRows * 28 + bottomH, 1000 * 28);
+    });
+
+    it('caps total scroll height for large datasets', () => {
+      container = makeContainer(280);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1_000_000);
+      // 1_000_000 * 28 = 28_000_000, exceeds MAX_SCROLL_HEIGHT (1_000_000)
+      assert.strictEqual(vt.getTotalScrollHeight(), 1_000_000);
+    });
+
+    it('computeRange returns correct indices for large datasets', () => {
+      container = makeContainer(280);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1_000_000);
+
+      // Scroll to 50% of the total scroll height
+      const totalScrollHeight = vt.getTotalScrollHeight();
+      Object.defineProperty(container, 'scrollTop', {
+        value: totalScrollHeight / 2, writable: true,
+      });
+      const range = vt.computeRange();
+      // Start (before overscan subtraction) should be near 500_000
+      const rawStart = range.start + 10;
+      assert.closeTo(
+        rawStart,
+        500_000,
+        1000,
+        `mid-scroll should map to ~row 500000, got ${rawStart}`,
+      );
+    });
+
+    it('scrollToRow maps large indices correctly', () => {
+      container = makeContainer(280);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1_000_000);
+
+      vt.scrollToRow(500_000);
+      const totalScrollHeight = vt.getTotalScrollHeight();
+      const expected = 500_000 * (totalScrollHeight / 1_000_000);
+      assert.closeTo(
+        container.scrollTop,
+        expected,
+        1,
+        'scrollToRow(500000) should set scrollTop to ~50% of total scroll height',
+      );
+    });
+
+    it('round-trips scrollToRow then computeRange for large indices', () => {
+      container = makeContainer(280);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1_000_000);
+
+      const targetRow = 750_000;
+      vt.scrollToRow(targetRow);
+      const range = vt.computeRange();
+      const rawStart = range.start + 10;
+      // Should be within a few rows of the target
+      assert.closeTo(
+        rawStart,
+        targetRow,
+        2,
+        `round-trip should recover row ${targetRow}, got ${rawStart}`,
+      );
+    });
+
+    it('total spacer height is capped for large datasets', () => {
+      container = makeContainer(280);
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: makeGetData([]), renderCell,
+      });
+      vt.setTotalRows(1_000_000);
+      const topH = parseFloat(vt.spacerTop.style.height);
+      const bottomH = parseFloat(vt.spacerBottom.style.height);
+      // spacerTop + rendered area + spacerBottom should be within total scroll height
+      assert.ok(
+        topH + bottomH <= vt.getTotalScrollHeight(),
+        'spacer heights should not exceed getTotalScrollHeight()',
+      );
+      assert.ok(
+        vt.getTotalScrollHeight() <= 1_000_000,
+        'total scroll height should be capped at 1_000_000',
+      );
+    });
+  });
+
   describe('destroy', () => {
     it('cleans up without errors', () => {
       container = makeContainer();

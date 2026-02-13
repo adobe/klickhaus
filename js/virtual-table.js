@@ -13,6 +13,7 @@
 const DEFAULT_ROW_HEIGHT = 28;
 const DEFAULT_OVERSCAN = 10;
 const MAX_CACHED_PAGES = 20;
+const MAX_SCROLL_HEIGHT = 1_000_000;
 
 function getPinnedOffsets(columns) {
   const offsets = new Map();
@@ -70,6 +71,7 @@ export class VirtualTable {
     this.onRowClickFn = onRowClick || null;
 
     this.totalRows = 0;
+    this._scrollScale = 1;
     this.cache = new Map();
     this.pending = new Set();
     this.rafId = null;
@@ -169,14 +171,20 @@ export class VirtualTable {
     }
   }
 
+  getTotalScrollHeight() {
+    const natural = this.totalRows * this.rowHeight;
+    return natural > MAX_SCROLL_HEIGHT ? MAX_SCROLL_HEIGHT : natural;
+  }
+
   computeRange() {
     const { scrollTop } = this.container;
     const viewHeight = this.container.clientHeight;
+    const effectiveRowHeight = this.rowHeight * this._scrollScale;
     const start = Math.max(
       0,
-      Math.floor(scrollTop / this.rowHeight) - DEFAULT_OVERSCAN,
+      Math.floor(scrollTop / effectiveRowHeight) - DEFAULT_OVERSCAN,
     );
-    const visible = Math.ceil(viewHeight / this.rowHeight);
+    const visible = Math.ceil(viewHeight / effectiveRowHeight);
     const end = Math.min(
       this.totalRows,
       start + visible + DEFAULT_OVERSCAN * 2,
@@ -226,8 +234,9 @@ export class VirtualTable {
       }
     }
 
-    this.spacerTop.style.height = `${start * this.rowHeight}px`;
-    this.spacerBottom.style.height = `${Math.max(0, (this.totalRows - end) * this.rowHeight)}px`;
+    const effectiveRowHeight = this.rowHeight * this._scrollScale;
+    this.spacerTop.style.height = `${start * effectiveRowHeight}px`;
+    this.spacerBottom.style.height = `${Math.max(0, (this.totalRows - end) * effectiveRowHeight)}px`;
     this.tbody.innerHTML = html;
 
     if (fetchStart !== -1) {
@@ -259,7 +268,8 @@ export class VirtualTable {
 
   evictDistantPages() {
     if (this.cache.size <= MAX_CACHED_PAGES) return;
-    const center = this.container.scrollTop / this.rowHeight;
+    const effectiveRowHeight = this.rowHeight * this._scrollScale;
+    const center = this.container.scrollTop / effectiveRowHeight;
     const sorted = [...this.cache.entries()]
       .map(([key, page]) => ({
         key,
@@ -276,6 +286,10 @@ export class VirtualTable {
 
   setTotalRows(n) {
     this.totalRows = n;
+    const natural = n * this.rowHeight;
+    this._scrollScale = natural > MAX_SCROLL_HEIGHT
+      ? MAX_SCROLL_HEIGHT / natural
+      : 1;
     this.lastRange = null;
     this.renderRows();
   }
@@ -288,7 +302,8 @@ export class VirtualTable {
   }
 
   scrollToRow(index) {
-    this.container.scrollTop = Math.max(0, index * this.rowHeight);
+    const effectiveRowHeight = this.rowHeight * this._scrollScale;
+    this.container.scrollTop = Math.max(0, index * effectiveRowHeight);
   }
 
   scrollToTimestamp(ts, getTimestamp) {
