@@ -28,7 +28,12 @@ export const lambdaBreakdowns = [
   },
   {
     id: 'breakdown-function-name',
-    col: '`function_name`',
+    col: "replaceRegexpOne(`function_name`, '/[^/]+$', '')",
+    highCardinality: true,
+  },
+  {
+    id: 'breakdown-function-version',
+    col: "arrayElement(splitByChar('/', `function_name`), -1)",
     highCardinality: true,
   },
   {
