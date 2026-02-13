@@ -29,7 +29,7 @@ import {
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart,
+  renderChart, setOnChartHoverTimestamp, setOnChartClickTimestamp, setOnChartDataReady,
 } from './chart.js';
 import {
   loadAllBreakdowns,
@@ -45,7 +45,8 @@ import {
   getFilterForValue,
 } from './filters.js';
 import {
-  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
+  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView, scrollLogsToTimestamp,
+  tryRenderBucketTable,
 } from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
@@ -214,6 +215,28 @@ export function initDashboard(config = {}) {
   setOnShowFiltersView(() => {
     if (state.chartData) {
       renderChart(state.chartData);
+    }
+  });
+
+  // When chart data arrives, try rendering the bucket table (fixes race condition
+  // where logs view shows "Loading..." because chart data wasn't available yet)
+  setOnChartDataReady(() => tryRenderBucketTable());
+
+  // Chart→Scroll sync: throttled to avoid excessive scrolling
+  let lastHoverScroll = 0;
+  setOnChartHoverTimestamp((timestamp) => {
+    const now = Date.now();
+    if (now - lastHoverScroll < 300) return;
+    lastHoverScroll = now;
+    scrollLogsToTimestamp(timestamp);
+  });
+
+  // Chart click → open logs at clicked timestamp
+  setOnChartClickTimestamp((timestamp) => {
+    if (!state.showLogs) {
+      toggleLogsView(saveStateToURL, timestamp);
+    } else {
+      scrollLogsToTimestamp(timestamp);
     }
   });
 

@@ -14,6 +14,36 @@
   display: block;
 }
 
+/* Logs-active: make #dashboard a flex column so header + main fill exactly 100vh */
+#dashboard:has(.logs-active) {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#dashboard:has(.logs-active) > header {
+  flex-shrink: 0;
+}
+
+.logs-active#dashboardContent {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Logs View fills remaining flex space */
+.logs-active #logsView.visible {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
 /* Logs View */
 #logsView {
   padding: 16px 0 24px 0;
@@ -25,6 +55,16 @@
   border: 1px solid var(--border);
   overflow-x: auto;
   transition: filter 0.2s ease-out;
+  height: calc(100vh - 200px);
+  min-height: 400px;
+}
+
+/* In logs-active mode, container fills remaining flex space */
+.logs-active .logs-table-container {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  overflow: auto;
 }
 
 @media (max-width: 600px) {
@@ -44,8 +84,9 @@
 }
 
 .logs-table {
-  width: 100%;
+  min-width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 12px;
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
 }
@@ -59,6 +100,8 @@
   position: sticky;
   top: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   user-select: none;
 }
@@ -103,7 +146,7 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
-  max-width: 300px;
+  max-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -173,6 +216,42 @@
   justify-content: center;
   padding: 60px;
   color: var(--text-secondary);
+}
+
+/* Virtual table loading placeholder rows */
+.logs-table .loading-row td {
+  background: var(--card-bg);
+  color: transparent;
+}
+
+/* Bucket-row table placeholder rows */
+.bucket-table .bucket-row {
+  cursor: default;
+}
+
+.bucket-table .bucket-row .bucket-placeholder {
+  max-width: none;
+  vertical-align: middle;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  white-space: nowrap;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 28px,
+    rgba(0, 0, 0, 0.02) 28px,
+    rgba(0, 0, 0, 0.02) 56px
+  );
+}
+
+/* Bucket table data rows (loaded on demand) */
+.bucket-table tr[data-row-idx] td {
+  height: 28px;
+  padding: 4px 8px;
+  box-sizing: border-box;
 }
 
 /* Copy feedback toast */

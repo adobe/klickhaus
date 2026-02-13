@@ -228,6 +228,14 @@ export function syncUIFromState() {
     elements.logsView.classList.add('visible');
     elements.filtersView.classList.remove('visible');
     elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    // Activate flex layout for logs view
+    const dc = document.getElementById('dashboardContent');
+    if (dc) dc.classList.add('logs-active');
+    // Restore chart collapse state from localStorage
+    const chartSection = document.querySelector('.chart-section');
+    if (chartSection && localStorage.getItem('chartCollapsed') === 'true') {
+      chartSection.classList.add('chart-collapsed');
+    }
   } else {
     elements.logsView.classList.remove('visible');
     elements.filtersView.classList.add('visible');
