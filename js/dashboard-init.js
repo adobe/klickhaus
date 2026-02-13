@@ -29,7 +29,7 @@ import {
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart,
+  renderChart, setOnChartHoverTimestamp, setOnChartLeave,
 } from './chart.js';
 import {
   loadAllBreakdowns,
@@ -45,8 +45,10 @@ import {
   getFilterForValue,
 } from './filters.js';
 import {
-  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
+  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView, scrollLogsToTimestamp,
+  isTimestampLoaded, checkAndLoadGap, setRowHoverCallbacks,
 } from './logs.js';
+import { initScrollSync, handleRowHover, handleRowLeave } from './scroll-sync.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import {
@@ -175,7 +177,6 @@ export function initDashboard(config = {}) {
   // Load Dashboard Data
   async function loadDashboard(refresh = false) {
     const dashboardContext = startRequestContext('dashboard');
-    const facetsContext = startRequestContext('facets');
     setForceRefresh(refresh);
     if (refresh) {
       invalidateInvestigationCache();
@@ -200,9 +201,16 @@ export function initDashboard(config = {}) {
     const hostFilter = getHostFilter();
 
     if (state.showLogs) {
+      // When logs view is active, prioritize log requests:
+      // 1. Cancel any in-flight facet requests
+      // 2. Load logs first
+      // 3. Only start facet requests after logs are loaded
+      startRequestContext('facets'); // Cancel in-flight facet requests
       await loadLogs(dashboardContext);
+      const facetsContext = startRequestContext('facets');
       loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
     } else {
+      const facetsContext = startRequestContext('facets');
       await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
       loadLogs(dashboardContext);
     }
@@ -216,6 +224,16 @@ export function initDashboard(config = {}) {
       renderChart(state.chartData);
     }
   });
+
+  // Initialize scroll-scrubber sync (bidirectional)
+  const scrollSyncHandlers = initScrollSync({
+    checkAndLoadGap,
+    scrollToTimestamp: scrollLogsToTimestamp,
+    isTimestampLoaded,
+  });
+  setOnChartHoverTimestamp(scrollSyncHandlers.onChartHover);
+  setOnChartLeave(scrollSyncHandlers.onChartLeave);
+  setRowHoverCallbacks(handleRowHover, handleRowLeave);
 
   setFilterCallbacks(saveStateToURL, loadDashboard);
   setOnBeforeRestore(() => invalidateInvestigationCache());

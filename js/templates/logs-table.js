@@ -13,6 +13,7 @@ import { escapeHtml } from '../utils.js';
 import { formatBytes } from '../format.js';
 import { getColorForColumn } from '../colors/index.js';
 import { LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET } from '../columns.js';
+import { parseUTC } from '../chart-state.js';
 
 /**
  * Format timestamp - short format on mobile.
@@ -145,4 +146,80 @@ export function buildLogTableHeaderHtml(columns, pinned, pinnedOffsets) {
     const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
     return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
   }).join('');
+}
+
+/**
+ * Format a duration between two timestamps for display.
+ * @param {string} gapStart - Newest boundary timestamp (e.g. '2026-02-12 10:00:00.000')
+ * @param {string} gapEnd - Oldest boundary timestamp (e.g. '2026-02-12 06:00:00.000')
+ * @returns {string} Human-readable duration like "4h" or "30m"
+ */
+function formatGapDuration(gapStart, gapEnd) {
+  const startMs = parseUTC(gapStart).getTime();
+  const endMs = parseUTC(gapEnd).getTime();
+  const diffMs = Math.abs(startMs - endMs);
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHours = Math.round(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d`;
+}
+
+/**
+ * Format a timestamp for display in gap label (time only, no date).
+ * @param {string} ts - Timestamp string like '2026-02-12 10:00:00.000'
+ * @returns {string} Time like "10:00"
+ */
+function formatGapTime(ts) {
+  const d = parseUTC(ts);
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/**
+ * Format a number with locale-aware thousands separators.
+ * @param {number} num
+ * @returns {string}
+ */
+function formatCount(num) {
+  return num.toLocaleString();
+}
+
+/**
+ * Build HTML for a gap row placeholder.
+ * @param {Object} params
+ * @param {Object} params.gap - Gap row object with gapStart, gapEnd, gapLoading, gapCount
+ * @param {number} params.rowIdx - Index in state.logsData
+ * @param {number} params.colCount - Number of columns for colspan
+ * @returns {string}
+ */
+export function buildGapRowHtml({ gap, rowIdx, colCount }) {
+  const duration = formatGapDuration(gap.gapStart, gap.gapEnd);
+  const startTime = formatGapTime(gap.gapStart);
+  const endTime = formatGapTime(gap.gapEnd);
+  const timeRange = `${startTime}\u2013${endTime}`;
+  const loadingClass = gap.gapLoading ? ' loading' : '';
+
+  let labelText;
+  if (gap.gapLoading) {
+    labelText = `Loading ${timeRange} (${duration})\u2026`;
+  } else if (gap.gapCount !== undefined && gap.gapCount > 0) {
+    labelText = `\u2026 ${formatCount(gap.gapCount)} more entries (${duration})`;
+  } else {
+    labelText = `\u2026 ${duration} of logs (${timeRange})`;
+  }
+
+  const iconHtml = gap.gapLoading
+    ? '<span class="logs-gap-spinner"></span>'
+    : '<span class="logs-gap-icon">\u2193</span>';
+
+  return `<tr class="logs-gap-row${loadingClass}" data-row-idx="${rowIdx}" data-gap="true">
+  <td colspan="${colCount}" class="logs-gap-cell">
+    <button class="logs-gap-button" data-action="load-gap" data-gap-idx="${rowIdx}">
+      ${iconHtml}<span class="logs-gap-label">${escapeHtml(labelText)}</span>
+    </button>
+  </td>
+</tr>`;
 }

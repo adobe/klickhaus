@@ -34,6 +34,18 @@ body.header-fixed main {
   padding-top: 70px;
 }
 
+/* Sticky header when logs view is active (not collapsed) */
+#dashboard:has(.logs-active:not(.logs-collapsed)) header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* When collapsed, header is not sticky */
+#dashboard:has(.logs-active.logs-collapsed) header {
+  position: relative;
+}
+
 @media (max-width: 600px) {
   header {
     padding: 12px;

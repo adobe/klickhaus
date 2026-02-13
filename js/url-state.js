@@ -201,6 +201,29 @@ export function loadStateFromURL() {
   if (params.has('hf')) state.hiddenFacets = params.get('hf').split(',').filter((f) => f);
 }
 
+// Sync logs view DOM state (classes, visibility) based on state.showLogs
+function syncLogsViewState() {
+  const dashboardContent = document.getElementById('dashboardContent');
+  const chartSection = document.querySelector('.chart-section');
+  if (state.showLogs) {
+    elements.logsView.classList.add('visible');
+    elements.filtersView.classList.remove('visible');
+    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    dashboardContent?.classList.add('logs-active');
+    if (localStorage.getItem('chartCollapsed') === 'true') {
+      dashboardContent?.classList.add('logs-collapsed');
+      chartSection?.classList.add('chart-collapsed');
+    }
+  } else {
+    elements.logsView.classList.remove('visible');
+    elements.filtersView.classList.add('visible');
+    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
+    dashboardContent?.classList.remove('logs-active');
+    dashboardContent?.classList.remove('logs-collapsed');
+    chartSection?.classList.remove('chart-collapsed');
+  }
+}
+
 export function syncUIFromState() {
   // Show "Custom" in dropdown when in custom time range, otherwise show predefined
   if (customTimeRange()) {
@@ -223,16 +246,7 @@ export function syncUIFromState() {
     document.title = 'CDN Analytics';
   }
 
-  // Update view toggle based on state
-  if (state.showLogs) {
-    elements.logsView.classList.add('visible');
-    elements.filtersView.classList.remove('visible');
-    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
-  } else {
-    elements.logsView.classList.remove('visible');
-    elements.filtersView.classList.add('visible');
-    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
-  }
+  syncLogsViewState();
 
   // Apply hidden controls from URL
   if (state.hiddenControls.includes('timeRange')) {
