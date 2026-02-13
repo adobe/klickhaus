@@ -13,14 +13,15 @@ import { assert } from 'chai';
 import { lambdaBreakdowns } from './definitions-lambda.js';
 
 describe('lambdaBreakdowns', () => {
-  it('has nine facets', () => {
-    assert.strictEqual(lambdaBreakdowns.length, 9);
+  it('has ten facets', () => {
+    assert.strictEqual(lambdaBreakdowns.length, 10);
   });
 
   it('each facet has id and col (string or function)', () => {
     const ids = [
       'breakdown-level',
       'breakdown-function-name',
+      'breakdown-function-version',
       'breakdown-app-name',
       'breakdown-subsystem',
       'breakdown-log-group',
@@ -42,10 +43,20 @@ describe('lambdaBreakdowns', () => {
     assert.strictEqual(levelFacet.summaryLabel, 'error rate');
   });
 
-  it('function_name and log_group are high cardinality', () => {
+  it('function_name strips version and function_version is last segment', () => {
     const fn = lambdaBreakdowns.find((b) => b.id === 'breakdown-function-name');
-    const lg = lambdaBreakdowns.find((b) => b.id === 'breakdown-log-group');
+    const fv = lambdaBreakdowns.find((b) => b.id === 'breakdown-function-version');
+    assert.ok(fn);
+    assert.ok(fv);
+    assert.include(fn.col, 'replaceRegexpOne');
+    assert.include(fn.col, "'/[^/]+$'");
+    assert.include(fv.col, "arrayElement(splitByChar('/', `function_name`), -1)");
     assert.strictEqual(fn.highCardinality, true);
+    assert.strictEqual(fv.highCardinality, true);
+  });
+
+  it('log_group is high cardinality', () => {
+    const lg = lambdaBreakdowns.find((b) => b.id === 'breakdown-log-group');
     assert.strictEqual(lg.highCardinality, true);
   });
 
