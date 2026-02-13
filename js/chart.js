@@ -100,6 +100,17 @@ let scrubberRangeEnd = null; // eslint-disable-line prefer-const
 let onChartHoverTimestamp = null;
 let onChartClickTimestamp = null;
 
+// Callback invoked when chart data becomes available (set by dashboard-init.js)
+let onChartDataReady = null;
+
+/**
+ * Register a callback to be invoked when chart data is set.
+ * @param {Function} callback
+ */
+export function setOnChartDataReady(callback) {
+  onChartDataReady = callback;
+}
+
 /**
  * Set callback for chart hover → scroll sync
  * @param {Function} callback - Called with timestamp when hovering chart in logs view
@@ -929,6 +940,8 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
     if (!isCurrent()) return;
     state.chartData = result.data;
     renderChart(result.data);
+    // Notify logs view that chart data is available (bucket table may need rendering)
+    if (onChartDataReady) onChartDataReady();
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console

@@ -29,7 +29,7 @@ import {
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart, setOnChartHoverTimestamp, setOnChartClickTimestamp,
+  renderChart, setOnChartHoverTimestamp, setOnChartClickTimestamp, setOnChartDataReady,
 } from './chart.js';
 import {
   loadAllBreakdowns, loadBreakdown, getBreakdowns, markSlowestFacet, resetFacetTimings,
@@ -41,6 +41,7 @@ import {
 } from './filters.js';
 import {
   loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView, scrollLogsToTimestamp,
+  tryRenderBucketTable,
 } from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
@@ -201,6 +202,10 @@ export function initDashboard(config = {}) {
       renderChart(state.chartData);
     }
   });
+
+  // When chart data arrives, try rendering the bucket table (fixes race condition
+  // where logs view shows "Loading..." because chart data wasn't available yet)
+  setOnChartDataReady(() => tryRenderBucketTable());
 
   // Chart→Scroll sync: throttled to avoid excessive scrolling
   let lastHoverScroll = 0;

@@ -28,10 +28,7 @@ import { formatLogCell } from './templates/logs-table.js';
 import { PAGE_SIZE, INITIAL_PAGE_SIZE } from './pagination.js';
 import { setScrubberPosition, setScrubberRange } from './chart.js';
 import { parseUTC } from './chart-state.js';
-// VirtualTable is intentionally NOT used — replaced by bucket-row approach.
-// The VirtualTable class remains in virtual-table.js for potential future use.
-
-// Cached bucket index built from chart data
+// VirtualTable intentionally NOT used — replaced by bucket-row approach.
 // eslint-disable-next-line prefer-const -- reassigned in buildBucketIndex/loadLogs
 let bucketIndex = null;
 
@@ -88,11 +85,9 @@ let logsView = null;
 let viewToggleBtn = null;
 let filtersView = null;
 
-// VirtualTable instance
 let virtualTable = null;
 
-// Page cache for cursor-based pagination
-// Maps pageIndex → { rows, cursor (timestamp of last row) }
+// Page cache: pageIndex → { rows, cursor (timestamp of last row) }
 const pageCache = new Map();
 let currentColumns = [];
 
@@ -112,7 +107,6 @@ function showCopyFeedback() {
   }, 1500);
 }
 
-// Log detail modal element
 let logDetailModal = null;
 
 /**
@@ -785,6 +779,14 @@ function ensureVirtualTable() {
   container.innerHTML = '<div class="logs-loading">Loading\u2026</div>';
 }
 
+// Re-render bucket table when chart data arrives after loadLogs() (race condition fix)
+export function tryRenderBucketTable() {
+  if (!state.showLogs || !logsView || !state.chartData?.length) return;
+  const container = logsView.querySelector('.logs-table-container');
+  if (!container || container.querySelector('.bucket-table')) return;
+  ensureVirtualTable();
+}
+
 // Scroll log table to the row closest to a given timestamp
 export function scrollLogsToTimestamp(timestamp) {
   if (!state.showLogs) return;
@@ -951,6 +953,8 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     if (isCurrent()) {
       state.logsLoading = false;
       container.classList.remove('updating');
+      // Chart data may have arrived while the logs query was in-flight
+      tryRenderBucketTable();
     }
   }
 }
