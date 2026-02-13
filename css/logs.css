@@ -238,10 +238,13 @@
   border-bottom: 1px solid var(--border);
   padding: 0 12px;
   white-space: nowrap;
-}
-
-.bucket-table .bucket-row:nth-child(even) .bucket-placeholder {
-  background: rgba(0, 0, 0, 0.02);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 28px,
+    rgba(0, 0, 0, 0.02) 28px,
+    rgba(0, 0, 0, 0.02) 56px
+  );
 }
 
 .bucket-table .bucket-row:hover .bucket-placeholder {
