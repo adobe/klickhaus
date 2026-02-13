@@ -81,8 +81,9 @@ function renderTable() {
       ? `<span class="badge badge-new">New (${row.age_days}d)</span>`
       : `<span class="badge badge-existing">${row.age_days}d</span>`;
 
+    const optelUrl = `https://tools.aem.live/tools/optel/explorer/explorer.html?domain=${encodeURIComponent(row.domain)}&view=month&domainkey=incognito`;
     return `<tr class="${matchesFilter ? '' : 'hidden'}">
-      <td class="domain-cell"><a href="https://${escapeHtml(row.domain)}" target="_blank" rel="noopener">${escapeHtml(row.domain)}</a></td>
+      <td class="domain-cell"><a href="https://${escapeHtml(row.domain)}" target="_blank" rel="noopener">${escapeHtml(row.domain)}</a> <a href="${escapeHtml(optelUrl)}" target="_blank" rel="noopener noreferrer" class="optel-link" title="Open in OpTel Explorer">OPTEL</a></td>
       <td class="owner-cell">${escapeHtml(row.owner)}</td>
       <td class="repo-cell">${escapeHtml(row.repo)}</td>
       <td class="cdn-cell">${escapeHtml(row.cdn_type || '\u2014')}</td>

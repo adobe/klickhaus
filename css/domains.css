@@ -142,6 +142,27 @@ html {
   color: var(--text);
 }
 
+.optel-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--host-authoring);
+  background: color-mix(in srgb, var(--host-authoring) 12%, transparent);
+  border-radius: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.optel-link:hover {
+  background: color-mix(in srgb, var(--host-authoring) 22%, transparent);
+  text-decoration: none;
+}
+
 .owner-cell {
   color: var(--host-delivery);
 }
