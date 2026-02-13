@@ -30,6 +30,10 @@ import { setScrubberPosition, setScrubberRange } from './chart.js';
 import { parseUTC } from './chart-state.js';
 import { VirtualTable } from './virtual-table.js';
 
+// Cached bucket index built from chart data
+// eslint-disable-next-line prefer-const -- reassigned in buildBucketIndex/loadLogs
+let bucketIndex = null;
+
 const TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/;
 
 /**
@@ -436,20 +440,65 @@ function findCachedCursor(pageIdx) {
 }
 
 /**
- * Interpolate a timestamp from the time range for a given row index.
- * Used when no cursor chain is available for direct page jumps.
- * @param {number} startIdx
+ * Format a Date as 'YYYY-MM-DD HH:MM:SS.mmm' in UTC.
+ * @param {Date} date
+ * @returns {string}
+ */
+function formatTimestampUTC(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}.${ms}`;
+}
+
+/**
+ * Interpolate a timestamp for a given row index using bucket-aware lookup.
+ * Chart data buckets are ordered oldest→newest (ascending time), but rows are
+ * ordered newest→oldest (descending time, ORDER BY timestamp DESC).
+ * So row 0 = newest bucket (last in chart), row N = oldest bucket (first in chart).
+ *
+ * Uses binary search on the cumulative row-count array when available,
+ * falling back to linear interpolation across the time range.
+ * @param {number} startIdx - virtual row index (0 = newest)
  * @param {number} totalRows
  * @returns {string} timestamp in 'YYYY-MM-DD HH:MM:SS.mmm' format
  */
 function interpolateTimestamp(startIdx, totalRows) {
+  // Bucket-aware path: binary search the cumulative array
+  if (bucketIndex && bucketIndex.cumulative.length > 0) {
+    const { cumulative } = bucketIndex;
+    const total = bucketIndex.totalRows;
+    // Clamp to valid range
+    const targetRow = Math.min(Math.max(startIdx, 0), total - 1);
+
+    // cumulative is oldest→newest; cumRows is a running total in that order.
+    // Row 0 (newest) maps to the END of the cumulative array.
+    // Convert: rows from the end = targetRow → cumulative offset from end.
+    const rowsFromEnd = targetRow;
+    // rowsFromEnd=0 means the last bucket; rowsFromEnd=total-1 means the first.
+    // cumulativeTarget = total - rowsFromEnd = the cumRows value we seek.
+    const cumulativeTarget = total - rowsFromEnd;
+
+    // Binary search: find the bucket where cumRows >= cumulativeTarget
+    let lo = 0;
+    let hi = cumulative.length - 1;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (cumulative[mid].cumRows < cumulativeTarget) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    return formatTimestampUTC(parseUTC(cumulative[lo].timestamp));
+  }
+
+  // Fallback: linear interpolation across the time range
   const { start, end } = getTimeRangeBounds();
   const totalMs = end.getTime() - start.getTime();
-  const fraction = Math.min(startIdx / totalRows, 1);
+  const fraction = Math.min(startIdx / Math.max(totalRows, 1), 1);
   const targetTs = new Date(end.getTime() - fraction * totalMs);
-  const pad = (n) => String(n).padStart(2, '0');
-  const ms = String(targetTs.getUTCMilliseconds()).padStart(3, '0');
-  return `${targetTs.getUTCFullYear()}-${pad(targetTs.getUTCMonth() + 1)}-${pad(targetTs.getUTCDate())} ${pad(targetTs.getUTCHours())}:${pad(targetTs.getUTCMinutes())}:${pad(targetTs.getUTCSeconds())}.${ms}`;
+  return formatTimestampUTC(targetTs);
 }
 
 /**
@@ -492,6 +541,8 @@ function getCachedRows(pageIdx, startIdx, count) {
 
 /**
  * Adjust virtualTable totalRows after fetching a page.
+ * Only shrinks totalRows when a genuine short page indicates end-of-data.
+ * Never grows — the initial estimate from chart data is the upper bound.
  */
 function adjustTotalRows(pageIdx, rowCount) {
   if (!virtualTable) return;
@@ -500,12 +551,8 @@ function adjustTotalRows(pageIdx, rowCount) {
     if (actualTotal < virtualTable.totalRows) {
       virtualTable.setTotalRows(actualTotal);
     }
-  } else {
-    const minTotal = (pageIdx + 2) * PAGE_SIZE;
-    if (minTotal > virtualTable.totalRows) {
-      virtualTable.setTotalRows(minTotal);
-    }
   }
+  // Removed: growth path that caused scroll jumps by expanding totalRows
 }
 
 /**
@@ -656,12 +703,40 @@ export function setOnShowFiltersView(callback) {
 }
 
 /**
+ * Build a cumulative row-count index from chart data buckets.
+ * Each bucket has { t, cnt_ok, cnt_4xx, cnt_5xx } (strings from ClickHouse).
+ * Returns { cumulative: [{timestamp, cumRows, count}], totalRows } or null.
+ * Buckets are ordered oldest→newest (ascending time), matching chart data order.
+ * @param {Array} chartData
+ * @returns {{cumulative: Array, totalRows: number}|null}
+ */
+function buildBucketIndex(chartData) {
+  if (!chartData || chartData.length === 0) return null;
+  const cumulative = [];
+  let total = 0;
+  for (const bucket of chartData) {
+    const count = (parseInt(bucket.cnt_ok, 10) || 0)
+      + (parseInt(bucket.cnt_4xx, 10) || 0)
+      + (parseInt(bucket.cnt_5xx, 10) || 0);
+    total += count;
+    cumulative.push({ timestamp: bucket.t, cumRows: total, count });
+  }
+  return { cumulative, totalRows: total };
+}
+
+/**
  * Estimate total rows from chart data bucket counts.
  * @returns {number}
  */
 function estimateTotalRows() {
-  if (!state.chartData || !state.chartData.buckets) return 0;
-  return state.chartData.buckets.reduce((sum, b) => sum + (b.total || b.count || 0), 0);
+  if (!state.chartData || state.chartData.length === 0) return 0;
+  let total = 0;
+  for (const b of state.chartData) {
+    total += (parseInt(b.cnt_ok, 10) || 0)
+      + (parseInt(b.cnt_4xx, 10) || 0)
+      + (parseInt(b.cnt_5xx, 10) || 0);
+  }
+  return total;
 }
 
 export async function loadLogs(requestContext = getRequestContext('dashboard')) {
@@ -671,8 +746,9 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   state.logsLoading = true;
   state.logsReady = false;
 
-  // Reset page cache
+  // Reset page cache and bucket index
   pageCache.clear();
+  bucketIndex = null;
   currentColumns = [];
 
   // Apply blur effect while loading
@@ -723,8 +799,9 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
       // Seed VirtualTable cache with pre-fetched page 0 to avoid re-fetch
       virtualTable.seedCache(0, rows);
 
-      // Estimate total rows: use chart data if available, otherwise extrapolate
-      const estimated = estimateTotalRows();
+      // Build bucket index from chart data for accurate scroll mapping
+      bucketIndex = buildBucketIndex(state.chartData);
+      const estimated = bucketIndex ? bucketIndex.totalRows : estimateTotalRows();
       const total = estimated > rows.length ? estimated : rows.length * 10;
       virtualTable.setTotalRows(total);
     }
@@ -763,7 +840,8 @@ export function toggleLogsView(saveStateToURL, scrollToTimestamp) {
         currentColumns = getLogColumns(Object.keys(page0.rows[0]));
         virtualTable.setColumns(buildVirtualColumns(currentColumns));
         virtualTable.seedCache(0, page0.rows);
-        const estimated = estimateTotalRows();
+        bucketIndex = buildBucketIndex(state.chartData);
+        const estimated = bucketIndex ? bucketIndex.totalRows : estimateTotalRows();
         const total = estimated > page0.rows.length ? estimated : page0.rows.length * 10;
         virtualTable.setTotalRows(total);
         if (scrollToTimestamp) {
