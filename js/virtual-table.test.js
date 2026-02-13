@@ -466,6 +466,106 @@ describe('VirtualTable', () => {
     });
   });
 
+  describe('infinite scroll (totalRows growth)', () => {
+    // Simulates how logs.js getData works: internally fetches a full page from
+    // the server, checks if the page is full/partial, and adjusts totalRows.
+    // The VirtualTable only sees the sliced result, but totalRows is updated
+    // via setTotalRows as a side effect.
+    const INTERNAL_PAGE_SIZE = 50;
+
+    function makePagedGetData(opts = {}) {
+      const { totalAvailable = Infinity } = opts;
+      const cache = new Map();
+      return async (startIdx, count) => {
+        const pageIdx = Math.floor(startIdx / INTERNAL_PAGE_SIZE);
+        if (!cache.has(pageIdx)) {
+          // Simulate server fetch of a full page
+          const pageStart = pageIdx * INTERNAL_PAGE_SIZE;
+          const available = Math.max(0, totalAvailable - pageStart);
+          const fetchedCount = Math.min(INTERNAL_PAGE_SIZE, available);
+          const fetched = Array.from({ length: fetchedCount }, (_, i) => ({
+            timestamp: `row-${pageStart + i}`, status: 200,
+          }));
+          cache.set(pageIdx, fetched);
+
+          // Adjust totalRows based on page fullness (mirrors logs.js fix)
+          if (fetched.length < INTERNAL_PAGE_SIZE) {
+            const actualTotal = pageIdx * INTERNAL_PAGE_SIZE + fetched.length;
+            if (actualTotal < vt.totalRows) {
+              vt.setTotalRows(actualTotal);
+            }
+          } else {
+            const minTotal = (pageIdx + 2) * INTERNAL_PAGE_SIZE;
+            if (minTotal > vt.totalRows) {
+              vt.setTotalRows(minTotal);
+            }
+          }
+        }
+        const page = cache.get(pageIdx);
+        const offset = startIdx - pageIdx * INTERNAL_PAGE_SIZE;
+        return page.slice(offset, offset + count);
+      };
+    }
+
+    it('grows totalRows when a full page is fetched', async () => {
+      container = makeContainer(280);
+      const initialTotal = INTERNAL_PAGE_SIZE * 2; // 100
+      const fn = makePagedGetData({ totalAvailable: 500 });
+
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: fn, renderCell,
+      });
+      vt.seedCache(0, Array.from({ length: INTERNAL_PAGE_SIZE }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      })));
+      vt.setTotalRows(initialTotal);
+
+      // Scroll near end of initial estimate — triggers fetch in uncached page 1
+      Object.defineProperty(container, 'scrollTop', {
+        value: (initialTotal - 5) * 28, writable: true,
+      });
+      vt.invalidate();
+      await new Promise((r) => {
+        setTimeout(r, 150);
+      });
+
+      // Full page fetched for page 1 → totalRows should grow to (1+2)*50=150
+      assert.ok(
+        vt.totalRows > initialTotal,
+        `totalRows should grow beyond ${initialTotal}, got ${vt.totalRows}`,
+      );
+    });
+
+    it('caps totalRows when a partial page is fetched', async () => {
+      container = makeContainer(280);
+      const totalAvailable = INTERNAL_PAGE_SIZE + 10; // 60 rows total
+      const fn = makePagedGetData({ totalAvailable });
+
+      vt = new VirtualTable({
+        container, columns: makeColumns(), getData: fn, renderCell,
+      });
+      vt.seedCache(0, Array.from({ length: INTERNAL_PAGE_SIZE }, (_, i) => ({
+        timestamp: `row-${i}`, status: 200,
+      })));
+      vt.setTotalRows(500); // Large initial estimate
+
+      // Scroll to trigger fetch for page 1 (which has only 10 rows)
+      Object.defineProperty(container, 'scrollTop', {
+        value: INTERNAL_PAGE_SIZE * 28, writable: true,
+      });
+      vt.invalidate();
+      await new Promise((r) => {
+        setTimeout(r, 150);
+      });
+
+      assert.strictEqual(
+        vt.totalRows,
+        totalAvailable,
+        `totalRows should be capped to ${totalAvailable}`,
+      );
+    });
+  });
+
   describe('destroy', () => {
     it('cleans up without errors', () => {
       container = makeContainer();

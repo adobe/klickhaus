@@ -494,11 +494,20 @@ async function getData(startIdx, count) {
     const cursor = rows.length > 0 ? rows[rows.length - 1].timestamp : null;
     pageCache.set(pageIdx, { rows, cursor });
 
-    // Cap totalRows when a sequential (cursor-based) page is short
-    if (!isInterpolated && rows.length < PAGE_SIZE && virtualTable) {
-      const actualTotal = pageIdx * PAGE_SIZE + rows.length;
-      if (actualTotal < virtualTable.totalRows) {
-        virtualTable.setTotalRows(actualTotal);
+    // Adjust totalRows based on how full this page is
+    if (!isInterpolated && virtualTable) {
+      if (rows.length < PAGE_SIZE) {
+        // Short page — cap totalRows to actual loaded count
+        const actualTotal = pageIdx * PAGE_SIZE + rows.length;
+        if (actualTotal < virtualTable.totalRows) {
+          virtualTable.setTotalRows(actualTotal);
+        }
+      } else {
+        // Full page — ensure there's scroll room for at least one more page
+        const minTotal = (pageIdx + 2) * PAGE_SIZE;
+        if (minTotal > virtualTable.totalRows) {
+          virtualTable.setTotalRows(minTotal);
+        }
       }
     }
 
