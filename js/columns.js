@@ -186,7 +186,7 @@ export const LOG_COLUMN_SHORT_LABELS = Object.fromEntries(
  * Columns always included in logs queries (needed for internal use, not display).
  * @type {string[]}
  */
-const ALWAYS_NEEDED_COLUMNS = ['timestamp', 'source', 'sample_hash'];
+const ALWAYS_NEEDED_COLUMNS = ['timestamp', 'source'];
 
 /**
  * Build the backtick-quoted column list for logs SQL queries.

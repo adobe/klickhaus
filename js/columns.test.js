@@ -24,7 +24,7 @@ describe('buildLogColumnsSql', () => {
     const result = buildLogColumnsSql();
     assert.include(result, '`timestamp`');
     assert.include(result, '`source`');
-    assert.include(result, '`sample_hash`');
+    assert.notInclude(result, '`sample_hash`');
   });
 
   it('includes all LOG_COLUMN_ORDER columns', () => {
@@ -66,6 +66,5 @@ describe('buildLogColumnsSql', () => {
     const parts = result.split(', ');
     assert.strictEqual(parts[0], '`timestamp`');
     assert.strictEqual(parts[1], '`source`');
-    assert.strictEqual(parts[2], '`sample_hash`');
   });
 });
