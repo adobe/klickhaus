@@ -277,6 +277,7 @@ async function buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostF
     sampleClause: params.sampleClause || '',
     timeFilter,
     hostFilter,
+    facetFilters: params.facetFilters,
     extra: params.extra,
     additionalWhereClause: dedupClause,
     topN: String(state.topN),

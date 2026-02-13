@@ -39,11 +39,9 @@ const FACET_SQL_TEMPLATE = 'SELECT\n  dim,\n  sum(cnt) as cnt,\n  sum(cnt_ok) as
 
 const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total) as cnt,\n  sum(agg_ok) as cnt_ok,\n  sum(agg_4xx) as cnt_4xx,\n  sum(agg_5xx) as cnt_5xx{{outerSummaryCol}}\nFROM (\n  SELECT\n    {{rawCol}} as val,\n    {{aggTotal}} as agg_total,\n    {{aggOk}} as agg_ok,\n    {{agg4xx}} as agg_4xx,\n    {{agg5xx}} as agg_5xx{{innerSummaryCol}}\n  FROM {{database}}.{{table}}\n  {{sampleClause}}\n  WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\n  GROUP BY val\n)\nGROUP BY dim WITH TOTALS\nORDER BY min(val)\nLIMIT {{topN}}\n';
 
-/**
- * Create a mock fetch that returns SQL templates and ClickHouse query results.
- * @param {object} [queryResponse] - The JSON to return for ClickHouse query POSTs
- * @returns {{ fetch: function, calls: Array }}
- */
+// Approx-top template: like BREAKDOWN_SQL_TEMPLATE but without {{orderBy}} (hardcodes cnt DESC)
+const APPROX_TOP_SQL_TEMPLATE = BREAKDOWN_SQL_TEMPLATE.replace('{{orderBy}}', 'cnt DESC');
+// Create a mock fetch that returns SQL templates and ClickHouse query results.
 function createMockFetch(queryResponse = {
   data: [{
     dim: 'test', cnt: '100', cnt_ok: '90', cnt_4xx: '8', cnt_5xx: '2',
@@ -60,6 +58,7 @@ function createMockFetch(queryResponse = {
       let template = BREAKDOWN_SQL_TEMPLATE;
       if (url.includes('breakdown-facet.sql')) template = FACET_SQL_TEMPLATE;
       else if (url.includes('breakdown-bucketed.sql')) template = BUCKETED_SQL_TEMPLATE;
+      else if (url.includes('breakdown-approx-top.sql')) template = APPROX_TOP_SQL_TEMPLATE;
       return { ok: true, text: async () => template };
     }
     // ClickHouse API POST requests
@@ -74,9 +73,7 @@ function createMockFetch(queryResponse = {
   return { fetch: mockFetch, calls };
 }
 
-/**
- * Create a DOM card element for a breakdown facet.
- */
+// Create a DOM card element for a breakdown facet.
 function createCard(id, title) {
   let card = document.getElementById(id);
   if (card) card.remove();
@@ -856,13 +853,11 @@ describe('canUseFacetTable (highCardinality)', () => {
     assert.isTrue(canUseFacetTable(b));
   });
 });
-
 describe('isPreviewActive', () => {
   it('returns false initially', () => {
     assert.isFalse(isPreviewActive());
   });
 });
-
 describe('revertPreviewBreakdowns', () => {
   it('is a no-op when preview is not active', async () => {
     // Add a card with .preview class to verify the guard skips DOM changes
@@ -878,7 +873,6 @@ describe('revertPreviewBreakdowns', () => {
     testCard.remove();
   });
 });
-
 describe('loadPreviewBreakdowns', () => {
   const previewFacetId = 'breakdown-preview-test';
   let previewCard;
@@ -944,17 +938,14 @@ describe('loadPreviewBreakdowns', () => {
     assert.isFalse(isPreviewActive());
   });
 });
-
 describe('gradual refinement', () => {
   const refId = 'breakdown-refinement-test';
   let card;
   let originalFetch;
-
   beforeEach(() => {
     originalFetch = window.fetch;
     card = createCard(refId, 'Refinement');
   });
-
   afterEach(() => {
     window.fetch = originalFetch;
     state.breakdowns = null;
@@ -996,5 +987,14 @@ describe('gradual refinement', () => {
     window.fetch = mockFetch;
     await loadAllBreakdownsRefined(startRequestContext('facets'));
     assert.strictEqual(calls.filter((c) => c.options?.method === 'POST').length, 0);
+  });
+
+  it('includes facet filters in approx-top SQL', async () => {
+    state.filters = [{ col: '`request.method`', value: 'GET', exclude: false }];
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    await loadBreakdown({ id: refId, col: '`request.host`', highCardinality: true }, '1=1', '', startRequestContext('facets'), { sampleClause: '', multiplier: 1 });
+    assert.ok(calls.some((c) => c.url?.includes('breakdown-approx-top.sql')), 'should use approx-top template');
+    assert.include(calls.filter((c) => c.options?.method === 'POST')[0].options.body, "`request.method` = 'GET'", 'approx-top SQL should include facet filter');
   });
 });
