@@ -240,6 +240,10 @@
   white-space: nowrap;
 }
 
+.bucket-table .bucket-row:nth-child(even) .bucket-placeholder {
+  background: rgba(0, 0, 0, 0.02);
+}
+
 .bucket-table .bucket-row:hover .bucket-placeholder {
   background: var(--bg);
 }
