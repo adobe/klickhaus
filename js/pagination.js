@@ -11,6 +11,7 @@
  */
 
 export const PAGE_SIZE = 500;
+export const INITIAL_PAGE_SIZE = 100;
 
 export class PaginationState {
   constructor(pageSize = PAGE_SIZE) {

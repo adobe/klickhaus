@@ -25,7 +25,7 @@ import {
 } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { formatLogCell } from './templates/logs-table.js';
-import { PAGE_SIZE } from './pagination.js';
+import { PAGE_SIZE, INITIAL_PAGE_SIZE } from './pagination.js';
 import { setScrubberPosition, setScrubberRange } from './chart.js';
 import { parseUTC } from './chart-state.js';
 import { VirtualTable } from './virtual-table.js';
@@ -475,18 +475,48 @@ async function buildPageQuery(pageIdx, startIdx, sqlParams) {
 }
 
 /**
+ * Check the page cache for data at the given index.
+ * Returns the cached rows, or null if a fresh fetch is needed.
+ */
+function getCachedRows(pageIdx, startIdx, count) {
+  if (!pageCache.has(pageIdx)) return null;
+  const page = pageCache.get(pageIdx);
+  const offset = startIdx - pageIdx * PAGE_SIZE;
+  if (offset < page.rows.length) {
+    return page.rows.slice(offset, offset + count);
+  }
+  // Page 0 may be a partial initial load — allow re-fetch
+  // Other pages: a short cache means end of data
+  return pageIdx === 0 ? null : [];
+}
+
+/**
+ * Adjust virtualTable totalRows after fetching a page.
+ */
+function adjustTotalRows(pageIdx, rowCount) {
+  if (!virtualTable) return;
+  if (rowCount < PAGE_SIZE) {
+    const actualTotal = pageIdx * PAGE_SIZE + rowCount;
+    if (actualTotal < virtualTable.totalRows) {
+      virtualTable.setTotalRows(actualTotal);
+    }
+  } else {
+    const minTotal = (pageIdx + 2) * PAGE_SIZE;
+    if (minTotal > virtualTable.totalRows) {
+      virtualTable.setTotalRows(minTotal);
+    }
+  }
+}
+
+/**
  * getData callback for VirtualTable.
  * Fetches a page of log rows from ClickHouse using cursor-based pagination.
  */
 async function getData(startIdx, count) {
   const pageIdx = Math.floor(startIdx / PAGE_SIZE);
 
-  // Return from cache if available
-  if (pageCache.has(pageIdx)) {
-    const page = pageCache.get(pageIdx);
-    const offset = startIdx - pageIdx * PAGE_SIZE;
-    return page.rows.slice(offset, offset + count);
-  }
+  const cached = getCachedRows(pageIdx, startIdx, count);
+  if (cached !== null) return cached;
 
   const sqlParams = {
     database: DATABASE,
@@ -507,21 +537,8 @@ async function getData(startIdx, count) {
     const cursor = rows.length > 0 ? rows[rows.length - 1].timestamp : null;
     pageCache.set(pageIdx, { rows, cursor });
 
-    // Adjust totalRows based on how full this page is
-    if (!isInterpolated && virtualTable) {
-      if (rows.length < PAGE_SIZE) {
-        // Short page — cap totalRows to actual loaded count
-        const actualTotal = pageIdx * PAGE_SIZE + rows.length;
-        if (actualTotal < virtualTable.totalRows) {
-          virtualTable.setTotalRows(actualTotal);
-        }
-      } else {
-        // Full page — ensure there's scroll room for at least one more page
-        const minTotal = (pageIdx + 2) * PAGE_SIZE;
-        if (minTotal > virtualTable.totalRows) {
-          virtualTable.setTotalRows(minTotal);
-        }
-      }
+    if (!isInterpolated) {
+      adjustTotalRows(pageIdx, rows.length);
     }
 
     // Update columns on first data load
@@ -677,7 +694,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     hostFilter,
     facetFilters,
     additionalWhereClause: state.additionalWhereClause,
-    pageSize: String(PAGE_SIZE),
+    pageSize: String(INITIAL_PAGE_SIZE),
   });
 
   try {
