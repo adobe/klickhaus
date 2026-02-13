@@ -247,6 +247,13 @@
   );
 }
 
+/* Bucket table data rows (loaded on demand) */
+.bucket-table tr[data-row-idx] td {
+  height: 28px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
 /* Copy feedback toast */
 .copy-feedback {
   position: fixed;

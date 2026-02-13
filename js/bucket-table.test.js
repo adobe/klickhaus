@@ -11,6 +11,7 @@
  */
 import { assert } from 'chai';
 import { computeBucketHeights, renderBucketTable } from './logs.js';
+import { LOG_COLUMN_ORDER } from './columns.js';
 
 function makeChartData(count, baseCnt = 10) {
   return Array.from({ length: count }, (_, i) => ({
@@ -331,5 +332,36 @@ describe('renderBucketTable', () => {
     const headH = parseInt(headRow.style.height, 10);
     const tailH = parseInt(tailRow.style.height, 10);
     assert.strictEqual(headH + tailH, 800 * 28);
+  });
+
+  it('renders actual column headers instead of generic "Log Buckets"', () => {
+    const data = makeChartData(2);
+    renderBucketTable(container, data);
+    const thElements = container.querySelectorAll('thead th');
+    assert.strictEqual(thElements.length, LOG_COLUMN_ORDER.length);
+    // Should not contain old generic header
+    const headerText = container.querySelector('thead').textContent;
+    assert.notInclude(headerText, 'Log Buckets');
+  });
+
+  it('placeholder colspan matches column count', () => {
+    const data = [
+      {
+        t: '2026-01-15 00:00:00.000', cnt_ok: '10', cnt_4xx: '0', cnt_5xx: '0',
+      },
+    ];
+    renderBucketTable(container, data);
+    const td = container.querySelector('.bucket-placeholder');
+    assert.strictEqual(td.getAttribute('colspan'), String(LOG_COLUMN_ORDER.length));
+  });
+
+  it('column headers have data-action for pin toggling', () => {
+    const data = makeChartData(1);
+    renderBucketTable(container, data);
+    const thElements = container.querySelectorAll('thead th');
+    for (const th of thElements) {
+      assert.strictEqual(th.dataset.action, 'toggle-pinned-column');
+      assert.ok(th.dataset.col, 'th should have data-col attribute');
+    }
   });
 });

@@ -21,10 +21,12 @@ import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
 import {
-  LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET, buildLogColumnsSql,
+  LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, buildLogColumnsSql,
 } from './columns.js';
 import { loadSql } from './sql-loader.js';
-import { formatLogCell } from './templates/logs-table.js';
+import {
+  buildBucketHeader, setupBucketObserver, teardownBucketLoader,
+} from './bucket-loader.js';
 import { PAGE_SIZE, INITIAL_PAGE_SIZE } from './pagination.js';
 import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
@@ -404,29 +406,6 @@ export function initChartCollapseToggle() {
 }
 
 /**
- * renderCell callback for VirtualTable (unused while bucket-row table is active).
- * Returns HTML string for a single cell.
- */
-// eslint-disable-next-line no-unused-vars -- kept for future VirtualTable re-enablement
-function renderCell(col, value) {
-  const { displayValue, cellClass, colorIndicator } = formatLogCell(col.key, value);
-  const escaped = escapeHtml(displayValue);
-
-  // Add click-to-filter attributes when column has a facet mapping and a color indicator
-  let actionAttrs = '';
-  let extraClass = '';
-  const facetMapping = LOG_COLUMN_TO_FACET[col.key];
-  if (colorIndicator && facetMapping && value !== null && value !== undefined && value !== '') {
-    const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
-    actionAttrs = ` data-action="add-filter" data-col="${escapeHtml(facetMapping.col)}" data-value="${escapeHtml(filterValue)}" data-exclude="false"`;
-    extraClass = ' clickable';
-  }
-
-  const cls = cellClass || extraClass ? ` class="${(cellClass || '') + extraClass}"` : '';
-  return `<span${cls} title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</span>`;
-}
-
-/**
  * Find the nearest cached cursor for a given page index.
  * @param {number} pageIdx
  * @returns {string|null}
@@ -702,8 +681,17 @@ export function renderBucketTable(el, chartData) {
 
   const { buckets } = computeBucketHeights(chartData);
 
-  // Build table HTML
-  const numColumns = 7; // placeholder colspan
+  // Build column list and header from bucket-loader
+  const {
+    headerHtml, columns, numColumns, pinned, pinnedOffsets,
+  } = buildBucketHeader();
+
+  // Build a lookup from timestamp to bucket metadata
+  const bucketMap = new Map();
+  for (const b of buckets) {
+    bucketMap.set(b.t, b);
+  }
+
   let tbodyHtml = '';
 
   // Reverse to newest-first (chart data is oldest-first)
@@ -715,24 +703,32 @@ export function renderBucketTable(el, chartData) {
     if (b.tailCount > 0) {
       headLabel = `500 of ${b.count.toLocaleString()} rows`;
     } else {
-      headLabel = b.count === 1 ? '1 row' : `${b.count.toLocaleString()} rows`;
+      headLabel = b.count === 1
+        ? '1 row'
+        : `${b.count.toLocaleString()} rows`;
     }
-    tbodyHtml += `<tr id="bucket-head-${b.t}" class="bucket-row bucket-head" style="height: ${b.headHeight}px;">`
-      + `<td colspan="${numColumns}" class="bucket-placeholder">${headLabel}</td>`
+    tbodyHtml += '<tr id="bucket-head-'
+      + `${b.t}" class="bucket-row bucket-head"`
+      + ` style="height: ${b.headHeight}px;">`
+      + `<td colspan="${numColumns}"`
+      + ` class="bucket-placeholder">${headLabel}</td>`
       + '</tr>';
 
     // Tail row (only when bucket has > 500 rows)
     if (b.tailCount > 0) {
       const tailLabel = `${b.tailCount.toLocaleString()} remaining rows`;
-      tbodyHtml += `<tr id="bucket-tail-${b.t}" class="bucket-row bucket-tail" style="height: ${b.tailHeight}px;">`
-        + `<td colspan="${numColumns}" class="bucket-placeholder">${tailLabel}</td>`
+      tbodyHtml += '<tr id="bucket-tail-'
+        + `${b.t}" class="bucket-row bucket-tail"`
+        + ` style="height: ${b.tailHeight}px;">`
+        + `<td colspan="${numColumns}"`
+        + ` class="bucket-placeholder">${tailLabel}</td>`
         + '</tr>';
     }
   }
 
   // eslint-disable-next-line no-param-reassign -- DOM manipulation
   el.innerHTML = `<table class="logs-table bucket-table">
-    <thead><tr><th colspan="${numColumns}">Log Buckets</th></tr></thead>
+    <thead><tr>${headerHtml}</tr></thead>
     <tbody>${tbodyHtml}</tbody>
   </table>`;
 
@@ -746,12 +742,16 @@ export function renderBucketTable(el, chartData) {
     syncBucketScrubber(el);
   };
   el.addEventListener('scroll', bucketScrollHandler, { passive: true });
+
+  // Set up IntersectionObserver for lazy bucket data loading
+  setupBucketObserver(el, bucketMap, columns, pinned, pinnedOffsets);
 }
 
 /**
- * Clean up bucket table event listeners.
+ * Clean up bucket table event listeners, observer, and in-flight fetches.
  */
 function destroyBucketTable() {
+  teardownBucketLoader();
   if (bucketTableContainer && bucketScrollHandler) {
     bucketTableContainer.removeEventListener('scroll', bucketScrollHandler);
   }
