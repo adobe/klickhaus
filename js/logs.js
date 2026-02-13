@@ -26,7 +26,7 @@ import {
 import { loadSql } from './sql-loader.js';
 import { formatLogCell } from './templates/logs-table.js';
 import { PAGE_SIZE, INITIAL_PAGE_SIZE } from './pagination.js';
-import { setScrubberPosition, setScrubberRange } from './chart.js';
+import { setScrubberPosition } from './chart.js';
 import { parseUTC } from './chart-state.js';
 // VirtualTable intentionally NOT used — replaced by bucket-row approach.
 // eslint-disable-next-line prefer-const -- reassigned in buildBucketIndex/loadLogs
@@ -664,8 +664,7 @@ export function computeBucketHeights(chartData) {
 }
 
 /**
- * Sync the chart scrubber to the visible bucket range.
- * Finds which bucket <tr> is at the top and bottom of the viewport.
+ * Sync the chart scrubber to the first visible bucket.
  * @param {HTMLElement} scrollContainer
  */
 function syncBucketScrubber(scrollContainer) {
@@ -675,30 +674,21 @@ function syncBucketScrubber(scrollContainer) {
   const { scrollTop } = scrollContainer;
   const viewportBottom = scrollTop + scrollContainer.clientHeight;
   let firstVisible = null;
-  let lastVisible = null;
 
   for (const row of rows) {
     const top = row.offsetTop;
     const bottom = top + row.offsetHeight;
     if (bottom > scrollTop && top < viewportBottom) {
       if (!firstVisible) firstVisible = row;
-      lastVisible = row;
     }
     // Optimization: stop if we've passed the viewport
     if (top > viewportBottom) break;
   }
 
-  if (firstVisible && lastVisible) {
+  if (firstVisible) {
     const firstTs = firstVisible.id.replace('bucket-', '');
-    const lastTs = lastVisible.id.replace('bucket-', '');
     const firstDate = parseUTC(firstTs);
-    const lastDate = parseUTC(lastTs);
-    // Rows are newest-first, so first visible is newer
-    if (firstDate.getTime() !== lastDate.getTime()) {
-      setScrubberRange(firstDate, lastDate);
-    } else {
-      setScrubberPosition(firstDate);
-    }
+    setScrubberPosition(firstDate);
   }
 }
 
@@ -806,7 +796,7 @@ export function scrollLogsToTimestamp(timestamp) {
       }
     }
     if (bestRow) {
-      bestRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      bestRow.scrollIntoView({ behavior: 'instant', block: 'center' });
     }
     return;
   }

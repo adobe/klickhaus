@@ -149,13 +149,6 @@
   opacity: 0.6;
 }
 
-.chart-scrubber-line.range-mode {
-  background: rgba(59, 130, 246, 0.12);
-  border-left: 2px solid rgba(59, 130, 246, 0.5);
-  border-right: 2px solid rgba(59, 130, 246, 0.5);
-  opacity: 1;
-}
-
 .chart-scrubber-status {
   position: absolute;
   bottom: 0;

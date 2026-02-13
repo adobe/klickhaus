@@ -92,10 +92,6 @@ let isDragging = false;
 let dragStartX = null;
 let justCompletedDrag = false;
 
-// Scrubber range state (for table viewport sync)
-let scrubberRangeStart = null; // eslint-disable-line prefer-const
-let scrubberRangeEnd = null; // eslint-disable-line prefer-const
-
 // Callback for chart→scroll sync (set by logs.js)
 let onChartHoverTimestamp = null;
 let onChartClickTimestamp = null;
@@ -141,45 +137,7 @@ export function setScrubberPosition(timestamp) {
   scrubberLine.style.left = `${x}px`;
   scrubberLine.style.top = `${padding.top}px`;
   scrubberLine.style.height = `${height - padding.top - padding.bottom}px`;
-  scrubberLine.style.width = '';
-  scrubberLine.classList.remove('range-mode');
   scrubberLine.classList.add('visible');
-}
-
-/**
- * Show the scrubber as a shaded band between two timestamps (table viewport sync)
- * @param {Date} startTime - Start of visible range
- * @param {Date} endTime - End of visible range
- */
-export function setScrubberRange(startTime, endTime) {
-  if (!scrubberLine) return;
-  const startX = getXAtTime(startTime);
-  const endX = getXAtTime(endTime);
-  const chartLayout = getChartLayout();
-  if (!chartLayout) return;
-
-  const { padding, height } = chartLayout;
-  const { top } = padding;
-  const bandHeight = height - padding.top - padding.bottom;
-
-  scrubberLine.style.left = `${Math.min(startX, endX)}px`;
-  scrubberLine.style.width = `${Math.max(2, Math.abs(endX - startX))}px`;
-  scrubberLine.style.top = `${top}px`;
-  scrubberLine.style.height = `${bandHeight}px`;
-  scrubberLine.classList.add('visible', 'range-mode');
-
-  // Store range so it can be restored after hover
-  scrubberRangeStart = startTime;
-  scrubberRangeEnd = endTime;
-}
-
-/**
- * Restore the scrubber range band if one was set (called on mouseleave)
- */
-function restoreScrubberRange() {
-  if (scrubberRangeStart && scrubberRangeEnd) {
-    setScrubberRange(scrubberRangeStart, scrubberRangeEnd);
-  }
 }
 
 /**
@@ -659,9 +617,6 @@ export function setupChartNavigation(callback) {
 
   // Show/hide scrubber on container hover
   container.addEventListener('mouseenter', () => {
-    // Switch from range band to single-line hover mode
-    scrubberLine.classList.remove('range-mode');
-    scrubberLine.style.width = '';
     scrubberLine.classList.add('visible');
     scrubberStatusBar.classList.add('visible');
   });
@@ -670,12 +625,7 @@ export function setupChartNavigation(callback) {
     scrubberStatusBar.classList.remove('visible');
     hideReleaseTooltip();
     canvas.style.cursor = '';
-    // Restore range band if logs view is active
-    if (state.showLogs && scrubberRangeStart) {
-      restoreScrubberRange();
-    } else {
-      scrubberLine.classList.remove('visible');
-    }
+    scrubberLine.classList.remove('visible');
   });
 
   container.addEventListener('mousemove', (e) => {
