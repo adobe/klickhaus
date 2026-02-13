@@ -28,13 +28,18 @@ import { formatLogCell } from './templates/logs-table.js';
 import { PAGE_SIZE, INITIAL_PAGE_SIZE } from './pagination.js';
 import { setScrubberPosition, setScrubberRange } from './chart.js';
 import { parseUTC } from './chart-state.js';
-import { VirtualTable } from './virtual-table.js';
+// VirtualTable is intentionally NOT used — replaced by bucket-row approach.
+// The VirtualTable class remains in virtual-table.js for potential future use.
 
 // Cached bucket index built from chart data
 // eslint-disable-next-line prefer-const -- reassigned in buildBucketIndex/loadLogs
 let bucketIndex = null;
 
 const TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/;
+
+// Bucket-row table constants
+const ROW_HEIGHT = 28;
+const MAX_TOTAL_HEIGHT = 10_000_000; // 10M pixels cap
 
 /**
  * Build ordered log column list from available columns.
@@ -405,9 +410,10 @@ export function initChartCollapseToggle() {
 }
 
 /**
- * renderCell callback for VirtualTable.
+ * renderCell callback for VirtualTable (unused while bucket-row table is active).
  * Returns HTML string for a single cell.
  */
+// eslint-disable-next-line no-unused-vars -- kept for future VirtualTable re-enablement
 function renderCell(col, value) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col.key, value);
   const escaped = escapeHtml(displayValue);
@@ -556,9 +562,10 @@ function adjustTotalRows(pageIdx, rowCount) {
 }
 
 /**
- * getData callback for VirtualTable.
+ * getData callback for VirtualTable (unused while bucket-row table is active).
  * Fetches a page of log rows from ClickHouse using cursor-based pagination.
  */
+// eslint-disable-next-line no-unused-vars -- kept for future VirtualTable re-enablement
 async function getData(startIdx, count) {
   const pageIdx = Math.floor(startIdx / PAGE_SIZE);
 
@@ -622,55 +629,190 @@ function destroyVirtualTable() {
   }
 }
 
+// Bucket-row table state
+let bucketTableContainer = null;
+let bucketScrollHandler = null;
+
+/**
+ * Compute bucket heights, applying proportional scaling if total exceeds MAX_TOTAL_HEIGHT.
+ * @param {Array} chartData - array of { t, cnt_ok, cnt_4xx, cnt_5xx }
+ * @returns {{ buckets: Array<{t: string, count: number, height: number}>, totalHeight: number }}
+ */
+export function computeBucketHeights(chartData) {
+  if (!chartData || chartData.length === 0) return { buckets: [], totalHeight: 0 };
+
+  const buckets = chartData.map((b) => {
+    const count = (parseInt(b.cnt_ok, 10) || 0)
+      + (parseInt(b.cnt_4xx, 10) || 0)
+      + (parseInt(b.cnt_5xx, 10) || 0);
+    return { t: b.t, count };
+  });
+
+  // Calculate natural heights
+  let totalHeight = 0;
+  for (const b of buckets) {
+    const h = Math.max(b.count, 1) * ROW_HEIGHT;
+    b.height = h;
+    totalHeight += h;
+  }
+
+  // Scale proportionally if over cap
+  if (totalHeight > MAX_TOTAL_HEIGHT) {
+    const scale = MAX_TOTAL_HEIGHT / totalHeight;
+    totalHeight = 0;
+    for (const b of buckets) {
+      b.height = Math.max(Math.round(b.height * scale), ROW_HEIGHT);
+      totalHeight += b.height;
+    }
+  }
+
+  return { buckets, totalHeight };
+}
+
+/**
+ * Sync the chart scrubber to the visible bucket range.
+ * Finds which bucket <tr> is at the top and bottom of the viewport.
+ * @param {HTMLElement} scrollContainer
+ */
+function syncBucketScrubber(scrollContainer) {
+  const rows = scrollContainer.querySelectorAll('tbody tr.bucket-row');
+  if (rows.length === 0) return;
+
+  const { scrollTop } = scrollContainer;
+  const viewportBottom = scrollTop + scrollContainer.clientHeight;
+  let firstVisible = null;
+  let lastVisible = null;
+
+  for (const row of rows) {
+    const top = row.offsetTop;
+    const bottom = top + row.offsetHeight;
+    if (bottom > scrollTop && top < viewportBottom) {
+      if (!firstVisible) firstVisible = row;
+      lastVisible = row;
+    }
+    // Optimization: stop if we've passed the viewport
+    if (top > viewportBottom) break;
+  }
+
+  if (firstVisible && lastVisible) {
+    const firstTs = firstVisible.id.replace('bucket-', '');
+    const lastTs = lastVisible.id.replace('bucket-', '');
+    const firstDate = parseUTC(firstTs);
+    const lastDate = parseUTC(lastTs);
+    // Rows are newest-first, so first visible is newer
+    if (firstDate.getTime() !== lastDate.getTime()) {
+      setScrubberRange(firstDate, lastDate);
+    } else {
+      setScrubberPosition(firstDate);
+    }
+  }
+}
+
+/**
+ * Render the bucket-row table from chart data.
+ * Each chart bucket gets one <tr> with proportional height.
+ * @param {HTMLElement} el - .logs-table-container element
+ * @param {Array} chartData - state.chartData array
+ */
+export function renderBucketTable(el, chartData) {
+  if (!chartData || chartData.length === 0) {
+    // eslint-disable-next-line no-param-reassign -- DOM manipulation
+    el.innerHTML = '<div class="empty" style="padding: 60px;">No chart data available for bucket table</div>';
+    return;
+  }
+
+  const { buckets } = computeBucketHeights(chartData);
+
+  // Build table HTML
+  const numColumns = 7; // placeholder colspan
+  let tbodyHtml = '';
+
+  // Reverse to newest-first (chart data is oldest-first)
+  for (let i = buckets.length - 1; i >= 0; i -= 1) {
+    const b = buckets[i];
+    const rowCount = b.count;
+    const label = rowCount === 1 ? '1 row' : `${rowCount.toLocaleString()} rows`;
+    tbodyHtml += `<tr id="bucket-${b.t}" class="bucket-row" style="height: ${b.height}px;">`
+      + `<td colspan="${numColumns}" class="bucket-placeholder">${label}</td>`
+      + '</tr>';
+  }
+
+  // eslint-disable-next-line no-param-reassign -- DOM manipulation
+  el.innerHTML = `<table class="logs-table bucket-table">
+    <thead><tr><th colspan="${numColumns}">Log Buckets</th></tr></thead>
+    <tbody>${tbodyHtml}</tbody>
+  </table>`;
+
+  bucketTableContainer = el;
+
+  // Set up scroll listener for scrubber sync
+  if (bucketScrollHandler) {
+    el.removeEventListener('scroll', bucketScrollHandler);
+  }
+  bucketScrollHandler = () => {
+    syncBucketScrubber(el);
+  };
+  el.addEventListener('scroll', bucketScrollHandler, { passive: true });
+}
+
+/**
+ * Clean up bucket table event listeners.
+ */
+function destroyBucketTable() {
+  if (bucketTableContainer && bucketScrollHandler) {
+    bucketTableContainer.removeEventListener('scroll', bucketScrollHandler);
+  }
+  bucketScrollHandler = null;
+  bucketTableContainer = null;
+}
+
 /**
  * Create or reconfigure the VirtualTable instance.
+ * Currently bypassed in favor of the bucket-row table approach.
  */
 function ensureVirtualTable() {
   const container = logsView.querySelector('.logs-table-container');
   if (!container) return;
 
-  if (virtualTable) {
-    // Already exists — just clear cache and re-render
-    virtualTable.clearCache();
-    virtualTable.setTotalRows(0);
+  // Use bucket-row table when chart data is available
+  if (state.chartData && state.chartData.length > 0) {
+    destroyVirtualTable();
+    renderBucketTable(container, state.chartData);
     return;
   }
 
-  // Clear loading placeholder
-  container.innerHTML = '';
-
-  virtualTable = new VirtualTable({
-    container,
-    rowHeight: 28,
-    columns: currentColumns.length > 0 ? buildVirtualColumns(currentColumns) : [],
-    getData,
-    renderCell,
-    onVisibleRangeChange(firstRow, lastRow) {
-      // Sync chart scrubber to the visible table range
-      const firstRowData = getRowFromCache(firstRow);
-      const lastRowData = getRowFromCache(lastRow);
-      if (firstRowData?.timestamp && lastRowData?.timestamp) {
-        setScrubberRange(parseUTC(firstRowData.timestamp), parseUTC(lastRowData.timestamp));
-      } else {
-        // Fallback to single point if we don't have both endpoints
-        const midIdx = Math.floor((firstRow + lastRow) / 2);
-        const row = getRowFromCache(midIdx);
-        if (row?.timestamp) {
-          setScrubberPosition(parseUTC(row.timestamp));
-        }
-      }
-    },
-    onRowClick(idx, row) {
-      openLogDetailModal(idx, row);
-    },
-  });
+  // Fallback: show loading state when chart data not yet available
+  container.innerHTML = '<div class="logs-loading">Loading\u2026</div>';
 }
 
 // Scroll log table to the row closest to a given timestamp
 export function scrollLogsToTimestamp(timestamp) {
-  if (!state.showLogs || !virtualTable) return;
+  if (!state.showLogs) return;
   const targetMs = timestamp instanceof Date ? timestamp.getTime() : timestamp;
-  virtualTable.scrollToTimestamp(targetMs, (row) => parseUTC(row.timestamp).getTime());
+
+  // Bucket-row approach: find the closest bucket <tr> by timestamp
+  if (bucketTableContainer) {
+    const rows = bucketTableContainer.querySelectorAll('tbody tr.bucket-row');
+    let bestRow = null;
+    let bestDiff = Infinity;
+    for (const row of rows) {
+      const ts = row.id.replace('bucket-', '');
+      const diff = Math.abs(parseUTC(ts).getTime() - targetMs);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestRow = row;
+      }
+    }
+    if (bestRow) {
+      bestRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
+
+  // Legacy VirtualTable fallback
+  if (virtualTable) {
+    virtualTable.scrollToTimestamp(targetMs, (row) => parseUTC(row.timestamp).getTime());
+  }
 }
 
 export function setLogsElements(view, toggleBtn, filtersViewEl) {
@@ -725,9 +867,10 @@ function buildBucketIndex(chartData) {
 }
 
 /**
- * Estimate total rows from chart data bucket counts.
+ * Estimate total rows from chart data bucket counts (unused while bucket-row table is active).
  * @returns {number}
  */
+// eslint-disable-next-line no-unused-vars -- kept for future VirtualTable re-enablement
 function estimateTotalRows() {
   if (!state.chartData || state.chartData.length === 0) return 0;
   let total = 0;
@@ -755,7 +898,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   const container = logsView.querySelector('.logs-table-container');
   container.classList.add('updating');
 
-  // Set up virtual table
+  // Render bucket table from chart data (available before log data)
   ensureVirtualTable();
 
   const timeFilter = getTimeFilter();
@@ -781,30 +924,24 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
     state.logsData = rows;
     state.logsReady = true;
 
-    if (rows.length === 0) {
+    if (rows.length === 0 && (!state.chartData || state.chartData.length === 0)) {
       container.innerHTML = '<div class="empty" style="padding: 60px;">No logs matching current filters</div>';
+      destroyBucketTable();
       destroyVirtualTable();
       return;
     }
 
-    // Populate initial page cache
+    // Populate initial page cache (for detail modals)
     const cursor = rows.length > 0 ? rows[rows.length - 1].timestamp : null;
     pageCache.set(0, { rows, cursor });
 
     // Set columns from data
-    currentColumns = getLogColumns(Object.keys(rows[0]));
-    if (virtualTable) {
-      virtualTable.setColumns(buildVirtualColumns(currentColumns));
-
-      // Seed VirtualTable cache with pre-fetched page 0 to avoid re-fetch
-      virtualTable.seedCache(0, rows);
-
-      // Build bucket index from chart data for accurate scroll mapping
-      bucketIndex = buildBucketIndex(state.chartData);
-      const estimated = bucketIndex ? bucketIndex.totalRows : estimateTotalRows();
-      const total = estimated > rows.length ? estimated : rows.length * 10;
-      virtualTable.setTotalRows(total);
+    if (rows.length > 0) {
+      currentColumns = getLogColumns(Object.keys(rows[0]));
     }
+
+    // Build bucket index from chart data
+    bucketIndex = buildBucketIndex(state.chartData);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
@@ -832,21 +969,12 @@ export function toggleLogsView(saveStateToURL, scrollToTimestamp) {
       chartSection.classList.add('chart-collapsed');
       updateCollapseToggleLabel();
     }
+    // Render bucket table or trigger fresh load
     ensureVirtualTable();
-    // Re-seed virtual table from page cache, or trigger a fresh load
     if (state.logsReady && pageCache.size > 0) {
-      const page0 = pageCache.get(0);
-      if (page0 && page0.rows.length > 0) {
-        currentColumns = getLogColumns(Object.keys(page0.rows[0]));
-        virtualTable.setColumns(buildVirtualColumns(currentColumns));
-        virtualTable.seedCache(0, page0.rows);
-        bucketIndex = buildBucketIndex(state.chartData);
-        const estimated = bucketIndex ? bucketIndex.totalRows : estimateTotalRows();
-        const total = estimated > page0.rows.length ? estimated : page0.rows.length * 10;
-        virtualTable.setTotalRows(total);
-        if (scrollToTimestamp) {
-          scrollLogsToTimestamp(scrollToTimestamp);
-        }
+      bucketIndex = buildBucketIndex(state.chartData);
+      if (scrollToTimestamp) {
+        scrollLogsToTimestamp(scrollToTimestamp);
       }
     } else {
       loadLogs();
@@ -860,7 +988,8 @@ export function toggleLogsView(saveStateToURL, scrollToTimestamp) {
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());
     }
-    // Clean up virtual table when leaving logs view
+    // Clean up when leaving logs view
+    destroyBucketTable();
     destroyVirtualTable();
   }
   saveStateToURL();

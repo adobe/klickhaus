@@ -224,6 +224,26 @@
   color: transparent;
 }
 
+/* Bucket-row table placeholder rows */
+.bucket-table .bucket-row {
+  cursor: default;
+}
+
+.bucket-table .bucket-row .bucket-placeholder {
+  max-width: none;
+  vertical-align: middle;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.bucket-table .bucket-row:hover .bucket-placeholder {
+  background: var(--bg);
+}
+
 /* Copy feedback toast */
 .copy-feedback {
   position: fixed;
