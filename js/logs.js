@@ -24,7 +24,7 @@ import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, buildLogColumnsSql } from '.
 import { loadSql } from './sql-loader.js';
 import { formatLogCell } from './templates/logs-table.js';
 import { PAGE_SIZE } from './pagination.js';
-import { setScrubberPosition } from './chart.js';
+import { setScrubberPosition, setScrubberRange } from './chart.js';
 import { parseUTC } from './chart-state.js';
 import { VirtualTable } from './virtual-table.js';
 
@@ -569,11 +569,18 @@ function ensureVirtualTable() {
     getData,
     renderCell,
     onVisibleRangeChange(firstRow, lastRow) {
-      // Sync chart scrubber to the middle visible row
-      const midIdx = Math.floor((firstRow + lastRow) / 2);
-      const row = getRowFromCache(midIdx);
-      if (row && row.timestamp) {
-        setScrubberPosition(parseUTC(row.timestamp));
+      // Sync chart scrubber to the visible table range
+      const firstRowData = getRowFromCache(firstRow);
+      const lastRowData = getRowFromCache(lastRow);
+      if (firstRowData?.timestamp && lastRowData?.timestamp) {
+        setScrubberRange(parseUTC(firstRowData.timestamp), parseUTC(lastRowData.timestamp));
+      } else {
+        // Fallback to single point if we don't have both endpoints
+        const midIdx = Math.floor((firstRow + lastRow) / 2);
+        const row = getRowFromCache(midIdx);
+        if (row?.timestamp) {
+          setScrubberPosition(parseUTC(row.timestamp));
+        }
       }
     },
     onRowClick(idx, row) {
