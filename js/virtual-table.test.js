@@ -83,18 +83,17 @@ describe('VirtualTable', () => {
   });
 
   describe('setTotalRows', () => {
-    it('sets tbody padding to create virtual scroll space', () => {
+    it('sets spacer heights to create virtual scroll space', () => {
       container = makeContainer();
       vt = new VirtualTable({
         container, columns: makeColumns(), getData: makeGetData([]), renderCell,
       });
       vt.setTotalRows(1000);
-      const { tbody } = vt;
-      const topPad = parseInt(tbody.style.paddingTop, 10);
-      const bottomPad = parseInt(tbody.style.paddingBottom, 10);
-      const renderedRows = tbody.querySelectorAll('tr').length;
-      // Total virtual height = topPad + renderedRows*rowHeight + bottomPad
-      assert.strictEqual(topPad + renderedRows * 28 + bottomPad, 1000 * 28);
+      const topH = parseInt(vt.spacerTop.style.height, 10);
+      const bottomH = parseInt(vt.spacerBottom.style.height, 10);
+      const renderedRows = vt.tbody.querySelectorAll('tr').length;
+      // Total virtual height = topH + renderedRows*rowHeight + bottomH
+      assert.strictEqual(topH + renderedRows * 28 + bottomH, 1000 * 28);
     });
 
     it('uses custom row height', () => {
@@ -103,11 +102,10 @@ describe('VirtualTable', () => {
         container, columns: makeColumns(), getData: makeGetData([]), renderCell, rowHeight: 40,
       });
       vt.setTotalRows(500);
-      const { tbody } = vt;
-      const topPad = parseInt(tbody.style.paddingTop, 10);
-      const bottomPad = parseInt(tbody.style.paddingBottom, 10);
-      const renderedRows = tbody.querySelectorAll('tr').length;
-      assert.strictEqual(topPad + renderedRows * 40 + bottomPad, 500 * 40);
+      const topH = parseInt(vt.spacerTop.style.height, 10);
+      const bottomH = parseInt(vt.spacerBottom.style.height, 10);
+      const renderedRows = vt.tbody.querySelectorAll('tr').length;
+      assert.strictEqual(topH + renderedRows * 40 + bottomH, 500 * 40);
     });
   });
 
@@ -304,7 +302,7 @@ describe('VirtualTable', () => {
       assert.strictEqual(vt.table.style.width, '300px');
     });
 
-    it('sets tbody paddingTop and paddingBottom for virtual scroll area', () => {
+    it('sets spacer heights for virtual scroll area', () => {
       container = makeContainer(280);
       const allRows = Array.from({ length: 100 }, (_, i) => ({
         timestamp: `row-${i}`, status: 200,
@@ -314,12 +312,11 @@ describe('VirtualTable', () => {
       });
       vt.setTotalRows(100);
 
-      const { tbody } = vt;
-      const topPad = parseInt(tbody.style.paddingTop, 10);
-      const bottomPad = parseInt(tbody.style.paddingBottom, 10);
-      // With scrollTop=0, paddingTop should be 0 (start=0)
-      assert.strictEqual(topPad, 0, 'paddingTop should be 0 at scroll position 0');
-      assert.ok(bottomPad > 0, 'paddingBottom should be positive');
+      const topH = parseInt(vt.spacerTop.style.height, 10);
+      const bottomH = parseInt(vt.spacerBottom.style.height, 10);
+      // With scrollTop=0, spacerTop should be 0 (start=0)
+      assert.strictEqual(topH, 0, 'spacerTop height should be 0 at scroll position 0');
+      assert.ok(bottomH > 0, 'spacerBottom height should be positive');
     });
   });
 

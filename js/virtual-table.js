@@ -82,6 +82,9 @@ export class VirtualTable {
   initDom() {
     this.container.style.overflowY = 'auto';
 
+    this.spacerTop = document.createElement('div');
+    this.spacerTop.className = 'vt-spacer-top';
+
     this.table = document.createElement('table');
     this.table.className = 'logs-table';
 
@@ -93,7 +96,12 @@ export class VirtualTable {
     this.table.appendChild(this.thead);
     this.table.appendChild(this.tbody);
 
+    this.spacerBottom = document.createElement('div');
+    this.spacerBottom.className = 'vt-spacer-bottom';
+
+    this.container.appendChild(this.spacerTop);
     this.container.appendChild(this.table);
+    this.container.appendChild(this.spacerBottom);
 
     this.updateHeader();
   }
@@ -176,8 +184,8 @@ export class VirtualTable {
 
   renderRows() {
     if (this.totalRows === 0) {
-      this.tbody.style.paddingTop = '0px';
-      this.tbody.style.paddingBottom = '0px';
+      this.spacerTop.style.height = '0px';
+      this.spacerBottom.style.height = '0px';
       this.tbody.innerHTML = '';
       this.lastRange = null;
       return;
@@ -216,9 +224,8 @@ export class VirtualTable {
       }
     }
 
-    // Padding-based virtual scroll: push visible rows into correct position
-    this.tbody.style.paddingTop = `${start * this.rowHeight}px`;
-    this.tbody.style.paddingBottom = `${Math.max(0, (this.totalRows - end) * this.rowHeight)}px`;
+    this.spacerTop.style.height = `${start * this.rowHeight}px`;
+    this.spacerBottom.style.height = `${Math.max(0, (this.totalRows - end) * this.rowHeight)}px`;
     this.tbody.innerHTML = html;
 
     if (fetchStart !== -1) {
@@ -318,6 +325,8 @@ export class VirtualTable {
   clearCache() {
     this.cache.clear();
     this.pending.clear();
+    this.spacerTop.style.height = '0px';
+    this.spacerBottom.style.height = '0px';
   }
 
   destroy() {
