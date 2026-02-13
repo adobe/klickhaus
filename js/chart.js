@@ -98,6 +98,7 @@ let scrubberRangeEnd = null; // eslint-disable-line prefer-const
 
 // Callback for chart→scroll sync (set by logs.js)
 let onChartHoverTimestamp = null;
+let onChartClickTimestamp = null;
 
 /**
  * Set callback for chart hover → scroll sync
@@ -105,6 +106,14 @@ let onChartHoverTimestamp = null;
  */
 export function setOnChartHoverTimestamp(callback) {
   onChartHoverTimestamp = callback;
+}
+
+/**
+ * Set callback for chart click → load logs at timestamp
+ * @param {Function} callback - Called with Date when clicking chart
+ */
+export function setOnChartClickTimestamp(callback) {
+  onChartClickTimestamp = callback;
 }
 
 /**
@@ -774,9 +783,13 @@ export function setupChartNavigation(callback) {
         hideSelectionOverlay();
         return;
       }
-      const anomalyBounds = getAnomalyAtX(e.clientX - canvas.getBoundingClientRect().left);
+      const clickX = e.clientX - canvas.getBoundingClientRect().left;
+      const anomalyBounds = getAnomalyAtX(clickX);
       if (anomalyBounds) {
         zoomToAnomalyByRank(anomalyBounds.rank);
+      } else if (onChartClickTimestamp) {
+        const clickTime = getTimeAtX(clickX);
+        if (clickTime) onChartClickTimestamp(clickTime);
       }
       return;
     }

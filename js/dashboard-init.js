@@ -29,7 +29,7 @@ import {
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart, setOnChartHoverTimestamp,
+  renderChart, setOnChartHoverTimestamp, setOnChartClickTimestamp,
 } from './chart.js';
 import {
   loadAllBreakdowns, loadBreakdown, getBreakdowns, markSlowestFacet, resetFacetTimings,
@@ -209,6 +209,15 @@ export function initDashboard(config = {}) {
     if (now - lastHoverScroll < 300) return;
     lastHoverScroll = now;
     scrollLogsToTimestamp(timestamp);
+  });
+
+  // Chart click → open logs at clicked timestamp
+  setOnChartClickTimestamp((timestamp) => {
+    if (!state.showLogs) {
+      toggleLogsView(saveStateToURL, timestamp);
+    } else {
+      scrollLogsToTimestamp(timestamp);
+    }
   });
 
   setFilterCallbacks(saveStateToURL, loadDashboard);

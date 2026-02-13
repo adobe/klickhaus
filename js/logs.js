@@ -724,7 +724,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   }
 }
 
-export function toggleLogsView(saveStateToURL) {
+export function toggleLogsView(saveStateToURL, scrollToTimestamp) {
   state.showLogs = !state.showLogs;
   const dashboardContent = document.getElementById('dashboardContent');
   if (state.showLogs) {
@@ -749,6 +749,9 @@ export function toggleLogsView(saveStateToURL) {
         const estimated = estimateTotalRows();
         const total = estimated > page0.rows.length ? estimated : page0.rows.length * 10;
         virtualTable.setTotalRows(total);
+        if (scrollToTimestamp) {
+          scrollLogsToTimestamp(scrollToTimestamp);
+        }
       }
     } else {
       loadLogs();
