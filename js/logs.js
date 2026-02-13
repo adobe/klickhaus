@@ -20,7 +20,9 @@ import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
-import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, buildLogColumnsSql } from './columns.js';
+import {
+  LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET, buildLogColumnsSql,
+} from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { formatLogCell } from './templates/logs-table.js';
 import { PAGE_SIZE } from './pagination.js';
@@ -405,8 +407,19 @@ export function initChartCollapseToggle() {
 function renderCell(col, value) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col.key, value);
   const escaped = escapeHtml(displayValue);
-  const cls = cellClass ? ` class="${cellClass}"` : '';
-  return `<span${cls} title="${escaped}">${colorIndicator}${escaped}</span>`;
+
+  // Add click-to-filter attributes when column has a facet mapping and a color indicator
+  let actionAttrs = '';
+  let extraClass = '';
+  const facetMapping = LOG_COLUMN_TO_FACET[col.key];
+  if (colorIndicator && facetMapping && value !== null && value !== undefined && value !== '') {
+    const filterValue = facetMapping.transform ? facetMapping.transform(value) : String(value);
+    actionAttrs = ` data-action="add-filter" data-col="${escapeHtml(facetMapping.col)}" data-value="${escapeHtml(filterValue)}" data-exclude="false"`;
+    extraClass = ' clickable';
+  }
+
+  const cls = cellClass || extraClass ? ` class="${(cellClass || '') + extraClass}"` : '';
+  return `<span${cls} title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</span>`;
 }
 
 /**

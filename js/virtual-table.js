@@ -157,6 +157,8 @@ export class VirtualTable {
 
     if (this.onRowClickFn) {
       this.clickHandler = (e) => {
+        // Let data-action clicks (e.g. add-filter) bubble to global handler
+        if (e.target.closest('[data-action]')) return;
         const tr = e.target.closest('tr[data-row-idx]');
         if (!tr) return;
         const idx = parseInt(tr.dataset.rowIdx, 10);
