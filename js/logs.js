@@ -628,9 +628,7 @@ let bucketTableContainer = null;
 let bucketScrollHandler = null;
 
 /**
- * Compute bucket heights, applying proportional scaling if total exceeds MAX_TOTAL_HEIGHT.
- * @param {Array} chartData - array of { t, cnt_ok, cnt_4xx, cnt_5xx }
- * @returns {{ buckets: Array<{t: string, count: number, height: number}>, totalHeight: number }}
+ * Compute bucket heights with head/tail split, scaling if total exceeds MAX_TOTAL_HEIGHT.
  */
 export function computeBucketHeights(chartData) {
   if (!chartData || chartData.length === 0) return { buckets: [], totalHeight: 0 };
@@ -639,15 +637,19 @@ export function computeBucketHeights(chartData) {
     const count = (parseInt(b.cnt_ok, 10) || 0)
       + (parseInt(b.cnt_4xx, 10) || 0)
       + (parseInt(b.cnt_5xx, 10) || 0);
-    return { t: b.t, count };
+    const headCount = Math.min(count, 500);
+    const tailCount = Math.max(count - 500, 0);
+    return {
+      t: b.t, count, headCount, tailCount,
+    };
   });
 
   // Calculate natural heights
   let totalHeight = 0;
   for (const b of buckets) {
-    const h = Math.max(b.count, 1) * ROW_HEIGHT;
-    b.height = h;
-    totalHeight += h;
+    b.headHeight = Math.max(b.headCount, 1) * ROW_HEIGHT;
+    b.tailHeight = b.tailCount * ROW_HEIGHT;
+    totalHeight += b.headHeight + b.tailHeight;
   }
 
   // Scale proportionally if over cap
@@ -655,20 +657,18 @@ export function computeBucketHeights(chartData) {
     const scale = MAX_TOTAL_HEIGHT / totalHeight;
     totalHeight = 0;
     for (const b of buckets) {
-      b.height = Math.max(Math.round(b.height * scale), ROW_HEIGHT);
-      totalHeight += b.height;
+      b.headHeight = Math.max(Math.round(b.headHeight * scale), ROW_HEIGHT);
+      b.tailHeight = b.tailCount > 0 ? Math.max(Math.round(b.tailHeight * scale), ROW_HEIGHT) : 0;
+      totalHeight += b.headHeight + b.tailHeight;
     }
   }
 
   return { buckets, totalHeight };
 }
 
-/**
- * Sync the chart scrubber to the first visible bucket.
- * @param {HTMLElement} scrollContainer
- */
+/** Sync the chart scrubber to the first visible bucket head row. */
 function syncBucketScrubber(scrollContainer) {
-  const rows = scrollContainer.querySelectorAll('tbody tr.bucket-row');
+  const rows = scrollContainer.querySelectorAll('tbody tr.bucket-head');
   if (rows.length === 0) return;
 
   const { scrollTop } = scrollContainer;
@@ -686,18 +686,13 @@ function syncBucketScrubber(scrollContainer) {
   }
 
   if (firstVisible) {
-    const firstTs = firstVisible.id.replace('bucket-', '');
+    const firstTs = firstVisible.id.replace('bucket-head-', '');
     const firstDate = parseUTC(firstTs);
     setScrubberPosition(firstDate);
   }
 }
 
-/**
- * Render the bucket-row table from chart data.
- * Each chart bucket gets one <tr> with proportional height.
- * @param {HTMLElement} el - .logs-table-container element
- * @param {Array} chartData - state.chartData array
- */
+/** Render the bucket-row table with head/tail split from chart data. */
 export function renderBucketTable(el, chartData) {
   if (!chartData || chartData.length === 0) {
     // eslint-disable-next-line no-param-reassign -- DOM manipulation
@@ -714,11 +709,25 @@ export function renderBucketTable(el, chartData) {
   // Reverse to newest-first (chart data is oldest-first)
   for (let i = buckets.length - 1; i >= 0; i -= 1) {
     const b = buckets[i];
-    const rowCount = b.count;
-    const label = rowCount === 1 ? '1 row' : `${rowCount.toLocaleString()} rows`;
-    tbodyHtml += `<tr id="bucket-${b.t}" class="bucket-row" style="height: ${b.height}px;">`
-      + `<td colspan="${numColumns}" class="bucket-placeholder">${label}</td>`
+
+    // Head row (always present)
+    let headLabel;
+    if (b.tailCount > 0) {
+      headLabel = `500 of ${b.count.toLocaleString()} rows`;
+    } else {
+      headLabel = b.count === 1 ? '1 row' : `${b.count.toLocaleString()} rows`;
+    }
+    tbodyHtml += `<tr id="bucket-head-${b.t}" class="bucket-row bucket-head" style="height: ${b.headHeight}px;">`
+      + `<td colspan="${numColumns}" class="bucket-placeholder">${headLabel}</td>`
       + '</tr>';
+
+    // Tail row (only when bucket has > 500 rows)
+    if (b.tailCount > 0) {
+      const tailLabel = `${b.tailCount.toLocaleString()} remaining rows`;
+      tbodyHtml += `<tr id="bucket-tail-${b.t}" class="bucket-row bucket-tail" style="height: ${b.tailHeight}px;">`
+        + `<td colspan="${numColumns}" class="bucket-placeholder">${tailLabel}</td>`
+        + '</tr>';
+    }
   }
 
   // eslint-disable-next-line no-param-reassign -- DOM manipulation
@@ -784,11 +793,11 @@ export function scrollLogsToTimestamp(timestamp) {
 
   // Bucket-row approach: find the closest bucket <tr> by timestamp
   if (bucketTableContainer) {
-    const rows = bucketTableContainer.querySelectorAll('tbody tr.bucket-row');
+    const rows = bucketTableContainer.querySelectorAll('tbody tr.bucket-head');
     let bestRow = null;
     let bestDiff = Infinity;
     for (const row of rows) {
-      const ts = row.id.replace('bucket-', '');
+      const ts = row.id.replace('bucket-head-', '');
       const diff = Math.abs(parseUTC(ts).getTime() - targetMs);
       if (diff < bestDiff) {
         bestDiff = diff;
