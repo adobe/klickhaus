@@ -15,6 +15,7 @@ import {
   buildLogCellHtml,
   buildLogRowHtml,
   buildLogTableHeaderHtml,
+  buildGapRowHtml,
 } from './logs-table.js';
 
 describe('formatLogCell', () => {
@@ -175,5 +176,67 @@ describe('buildLogTableHeaderHtml', () => {
     );
     assert.include(html, 'title="response.status"');
     assert.include(html, '>status</th>');
+  });
+});
+
+describe('buildGapRowHtml', () => {
+  it('renders a gap row with time range', () => {
+    const gap = {
+      isGap: true,
+      gapStart: '2026-02-12 10:00:00.000',
+      gapEnd: '2026-02-12 06:00:00.000',
+      gapLoading: false,
+    };
+    const html = buildGapRowHtml({
+      gap, rowIdx: 5, colCount: 8,
+    });
+    assert.include(html, 'logs-gap-row');
+    assert.include(html, 'data-row-idx="5"');
+    assert.include(html, 'data-gap="true"');
+    assert.include(html, 'colspan="8"');
+    assert.include(html, 'load-gap');
+    assert.include(html, 'data-gap-idx="5"');
+    assert.include(html, '4h gap');
+  });
+
+  it('renders loading state', () => {
+    const gap = {
+      isGap: true,
+      gapStart: '2026-02-12 10:00:00.000',
+      gapEnd: '2026-02-12 09:30:00.000',
+      gapLoading: true,
+    };
+    const html = buildGapRowHtml({
+      gap, rowIdx: 2, colCount: 5,
+    });
+    assert.include(html, 'loading');
+    assert.include(html, 'logs-gap-spinner');
+    assert.include(html, 'Loading');
+  });
+
+  it('shows minutes for short gaps', () => {
+    const gap = {
+      isGap: true,
+      gapStart: '2026-02-12 10:30:00.000',
+      gapEnd: '2026-02-12 10:00:00.000',
+      gapLoading: false,
+    };
+    const html = buildGapRowHtml({
+      gap, rowIdx: 0, colCount: 3,
+    });
+    assert.include(html, '30m gap');
+  });
+
+  it('shows days for multi-day gaps', () => {
+    const gap = {
+      isGap: true,
+      gapStart: '2026-02-12 10:00:00.000',
+      gapEnd: '2026-02-09 10:00:00.000',
+      gapLoading: false,
+    };
+    const html = buildGapRowHtml({
+      gap, rowIdx: 0, colCount: 3,
+    });
+    assert.include(html, '3d gap');
   });
 });

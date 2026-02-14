@@ -13,6 +13,7 @@ import { escapeHtml } from '../utils.js';
 import { formatBytes } from '../format.js';
 import { getColorForColumn } from '../colors/index.js';
 import { LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET } from '../columns.js';
+import { parseUTC } from '../chart-state.js';
 
 /**
  * Format timestamp - short format on mobile.
@@ -145,4 +146,59 @@ export function buildLogTableHeaderHtml(columns, pinned, pinnedOffsets) {
     const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
     return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
   }).join('');
+}
+
+/**
+ * Format a duration between two timestamps for display.
+ * @param {string} gapStart - Newest boundary timestamp (e.g. '2026-02-12 10:00:00.000')
+ * @param {string} gapEnd - Oldest boundary timestamp (e.g. '2026-02-12 06:00:00.000')
+ * @returns {string} Human-readable duration like "4h gap" or "30m gap"
+ */
+function formatGapDuration(gapStart, gapEnd) {
+  const startMs = parseUTC(gapStart).getTime();
+  const endMs = parseUTC(gapEnd).getTime();
+  const diffMs = Math.abs(startMs - endMs);
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHours = Math.round(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d`;
+}
+
+/**
+ * Format a timestamp for display in gap label.
+ * @param {string} ts
+ * @returns {string}
+ */
+function formatGapTime(ts) {
+  const date = parseUTC(ts);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Build HTML for a gap row placeholder.
+ * @param {Object} params
+ * @param {Object} params.gap - Gap row object with gapStart, gapEnd, gapLoading
+ * @param {number} params.rowIdx - Index in state.logsData
+ * @param {number} params.colCount - Number of columns for colspan
+ * @returns {string}
+ */
+export function buildGapRowHtml({ gap, rowIdx, colCount }) {
+  const duration = formatGapDuration(gap.gapStart, gap.gapEnd);
+  const startTime = formatGapTime(gap.gapStart);
+  const endTime = formatGapTime(gap.gapEnd);
+  const loadingClass = gap.gapLoading ? ' loading' : '';
+
+  const buttonContent = gap.gapLoading
+    ? '<span class="logs-gap-spinner"></span><span class="logs-gap-label">Loading\u2026</span>'
+    : `<span class="logs-gap-icon">\u22EF</span><span class="logs-gap-label">Load logs from ${escapeHtml(startTime)} \u2013 ${escapeHtml(endTime)} (${escapeHtml(duration)} gap)</span>`;
+
+  return `<tr class="logs-gap-row${loadingClass}" data-row-idx="${rowIdx}" data-gap="true">
+  <td colspan="${colCount}" class="logs-gap-cell">
+    <button class="logs-gap-button" data-action="load-gap" data-gap-idx="${rowIdx}">
+      ${buttonContent}
+    </button>
+  </td>
+</tr>`;
 }
