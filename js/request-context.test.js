@@ -53,6 +53,21 @@ describe('request-context', () => {
     }
   });
 
+  it('returns already-aborted signal in fallback when input is pre-aborted', () => {
+    const originalAny = AbortSignal.any;
+    AbortSignal.any = undefined;
+    try {
+      const controllerA = new AbortController();
+      controllerA.abort();
+      const controllerB = new AbortController();
+      const merged = mergeAbortSignals([controllerA.signal, controllerB.signal]);
+
+      assert.isTrue(merged.aborted);
+    } finally {
+      AbortSignal.any = originalAny;
+    }
+  });
+
   it('returns undefined for empty signal list', () => {
     const merged = mergeAbortSignals([]);
     assert.isUndefined(merged);

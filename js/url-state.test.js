@@ -697,6 +697,7 @@ describe('syncUIFromState', () => {
   let mockElements;
   let titleEl;
   let activeFiltersEl;
+  let dashboardContentEl;
 
   beforeEach(() => {
     resetState();
@@ -746,11 +747,17 @@ describe('syncUIFromState', () => {
     activeFiltersEl = document.createElement('div');
     activeFiltersEl.id = 'activeFilters';
     document.body.appendChild(activeFiltersEl);
+
+    // Create dashboardContent element for logs-active class
+    dashboardContentEl = document.createElement('div');
+    dashboardContentEl.id = 'dashboardContent';
+    document.body.appendChild(dashboardContentEl);
   });
 
   afterEach(() => {
     titleEl.remove();
     activeFiltersEl.remove();
+    dashboardContentEl.remove();
     window.history.replaceState({}, '', ORIGINAL_PATH);
   });
 
@@ -804,6 +811,33 @@ describe('syncUIFromState', () => {
       mockElements.viewToggleBtn.querySelector('.menu-item-label').textContent,
       'View Filters',
     );
+  });
+
+  it('adds logs-active class to dashboardContent when showLogs is true', () => {
+    state.showLogs = true;
+    syncUIFromState();
+    assert.isTrue(dashboardContentEl.classList.contains('logs-active'));
+  });
+
+  it('does not add logs-active class when showLogs is false', () => {
+    state.showLogs = false;
+    syncUIFromState();
+    assert.isFalse(dashboardContentEl.classList.contains('logs-active'));
+  });
+
+  it('restores chart collapse state from localStorage when showLogs is true', () => {
+    const chartSection = document.createElement('div');
+    chartSection.classList.add('chart-section');
+    document.body.appendChild(chartSection);
+    localStorage.setItem('chartCollapsed', 'true');
+    try {
+      state.showLogs = true;
+      syncUIFromState();
+      assert.isTrue(chartSection.classList.contains('chart-collapsed'));
+    } finally {
+      chartSection.remove();
+      localStorage.removeItem('chartCollapsed');
+    }
   });
 
   it('shows filters view when showLogs is false', () => {

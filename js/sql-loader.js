@@ -62,6 +62,7 @@ const ALL_TEMPLATES = [
   'time-series',
   'logs',
   'logs-more',
+  'logs-at',
   'breakdown',
   'breakdown-approx-top',
   'breakdown-facet',
@@ -74,6 +75,7 @@ const ALL_TEMPLATES = [
   'facet-search-pattern',
   'investigate-facet',
   'investigate-selection',
+  'log-detail',
 ];
 
 /**

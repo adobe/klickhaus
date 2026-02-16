@@ -11,28 +11,32 @@
  */
 
 export const PAGE_SIZE = 500;
+export const INITIAL_PAGE_SIZE = 100;
 
 export class PaginationState {
   constructor(pageSize = PAGE_SIZE) {
-    this.offset = 0;
+    this.cursor = null;
     this.hasMore = true;
     this.loading = false;
     this.pageSize = pageSize;
   }
 
   reset() {
-    this.offset = 0;
+    this.cursor = null;
     this.hasMore = true;
     this.loading = false;
   }
 
-  recordPage(resultLength) {
-    this.offset += resultLength;
+  recordPage(rows) {
+    const resultLength = rows.length;
     this.hasMore = resultLength === this.pageSize;
+    if (resultLength > 0) {
+      this.cursor = rows[resultLength - 1].timestamp;
+    }
   }
 
   canLoadMore() {
-    return this.hasMore && !this.loading;
+    return this.hasMore && !this.loading && this.cursor != null;
   }
 
   shouldTriggerLoad(scrollPercent, globalLoading) {
