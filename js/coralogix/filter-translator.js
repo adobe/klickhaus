@@ -34,16 +34,19 @@
  * Column to Data Prime namespace mapping.
  * Maps ClickHouse column patterns to Data Prime prefixes ($d, $l, $m).
  */
+/** Columns that map to a namespace prefix (prefix + column name). */
 const NAMESPACE_MAP = {
   // Metadata namespace ($m) - system fields only
   timestamp: '$m',
 
-  // Labels namespace ($l) - only subsystemname for source (cloudflare/fastly)
-  source: '$l.subsystemname',
-
   // Data namespace ($d) - ALL CDN log fields go to $d by default
   // request.*, response.*, cdn.*, client.*, helix.*
   // Everything falls through to $d prefix
+};
+
+/** Columns whose Data Prime path differs entirely from the ClickHouse name. */
+const FULL_PATH_MAP = {
+  source: '$l.subsystemname',
 };
 
 /**
@@ -162,17 +165,13 @@ export function getFieldPath(clickhouseColumn) {
   // Extract base column from any ClickHouse expression
   const baseCol = extractBaseColumn(clickhouseColumn);
 
+  // Check full-path mappings first (column name differs entirely in Data Prime)
+  if (FULL_PATH_MAP[baseCol]) {
+    return FULL_PATH_MAP[baseCol];
+  }
+
   // Get the appropriate namespace prefix
   const prefix = getNamespacePrefix(`\`${baseCol}\``);
-
-  // For nested fields with dots, use bracket notation if needed
-  // Data Prime uses dots for simple paths, brackets for keys with special chars
-  const needsBrackets = baseCol.includes('[') || baseCol.includes(']') || baseCol.includes(' ');
-
-  if (needsBrackets) {
-    // Already has brackets or special chars - preserve structure
-    return `${prefix}.${baseCol}`;
-  }
 
   // Simple dot-separated path
   return `${prefix}.${baseCol}`;

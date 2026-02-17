@@ -68,7 +68,8 @@ export function buildTimeFilter({ start, end }) {
   const startTs = formatDataPrimeTimestamp(start);
   const endTs = formatDataPrimeTimestamp(end);
 
-  return `timestamp >= @'${startTs}' && timestamp <= @'${endTs}'`;
+  // Data Prime uses between on the source line: source logs between @'...' and @'...'
+  return `between @'${startTs}' and @'${endTs}'`;
 }
 
 /**
@@ -228,15 +229,12 @@ export function buildLogsQuery(options) {
 
   const parts = [];
 
-  // 1. Source: CDN logs from Cloudflare and Fastly
-  parts.push('source logs');
+  // 1. Source with time range
+  const timeFilter = buildTimeFilter({ start, end });
+  parts.push(`source logs ${timeFilter}`);
 
   // 2. Filter by subsystem (CDN sources)
   parts.push("| filter $l.subsystemname in ['cloudflare', 'fastly']");
-
-  // 3. Time filter
-  const timeFilter = buildTimeFilter({ start, end });
-  parts.push(`| filter ${timeFilter}`);
 
   // 4. Host filter (if specified)
   const hostFilterExpr = buildHostFilter({ hostFilter, hostFilterColumn });

@@ -33,7 +33,7 @@ import {
 // queries (one per facet), the only code path with bulk parallelism. Chart, logs,
 // and autocomplete each fire 1-2 queries and don't need limiting.
 // RESTORED TO 4 for Coralogix - multigroupby eliminates the need for strict rate limiting
-const queryLimiter = createLimiter(4);
+const queryLimiter = createLimiter(20);
 
 export function getBreakdowns() {
   return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;

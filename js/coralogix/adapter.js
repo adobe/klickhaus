@@ -348,8 +348,7 @@ function buildTimeSeriesQuery({
   startTime, endTime, interval,
   filters = [], hostFilter = '', additionalFilter = '',
 }) {
-  let query = `source logs
-| filter $m.timestamp >= @'${startTime.toISOString()}' && $m.timestamp <= @'${endTime.toISOString()}'`;
+  let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
 
   query = appendFilters(query, { hostFilter, filters });
   if (additionalFilter) query += `\n| filter ${additionalFilter}`;
@@ -369,8 +368,7 @@ function buildBreakdownQuery({
   startTime, endTime, extraFilter = '', orderBy = 'cnt DESC',
 }) {
   const facetExpr = buildFacetExpression(facet);
-  let query = `source logs
-| filter $m.timestamp >= @'${startTime.toISOString()}' && $m.timestamp <= @'${endTime.toISOString()}'`;
+  let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
 
   // Exclude current facet from filters
   const otherFilters = filters.filter((f) => f.col !== facet);
@@ -389,8 +387,7 @@ function buildLogsQuery({
   filters = [], hostFilter = '',
   startTime, endTime, limit, offset = 0, additionalFilter = '',
 }) {
-  let query = `source logs
-| filter $m.timestamp >= @'${startTime.toISOString()}' && $m.timestamp <= @'${endTime.toISOString()}'`;
+  let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
 
   query = appendFilters(query, { hostFilter, filters });
   if (additionalFilter) query += `\n| filter ${additionalFilter}`;
@@ -405,8 +402,7 @@ function buildMultiFacetQuery({
   facets, startTime, endTime,
   filters = [], hostFilter = '', topN,
 }) {
-  let query = `source logs
-| filter $m.timestamp >= @'${startTime.toISOString()}' && $m.timestamp <= @'${endTime.toISOString()}'`;
+  let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
   query = appendFilters(query, { hostFilter, filters });
 
   const sets = facets.map((def) => {
