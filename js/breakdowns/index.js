@@ -24,10 +24,15 @@ import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
 import { createLimiter } from '../concurrency-limiter.js';
+import {
+  fetchBreakdownData as fetchCoralogixBreakdown,
+  fetchAllBreakdowns as fetchAllCoralogixBreakdowns,
+} from '../coralogix/adapter.js';
 
 // Intentionally limits only breakdown queries: breakdowns fan out 20+ parallel
 // queries (one per facet), the only code path with bulk parallelism. Chart, logs,
 // and autocomplete each fire 1-2 queries and don't need limiting.
+// RESTORED TO 4 for Coralogix - multigroupby eliminates the need for strict rate limiting
 const queryLimiter = createLimiter(4);
 
 export function getBreakdowns() {
@@ -288,6 +293,8 @@ async function buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostF
   };
 }
 
+// Legacy ClickHouse query builder - kept for reference
+// eslint-disable-next-line no-unused-vars
 async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
 
@@ -400,6 +407,7 @@ function getSummaryRatio(b, totals) {
  * Extract the synthetic totals row from an approx_top_count UNION ALL result.
  * The last row has dim === '' and contains aggregate totals over the full dataset.
  */
+// eslint-disable-next-line no-unused-vars
 function extractApproxTopTotals(result) {
   const { data } = result;
   if (!data || data.length === 0) return { data: [], totals: {} };
@@ -412,33 +420,71 @@ function extractApproxTopTotals(result) {
   return { data, totals: result.totals || {} };
 }
 
-async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samplingOverride) {
+/**
+ * Check if a breakdown can be included in multigroupby.
+ * Excludes bucketed facets (rawCol), high-cardinality facets, and facets with special filters.
+ */
+function canUseMultigroupby(b) {
+  // Skip bucketed facets (need two-level query with multiIf)
+  if (b.rawCol) return false;
+  // Skip high-cardinality facets (should use sampling)
+  if (b.highCardinality) return false;
+  // Skip facets with extra filters (need separate WHERE clauses)
+  if (b.extraFilter) return false;
+  // Skip facets with function-based columns (need special handling)
+  if (typeof b.col === 'function') return false;
+  // Skip facets with filterCol (LIKE filtering)
+  if (b.filterCol) return false;
+  return true;
+}
+
+async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const { isCurrent, signal } = requestStatus;
-  const built = await buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride);
-  const {
-    sql, params, aggs, approxTop,
-  } = built;
+
+  // Note: samplingOverride parameter removed - Coralogix handles sampling internally
+
+  // Get facet column name (handle function-based columns)
+  const facetCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
+  // Build params object for compatibility with appendMissingFilteredValues
+  const params = {
+    col: facetCol,
+    originalCol: facetCol,
+    hasActiveFilter: false,
+    isBytes: false,
+    sampleClause: '',
+    mult: '',
+    extra: b.extraFilter || '',
+    facetFilters: getFacetFiltersExcluding(facetCol),
+    timeFilter,
+    hostFilter,
+  };
+
   const startTime = performance.now();
-  const result = await queryLimiter(() => query(sql, { signal }));
+
+  // Call Coralogix adapter
+  const result = await queryLimiter(() => fetchCoralogixBreakdown({
+    facet: facetCol,
+    topN: state.topN,
+    filters: state.filters,
+    hostFilter: state.hostFilter,
+    timeRange: state.timeRange,
+    extraFilter: b.extraFilter || '',
+    orderBy: b.orderBy || 'cnt DESC',
+    signal,
+  }));
+
   if (!isCurrent()) return null;
 
   const elapsed = result.networkTime ?? (performance.now() - startTime);
   facetTimings[b.id] = elapsed;
 
-  // For approx_top_count queries, extract totals from the UNION ALL result
-  let resultData;
-  let totals;
-  if (approxTop) {
-    ({ data: resultData, totals } = extractApproxTopTotals(result));
-  } else {
-    resultData = result.data;
-    totals = result.totals;
-  }
-
+  const { data: resultData, totals } = result;
   const summaryRatio = getSummaryRatio(b, totals);
 
-  let data = fillExpectedLabels(resultData, b);
-  data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
+  const data = fillExpectedLabels(resultData, b);
+  // Note: appendMissingFilteredValues uses ClickHouse queries - skip for now with Coralogix
+  // data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
   if (!isCurrent()) return null;
 
   return {
@@ -516,8 +562,103 @@ export async function loadAllBreakdowns(
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const breakdowns = getBreakdowns();
+  const requestStatus = createRequestStatus(requestContext);
+
+  // Split breakdowns into two groups: multigroupby-eligible and individual
+  const multiFacets = breakdowns.filter((b) => canUseMultigroupby(b));
+  const individualFacets = breakdowns.filter((b) => !canUseMultigroupby(b));
+
+  const startTime = performance.now();
+
+  // Fetch all multigroupby-eligible facets in a single query
+  let multiResults = {};
+  let multiFacetsSucceeded = false;
+  if (multiFacets.length > 0) {
+    try {
+      multiResults = await fetchAllCoralogixBreakdowns({
+        facets: multiFacets,
+        timeRange: state.timeRange,
+        filters: state.filters,
+        hostFilter: state.hostFilter,
+        topN: state.topN,
+        signal: requestStatus.signal,
+      });
+
+      // Record timing for each facet
+      const elapsed = performance.now() - startTime;
+      multiFacets.forEach((b) => {
+        facetTimings[b.id] = elapsed;
+      });
+      multiFacetsSucceeded = true;
+    } catch (err) {
+      if (!requestStatus.isCurrent() || isAbortError(err)) return;
+      // eslint-disable-next-line no-console
+      console.error('Multi-facet query error:', err);
+      // Fall back to individual queries for multi-facets if the batch fails
+      individualFacets.push(...multiFacets);
+    }
+  }
+
+  // Render multi-query results (only if the multi-query succeeded)
+  if (multiFacetsSucceeded) {
+    for (const b of multiFacets) {
+      const card = document.getElementById(b.id);
+      if (prepareBreakdownCard(card, b)) {
+        try {
+          const result = multiResults[b.id];
+          if (!result) {
+            throw new Error('Missing result from multi-query');
+          }
+
+          const facetCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+          const params = {
+            col: facetCol,
+            originalCol: facetCol,
+            hasActiveFilter: false,
+          };
+
+          const summaryRatio = getSummaryRatio(b, result.totals);
+          const data = fillExpectedLabels(result.data, b);
+
+          renderBreakdownTable(
+            b.id,
+            data,
+            result.totals,
+            params.col,
+            b.linkPrefix,
+            b.linkSuffix,
+            b.linkFn,
+            facetTimings[b.id],
+            b.dimPrefixes,
+            b.dimFormatFn,
+            summaryRatio,
+            b.summaryLabel,
+            b.summaryColor,
+            b.modeToggle,
+            !!b.getExpectedLabels,
+            b.filterCol,
+            b.filterValueFn,
+            b.filterOp,
+          );
+        } catch (err) {
+          if (!shouldIgnoreBreakdownError(requestStatus, err)) {
+            const details = getQueryErrorDetails(err);
+            // eslint-disable-next-line no-console
+            console.error(`Breakdown error (${b.id}):`, err);
+            renderBreakdownError(b.id, details);
+          }
+        } finally {
+          if (requestStatus.isCurrent()) {
+            card.classList.remove('updating');
+          }
+        }
+      }
+    }
+  }
+
+  // Load individual facets in parallel
   await Promise.all(
-    breakdowns.map(
+    individualFacets.map(
       (b) => loadBreakdown(b, timeFilter, hostFilter, requestContext, samplingOverride),
     ),
   );

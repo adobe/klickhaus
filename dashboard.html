@@ -22,12 +22,12 @@
   <div id="login">
     <div class="login-card">
       <h1>CDN Analytics</h1>
-      <p>Sign in to view your analytics dashboard</p>
+      <p id="loginSubtitle">Sign in with your Coralogix credentials</p>
       <div id="loginError" class="error-message"></div>
       <form id="loginForm">
         <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" required autocomplete="username">
+          <label for="username">Email</label>
+          <input type="email" id="username" name="username" required autocomplete="username" placeholder="your-email@coralogix.com">
         </div>
         <div class="form-group">
           <label for="password">Password</label>
@@ -39,8 +39,11 @@
             Forget me on this device
           </label>
         </div>
-        <button type="submit" class="btn btn-primary">Sign In</button>
+        <button type="submit" class="btn btn-primary">Sign In to Coralogix</button>
       </form>
+      <p style="margin-top: 16px; font-size: 12px; color: #666; text-align: center;">
+        Team ID: <strong id="teamIdDisplay">Loading...</strong>
+      </p>
     </div>
   </div>
 

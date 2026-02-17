@@ -187,14 +187,7 @@ export function getQueryErrorDetails(err) {
   };
 }
 
-export async function query(
-  sql,
-  {
-    cacheTtl: initialCacheTtl = null,
-    skipCache = false,
-    signal,
-  } = {},
-) {
+function buildCacheParams(initialCacheTtl, skipCache) {
   const params = new URLSearchParams();
 
   // Skip caching entirely for simple queries like auth check
@@ -213,6 +206,31 @@ export async function query(
     params.set('query_cache_ttl', cacheTtl.toString());
     params.set('query_cache_nondeterministic_function_handling', 'save');
   }
+
+  return params;
+}
+
+export async function query(
+  sql,
+  {
+    cacheTtl: initialCacheTtl = null,
+    skipCache = false,
+    signal,
+  } = {},
+) {
+  // Check if ClickHouse credentials are available
+  // When using Coralogix, state.credentials will be null
+  if (!state.credentials || !state.credentials.user || !state.credentials.password) {
+    throw new QueryError(
+      'ClickHouse authentication required. If using Coralogix, use the backend adapter instead.',
+      {
+        category: 'permissions',
+        status: 401,
+      },
+    );
+  }
+
+  const params = buildCacheParams(initialCacheTtl, skipCache);
 
   // Normalize SQL whitespace for consistent cache keys
   const normalizedSql = sql.replace(/\s+/g, ' ').trim();
