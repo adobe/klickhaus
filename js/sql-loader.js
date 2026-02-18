@@ -74,6 +74,7 @@ const ALL_TEMPLATES = [
   'facet-search-pattern',
   'investigate-facet',
   'investigate-selection',
+  'optel-token',
 ];
 
 /**
