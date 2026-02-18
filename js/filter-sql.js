@@ -20,7 +20,7 @@ import { COLUMN_DEFS } from './columns.js';
  * @property {boolean} exclude - Whether filter is exclusion.
  * @property {string} [filterCol] - Optional override column for SQL filtering.
  * @property {string|number} [filterValue] - Optional override value for SQL filtering.
- * @property {'=' | 'LIKE'} [filterOp] - Comparison operator (default: '=').
+ * @property {'=' | 'LIKE' | 'HAS'} [filterOp] - Comparison (default: '='). HAS = array containment.
  */
 
 /** @type {Set<string>|null} */
@@ -46,7 +46,7 @@ export function getAllowedColumns() {
   return cols;
 }
 
-const ALLOWED_OPS = new Set(['=', 'LIKE']);
+const ALLOWED_OPS = new Set(['=', 'LIKE', 'HAS']);
 
 /**
  * Check if a column expression is in the allowlist.
@@ -69,7 +69,7 @@ export function isValidFilterOp(op) {
 /**
  * @typedef {Object} FilterEntry
  * @property {string|number} value
- * @property {'=' | 'LIKE'} op
+ * @property {'=' | 'LIKE' | 'HAS'} op
  */
 
 /**
@@ -147,6 +147,9 @@ export function compileFilters(filters) {
         const isNumeric = typeof value === 'number';
         const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
         const comparison = isNumeric ? escaped : `'${escaped}'`;
+        if (op === 'HAS') {
+          return `has(${sqlCol}, ${comparison})`;
+        }
         return `${sqlCol} ${op} ${comparison}`;
       });
       parts.push(includeParts.length === 1 ? includeParts[0] : `(${includeParts.join(' OR ')})`);
@@ -158,6 +161,9 @@ export function compileFilters(filters) {
         const isNumeric = typeof value === 'number';
         const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
         const comparison = isNumeric ? escaped : `'${escaped}'`;
+        if (op === 'HAS') {
+          return `NOT has(${sqlCol}, ${comparison})`;
+        }
         const notOp = op === 'LIKE' ? 'NOT LIKE' : '!=';
         return `${sqlCol} ${notOp} ${comparison}`;
       });
