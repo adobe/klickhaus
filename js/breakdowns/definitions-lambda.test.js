@@ -13,8 +13,8 @@ import { assert } from 'chai';
 import { lambdaBreakdowns } from './definitions-lambda.js';
 
 describe('lambdaBreakdowns', () => {
-  it('has ten facets', () => {
-    assert.strictEqual(lambdaBreakdowns.length, 10);
+  it('has fourteen facets', () => {
+    assert.strictEqual(lambdaBreakdowns.length, 14);
   });
 
   it('each facet has id and col (string or function)', () => {
@@ -28,6 +28,10 @@ describe('lambdaBreakdowns', () => {
       'breakdown-admin-method',
       'breakdown-message',
       'breakdown-request-id',
+      'breakdown-url',
+      'breakdown-path',
+      'breakdown-ip',
+      'breakdown-email',
       'breakdown-admin-duration',
     ];
     lambdaBreakdowns.forEach((b, i) => {
@@ -80,6 +84,23 @@ describe('lambdaBreakdowns', () => {
     assert.ok(requestIdFacet);
     assert.strictEqual(requestIdFacet.col, '`request_id`');
     assert.strictEqual(requestIdFacet.highCardinality, true);
+  });
+
+  it('array facets (url, path, ip, email) use arrayJoin, filterCol, filterOp HAS, and highCardinality', () => {
+    const arrayFacets = [
+      { id: 'breakdown-url', col: 'arrayJoin(`urls`)', filterCol: '`urls`' },
+      { id: 'breakdown-path', col: 'arrayJoin(`paths`)', filterCol: '`paths`' },
+      { id: 'breakdown-ip', col: 'arrayJoin(`ips`)', filterCol: '`ips`' },
+      { id: 'breakdown-email', col: 'arrayJoin(`emails`)', filterCol: '`emails`' },
+    ];
+    for (const spec of arrayFacets) {
+      const facet = lambdaBreakdowns.find((b) => b.id === spec.id);
+      assert.ok(facet, spec.id);
+      assert.strictEqual(facet.col, spec.col);
+      assert.strictEqual(facet.filterCol, spec.filterCol);
+      assert.strictEqual(facet.filterOp, 'HAS');
+      assert.strictEqual(facet.highCardinality, true);
+    }
   });
 
   it('admin-duration facet is bucketed with rawCol and getExpectedLabels', () => {
