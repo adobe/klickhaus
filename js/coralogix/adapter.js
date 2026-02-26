@@ -291,6 +291,10 @@ function translateExtraFilter(extraFilter) {
 function buildFacetExpression(facetExpression) {
   const cleanExpr = facetExpression.replace(/`/g, '');
 
+  if (cleanExpr === 'client.asn') {
+    return "concat($d.cdn.originating_ip_geoip.asn.number, ' - ',"
+      + ' $d.cdn.originating_ip_geoip.asn.organization)';
+  }
   if (cleanExpr.includes('intDiv') && cleanExpr.includes('response.status')) {
     return '$d.response.status:num / 100';
   }

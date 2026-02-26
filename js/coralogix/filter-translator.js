@@ -47,6 +47,7 @@ const NAMESPACE_MAP = {
 /** Columns whose Data Prime path differs entirely from the ClickHouse name. */
 const FULL_PATH_MAP = {
   source: '$l.subsystemname',
+  'client.asn': '$d.cdn.originating_ip_geoip.asn.number',
 };
 
 /**

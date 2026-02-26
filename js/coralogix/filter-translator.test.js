@@ -45,7 +45,7 @@ describe('filter-translator', () => {
 
     it('should use $l namespace for client fields', () => {
       assert.strictEqual(getFieldPath('`client.country_name`'), '$l.client.country_name');
-      assert.strictEqual(getFieldPath('`client.asn`'), '$l.client.asn');
+      assert.strictEqual(getFieldPath('`client.asn`'), '$d.cdn.originating_ip_geoip.asn.number');
     });
 
     it('should use $m namespace for timestamp', () => {

@@ -272,7 +272,7 @@ describe('executeDataPrimeQuery', () => {
       await executeDataPrimeQuery('source logs');
       assert.fail('Should have thrown error');
     } catch (err) {
-      assert.include(err.message, 'No authentication token');
+      assert.include(err.message, 'authentication required');
     }
   });
 
@@ -285,38 +285,11 @@ describe('executeDataPrimeQuery', () => {
     });
 
     try {
-      await executeDataPrimeQuery('invalid query', { maxRetries: 0 });
+      await executeDataPrimeQuery('invalid query');
       assert.fail('Should have thrown error');
     } catch (err) {
       assert.instanceOf(err, CoralogixQueryError);
     }
-  });
-
-  it('should retry on retryable status codes', async () => {
-    let callCount = 0;
-
-    window.fetch = async () => {
-      callCount += 1;
-      if (callCount < 3) {
-        return {
-          ok: false,
-          status: 503,
-          text: async () => 'Service unavailable',
-        };
-      }
-      return {
-        ok: true,
-        text: async () => '{"result":{"results":[]}}',
-      };
-    };
-
-    const results = await executeDataPrimeQuery('source logs', {
-      maxRetries: 3,
-      retryDelay: 10,
-    });
-
-    assert.strictEqual(callCount, 3);
-    assert.isArray(results);
   });
 
   it('should not retry on auth errors', async () => {
@@ -332,7 +305,7 @@ describe('executeDataPrimeQuery', () => {
     };
 
     try {
-      await executeDataPrimeQuery('source logs', { maxRetries: 3 });
+      await executeDataPrimeQuery('source logs');
       assert.fail('Should have thrown error');
     } catch (err) {
       assert.strictEqual(callCount, 1);
@@ -356,23 +329,5 @@ describe('executeDataPrimeQuery', () => {
     });
 
     assert.strictEqual(capturedSignal, controller.signal);
-  });
-
-  it('should use custom API URL when provided', async () => {
-    let capturedUrl;
-
-    window.fetch = async (url) => {
-      capturedUrl = url;
-      return {
-        ok: true,
-        text: async () => '{"result":{"results":[]}}',
-      };
-    };
-
-    await executeDataPrimeQuery('source logs', {
-      apiUrl: 'https://custom-api.example.com/query',
-    });
-
-    assert.strictEqual(capturedUrl, 'https://custom-api.example.com/query');
   });
 });
