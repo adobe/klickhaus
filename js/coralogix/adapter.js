@@ -546,7 +546,7 @@ export async function fetchBreakdownData({
   // Always use FREQUENT_SEARCH for breakdowns -- ARCHIVE fails on
   // high-cardinality groupby queries over long time ranges.
   const result = await executeDataPrimeQuery(query, {
-    signal, tier: QUERY_TIERS.FREQUENT_SEARCH,
+    signal, tier: QUERY_TIERS.ARCHIVE,
   });
   const transformed = transformBreakdownResult(result, facet);
   transformed.networkTime = result.networkTime;

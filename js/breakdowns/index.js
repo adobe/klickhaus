@@ -28,10 +28,10 @@ import {
   fetchBreakdownData as fetchCoralogixBreakdown,
 } from '../coralogix/adapter.js';
 
-// Intentionally limits only breakdown queries: breakdowns fan out 20+ parallel
-// queries (one per facet), the only code path with bulk parallelism. Chart, logs,
-// and autocomplete each fire 1-2 queries and don't need limiting.
-const queryLimiter = createLimiter(1);
+// Limits ClickHouse preview queries only. Coralogix breakdown queries run
+// without limiting — they are all emitted in parallel and Coralogix handles
+// server-side rate control.
+const previewQueryLimiter = createLimiter(12);
 
 export function getBreakdowns() {
   return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
@@ -443,7 +443,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const startTime = performance.now();
 
   // Call Coralogix adapter
-  const result = await queryLimiter(() => fetchCoralogixBreakdown({
+  const result = await fetchCoralogixBreakdown({
     facet: facetCol,
     topN: state.topN,
     filters: state.filters,
@@ -452,7 +452,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
     extraFilter: b.extraFilter || '',
     orderBy: b.orderBy || 'cnt DESC',
     signal,
-  }));
+  });
 
   if (!isCurrent()) return null;
 
@@ -769,7 +769,7 @@ async function loadPreviewBreakdown(
     const built = await buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling);
     const { sql, params, aggs } = built;
     const startTime = performance.now();
-    const result = await queryLimiter(() => query(sql, { signal }));
+    const result = await previewQueryLimiter(() => query(sql, { signal }));
     if (!isCurrent()) return;
 
     const elapsed = result.networkTime ?? (performance.now() - startTime);
