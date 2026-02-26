@@ -23,18 +23,17 @@ import {
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter, getSamplingConfig,
+  getTimeFilter, getHostFilter,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, initFacetObservers,
 } from './timer.js';
 import {
-  loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
+  loadTimeSeries, setupChartNavigation, getLastChartData,
   renderChart,
 } from './chart.js';
 import {
   loadAllBreakdowns,
-  loadAllBreakdownsRefined,
   loadBreakdown,
   getBreakdowns,
   markSlowestFacet,
@@ -57,8 +56,8 @@ import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import { copyFacetAsTsv } from './copy-facet.js';
 import {
-  investigateAnomalies, reapplyHighlightsIfCached,
-  hasCachedInvestigation, invalidateInvestigationCache,
+  reapplyHighlightsIfCached,
+  invalidateInvestigationCache,
 } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
@@ -102,17 +101,8 @@ export function initDashboard(config = {}) {
 
   // Load dashboard queries (chart and facets)
   async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
-    // TEMPORARY: Load ONLY chart first to test Coralogix connectivity
-    // eslint-disable-next-line no-console
-    console.log('🔄 Loading chart data from Coralogix...');
-
     const timeSeriesPromise = loadTimeSeries(dashboardContext);
-    await timeSeriesPromise;
 
-    // eslint-disable-next-line no-console
-    console.log('✅ Chart loaded successfully!');
-
-    // TEMPORARY: Load only first 3 facets for testing
     const focusedFacetId = getFocusedFacetId();
     const isDashboardCurrent = () => isRequestCurrent(
       dashboardContext.requestId,
@@ -120,66 +110,18 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
-    // eslint-disable-next-line no-console
-    console.log('🔄 Loading facets (limited to first 3 for testing)...');
+    const facetsPromise = loadAllBreakdowns(facetsContext);
 
-    const facetPromises = getBreakdowns().slice(0, 3).map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
-        if (!isFacetsCurrent()) return;
-        // eslint-disable-next-line no-console
-        console.log(`✅ Loaded facet: ${b.id}`);
-        if (focusedFacetId === b.id) {
-          restoreKeyboardFocus();
-        }
-        reapplyHighlightsIfCached();
-      }).catch(() => {
-        // Facet failed but don't block other facets
-      }),
-    );
-
-    // Wait for chart to complete first (already awaited above)
-
+    await timeSeriesPromise;
     if (!isDashboardCurrent()) return;
 
-    // Wait for all facets to complete (success or failure)
-    await Promise.allSettled(facetPromises);
+    await facetsPromise;
+    if (!isFacetsCurrent()) return;
 
-    // Stop timer after all initial facets are done
-    if (!isDashboardCurrent()) return;
+    if (focusedFacetId) restoreKeyboardFocus();
+    reapplyHighlightsIfCached();
     stopQueryTimer();
-
-    const anomalies = getDetectedAnomalies();
-    const chartData = getLastChartData();
-
-    if (anomalies.length > 0 && chartData) {
-      const hasCache = hasCachedInvestigation();
-
-      if (hasCache) {
-        investigateAnomalies(anomalies, chartData);
-        Promise.all(facetPromises).then(() => {
-          if (isFacetsCurrent()) markSlowestFacet();
-        });
-      } else {
-        await Promise.all(facetPromises);
-        if (!isFacetsCurrent()) return;
-        markSlowestFacet();
-        await investigateAnomalies(anomalies, chartData);
-      }
-    } else {
-      Promise.all(facetPromises).then(() => {
-        if (isFacetsCurrent()) markSlowestFacet();
-      });
-    }
-
-    // Schedule refinement pass if initial load used sampling
-    const { multiplier } = getSamplingConfig();
-    if (multiplier > 1) {
-      const refinedSampling = { sampleClause: '', multiplier: 1 };
-      const refinementDashCtx = startRequestContext('dashboard');
-      const refinementFacetsCtx = startRequestContext('facets');
-      loadTimeSeries(refinementDashCtx, refinedSampling);
-      loadAllBreakdownsRefined(refinementFacetsCtx);
-    }
+    markSlowestFacet();
   }
 
   // Update keyboard hint for time range to show next option number
@@ -547,7 +489,7 @@ export function initDashboard(config = {}) {
   }
 
   window.addEventListener('dashboard-shown', () => {
-    setTimeout(loadHostAutocomplete, 100);
+    setTimeout(loadHostAutocomplete, 5000);
   });
 
   init();

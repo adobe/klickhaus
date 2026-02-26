@@ -13,10 +13,15 @@ import { query } from './api.js';
 import { parseUTC } from './chart-state.js';
 import { loadSql } from './sql-loader.js';
 import { renderReleaseTooltipHtml } from './templates/release-tooltip.js';
+import { isUsingCoralogix } from './backend-adapter.js';
 
-// Get releases within a time range from ClickHouse
+// Get releases within a time range
 export async function getReleasesInRange(startTime, endTime) {
   try {
+    // Coralogix version tags API requires a separate API key;
+    // skip silently until that is configured.
+    if (isUsingCoralogix()) return [];
+
     // Format timestamps without 'Z' suffix for ClickHouse
     const formatTs = (d) => d.toISOString().replace('Z', '').replace('T', ' ');
     const sql = await loadSql('releases', {

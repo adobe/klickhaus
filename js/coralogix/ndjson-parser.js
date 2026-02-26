@@ -87,12 +87,17 @@ export function parseResultLine(result) {
  * @param {Array<Object>} results - Array to push parsed results into
  * @returns {string|null} queryId if found in this line, null otherwise
  */
-function processNDJSONLine(parsed, results) {
+function processNDJSONLine(parsed, results, errors) {
   let foundQueryId = null;
 
   // Extract queryId if present
   if (parsed.queryId && parsed.queryId.queryId) {
     foundQueryId = parsed.queryId.queryId;
+  }
+
+  // Detect inline error responses
+  if (parsed.error) {
+    errors.push(parsed.error.message || JSON.stringify(parsed.error));
   }
 
   // Extract results if present
@@ -132,13 +137,14 @@ export function parseNDJSON(text) {
   const lines = text.trim().split('\n');
   let queryId = null;
   const results = [];
+  const errors = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed) {
       try {
         const parsed = JSON.parse(trimmed);
-        const foundId = processNDJSONLine(parsed, results);
+        const foundId = processNDJSONLine(parsed, results, errors);
         if (foundId) {
           queryId = foundId;
         }
@@ -149,7 +155,7 @@ export function parseNDJSON(text) {
     }
   }
 
-  return { queryId, results };
+  return { queryId, results, errors };
 }
 
 /**

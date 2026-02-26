@@ -18,7 +18,7 @@
  * transforms responses to match expected klickhaus data structures.
  */
 
-import { CORALOGIX_CONFIG } from './config.js';
+import { CORALOGIX_CONFIG, QUERY_TIERS } from './config.js';
 import { getToken, getTeamId } from './auth.js';
 import { authenticatedFetch } from './interceptor.js';
 import {
@@ -425,7 +425,34 @@ function buildMultiFacetQuery({
 // Core query execution
 // ---------------------------------------------------------------------------
 
-/** Execute a Data Prime query against Coralogix API. */
+const MAX_RETRIES = 3;
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function sendDataPrimeRequest(url, headers, body, signal) {
+  const response = await authenticatedFetch(url, {
+    method: 'POST', headers, body, signal,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    const parsed = parseCoralogixError(text, response.status);
+    throw new QueryError(parsed.message, { ...parsed, status: response.status });
+  }
+  const text = await response.text();
+  const result = parseNDJSON(text);
+  if (result.errors && result.errors.length > 0) {
+    throw new QueryError(result.errors.join('; '), {
+      category: 'query', detail: result.errors.join('; '),
+    });
+  }
+  return result;
+}
+
+/** Execute a Data Prime query against Coralogix API with retry for 429. */
 export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {}) {
   const token = getToken();
   if (!token) {
@@ -434,47 +461,43 @@ export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {
     });
   }
 
-  const requestBody = {
+  const requestBody = JSON.stringify({
     query: dataPrimeQuery,
     metadata: {
       tier: tier || CORALOGIX_CONFIG.defaultTier,
       syntax: 'QUERY_SYNTAX_DATAPRIME',
     },
-  };
+  });
   const fetchStart = performance.now();
+  const teamId = getTeamId();
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    ...(teamId && { 'CGX-Team-Id': String(teamId) }),
+  };
 
-  try {
-    const teamId = getTeamId();
-    const response = await authenticatedFetch(CORALOGIX_CONFIG.dataprimeApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(teamId && { 'CGX-Team-Id': String(teamId) }),
-      },
-      body: JSON.stringify(requestBody),
-      signal,
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      const parsed = parseCoralogixError(text, response.status);
-      throw new QueryError(parsed.message, parsed);
+  const attempt = async (retries) => {
+    try {
+      const url = CORALOGIX_CONFIG.dataprimeApiUrl;
+      const result = await sendDataPrimeRequest(url, headers, requestBody, signal);
+      result.networkTime = performance.now() - fetchStart;
+      return result;
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      const is429 = err.isQueryError && err.status === 429;
+      const isNetwork = !err.isQueryError;
+      if (retries > 0 && (is429 || isNetwork)) {
+        return sleep((MAX_RETRIES - retries + 1) * 2000).then(() => attempt(retries - 1));
+      }
+      if (!err.isQueryError) {
+        throw new QueryError(err.message || 'Query execution failed', {
+          category: 'network', detail: err.message,
+        });
+      }
+      throw err;
     }
-
-    const text = await response.text();
-    const result = parseNDJSON(text);
-    result.networkTime = performance.now() - fetchStart;
-    return result;
-  } catch (err) {
-    if (err.name === 'AbortError') throw err;
-    if (!err.isQueryError) {
-      throw new QueryError(err.message || 'Query execution failed', {
-        category: 'network', detail: err.message,
-      });
-    }
-    throw err;
-  }
+  };
+  return attempt(MAX_RETRIES);
 }
 
 // ---------------------------------------------------------------------------
@@ -499,7 +522,7 @@ export async function fetchBreakdownData({
   facet, topN, filters = [], hostFilter = '',
   timeRange, extraFilter = '', orderBy = 'cnt DESC', signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const query = buildBreakdownQuery({
     facet,
     topN,
@@ -510,7 +533,11 @@ export async function fetchBreakdownData({
     extraFilter,
     orderBy,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  // Always use FREQUENT_SEARCH for breakdowns -- ARCHIVE fails on
+  // high-cardinality groupby queries over long time ranges.
+  const result = await executeDataPrimeQuery(query, {
+    signal, tier: QUERY_TIERS.FREQUENT_SEARCH,
+  });
   const transformed = transformBreakdownResult(result, facet);
   transformed.networkTime = result.networkTime;
   return transformed;

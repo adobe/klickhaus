@@ -15,6 +15,8 @@ import { getTable } from './time.js';
 import { state } from './state.js';
 import { escapeHtml } from './utils.js';
 import { loadSql } from './sql-loader.js';
+import { isUsingCoralogix } from './backend-adapter.js';
+import { fetchBreakdownData as fetchCoralogixBreakdown } from './coralogix/adapter.js';
 
 const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
 const FUNCTION_CACHE_KEY = 'functionAutocompleteSuggestions';
@@ -23,6 +25,34 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 function populateHostDatalist(values) {
   const datalist = document.getElementById('hostSuggestions');
   datalist.innerHTML = values.map((v) => `<option value="${escapeHtml(v)}">`).join('');
+}
+
+async function loadCoralogixHosts() {
+  const [hostsResult, forwardedResult] = await Promise.all([
+    fetchCoralogixBreakdown({
+      facet: '`request.host`',
+      topN: 100,
+      timeRange: state.timeRange,
+    }),
+    fetchCoralogixBreakdown({
+      facet: '`request.headers.x_forwarded_host`',
+      topN: 100,
+      timeRange: state.timeRange,
+      extraFilter: "AND `request.headers.x_forwarded_host` != ''",
+    }),
+  ]);
+
+  const hostSet = new Set();
+  for (const row of hostsResult.data) {
+    if (row.dim) hostSet.add(row.dim);
+  }
+  for (const row of forwardedResult.data) {
+    if (row.dim) {
+      row.dim.split(',').map((h) => h.trim()).filter(Boolean)
+        .forEach((h) => hostSet.add(h));
+    }
+  }
+  return Array.from(hostSet).sort().slice(0, 200);
 }
 
 export async function loadHostAutocomplete() {
@@ -43,6 +73,13 @@ export async function loadHostAutocomplete() {
   }
 
   try {
+    if (isUsingCoralogix()) {
+      const hosts = await loadCoralogixHosts();
+      localStorage.setItem(cacheKey, JSON.stringify({ hosts, timestamp: Date.now() }));
+      populateHostDatalist(hosts);
+      return;
+    }
+
     const sqlParams = { database: DATABASE, table: getTable() };
 
     if (isFunctionFilter) {
