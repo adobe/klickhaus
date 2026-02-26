@@ -109,10 +109,6 @@ export const CORALOGIX_CONFIG = {
       missing.push('CX_TEAM_ID');
     }
 
-    if (!this.apiKey) {
-      missing.push('CX_API_KEY');
-    }
-
     return {
       isValid: missing.length === 0,
       missing,

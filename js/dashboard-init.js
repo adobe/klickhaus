@@ -16,9 +16,7 @@ import { setForceRefresh } from './api.js';
 import {
   initAuth, login, logout, isLoggedIn, getTeams,
 } from './coralogix/auth.js';
-import {
-  isCoralogixConfigured, getConfigurationErrors,
-} from './coralogix/adapter.js';
+import { CORALOGIX_CONFIG } from './coralogix/config.js';
 import {
   loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements,
   setOnStateRestored, setOnBeforeRestore,
@@ -446,10 +444,10 @@ export function initDashboard(config = {}) {
     });
 
     // Check Coralogix configuration
-    if (!isCoralogixConfigured()) {
-      const errors = getConfigurationErrors();
+    const configValidation = CORALOGIX_CONFIG.validate();
+    if (!configValidation.isValid) {
       // eslint-disable-next-line no-console
-      console.warn('Coralogix configuration incomplete:', errors);
+      console.warn('Coralogix configuration incomplete:', configValidation.missing);
       elements.loginError.textContent = 'Coralogix is not configured. Please check environment variables.';
       elements.loginError.classList.add('visible');
     }
