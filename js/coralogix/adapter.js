@@ -284,6 +284,11 @@ function translateExtraFilter(extraFilter) {
     (_, fp) => `${fp} != null`,
   );
   filter = filter.replace(/([^=!<>])\s*=\s*([^=])/g, '$1 == $2');
+  // ASN number is a string in Coralogix, convert numeric comparison to string
+  filter = filter.replace(
+    /(\$d\.cdn\.originating_ip_geoip\.asn\.number)\s*!=\s*0/g,
+    "$1 != ''",
+  );
   return filter;
 }
 
@@ -472,6 +477,7 @@ export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {
       syntax: 'QUERY_SYNTAX_DATAPRIME',
     },
   });
+
   const fetchStart = performance.now();
   const teamId = getTeamId();
   const headers = {
