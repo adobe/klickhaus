@@ -51,7 +51,7 @@ function getEnv(key) {
 if (typeof window !== 'undefined' && !window.ENV) {
   window.ENV = {
     CX_TEAM_ID: '7667',
-    CX_DATAPRIME_URL: 'https://api.coralogix.com/api/v1/dataprime/query',
+    CX_DATAPRIME_URL: 'https://ng-api-http.coralogix.com/api/v1/dataprime/query',
     CX_GRPC_GATEWAY_URL: 'https://api.coralogix.com',
     CX_HTTP_GATEWAY_URL: 'https://api.coralogix.com',
     CX_BASE_URL: 'https://api.coralogix.com',
@@ -67,7 +67,7 @@ if (typeof window !== 'undefined' && !window.ENV) {
  */
 export const CORALOGIX_CONFIG = {
   // API Endpoints
-  dataprimeApiUrl: getEnv('CX_DATAPRIME_URL') || 'https://api.coralogix.com/api/v1/dataprime/query',
+  dataprimeApiUrl: getEnv('CX_DATAPRIME_URL') || 'https://ng-api-http.coralogix.com/api/v1/dataprime/query',
   grpcGatewayUrl: getEnv('CX_GRPC_GATEWAY_URL') || 'https://ng-api-grpc.coralogix.com',
   httpGatewayUrl: getEnv('CX_HTTP_GATEWAY_URL') || 'https://ng-api-http.coralogix.com',
   baseApiUrl: getEnv('CX_BASE_URL') || 'https://api.coralogix.com',
