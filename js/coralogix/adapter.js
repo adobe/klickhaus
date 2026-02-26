@@ -327,8 +327,7 @@ function buildFacetExpression(facetExpression) {
 // Shared aggregation snippet
 // ---------------------------------------------------------------------------
 
-const AGG_COUNTS = `count() as cnt,
-    sum(case { $d.response.status:num < 400 -> 1, _ -> 0 }) as cnt_ok,
+const AGG_STATUS = `sum(case { $d.response.status:num < 400 -> 1, _ -> 0 }) as cnt_ok,
     sum(case { $d.response.status:num >= 400 && $d.response.status:num < 500 -> 1, _ -> 0 }) as cnt_4xx,
     sum(case { $d.response.status:num >= 500 -> 1, _ -> 0 }) as cnt_5xx`;
 
@@ -374,7 +373,7 @@ function buildTimeSeriesQuery({
 
 function buildBreakdownQuery({
   facet, topN, filters = [], hostFilter = '',
-  startTime, endTime, extraFilter = '', orderBy = 'cnt DESC',
+  startTime, endTime, extraFilter = '',
 }) {
   const facetExpr = buildFacetExpression(facet);
   let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
@@ -385,10 +384,7 @@ function buildBreakdownQuery({
     hostFilter, filters: otherFilters, extraFilter,
   });
 
-  query += `\n| groupby ${facetExpr} as dim aggregate\n    ${AGG_COUNTS}`;
-  const orderField = orderBy.includes('DESC') ? orderBy.split(' ')[0] : 'cnt';
-  const dir = orderBy.includes('ASC') ? 'asc' : 'desc';
-  query += `\n| orderby ${orderField} ${dir}\n| limit ${topN}`;
+  query += `\n| top ${topN} ${facetExpr} as dim,\n    ${AGG_STATUS}\n    by count() as cnt`;
   return query;
 }
 
@@ -419,7 +415,7 @@ function buildMultiFacetQuery({
     const ob = def.orderBy || 'cnt DESC';
     const field = ob.includes('DESC') ? ob.split(' ')[0] : 'cnt';
     const dir = ob.includes('ASC') ? 'asc' : 'desc';
-    return `(groupby ${expr} as dim aggregate\n        ${AGG_COUNTS}
+    return `(groupby ${expr} as dim aggregate\n        count() as cnt,\n        ${AGG_STATUS}
     | create facet_id = '${def.id}'
     | orderby ${field} ${dir}
     | limit ${topN})`;
