@@ -25,6 +25,7 @@ import {
   translateFacetFilters,
   translateHostFilter,
   getFieldPath,
+  translateColExpression,
 } from './filter-translator.js';
 import { QueryError } from '../api.js';
 import { TIME_RANGES } from '../constants.js';
@@ -195,83 +196,6 @@ function transformBreakdownResult(result, facet = '') {
 }
 
 // ---------------------------------------------------------------------------
-// multiIf conversion helpers (extracted to reduce complexity)
-// ---------------------------------------------------------------------------
-
-/** Split a string by commas, respecting quoted substrings. */
-function splitRespectingQuotes(str) {
-  const parts = [];
-  let current = '';
-  let inQuote = false;
-  let quoteChar = '';
-  for (let i = 0; i < str.length; i += 1) {
-    const ch = str[i];
-    if ((ch === "'" || ch === '"') && (i === 0 || str[i - 1] !== '\\')) {
-      if (!inQuote) {
-        inQuote = true;
-        quoteChar = ch;
-      } else if (ch === quoteChar) {
-        inQuote = false;
-      }
-    }
-    if (ch === ',' && !inQuote) {
-      parts.push(current.trim());
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  if (current) parts.push(current.trim());
-  return parts;
-}
-
-/** Parse condition/label pairs from the parts of a multiIf expression. */
-function parseMultiIfConditions(parts) {
-  const conditions = [];
-  let i = 0;
-  while (i < parts.length - 1) {
-    const condition = parts[i];
-    const label = parts[i + 1].replace(/^['"]|['"]$/g, '');
-    const ltMatch = condition.match(/`[^`]+`\s*<\s*(\d+)/);
-    const eqMatch = condition.match(/`[^`]+`\s*=\s*(\d+)/);
-    if (ltMatch) {
-      conditions.push({ op: '<', threshold: ltMatch[1], label });
-      i += 2;
-    } else if (eqMatch) {
-      conditions.push({ op: '==', threshold: eqMatch[1], label });
-      i += 2;
-    } else { break; }
-  }
-  return conditions;
-}
-
-/**
- * Convert ClickHouse multiIf() to Data Prime case_lessthan or case.
- * @param {string} multiIfExpr - multiIf expression
- * @returns {string} Data Prime case expression
- */
-function convertMultiIfToCaseLessThan(multiIfExpr) {
-  const fieldMatch = multiIfExpr.match(/multiIf\s*\(\s*`([^`]+)`/i);
-  if (!fieldMatch) {
-    throw new Error(`Cannot extract field from multiIf: ${multiIfExpr}`);
-  }
-  const dpField = getFieldPath(`\`${fieldMatch[1]}\``);
-  const inner = multiIfExpr.replace(/^multiIf\s*\(/i, '').replace(/\)$/, '');
-  const parts = splitRespectingQuotes(inner);
-  const conditions = parseMultiIfConditions(parts);
-  const fallback = parts[parts.length - 1].replace(/^['"]|['"]$/g, '');
-
-  if (conditions.some((c) => c.op === '==')) {
-    const cases = conditions.map((c) => (c.op === '=='
-      ? `${dpField}:num == ${c.threshold} -> '${c.label}'`
-      : `${dpField}:num < ${c.threshold} -> '${c.label}'`));
-    return `case { ${cases.join(', ')}, _ -> '${fallback}' }`;
-  }
-  const list = conditions.map((c) => `${c.threshold} -> '${c.label}'`);
-  return `case_lessthan { ${dpField}:num, ${list.join(', ')}, _ -> '${fallback}' }`;
-}
-
-// ---------------------------------------------------------------------------
 // Filter / expression translation
 // ---------------------------------------------------------------------------
 
@@ -290,37 +214,6 @@ function translateExtraFilter(extraFilter) {
     "$1 != ''",
   );
   return filter;
-}
-
-/** Build a Data Prime expression for facet grouping. */
-function buildFacetExpression(facetExpression) {
-  const cleanExpr = facetExpression.replace(/`/g, '');
-
-  if (cleanExpr === 'client.asn') {
-    return "concat($d.cdn.originating_ip_geoip.asn.number, ' - ',"
-      + ' $d.cdn.originating_ip_geoip.asn.organization)';
-  }
-  if (cleanExpr.includes('intDiv') && cleanExpr.includes('response.status')) {
-    return '$d.response.status:num / 100';
-  }
-  if (cleanExpr.match(/^toString\(/)) {
-    return `${getFieldPath(facetExpression)}:string`;
-  }
-  if (cleanExpr.match(/^upper\(/)) return getFieldPath(facetExpression);
-  if (cleanExpr.match(/^REGEXP_REPLACE\(/i)) {
-    return getFieldPath(facetExpression);
-  }
-  if (cleanExpr.match(/^if\(/i)) {
-    if (cleanExpr.includes('x_forwarded_for')) {
-      return '$d.request.headers.x_forwarded_for';
-    }
-    const m = cleanExpr.match(/if\([^,]+,\s*([^,]+),/i);
-    if (m) return getFieldPath(`\`${m[1].replace(/`/g, '').trim()}\``);
-  }
-  if (cleanExpr.match(/^multiIf\(/i)) {
-    return convertMultiIfToCaseLessThan(facetExpression);
-  }
-  return getFieldPath(facetExpression);
 }
 
 // ---------------------------------------------------------------------------
@@ -375,7 +268,7 @@ function buildBreakdownQuery({
   facet, topN, filters = [], hostFilter = '',
   startTime, endTime, extraFilter = '',
 }) {
-  const facetExpr = buildFacetExpression(facet);
+  const facetExpr = translateColExpression(facet);
   let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
 
   // Exclude current facet from filters
@@ -411,7 +304,7 @@ function buildMultiFacetQuery({
   query = appendFilters(query, { hostFilter, filters });
 
   const sets = facets.map((def) => {
-    const expr = buildFacetExpression(def.col);
+    const expr = translateColExpression(def.col);
     const ob = def.orderBy || 'cnt DESC';
     const field = ob.includes('DESC') ? ob.split(' ')[0] : 'cnt';
     const dir = ob.includes('ASC') ? 'asc' : 'desc';

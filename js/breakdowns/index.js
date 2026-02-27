@@ -28,10 +28,12 @@ import {
   fetchBreakdownData as fetchCoralogixBreakdown,
 } from '../coralogix/adapter.js';
 
-// Limits ClickHouse preview queries only. Coralogix breakdown queries run
-// without limiting — they are all emitted in parallel and Coralogix handles
-// server-side rate control.
+// Limits ClickHouse preview queries (time-range hover path).
 const previewQueryLimiter = createLimiter(12);
+
+// Soft cap on Coralogix breakdown concurrency — guards against unbounded
+// parallelism if the breakdown list grows significantly.
+const coralogixQueryLimiter = createLimiter(30);
 
 export function getBreakdowns() {
   return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
@@ -442,8 +444,8 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
 
   const startTime = performance.now();
 
-  // Call Coralogix adapter
-  const result = await fetchCoralogixBreakdown({
+  // Call Coralogix adapter (rate-limited to coralogixQueryLimiter slots)
+  const result = await coralogixQueryLimiter(() => fetchCoralogixBreakdown({
     facet: facetCol,
     topN: state.topN,
     filters: state.filters,
@@ -452,7 +454,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
     extraFilter: b.extraFilter || '',
     orderBy: b.orderBy || 'cnt DESC',
     signal,
-  });
+  }));
 
   if (!isCurrent()) return null;
 
