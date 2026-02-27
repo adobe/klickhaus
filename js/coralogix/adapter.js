@@ -29,6 +29,7 @@ import {
 } from './filter-translator.js';
 import { QueryError } from '../api.js';
 import { TIME_RANGES } from '../constants.js';
+import { queryTimestamp, customTimeRange } from '../time.js';
 import { parseNDJSON } from './ndjson-parser.js';
 
 // ---------------------------------------------------------------------------
@@ -108,11 +109,20 @@ function mapClickHouseIntervalToDataPrime(clickhouseBucket) {
   return INTERVAL_MAP[clickhouseBucket] || '1m';
 }
 
-/** Compute start/end Date objects and tier from a time-range key. */
+/** Compute start/end Date objects and tier from a time-range key.
+ *  Mirrors getSelectedRange() in time.js: uses the frozen queryTimestamp when
+ *  inside a dashboard load so all parallel queries share identical time bounds.
+ */
 function resolveTimeRange(timeRange) {
+  const custom = customTimeRange();
+  if (custom) {
+    const hours = (custom.end - custom.start) / (60 * 60 * 1000);
+    const tier = CORALOGIX_CONFIG.getTierForTimeRange(hours);
+    return { startTime: new Date(custom.start), endTime: new Date(custom.end), tier };
+  }
   const def = TIME_RANGES[timeRange];
   if (!def) throw new Error(`Unknown time range: ${timeRange}`);
-  const endTime = new Date();
+  const endTime = queryTimestamp() || new Date();
   const startTime = new Date(endTime.getTime() - def.periodMs);
   const hours = def.periodMs / (60 * 60 * 1000);
   const tier = CORALOGIX_CONFIG.getTierForTimeRange(hours);
