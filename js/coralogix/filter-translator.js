@@ -221,7 +221,9 @@ export function translateFilter(filter) {
   // groupby expression produced by translateColExpression (e.g. intDiv → floor).
   // eslint-disable-next-line no-use-before-define
   const fieldPath = translateColExpression(column);
-  const escapedValue = escapeValue(value);
+  // Empty string means "no value" — compare against null in Data Prime rather
+  // than '' so it works correctly for any expression, including complex ones.
+  const escapedValue = value === '' ? 'null' : escapeValue(value);
 
   // Handle different operators
   if (operator === 'LIKE') {
@@ -509,7 +511,7 @@ export function translateColExpression(col) {
       + ' $d.cdn.originating_ip_geoip.asn.organization)';
   }
   if (cleanExpr.includes('intDiv') && cleanExpr.includes('response.status')) {
-    return '`{floor($d.response.status:num/100)}xx`';
+    return 'if($d.response.status != null, `{floor($d.response.status:num/100)}xx`, null)';
   }
   if (cleanExpr.match(/^toString\(/)) {
     return `${getFieldPath(col)}:string`;

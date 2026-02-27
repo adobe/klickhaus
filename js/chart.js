@@ -18,7 +18,7 @@
 import { isAbortError } from './api.js';
 import { fetchTimeSeriesData } from './coralogix/adapter.js';
 import {
-  getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
+  loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
 } from './breakdowns/index.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -946,7 +946,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
   const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
+  const facetFilters = state.filters;
   const bucket = getTimeBucket();
 
   try {
