@@ -18,7 +18,7 @@
  * transforms responses to match expected klickhaus data structures.
  */
 
-import { CORALOGIX_CONFIG, QUERY_TIERS } from './config.js';
+import { CORALOGIX_CONFIG } from './config.js';
 import { getToken, getTeamId } from './auth.js';
 import { authenticatedFetch } from './interceptor.js';
 import {
@@ -109,24 +109,20 @@ function mapClickHouseIntervalToDataPrime(clickhouseBucket) {
   return INTERVAL_MAP[clickhouseBucket] || '1m';
 }
 
-/** Compute start/end Date objects and tier from a time-range key.
+/** Compute start/end Date objects from a time-range key.
  *  Mirrors getSelectedRange() in time.js: uses the frozen queryTimestamp when
  *  inside a dashboard load so all parallel queries share identical time bounds.
  */
 function resolveTimeRange(timeRange) {
   const custom = customTimeRange();
   if (custom) {
-    const hours = (custom.end - custom.start) / (60 * 60 * 1000);
-    const tier = CORALOGIX_CONFIG.getTierForTimeRange(hours);
-    return { startTime: new Date(custom.start), endTime: new Date(custom.end), tier };
+    return { startTime: new Date(custom.start), endTime: new Date(custom.end) };
   }
   const def = TIME_RANGES[timeRange];
   if (!def) throw new Error(`Unknown time range: ${timeRange}`);
   const endTime = queryTimestamp() || new Date();
   const startTime = new Date(endTime.getTime() - def.periodMs);
-  const hours = def.periodMs / (60 * 60 * 1000);
-  const tier = CORALOGIX_CONFIG.getTierForTimeRange(hours);
-  return { startTime, endTime, tier };
+  return { startTime, endTime };
 }
 
 // ---------------------------------------------------------------------------
@@ -417,36 +413,31 @@ export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {
 export async function fetchTimeSeriesData({
   timeRange, interval, filters = [], hostFilter = '', signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const dpInterval = mapClickHouseIntervalToDataPrime(interval);
   const query = buildTimeSeriesQuery({
     startTime, endTime, interval: dpInterval, filters, hostFilter,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  const result = await executeDataPrimeQuery(query, { signal });
   return transformTimeSeriesResult(result);
 }
 
-/** Fetch breakdown/facet data for tables. */
+/** Fetch breakdown/facet data for tables.
+ *  Pass explicit startTime/endTime Date objects (e.g. for zoom previews) to
+ *  bypass resolveTimeRange; otherwise timeRange key is used as normal.
+ */
 export async function fetchBreakdownData({
   facet, topN, filters = [], hostFilter = '',
-  timeRange, extraFilter = '', orderBy = 'cnt DESC', signal,
+  timeRange, startTime: explicitStart, endTime: explicitEnd,
+  extraFilter = '', orderBy = 'cnt DESC', signal,
 }) {
-  const { startTime, endTime } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = (explicitStart && explicitEnd)
+    ? { startTime: explicitStart, endTime: explicitEnd }
+    : resolveTimeRange(timeRange);
   const query = buildBreakdownQuery({
-    facet,
-    topN,
-    filters,
-    hostFilter,
-    startTime,
-    endTime,
-    extraFilter,
-    orderBy,
+    facet, topN, filters, hostFilter, startTime, endTime, extraFilter, orderBy,
   });
-  // Always use FREQUENT_SEARCH for breakdowns -- ARCHIVE fails on
-  // high-cardinality groupby queries over long time ranges.
-  const result = await executeDataPrimeQuery(query, {
-    signal, tier: QUERY_TIERS.ARCHIVE,
-  });
+  const result = await executeDataPrimeQuery(query, { signal });
   const transformed = transformBreakdownResult(result, facet);
   transformed.networkTime = result.networkTime;
   return transformed;
@@ -456,11 +447,11 @@ export async function fetchBreakdownData({
 export async function fetchAllBreakdowns({
   facets, timeRange, filters = [], hostFilter = '', topN, signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const query = buildMultiFacetQuery({
     facets, startTime, endTime, filters, hostFilter, topN,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  const result = await executeDataPrimeQuery(query, { signal });
 
   const byId = {};
   for (const row of result.results || []) {
@@ -481,11 +472,11 @@ export async function fetchAllBreakdowns({
 export async function fetchLogsData({
   filters = [], hostFilter = '', timeRange, limit, offset = 0, signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const query = buildLogsQuery({
     filters, hostFilter, startTime, endTime, limit, offset,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  const result = await executeDataPrimeQuery(query, { signal });
   return transformLogsResult(result);
 }
 

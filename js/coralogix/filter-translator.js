@@ -516,6 +516,11 @@ export function translateColExpression(col) {
   if (cleanExpr.match(/^toString\(/)) {
     return `${getFieldPath(col)}:string`;
   }
+  const castStringMatch = cleanExpr.match(/^CAST\((.+),\s*'String'\)$/i);
+  if (castStringMatch) {
+    const inner = `\`${castStringMatch[1].trim().replace(/`/g, '')}\``;
+    return `(${getFieldPath(inner)}):string`;
+  }
   if (cleanExpr.match(/^upper\(/)) return getFieldPath(col);
   if (cleanExpr.match(/^REGEXP_REPLACE\(/i)) return getFieldPath(col);
   if (cleanExpr.match(/^if\(/i)) {

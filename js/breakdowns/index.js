@@ -11,7 +11,7 @@
  */
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
-import { query, getQueryErrorDetails, isAbortError } from '../api.js';
+import { getQueryErrorDetails, isAbortError } from '../api.js';
 import {
   startRequestContext, getRequestContext, isRequestCurrent, mergeAbortSignals,
 } from '../request-context.js';
@@ -21,15 +21,12 @@ import {
 import { allBreakdowns as defaultBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
-import { getFiltersForColumn } from '../filters.js';
+
 import { loadSql } from '../sql-loader.js';
 import { createLimiter } from '../concurrency-limiter.js';
 import {
   fetchBreakdownData as fetchCoralogixBreakdown,
 } from '../coralogix/adapter.js';
-
-// Limits ClickHouse preview queries (time-range hover path).
-const previewQueryLimiter = createLimiter(12);
 
 // Soft cap on Coralogix breakdown concurrency — guards against unbounded
 // parallelism if the breakdown list grows significantly.
@@ -132,64 +129,6 @@ function fillExpectedLabels(data, b) {
   return expectedLabels.map((label) => existingByLabel.get(label) || {
     dim: label, cnt: 0, cnt_ok: 0, cnt_4xx: 0, cnt_5xx: 0,
   });
-}
-
-/**
- * Fetch and append missing filtered values to data
- */
-async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requestStatus) {
-  const { isCurrent, signal } = requestStatus || {};
-  const shouldApply = () => (typeof isCurrent === 'function' ? isCurrent() : true);
-  const { originalCol, isBytes, mult } = queryParams;
-  const filtersForCol = getFiltersForColumn(originalCol);
-  if (filtersForCol.length === 0 || b.getExpectedLabels) return data;
-
-  const existingDims = new Set(data.map((row) => row.dim));
-  const missingFilterValues = filtersForCol
-    .map((f) => f.value)
-    .filter((v) => v !== '' && !existingDims.has(v));
-
-  if (missingFilterValues.length === 0) return data;
-
-  const searchCol = b.filterCol || col;
-  const valuesList = missingFilterValues
-    .map((v) => `'${v.replace(/'/g, "''")}'`)
-    .join(', ');
-
-  const missingValuesSql = await loadSql('breakdown-missing', {
-    col,
-    aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
-    aggOk: aggs.aggOk,
-    agg4xx: aggs.agg4xx,
-    agg5xx: aggs.agg5xx,
-    database: DATABASE,
-    table: getTable(),
-    sampleClause: queryParams.sampleClause,
-    timeFilter: queryParams.timeFilter,
-    hostFilter: queryParams.hostFilter,
-    extra: queryParams.extra,
-    additionalWhereClause: state.additionalWhereClause,
-    searchCol,
-    valuesList,
-  });
-
-  try {
-    if (!shouldApply()) return data;
-    const missingResult = await query(missingValuesSql, { signal });
-    if (!shouldApply()) return data;
-    if (missingResult.data && missingResult.data.length > 0) {
-      const markedRows = missingResult.data.map((row) => ({
-        ...row,
-        isFilteredValue: true,
-      }));
-      return [...data, ...markedRows];
-    }
-  } catch (err) {
-    if (!shouldApply()) return data;
-    if (isAbortError(err)) return data;
-    // Silently ignore errors fetching filtered values
-  }
-  return data;
 }
 
 /**
@@ -428,7 +367,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   // Get facet column name (handle function-based columns)
   const facetCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
 
-  // Build params object for compatibility with appendMissingFilteredValues
+  // Build params object for renderBreakdownTable compatibility
   const params = {
     col: facetCol,
     originalCol: facetCol,
@@ -465,8 +404,6 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const summaryRatio = getSummaryRatio(b, totals);
 
   const data = fillExpectedLabels(resultData, b);
-  // Note: appendMissingFilteredValues uses ClickHouse queries - skip for now with Coralogix
-  // data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
   if (!isCurrent()) return null;
 
   return {
@@ -603,148 +540,6 @@ export function increaseTopN(topNSelectEl, saveStateToURL, loadAllBreakdownsFn) 
   }
 }
 
-// --- Preview breakdowns during time range selection ---
-
-const HOUR_MS = 60 * 60 * 1000;
-
-function formatPreviewDateTime(date) {
-  return date.toISOString().replace('T', ' ').slice(0, 19);
-}
-
-function getPreviewTimeFilter(start, end) {
-  const startIso = formatPreviewDateTime(start);
-  const endIso = formatPreviewDateTime(end);
-  return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
-}
-
-function getPreviewSamplingConfig(durationMs) {
-  if (durationMs <= HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-  const ratio = HOUR_MS / durationMs;
-  const sampleRate = Math.max(Math.round(ratio * 10000) / 10000, 0.0001);
-  const multiplier = Math.round(1 / sampleRate);
-  return { sampleClause: `SAMPLE ${sampleRate}`, multiplier };
-}
-
-function buildPreviewQueryParams(b, col, timeFilter, hostFilter, sampling) {
-  const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
-    && state.filters.some((f) => f.col === originalCol);
-  const actualCol = hasActiveFilter ? b.filterCol : col;
-
-  const mode = b.modeToggle ? state[b.modeToggle] : 'count';
-  const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = sampling;
-  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
-
-  return {
-    col: actualCol,
-    originalCol,
-    hasActiveFilter,
-    isBytes,
-    sampleClause,
-    mult,
-    extra: b.extraFilter || '',
-    facetFilters: getFacetFiltersExcluding(originalCol),
-    timeFilter,
-    hostFilter,
-  };
-}
-
-async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling) {
-  const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-
-  if (canUseFacetTable(b)) {
-    const { startTime, endTime } = facetTimes;
-    const dimFilter = b.extraFilter ? "AND dim != ''" : '';
-    const hasSummary = !!b.summaryDimCondition;
-    const sql = await loadSql('breakdown-facet', {
-      database: DATABASE,
-      facetName: b.facetName,
-      startTime,
-      endTime,
-      dimFilter,
-      innerSummaryCol: hasSummary
-        ? `,\n    if(${b.summaryDimCondition}, cnt, 0) as summary_cnt`
-        : '',
-      summaryCol: hasSummary
-        ? ',\n  sum(summary_cnt) as summary_cnt'
-        : '',
-      orderBy: b.orderBy || 'cnt DESC',
-      topN: String(state.topN),
-    });
-
-    const params = {
-      col: baseCol,
-      originalCol: baseCol,
-      hasActiveFilter: false,
-      isBytes: false,
-      sampleClause: '',
-      mult: '',
-      extra: '',
-      facetFilters: '',
-      timeFilter,
-      hostFilter,
-    };
-    return { sql, params, aggs: buildAggregations(false, '') };
-  }
-
-  const params = buildPreviewQueryParams(b, baseCol, timeFilter, hostFilter, sampling);
-  const aggs = buildAggregations(params.isBytes, params.mult);
-
-  if (b.rawCol && typeof b.col === 'function') {
-    const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = b.summaryCountIf
-      ? `,\n    countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
-      : '';
-    const outerSummary = b.summaryCountIf
-      ? ',\n  sum(summary_cnt) as summary_cnt'
-      : '';
-
-    const sql = await loadSql('breakdown-bucketed', {
-      bucketExpr,
-      rawCol: b.rawCol,
-      ...aggs,
-      innerSummaryCol: innerSummary,
-      outerSummaryCol: outerSummary,
-      database: DATABASE,
-      table: getTable(),
-      sampleClause: params.sampleClause,
-      timeFilter,
-      hostFilter,
-      facetFilters: params.facetFilters,
-      extra: params.extra,
-      additionalWhereClause: state.additionalWhereClause,
-      topN: String(state.topN),
-    });
-
-    return { sql, params, aggs };
-  }
-
-  const summaryColWithMult = b.summaryCountIf
-    ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
-    : '';
-
-  const sql = await loadSql('breakdown', {
-    col: params.col,
-    ...aggs,
-    summaryCol: summaryColWithMult,
-    database: DATABASE,
-    table: getTable(),
-    sampleClause: params.sampleClause,
-    timeFilter,
-    hostFilter,
-    facetFilters: params.facetFilters,
-    extra: params.extra,
-    additionalWhereClause: state.additionalWhereClause,
-    orderBy: b.orderBy || 'cnt DESC',
-    topN: String(state.topN),
-  });
-
-  return { sql, params, aggs };
-}
-
 // Track whether preview is active for CSS indicator
 let previewActive = false;
 
@@ -752,14 +547,7 @@ export function isPreviewActive() {
   return previewActive;
 }
 
-async function loadPreviewBreakdown(
-  b,
-  timeFilter,
-  hostFilter,
-  facetTimes,
-  sampling,
-  requestStatus,
-) {
+async function loadPreviewBreakdown(b, start, end, hostFilter, requestStatus) {
   const { isCurrent, signal } = requestStatus;
   const card = document.getElementById(b.id);
 
@@ -767,25 +555,31 @@ async function loadPreviewBreakdown(
 
   card.classList.add('updating');
 
+  const facetCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
+
   try {
-    const built = await buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling);
-    const { sql, params, aggs } = built;
-    const startTime = performance.now();
-    const result = await previewQueryLimiter(() => query(sql, { signal }));
+    const perfStart = performance.now();
+    const result = await coralogixQueryLimiter(() => fetchCoralogixBreakdown({
+      facet: facetCol,
+      topN: state.topN,
+      filters: state.filters,
+      hostFilter,
+      startTime: start,
+      endTime: end,
+      extraFilter: b.extraFilter || '',
+      signal,
+    }));
     if (!isCurrent()) return;
 
-    const elapsed = result.networkTime ?? (performance.now() - startTime);
+    const elapsed = result.networkTime ?? (performance.now() - perfStart);
     const summaryRatio = getSummaryRatio(b, result.totals);
-
-    let data = fillExpectedLabels(result.data, b);
-    data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
-    if (!isCurrent()) return;
+    const data = fillExpectedLabels(result.data, b);
 
     renderBreakdownTable(
       b.id,
       data,
       result.totals,
-      params.col,
+      facetCol,
       b.linkPrefix,
       b.linkSuffix,
       b.linkFn,
@@ -797,9 +591,9 @@ async function loadPreviewBreakdown(
       b.summaryColor,
       b.modeToggle,
       !!b.getExpectedLabels,
-      params.hasActiveFilter ? null : b.filterCol,
-      params.hasActiveFilter ? null : b.filterValueFn,
-      params.hasActiveFilter ? null : b.filterOp,
+      b.filterCol,
+      b.filterValueFn,
+      b.filterOp,
     );
 
     card.classList.add('preview');
@@ -823,24 +617,14 @@ export async function loadPreviewBreakdowns(selectionStart, selectionEnd) {
     signal: requestContext.signal,
   };
 
-  const durationMs = selectionEnd - selectionStart;
   const start = new Date(Math.floor(selectionStart.getTime() / 60000) * 60000);
   const end = new Date(Math.ceil(selectionEnd.getTime() / 60000) * 60000);
-
-  const timeFilter = getPreviewTimeFilter(start, end);
   const hostFilter = getHostFilter();
-  const facetTimes = {
-    startTime: formatPreviewDateTime(start),
-    endTime: formatPreviewDateTime(end),
-  };
-  const sampling = getPreviewSamplingConfig(durationMs);
 
   previewActive = true;
   const breakdowns = getBreakdowns();
   await Promise.all(
-    breakdowns.map(
-      (b) => loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, sampling, requestStatus),
-    ),
+    breakdowns.map((b) => loadPreviewBreakdown(b, start, end, hostFilter, requestStatus)),
   );
 }
 
