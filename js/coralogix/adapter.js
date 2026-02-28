@@ -32,6 +32,11 @@ import { TIME_RANGES } from '../constants.js';
 import { queryTimestamp, customTimeRange } from '../time.js';
 import { parseNDJSON } from './ndjson-parser.js';
 
+export const EXECUTION_PROFILES = {
+  ACCURACY: 'EXECUTION_PROFILE_PRESET_ACCURACY',
+  PERFORMANCE: 'EXECUTION_PROFILE_PRESET_PERFORMANCE',
+};
+
 // ---------------------------------------------------------------------------
 // Error parsing helpers (extracted to reduce parseCoralogixError complexity)
 // ---------------------------------------------------------------------------
@@ -357,7 +362,9 @@ async function sendDataPrimeRequest(url, headers, body, signal) {
 }
 
 /** Execute a Data Prime query against Coralogix API with retry for 429. */
-export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {}) {
+export async function executeDataPrimeQuery(dataPrimeQuery, {
+  signal, tier, executionProfile,
+} = {}) {
   const token = getToken();
   if (!token) {
     throw new QueryError('Coralogix authentication required', {
@@ -365,13 +372,17 @@ export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {
     });
   }
 
-  const requestBody = JSON.stringify({
+  const body = {
     query: dataPrimeQuery,
     metadata: {
       tier: tier || CORALOGIX_CONFIG.defaultTier,
       syntax: 'QUERY_SYNTAX_DATAPRIME',
     },
-  });
+  };
+  if (executionProfile) {
+    body.executionProfile = { preset: executionProfile };
+  }
+  const requestBody = JSON.stringify(body);
 
   const fetchStart = performance.now();
   const teamId = getTeamId();
@@ -418,7 +429,9 @@ export async function fetchTimeSeriesData({
   const query = buildTimeSeriesQuery({
     startTime, endTime, interval: dpInterval, filters, hostFilter,
   });
-  const result = await executeDataPrimeQuery(query, { signal });
+  const result = await executeDataPrimeQuery(query, {
+    signal, executionProfile: EXECUTION_PROFILES.PERFORMANCE,
+  });
   return transformTimeSeriesResult(result);
 }
 
@@ -437,7 +450,9 @@ export async function fetchBreakdownData({
   const query = buildBreakdownQuery({
     facet, topN, filters, hostFilter, startTime, endTime, extraFilter, orderBy,
   });
-  const result = await executeDataPrimeQuery(query, { signal });
+  const result = await executeDataPrimeQuery(query, {
+    signal, executionProfile: EXECUTION_PROFILES.PERFORMANCE,
+  });
   const transformed = transformBreakdownResult(result, facet);
   transformed.networkTime = result.networkTime;
   return transformed;
