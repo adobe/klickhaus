@@ -948,7 +948,9 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const hostFilter = getHostFilter();
   const facetFilters = state.filters;
   const bucket = getTimeBucket();
+  const container = document.querySelector('.chart-container');
 
+  container?.classList.add('updating');
   try {
     // Fetch time series data using Coralogix adapter
     const data = await fetchTimeSeriesData({
@@ -968,5 +970,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Chart error:', err);
+  } finally {
+    if (isCurrent()) container?.classList.remove('updating');
   }
 }
