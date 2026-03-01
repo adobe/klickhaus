@@ -18,17 +18,24 @@
  * transforms responses to match expected klickhaus data structures.
  */
 
-import { CORALOGIX_CONFIG, QUERY_TIERS } from './config.js';
+import { CORALOGIX_CONFIG } from './config.js';
 import { getToken, getTeamId } from './auth.js';
 import { authenticatedFetch } from './interceptor.js';
 import {
   translateFacetFilters,
   translateHostFilter,
   getFieldPath,
+  translateColExpression,
 } from './filter-translator.js';
 import { QueryError } from '../api.js';
 import { TIME_RANGES } from '../constants.js';
+import { queryTimestamp, customTimeRange } from '../time.js';
 import { parseNDJSON } from './ndjson-parser.js';
+
+export const EXECUTION_PROFILES = {
+  ACCURACY: 'EXECUTION_PROFILE_PRESET_ACCURACY',
+  PERFORMANCE: 'EXECUTION_PROFILE_PRESET_PERFORMANCE',
+};
 
 // ---------------------------------------------------------------------------
 // Error parsing helpers (extracted to reduce parseCoralogixError complexity)
@@ -107,15 +114,20 @@ function mapClickHouseIntervalToDataPrime(clickhouseBucket) {
   return INTERVAL_MAP[clickhouseBucket] || '1m';
 }
 
-/** Compute start/end Date objects and tier from a time-range key. */
+/** Compute start/end Date objects from a time-range key.
+ *  Mirrors getSelectedRange() in time.js: uses the frozen queryTimestamp when
+ *  inside a dashboard load so all parallel queries share identical time bounds.
+ */
 function resolveTimeRange(timeRange) {
+  const custom = customTimeRange();
+  if (custom) {
+    return { startTime: new Date(custom.start), endTime: new Date(custom.end) };
+  }
   const def = TIME_RANGES[timeRange];
   if (!def) throw new Error(`Unknown time range: ${timeRange}`);
-  const endTime = new Date();
+  const endTime = queryTimestamp() || new Date();
   const startTime = new Date(endTime.getTime() - def.periodMs);
-  const hours = def.periodMs / (60 * 60 * 1000);
-  const tier = CORALOGIX_CONFIG.getTierForTimeRange(hours);
-  return { startTime, endTime, tier };
+  return { startTime, endTime };
 }
 
 // ---------------------------------------------------------------------------
@@ -195,83 +207,6 @@ function transformBreakdownResult(result, facet = '') {
 }
 
 // ---------------------------------------------------------------------------
-// multiIf conversion helpers (extracted to reduce complexity)
-// ---------------------------------------------------------------------------
-
-/** Split a string by commas, respecting quoted substrings. */
-function splitRespectingQuotes(str) {
-  const parts = [];
-  let current = '';
-  let inQuote = false;
-  let quoteChar = '';
-  for (let i = 0; i < str.length; i += 1) {
-    const ch = str[i];
-    if ((ch === "'" || ch === '"') && (i === 0 || str[i - 1] !== '\\')) {
-      if (!inQuote) {
-        inQuote = true;
-        quoteChar = ch;
-      } else if (ch === quoteChar) {
-        inQuote = false;
-      }
-    }
-    if (ch === ',' && !inQuote) {
-      parts.push(current.trim());
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  if (current) parts.push(current.trim());
-  return parts;
-}
-
-/** Parse condition/label pairs from the parts of a multiIf expression. */
-function parseMultiIfConditions(parts) {
-  const conditions = [];
-  let i = 0;
-  while (i < parts.length - 1) {
-    const condition = parts[i];
-    const label = parts[i + 1].replace(/^['"]|['"]$/g, '');
-    const ltMatch = condition.match(/`[^`]+`\s*<\s*(\d+)/);
-    const eqMatch = condition.match(/`[^`]+`\s*=\s*(\d+)/);
-    if (ltMatch) {
-      conditions.push({ op: '<', threshold: ltMatch[1], label });
-      i += 2;
-    } else if (eqMatch) {
-      conditions.push({ op: '==', threshold: eqMatch[1], label });
-      i += 2;
-    } else { break; }
-  }
-  return conditions;
-}
-
-/**
- * Convert ClickHouse multiIf() to Data Prime case_lessthan or case.
- * @param {string} multiIfExpr - multiIf expression
- * @returns {string} Data Prime case expression
- */
-function convertMultiIfToCaseLessThan(multiIfExpr) {
-  const fieldMatch = multiIfExpr.match(/multiIf\s*\(\s*`([^`]+)`/i);
-  if (!fieldMatch) {
-    throw new Error(`Cannot extract field from multiIf: ${multiIfExpr}`);
-  }
-  const dpField = getFieldPath(`\`${fieldMatch[1]}\``);
-  const inner = multiIfExpr.replace(/^multiIf\s*\(/i, '').replace(/\)$/, '');
-  const parts = splitRespectingQuotes(inner);
-  const conditions = parseMultiIfConditions(parts);
-  const fallback = parts[parts.length - 1].replace(/^['"]|['"]$/g, '');
-
-  if (conditions.some((c) => c.op === '==')) {
-    const cases = conditions.map((c) => (c.op === '=='
-      ? `${dpField}:num == ${c.threshold} -> '${c.label}'`
-      : `${dpField}:num < ${c.threshold} -> '${c.label}'`));
-    return `case { ${cases.join(', ')}, _ -> '${fallback}' }`;
-  }
-  const list = conditions.map((c) => `${c.threshold} -> '${c.label}'`);
-  return `case_lessthan { ${dpField}:num, ${list.join(', ')}, _ -> '${fallback}' }`;
-}
-
-// ---------------------------------------------------------------------------
 // Filter / expression translation
 // ---------------------------------------------------------------------------
 
@@ -292,43 +227,11 @@ function translateExtraFilter(extraFilter) {
   return filter;
 }
 
-/** Build a Data Prime expression for facet grouping. */
-function buildFacetExpression(facetExpression) {
-  const cleanExpr = facetExpression.replace(/`/g, '');
-
-  if (cleanExpr === 'client.asn') {
-    return "concat($d.cdn.originating_ip_geoip.asn.number, ' - ',"
-      + ' $d.cdn.originating_ip_geoip.asn.organization)';
-  }
-  if (cleanExpr.includes('intDiv') && cleanExpr.includes('response.status')) {
-    return '$d.response.status:num / 100';
-  }
-  if (cleanExpr.match(/^toString\(/)) {
-    return `${getFieldPath(facetExpression)}:string`;
-  }
-  if (cleanExpr.match(/^upper\(/)) return getFieldPath(facetExpression);
-  if (cleanExpr.match(/^REGEXP_REPLACE\(/i)) {
-    return getFieldPath(facetExpression);
-  }
-  if (cleanExpr.match(/^if\(/i)) {
-    if (cleanExpr.includes('x_forwarded_for')) {
-      return '$d.request.headers.x_forwarded_for';
-    }
-    const m = cleanExpr.match(/if\([^,]+,\s*([^,]+),/i);
-    if (m) return getFieldPath(`\`${m[1].replace(/`/g, '').trim()}\``);
-  }
-  if (cleanExpr.match(/^multiIf\(/i)) {
-    return convertMultiIfToCaseLessThan(facetExpression);
-  }
-  return getFieldPath(facetExpression);
-}
-
 // ---------------------------------------------------------------------------
 // Shared aggregation snippet
 // ---------------------------------------------------------------------------
 
-const AGG_COUNTS = `count() as cnt,
-    sum(case { $d.response.status:num < 400 -> 1, _ -> 0 }) as cnt_ok,
+const AGG_STATUS = `sum(case { $d.response.status:num < 400 -> 1, _ -> 0 }) as cnt_ok,
     sum(case { $d.response.status:num >= 400 && $d.response.status:num < 500 -> 1, _ -> 0 }) as cnt_4xx,
     sum(case { $d.response.status:num >= 500 -> 1, _ -> 0 }) as cnt_5xx`;
 
@@ -374,9 +277,9 @@ function buildTimeSeriesQuery({
 
 function buildBreakdownQuery({
   facet, topN, filters = [], hostFilter = '',
-  startTime, endTime, extraFilter = '', orderBy = 'cnt DESC',
+  startTime, endTime, extraFilter = '',
 }) {
-  const facetExpr = buildFacetExpression(facet);
+  const facetExpr = translateColExpression(facet);
   let query = `source logs between @'${startTime.toISOString()}' and @'${endTime.toISOString()}'`;
 
   // Exclude current facet from filters
@@ -385,10 +288,7 @@ function buildBreakdownQuery({
     hostFilter, filters: otherFilters, extraFilter,
   });
 
-  query += `\n| groupby ${facetExpr} as dim aggregate\n    ${AGG_COUNTS}`;
-  const orderField = orderBy.includes('DESC') ? orderBy.split(' ')[0] : 'cnt';
-  const dir = orderBy.includes('ASC') ? 'asc' : 'desc';
-  query += `\n| orderby ${orderField} ${dir}\n| limit ${topN}`;
+  query += `\n| top ${topN} ${facetExpr} as dim,\n    ${AGG_STATUS}\n    by count() as cnt`;
   return query;
 }
 
@@ -415,11 +315,11 @@ function buildMultiFacetQuery({
   query = appendFilters(query, { hostFilter, filters });
 
   const sets = facets.map((def) => {
-    const expr = buildFacetExpression(def.col);
+    const expr = translateColExpression(def.col);
     const ob = def.orderBy || 'cnt DESC';
     const field = ob.includes('DESC') ? ob.split(' ')[0] : 'cnt';
     const dir = ob.includes('ASC') ? 'asc' : 'desc';
-    return `(groupby ${expr} as dim aggregate\n        ${AGG_COUNTS}
+    return `(groupby ${expr} as dim aggregate\n        count() as cnt,\n        ${AGG_STATUS}
     | create facet_id = '${def.id}'
     | orderby ${field} ${dir}
     | limit ${topN})`;
@@ -462,7 +362,9 @@ async function sendDataPrimeRequest(url, headers, body, signal) {
 }
 
 /** Execute a Data Prime query against Coralogix API with retry for 429. */
-export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {}) {
+export async function executeDataPrimeQuery(dataPrimeQuery, {
+  signal, tier, executionProfile,
+} = {}) {
   const token = getToken();
   if (!token) {
     throw new QueryError('Coralogix authentication required', {
@@ -470,13 +372,17 @@ export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {
     });
   }
 
-  const requestBody = JSON.stringify({
+  const body = {
     query: dataPrimeQuery,
     metadata: {
       tier: tier || CORALOGIX_CONFIG.defaultTier,
       syntax: 'QUERY_SYNTAX_DATAPRIME',
     },
-  });
+  };
+  if (executionProfile) {
+    body.executionProfile = { preset: executionProfile };
+  }
+  const requestBody = JSON.stringify(body);
 
   const fetchStart = performance.now();
   const teamId = getTeamId();
@@ -518,35 +424,34 @@ export async function executeDataPrimeQuery(dataPrimeQuery, { signal, tier } = {
 export async function fetchTimeSeriesData({
   timeRange, interval, filters = [], hostFilter = '', signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const dpInterval = mapClickHouseIntervalToDataPrime(interval);
   const query = buildTimeSeriesQuery({
     startTime, endTime, interval: dpInterval, filters, hostFilter,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  const result = await executeDataPrimeQuery(query, {
+    signal, executionProfile: EXECUTION_PROFILES.PERFORMANCE,
+  });
   return transformTimeSeriesResult(result);
 }
 
-/** Fetch breakdown/facet data for tables. */
+/** Fetch breakdown/facet data for tables.
+ *  Pass explicit startTime/endTime Date objects (e.g. for zoom previews) to
+ *  bypass resolveTimeRange; otherwise timeRange key is used as normal.
+ */
 export async function fetchBreakdownData({
   facet, topN, filters = [], hostFilter = '',
-  timeRange, extraFilter = '', orderBy = 'cnt DESC', signal,
+  timeRange, startTime: explicitStart, endTime: explicitEnd,
+  extraFilter = '', orderBy = 'cnt DESC', signal,
 }) {
-  const { startTime, endTime } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = (explicitStart && explicitEnd)
+    ? { startTime: explicitStart, endTime: explicitEnd }
+    : resolveTimeRange(timeRange);
   const query = buildBreakdownQuery({
-    facet,
-    topN,
-    filters,
-    hostFilter,
-    startTime,
-    endTime,
-    extraFilter,
-    orderBy,
+    facet, topN, filters, hostFilter, startTime, endTime, extraFilter, orderBy,
   });
-  // Always use FREQUENT_SEARCH for breakdowns -- ARCHIVE fails on
-  // high-cardinality groupby queries over long time ranges.
   const result = await executeDataPrimeQuery(query, {
-    signal, tier: QUERY_TIERS.FREQUENT_SEARCH,
+    signal, executionProfile: EXECUTION_PROFILES.PERFORMANCE,
   });
   const transformed = transformBreakdownResult(result, facet);
   transformed.networkTime = result.networkTime;
@@ -557,11 +462,11 @@ export async function fetchBreakdownData({
 export async function fetchAllBreakdowns({
   facets, timeRange, filters = [], hostFilter = '', topN, signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const query = buildMultiFacetQuery({
     facets, startTime, endTime, filters, hostFilter, topN,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  const result = await executeDataPrimeQuery(query, { signal });
 
   const byId = {};
   for (const row of result.results || []) {
@@ -582,11 +487,11 @@ export async function fetchAllBreakdowns({
 export async function fetchLogsData({
   filters = [], hostFilter = '', timeRange, limit, offset = 0, signal,
 }) {
-  const { startTime, endTime, tier } = resolveTimeRange(timeRange);
+  const { startTime, endTime } = resolveTimeRange(timeRange);
   const query = buildLogsQuery({
     filters, hostFilter, startTime, endTime, limit, offset,
   });
-  const result = await executeDataPrimeQuery(query, { signal, tier });
+  const result = await executeDataPrimeQuery(query, { signal });
   return transformLogsResult(result);
 }
 

@@ -18,7 +18,7 @@
 import { isAbortError } from './api.js';
 import { fetchTimeSeriesData } from './coralogix/adapter.js';
 import {
-  getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
+  loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
 } from './breakdowns/index.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -946,9 +946,11 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
   const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
+  const facetFilters = state.filters;
   const bucket = getTimeBucket();
+  const container = document.querySelector('.chart-container');
 
+  container?.classList.add('updating');
   try {
     // Fetch time series data using Coralogix adapter
     const data = await fetchTimeSeriesData({
@@ -968,5 +970,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Chart error:', err);
+  } finally {
+    if (isCurrent()) container?.classList.remove('updating');
   }
 }

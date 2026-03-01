@@ -183,7 +183,7 @@ describe('filter-translator', () => {
         value: '',
         exclude: false,
       };
-      assert.strictEqual(translateFilter(filter), "$d.request.headers.referer == ''");
+      assert.strictEqual(translateFilter(filter), '$d.request.headers.referer == null');
     });
 
     it('should escape quotes in values', () => {

@@ -217,9 +217,13 @@ export function translateFilter(filter) {
   const value = filter.filterValue ?? filter.value;
   const operator = filter.filterOp || '=';
 
-  // Get Data Prime field path
-  const fieldPath = getFieldPath(column);
-  const escapedValue = escapeValue(value);
+  // Use the full expression translator so filter expressions always match the
+  // groupby expression produced by translateColExpression (e.g. intDiv → floor).
+  // eslint-disable-next-line no-use-before-define
+  const fieldPath = translateColExpression(column);
+  // Empty string means "no value" — compare against null in Data Prime rather
+  // than '' so it works correctly for any expression, including complex ones.
+  const escapedValue = value === '' ? 'null' : escapeValue(value);
 
   // Handle different operators
   if (operator === 'LIKE') {
@@ -415,4 +419,119 @@ export function translateInFilter(column, values, exclude = false) {
   // Multiple values - use .in() method
   const escapedValues = values.map((v) => escapeValue(v)).join(', ');
   return `${fieldPath}.in([${escapedValues}])`;
+}
+
+// ---------------------------------------------------------------------------
+// Full ClickHouse expression → Data Prime expression translation
+// ---------------------------------------------------------------------------
+
+/** Split a string by commas, respecting quoted substrings. */
+function splitRespectingQuotes(str) {
+  const parts = [];
+  let current = '';
+  let inQuote = false;
+  let quoteChar = '';
+  for (let i = 0; i < str.length; i += 1) {
+    const ch = str[i];
+    if ((ch === "'" || ch === '"') && (i === 0 || str[i - 1] !== '\\')) {
+      if (!inQuote) {
+        inQuote = true;
+        quoteChar = ch;
+      } else if (ch === quoteChar) {
+        inQuote = false;
+      }
+    }
+    if (ch === ',' && !inQuote) {
+      parts.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current) parts.push(current.trim());
+  return parts;
+}
+
+/** Parse condition/label pairs from the parts of a multiIf expression. */
+function parseMultiIfConditions(parts) {
+  const conditions = [];
+  let i = 0;
+  while (i < parts.length - 1) {
+    const condition = parts[i];
+    const label = parts[i + 1].replace(/^['"]|['"]$/g, '');
+    const ltMatch = condition.match(/`[^`]+`\s*<\s*(\d+)/);
+    const eqMatch = condition.match(/`[^`]+`\s*=\s*(\d+)/);
+    if (ltMatch) {
+      conditions.push({ op: '<', threshold: ltMatch[1], label });
+      i += 2;
+    } else if (eqMatch) {
+      conditions.push({ op: '==', threshold: eqMatch[1], label });
+      i += 2;
+    } else { break; }
+  }
+  return conditions;
+}
+
+/** Convert ClickHouse multiIf() to Data Prime case_lessthan or case. */
+function convertMultiIfToCaseLessThan(multiIfExpr) {
+  const fieldMatch = multiIfExpr.match(/multiIf\s*\(\s*`([^`]+)`/i);
+  if (!fieldMatch) {
+    throw new Error(`Cannot extract field from multiIf: ${multiIfExpr}`);
+  }
+  const dpField = getFieldPath(`\`${fieldMatch[1]}\``);
+  const inner = multiIfExpr.replace(/^multiIf\s*\(/i, '').replace(/\)$/, '');
+  const parts = splitRespectingQuotes(inner);
+  const conditions = parseMultiIfConditions(parts);
+  const fallback = parts[parts.length - 1].replace(/^['"]|['"]$/g, '');
+
+  if (conditions.some((c) => c.op === '==')) {
+    const cases = conditions.map((c) => (c.op === '=='
+      ? `${dpField}:num == ${c.threshold} -> '${c.label}'`
+      : `${dpField}:num < ${c.threshold} -> '${c.label}'`));
+    return `case { ${cases.join(', ')}, _ -> '${fallback}' }`;
+  }
+  const list = conditions.map((c) => `${c.threshold} -> '${c.label}'`);
+  return `case_lessthan { ${dpField}:num, ${list.join(', ')}, _ -> '${fallback}' }`;
+}
+
+/**
+ * Translate a full ClickHouse column/expression to its Data Prime equivalent.
+ * This is the single source of truth used by both the groupby (top) clause and
+ * filter expressions, guaranteeing they always produce the same string so that
+ * filter comparisons are valid.
+ *
+ * @param {string} col - ClickHouse expression (e.g. col from breakdown definition)
+ * @returns {string} Data Prime expression
+ */
+export function translateColExpression(col) {
+  const cleanExpr = col.replace(/`/g, '');
+
+  if (cleanExpr === 'client.asn') {
+    return "concat($d.cdn.originating_ip_geoip.asn.number, ' - ',"
+      + ' $d.cdn.originating_ip_geoip.asn.organization)';
+  }
+  if (cleanExpr.includes('intDiv') && cleanExpr.includes('response.status')) {
+    return 'if($d.response.status != null, `{floor($d.response.status:num/100)}xx`, null)';
+  }
+  if (cleanExpr.match(/^toString\(/)) {
+    return `${getFieldPath(col)}:string`;
+  }
+  const castStringMatch = cleanExpr.match(/^CAST\((.+),\s*'String'\)$/i);
+  if (castStringMatch) {
+    const inner = `\`${castStringMatch[1].trim().replace(/`/g, '')}\``;
+    return `(${getFieldPath(inner)}):string`;
+  }
+  if (cleanExpr.match(/^upper\(/)) return getFieldPath(col);
+  if (cleanExpr.match(/^REGEXP_REPLACE\(/i)) return getFieldPath(col);
+  if (cleanExpr.match(/^if\(/i)) {
+    if (cleanExpr.includes('x_forwarded_for')) {
+      return '$d.request.headers.x_forwarded_for';
+    }
+    const m = cleanExpr.match(/if\([^,]+,\s*([^,]+),/i);
+    if (m) return getFieldPath(`\`${m[1].replace(/`/g, '').trim()}\``);
+  }
+  if (cleanExpr.match(/^multiIf\(/i)) {
+    return convertMultiIfToCaseLessThan(col);
+  }
+  return getFieldPath(col);
 }
