@@ -108,6 +108,12 @@ async function main() {
       console.log(`Granted dictGet on ${DATABASE}.${dict}`);
     }
 
+    // Grant system.processes access so users can cancel their own queries (KILL QUERY)
+    const processGrantSql = `GRANT SELECT(query_id, user, query) ON system.processes TO ${newUsername}`;
+    await query(processGrantSql, adminUser, adminPassword);
+    // eslint-disable-next-line no-console
+    console.log('Granted SELECT on system.processes for query cancellation');
+
     // Apply parallel replicas and memory limit settings
     const settingsSql = [
       `ALTER USER ${newUsername} SETTINGS`,
