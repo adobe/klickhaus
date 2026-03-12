@@ -10,12 +10,16 @@
  * governing permissions and limitations under the License.
  */
 
+import {
+  setSignalQueryGroup, getSignalQueryGroup, killQueryGroup,
+} from './api.js';
+
 const contexts = new Map();
 
 function getContext(scope) {
   const key = scope || 'dashboard';
   if (!contexts.has(key)) {
-    contexts.set(key, { requestId: 0, controller: null });
+    contexts.set(key, { requestId: 0, controller: null, queryGroupPrefix: null });
   }
   return contexts.get(key);
 }
@@ -25,8 +29,14 @@ export function startRequestContext(scope) {
   if (ctx.controller) {
     ctx.controller.abort();
   }
+  // Cancel any still-running server-side queries from the previous context
+  if (ctx.queryGroupPrefix) {
+    killQueryGroup(ctx.queryGroupPrefix);
+  }
   ctx.controller = new AbortController();
   ctx.requestId += 1;
+  ctx.queryGroupPrefix = `klick-${scope || 'dashboard'}-${ctx.requestId}`;
+  setSignalQueryGroup(ctx.controller.signal, ctx.queryGroupPrefix);
   return {
     requestId: ctx.requestId,
     signal: ctx.controller.signal,
@@ -53,20 +63,31 @@ export function mergeAbortSignals(signals) {
   if (activeSignals.length === 0) return undefined;
   if (activeSignals.length === 1) return activeSignals[0];
 
+  let merged;
   if (typeof AbortSignal.any === 'function') {
-    return AbortSignal.any(activeSignals);
-  }
+    merged = AbortSignal.any(activeSignals);
+  } else {
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
 
-  const controller = new AbortController();
-  const onAbort = () => controller.abort();
-
-  for (const signal of activeSignals) {
-    if (signal.aborted) {
-      controller.abort();
-      return controller.signal;
+    for (const signal of activeSignals) {
+      if (signal.aborted) {
+        controller.abort();
+        return controller.signal;
+      }
+      signal.addEventListener('abort', onAbort, { once: true });
     }
-    signal.addEventListener('abort', onAbort, { once: true });
+    merged = controller.signal;
   }
 
-  return controller.signal;
+  // Propagate query group from the first signal that has one
+  for (const signal of activeSignals) {
+    const group = getSignalQueryGroup(signal);
+    if (group) {
+      setSignalQueryGroup(merged, group);
+      break;
+    }
+  }
+
+  return merged;
 }
