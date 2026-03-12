@@ -16,6 +16,11 @@ import { DEFAULT_TOP_N } from '../constants.js';
 import { startRequestContext } from '../request-context.js';
 import { setQueryTimestamp } from '../time.js';
 
+// Filter helper: extract only ClickHouse query POSTs (exclude KILL QUERY and other control calls)
+function queryPosts(calls) {
+  return calls.filter((c) => c.options?.method === 'POST' && c.options?.body?.includes('FORMAT JSON'));
+}
+
 // SQL templates used by loadBreakdown
 const BREAKDOWN_SQL_TEMPLATE = 'SELECT\n  {{col}} as dim,\n  {{aggTotal}} as cnt,\n  {{aggOk}} as cnt_ok,\n  {{agg4xx}} as cnt_4xx,\n  {{agg5xx}} as cnt_5xx{{summaryCol}}\nFROM {{database}}.{{table}}\n{{sampleClause}}\nWHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
@@ -112,7 +117,7 @@ describe('approx_top_count refinement for high-cardinality breakdowns', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, 'approx_top_count', 'should use approx_top_count');
@@ -154,7 +159,7 @@ describe('approx_top_count refinement for high-cardinality breakdowns', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.notInclude(queryBody, 'approx_top_count', 'should not use approx_top_count');
@@ -169,7 +174,7 @@ describe('approx_top_count refinement for high-cardinality breakdowns', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx, { sampleClause: 'SAMPLE 0.01', multiplier: 100 });
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.notInclude(queryBody, 'approx_top_count', 'should not use approx_top_count');
@@ -193,7 +198,7 @@ describe('approx_top_count refinement for high-cardinality breakdowns', () => {
 
     await loadAllBreakdownsRefined(startRequestContext('facets'));
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, 'approx_top_count', 'should use approx_top_count');
