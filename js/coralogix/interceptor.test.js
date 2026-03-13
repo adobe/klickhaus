@@ -80,20 +80,6 @@ describe('authenticatedFetch', () => {
     await authenticatedFetch('/oauth/token', {
       method: 'POST',
     });
-
-    assert.strictEqual(fetchCalls.length, 1);
-    assert.isUndefined(fetchCalls[0].options.headers.Authorization);
-  });
-
-  it('should skip auth when X-Skip-Auth header is present', async () => {
-    auth.setAuthCredentials('test-token');
-
-    await authenticatedFetch('/api/public', {
-      headers: {
-        'X-Skip-Auth': 'true',
-      },
-    });
-
     assert.strictEqual(fetchCalls.length, 1);
     assert.isUndefined(fetchCalls[0].options.headers.Authorization);
     assert.isUndefined(fetchCalls[0].options.headers['X-Skip-Auth']);

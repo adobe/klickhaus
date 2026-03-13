@@ -113,6 +113,9 @@ export function initDashboard(config = {}) {
     logsView: document.getElementById('logsView'),
     filtersView: document.getElementById('filtersView'),
     dashboardContent: document.getElementById('dashboardContent'),
+    usernameInput: document.getElementById('username'),
+    passwordInput: document.getElementById('password'),
+    forgetMeCheckbox: document.getElementById('forgetMe'),
   };
 
   // Pass elements to modules that need them
