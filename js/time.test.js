@@ -16,7 +16,7 @@ import {
   isCustomTimeRange, getCustomTimeRange, customTimeRange,
   getTimeFilter, getTimeBucket, getTimeBucketStep, getPeriodMs,
   getInterval, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
-  getTable, getHostFilter,
+  getTable, getHostFilter, isExactHostname,
   getSamplingConfig, getFacetTimeFilter, zoomOut,
 } from './time.js';
 
@@ -24,6 +24,7 @@ beforeEach(() => {
   clearCustomTimeRange();
   state.timeRange = '1h';
   state.hostFilter = '';
+  state.hostFilterExact = false;
   state.hostFilterColumn = null;
   state.tableName = null;
   setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
@@ -90,27 +91,80 @@ describe('getTable', () => {
   });
 });
 
+describe('isExactHostname', () => {
+  it('returns true for valid hostnames', () => {
+    assert.isTrue(isExactHostname('example.com'));
+    assert.isTrue(isExactHostname('www.adobe.com'));
+    assert.isTrue(isExactHostname('main--site--org.aem.live'));
+    assert.isTrue(isExactHostname('sub.domain.example.co.uk'));
+  });
+
+  it('returns false for partial patterns', () => {
+    assert.isFalse(isExactHostname('adobe'));
+    assert.isFalse(isExactHostname(''));
+    assert.isFalse(isExactHostname(null));
+    assert.isFalse(isExactHostname(undefined));
+  });
+
+  it('returns false for wildcards', () => {
+    assert.isFalse(isExactHostname('*.adobe.com'));
+  });
+
+  it('returns false for trailing dot', () => {
+    assert.isFalse(isExactHostname('blog.'));
+  });
+
+  it('returns false for values with spaces', () => {
+    assert.isFalse(isExactHostname('my site.com'));
+  });
+
+  it('returns false for values with special characters', () => {
+    assert.isFalse(isExactHostname('site.com/path'));
+    assert.isFalse(isExactHostname('site.com?q=1'));
+  });
+});
+
 describe('getHostFilter', () => {
   it('returns empty string when no hostFilter', () => {
     state.hostFilter = '';
     assert.strictEqual(getHostFilter(), '');
   });
 
-  it('returns CDN host filter when hostFilterColumn not set', () => {
+  it('returns LIKE filter for partial hostnames (no dot)', () => {
     state.hostFilter = 'example';
+    state.hostFilterExact = false;
     state.hostFilterColumn = null;
     const result = getHostFilter();
+    assert.include(result, "LIKE '%example%'");
     assert.include(result, 'request.host');
     assert.include(result, 'x_forwarded_host');
-    assert.include(result, 'example');
   });
 
-  it('returns column filter when hostFilterColumn is set', () => {
+  it('returns exact = on request.host and LIKE on x_forwarded_host for exact hostnames', () => {
+    state.hostFilter = 'example.com';
+    state.hostFilterExact = true;
+    state.hostFilterColumn = null;
+    const result = getHostFilter();
+    assert.include(result, "`request.host` = 'example.com'");
+    assert.include(result, "`request.headers.x_forwarded_host` LIKE '%example.com%'");
+  });
+
+  it('returns LIKE column filter when hostFilterColumn is set and partial', () => {
     state.hostFilter = 'myFunc';
+    state.hostFilterExact = false;
     state.hostFilterColumn = 'function_name';
     const result = getHostFilter();
     assert.include(result, '`function_name`');
-    assert.include(result, 'myFunc');
+    assert.include(result, "LIKE '%myFunc%'");
+  });
+
+  it('returns exact = column filter when hostFilterColumn is set and exact', () => {
+    state.hostFilter = 'my.function';
+    state.hostFilterExact = true;
+    state.hostFilterColumn = 'function_name';
+    const result = getHostFilter();
+    assert.include(result, "`function_name` = 'my.function'");
+    assert.notInclude(result, 'LIKE');
   });
 
   it('escapes single quotes in hostFilter', () => {

@@ -110,7 +110,8 @@ header h1 {
 
   /* Hide these on mobile */
   #topN,
-  #hostSuggestions {
+  #hostSuggestions,
+  #hostFilterMode {
     display: none;
   }
 
@@ -182,6 +183,30 @@ header input[type="text"] {
 header select option {
   background: var(--card-bg);
   color: var(--text);
+}
+
+/* Host Filter Mode Badge */
+.filter-mode-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  margin-left: -4px;
+}
+
+.filter-mode-badge:empty {
+  display: none;
+}
+
+.filter-mode-exact {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.filter-mode-partial {
+  background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
+  color: var(--text-secondary);
 }
 
 /* Active Filters */

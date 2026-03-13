@@ -22,7 +22,7 @@ import {
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter, getSamplingConfig,
+  getTimeFilter, getHostFilter, getSamplingConfig, isExactHostname,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -84,6 +84,7 @@ export function initDashboard(config = {}) {
     timeRangeSelect: document.getElementById('timeRange'),
     topNSelect: document.getElementById('topN'),
     hostFilterInput: document.getElementById('hostFilter'),
+    hostFilterMode: document.getElementById('hostFilterMode'),
     refreshBtn: document.getElementById('refreshBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
     viewToggleBtn: document.getElementById('viewToggleBtn'),
@@ -91,6 +92,21 @@ export function initDashboard(config = {}) {
     filtersView: document.getElementById('filtersView'),
     dashboardContent: document.getElementById('dashboardContent'),
   };
+
+  function updateHostFilterIndicator(value) {
+    const badge = elements.hostFilterMode;
+    if (!badge) return;
+    if (!value) {
+      badge.textContent = '';
+      badge.className = 'filter-mode-badge';
+      return;
+    }
+    const exact = isExactHostname(value);
+    badge.textContent = exact ? 'exact' : 'partial';
+    badge.className = exact
+      ? 'filter-mode-badge filter-mode-exact'
+      : 'filter-mode-badge filter-mode-partial';
+  }
 
   // Pass elements to modules that need them
   setElements(elements);
@@ -219,7 +235,10 @@ export function initDashboard(config = {}) {
 
   setFilterCallbacks(saveStateToURL, loadDashboard);
   setOnBeforeRestore(() => invalidateInvestigationCache());
-  setOnStateRestored(loadDashboard);
+  setOnStateRestored(() => {
+    updateHostFilterIndicator(state.hostFilter);
+    loadDashboard();
+  });
 
   // Move facets between pinned/normal/hidden sections based on state
   function reorderFacets(toggledFacetId = null) {
@@ -348,6 +367,7 @@ export function initDashboard(config = {}) {
       state.credentials = storedCredentials;
       preloadAllTemplates();
       syncUIFromState();
+      updateHostFilterIndicator(state.hostFilter);
       reorderFacets();
       showDashboard();
       updateTimeRangeHint();
@@ -381,9 +401,11 @@ export function initDashboard(config = {}) {
 
     let filterTimeout;
     elements.hostFilterInput.addEventListener('input', (e) => {
+      updateHostFilterIndicator(e.target.value);
       clearTimeout(filterTimeout);
       filterTimeout = setTimeout(() => {
         state.hostFilter = e.target.value;
+        state.hostFilterExact = isExactHostname(state.hostFilter);
         saveStateToURL();
         loadDashboard();
       }, 500);
@@ -399,6 +421,7 @@ export function initDashboard(config = {}) {
         e.preventDefault();
         clearTimeout(filterTimeout);
         state.hostFilter = e.target.value;
+        state.hostFilterExact = isExactHostname(state.hostFilter);
         saveStateToURL();
         loadDashboard();
         e.target.blur();
@@ -407,6 +430,8 @@ export function initDashboard(config = {}) {
         clearTimeout(filterTimeout);
         e.target.value = hostFilterOriginalValue;
         state.hostFilter = hostFilterOriginalValue;
+        state.hostFilterExact = isExactHostname(state.hostFilter);
+        updateHostFilterIndicator(hostFilterOriginalValue);
         e.target.blur();
       }
     });
@@ -417,6 +442,7 @@ export function initDashboard(config = {}) {
       try {
         preloadAllTemplates();
         syncUIFromState();
+        updateHostFilterIndicator(state.hostFilter);
         reorderFacets();
         showDashboard();
         updateTimeRangeHint();
