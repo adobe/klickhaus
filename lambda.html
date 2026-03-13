@@ -16,6 +16,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
 
   <link rel="stylesheet" href="dashboard.css">
+  <script src="env.js"></script>
 </head>
 <body>
   <!-- Login Form -->
@@ -25,21 +26,7 @@
       <p>Sign in to view Lambda log analytics</p>
       <div id="loginError" class="error-message"></div>
       <form id="loginForm">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" required autocomplete="username">
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required autocomplete="current-password">
-        </div>
-        <div class="form-group form-option">
-          <label class="checkbox-label">
-            <input type="checkbox" id="forgetMe" name="forgetMe">
-            Forget me on this device
-          </label>
-        </div>
-        <button type="submit" class="btn btn-primary">Sign In</button>
+        <button type="submit" class="btn btn-primary">Sign In with Coralogix</button>
       </form>
     </div>
   </div>
@@ -63,6 +50,7 @@
         <select id="topN"></select>
         <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by function..." list="hostSuggestions" autocomplete="off"></span>
         <datalist id="hostSuggestions"></datalist>
+        <select id="teamSelect" title="Switch team"></select>
         <button id="moreBtn" class="menu-btn" title="More actions">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
             <circle cx="10" cy="4" r="1.5"/>
@@ -121,22 +109,6 @@
         </div>
         <div class="breakdown-card" id="breakdown-request-id">
           <h3>Invocation ID</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-url">
-          <h3>URL</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-path">
-          <h3>Path</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-ip">
-          <h3>IP</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-email">
-          <h3>Email</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-admin-duration">

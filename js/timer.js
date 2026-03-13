@@ -75,6 +75,8 @@ export function stopQueryTimer() {
   const elapsed = performance.now() - queryStartTime;
   queryTimerEl.textContent = formatQueryTime(elapsed);
   queryTimerEl.className = getTimerClass(elapsed);
+  // eslint-disable-next-line no-console
+  console.log('⏹️ Timer stopped at', formatQueryTime(elapsed));
 }
 
 // Check if any visible facet is still updating

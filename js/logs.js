@@ -9,19 +9,16 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
-import { query, isAbortError } from './api.js';
-import { getTimeFilter, getHostFilter, getTable } from './time.js';
-import { getFacetFilters } from './breakdowns/index.js';
+import { isAbortError } from './api.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS } from './columns.js';
-import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
 import { PAGE_SIZE, PaginationState } from './pagination.js';
+import { fetchLogsData } from './coralogix/adapter.js';
 
 /**
  * Build ordered log column list from available columns.
@@ -419,29 +416,21 @@ async function loadMoreLogs() {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
 
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
-
-  const sql = await loadSql('logs-more', {
-    database: DATABASE,
-    table: getTable(),
-    timeFilter,
-    hostFilter,
-    facetFilters,
-    additionalWhereClause: state.additionalWhereClause,
-    pageSize: String(PAGE_SIZE),
-    offset: String(pagination.offset),
-  });
-
   try {
-    const result = await query(sql, { signal });
+    const result = await fetchLogsData({
+      filters: state.filters,
+      hostFilter: state.hostFilter,
+      timeRange: state.timeRange,
+      limit: PAGE_SIZE,
+      offset: pagination.offset,
+      signal,
+    });
     if (!isCurrent()) return;
-    if (result.data.length > 0) {
-      state.logsData = [...state.logsData, ...result.data];
-      appendLogsRows(result.data);
+    if (result.length > 0) {
+      state.logsData = [...state.logsData, ...result];
+      appendLogsRows(result);
     }
-    pagination.recordPage(result.data.length);
+    pagination.recordPage(result.length);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
@@ -522,27 +511,20 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   const container = logsView.querySelector('.logs-table-container');
   container.classList.add('updating');
 
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
-
-  const sql = await loadSql('logs', {
-    database: DATABASE,
-    table: getTable(),
-    timeFilter,
-    hostFilter,
-    facetFilters,
-    additionalWhereClause: state.additionalWhereClause,
-    pageSize: String(PAGE_SIZE),
-  });
-
   try {
-    const result = await query(sql, { signal });
+    const result = await fetchLogsData({
+      filters: state.filters,
+      hostFilter: state.hostFilter,
+      timeRange: state.timeRange,
+      limit: PAGE_SIZE,
+      offset: 0,
+      signal,
+    });
     if (!isCurrent()) return;
-    state.logsData = result.data;
-    renderLogsTable(result.data);
+    state.logsData = result;
+    renderLogsTable(result);
     state.logsReady = true;
-    pagination.recordPage(result.data.length);
+    pagination.recordPage(result.length);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console

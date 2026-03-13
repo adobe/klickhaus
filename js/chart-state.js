@@ -105,10 +105,19 @@ export function getChartLayout() {
  * @returns {Date} Parsed date
  */
 export function parseUTC(timestamp) {
+  // Handle numeric timestamps (milliseconds since epoch) from Coralogix
+  if (typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+
   const str = String(timestamp);
   // If already has Z suffix, parse directly
   if (str.endsWith('Z')) {
     return new Date(str);
+  }
+  // Check if it's a numeric string (milliseconds)
+  if (/^\d+$/.test(str)) {
+    return new Date(parseInt(str, 10));
   }
   // Otherwise, normalize and append Z to treat as UTC
   return new Date(`${str.replace(' ', 'T')}Z`);

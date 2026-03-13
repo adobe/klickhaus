@@ -15,28 +15,21 @@
  * State management and navigation logic are in chart-state.js.
  */
 
-import { query, isAbortError } from './api.js';
+import { isAbortError } from './api.js';
+import { fetchTimeSeriesData } from './coralogix/adapter.js';
 import {
-  getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
+  loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
 } from './breakdowns/index.js';
-import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
   getHostFilter,
-  getTable,
   getTimeBucket,
-  getTimeBucketStep,
-  getTimeFilter,
-  getSamplingConfig,
   setCustomTimeRange,
   getTimeRangeBounds,
-  getTimeRangeStart,
-  getTimeRangeEnd,
 } from './time.js';
-import { loadSql } from './sql-loader.js';
 import { saveStateToURL } from './url-state.js';
 import {
   getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
@@ -949,49 +942,35 @@ export function setupChartNavigation(callback) {
   });
 }
 
-export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), samplingOverride = null) {
+export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), _ = null) {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
-  const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
-  const facetFilters = getFacetFilters();
+  const facetFilters = state.filters;
   const bucket = getTimeBucket();
-  const step = getTimeBucketStep();
-  const rangeStart = getTimeRangeStart();
-  const rangeEnd = getTimeRangeEnd();
+  const container = document.querySelector('.chart-container');
 
-  const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
-  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
-
-  const base = state.additionalWhereClause || '';
-  const needsDedup = samplingOverride && !samplingOverride.sampleClause;
-  const dedupSuffix = needsDedup ? '\n  AND sample_hash >= 0' : '';
-  const additionalWhere = (base || needsDedup) ? `${base} ${dedupSuffix}`.trim() : '';
-
-  const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
-  const sql = await loadSql(timeSeriesTemplate, {
-    bucket,
-    database: DATABASE,
-    table: getTable(),
-    sampleClause,
-    mult,
-    timeFilter,
-    hostFilter,
-    facetFilters,
-    additionalWhereClause: additionalWhere,
-    rangeStart,
-    rangeEnd,
-    step,
-  });
-
+  container?.classList.add('updating');
   try {
-    const result = await query(sql, { signal });
+    // Fetch time series data using Coralogix adapter
+    const data = await fetchTimeSeriesData({
+      timeRange: state.timeRange,
+      interval: bucket,
+      filters: facetFilters,
+      hostFilter,
+      signal,
+    });
+
     if (!isCurrent()) return;
-    state.chartData = result.data;
-    renderChart(result.data);
+    // eslint-disable-next-line no-console
+    console.log('📊 Chart data received:', data?.length || 0, 'points', data?.[0]);
+    state.chartData = data;
+    renderChart(data);
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
     console.error('Chart error:', err);
+  } finally {
+    if (isCurrent()) container?.classList.remove('updating');
   }
 }

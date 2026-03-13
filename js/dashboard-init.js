@@ -14,26 +14,26 @@ import {
 } from './state.js';
 import { setForceRefresh } from './api.js';
 import {
-  setElements, handleLogin, handleLogout, showDashboard, loadStoredCredentials,
-} from './auth.js';
+  initAuth, login, logout, isLoggedIn, getAllowedTeams, setSelectedTeamId, getSelectedTeamId,
+} from './coralogix/auth.js';
+import { CORALOGIX_CONFIG } from './coralogix/config.js';
 import {
   loadStateFromURL, saveStateToURL, syncUIFromState, setUrlStateElements,
   setOnStateRestored, setOnBeforeRestore,
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter, getSamplingConfig,
+  getTimeFilter, getHostFilter,
 } from './time.js';
 import {
-  startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
+  startQueryTimer, stopQueryTimer, initFacetObservers,
 } from './timer.js';
 import {
-  loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
+  loadTimeSeries, setupChartNavigation, getLastChartData,
   renderChart,
 } from './chart.js';
 import {
   loadAllBreakdowns,
-  loadAllBreakdownsRefined,
   loadBreakdown,
   getBreakdowns,
   markSlowestFacet,
@@ -56,8 +56,8 @@ import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import { copyFacetAsTsv } from './copy-facet.js';
 import {
-  investigateAnomalies, reapplyHighlightsIfCached,
-  hasCachedInvestigation, invalidateInvestigationCache,
+  reapplyHighlightsIfCached,
+  invalidateInvestigationCache,
 } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
@@ -74,6 +74,28 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.additionalWhereClause] - Extra SQL WHERE clause for all queries
  * @param {string[]} [config.defaultHiddenFacets] - Facet IDs to hide by default
  */
+function initTeamSelect(selectEl, onTeamChange) {
+  if (!selectEl) return;
+  const el = selectEl;
+  const teams = getAllowedTeams();
+  if (teams.length <= 1) {
+    el.hidden = true;
+    return;
+  }
+  const currentTeamId = getSelectedTeamId();
+  teams.forEach((team) => {
+    const opt = document.createElement('option');
+    opt.value = team.team_id;
+    opt.textContent = team.team_name;
+    opt.selected = team.team_id === currentTeamId;
+    el.appendChild(opt);
+  });
+  el.addEventListener('change', (e) => {
+    setSelectedTeamId(parseInt(e.target.value, 10));
+    onTeamChange(true);
+  });
+}
+
 export function initDashboard(config = {}) {
   // DOM Elements
   const elements = {
@@ -83,6 +105,7 @@ export function initDashboard(config = {}) {
     loginError: document.getElementById('loginError'),
     timeRangeSelect: document.getElementById('timeRange'),
     topNSelect: document.getElementById('topN'),
+    teamSelect: document.getElementById('teamSelect'),
     hostFilterInput: document.getElementById('hostFilter'),
     refreshBtn: document.getElementById('refreshBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
@@ -93,13 +116,13 @@ export function initDashboard(config = {}) {
   };
 
   // Pass elements to modules that need them
-  setElements(elements);
   setUrlStateElements(elements);
   setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
 
   // Load dashboard queries (chart and facets)
   async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
     const timeSeriesPromise = loadTimeSeries(dashboardContext);
+
     const focusedFacetId = getFocusedFacetId();
     const isDashboardCurrent = () => isRequestCurrent(
       dashboardContext.requestId,
@@ -107,59 +130,18 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
-    const facetPromises = getBreakdowns().map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
-        if (!isFacetsCurrent()) return;
-        if (!hasVisibleUpdatingFacets()) {
-          stopQueryTimer();
-        }
-        if (focusedFacetId === b.id) {
-          restoreKeyboardFocus();
-        }
-        reapplyHighlightsIfCached();
-      }),
-    );
+    const facetsPromise = loadAllBreakdowns(facetsContext);
 
     await timeSeriesPromise;
-
     if (!isDashboardCurrent()) return;
 
-    if (!hasVisibleUpdatingFacets()) {
-      stopQueryTimer();
-    }
+    await facetsPromise;
+    if (!isFacetsCurrent()) return;
 
-    const anomalies = getDetectedAnomalies();
-    const chartData = getLastChartData();
-
-    if (anomalies.length > 0 && chartData) {
-      const hasCache = hasCachedInvestigation();
-
-      if (hasCache) {
-        investigateAnomalies(anomalies, chartData);
-        Promise.all(facetPromises).then(() => {
-          if (isFacetsCurrent()) markSlowestFacet();
-        });
-      } else {
-        await Promise.all(facetPromises);
-        if (!isFacetsCurrent()) return;
-        markSlowestFacet();
-        await investigateAnomalies(anomalies, chartData);
-      }
-    } else {
-      Promise.all(facetPromises).then(() => {
-        if (isFacetsCurrent()) markSlowestFacet();
-      });
-    }
-
-    // Schedule refinement pass if initial load used sampling
-    const { multiplier } = getSamplingConfig();
-    if (multiplier > 1) {
-      const refinedSampling = { sampleClause: '', multiplier: 1 };
-      const refinementDashCtx = startRequestContext('dashboard');
-      const refinementFacetsCtx = startRequestContext('facets');
-      loadTimeSeries(refinementDashCtx, refinedSampling);
-      loadAllBreakdownsRefined(refinementFacetsCtx);
-    }
+    if (focusedFacetId) restoreKeyboardFocus();
+    reapplyHighlightsIfCached();
+    stopQueryTimer();
+    markSlowestFacet();
   }
 
   // Update keyboard hint for time range to show next option number
@@ -216,6 +198,55 @@ export function initDashboard(config = {}) {
       renderChart(state.chartData);
     }
   });
+
+  function showCoralogixLogin() {
+    elements.loginSection.classList.remove('hidden');
+    elements.dashboardSection.classList.remove('visible');
+  }
+
+  function showCoralogixDashboard() {
+    elements.loginSection.classList.add('hidden');
+    elements.dashboardSection.classList.add('visible');
+    // Dispatch event for autocomplete loading
+    window.dispatchEvent(new CustomEvent('dashboard-shown'));
+  }
+
+  // Coralogix auth handlers
+  async function handleCoralogixLogin(e) {
+    e.preventDefault();
+    const btn = elements.loginForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Redirecting...';
+    elements.loginError.classList.remove('visible');
+    try {
+      await login();
+      // login() redirects the browser — execution stops here
+    } catch (err) {
+      elements.loginError.textContent = err.message || 'Failed to start sign-in.';
+      elements.loginError.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Sign In with Coralogix';
+    }
+  }
+
+  async function handleCoralogixLogout() {
+    await logout();
+
+    // Clear session-related localStorage entries
+    localStorage.removeItem('hostAutocompleteSuggestions');
+
+    // Clear all investigation caches
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('anomaly_investigation_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+    showCoralogixLogin();
+  }
 
   setFilterCallbacks(saveStateToURL, loadDashboard);
   setOnBeforeRestore(() => invalidateInvestigationCache());
@@ -316,6 +347,8 @@ export function initDashboard(config = {}) {
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
 
+    initTeamSelect(elements.teamSelect, loadDashboard);
+
     initFacetObservers();
     initModal();
 
@@ -343,19 +376,30 @@ export function initDashboard(config = {}) {
       copyFacetTsv: copyFacetAsTsv,
     });
 
-    const storedCredentials = loadStoredCredentials();
-    if (storedCredentials) {
-      state.credentials = storedCredentials;
+    // Check Coralogix configuration
+    const configValidation = CORALOGIX_CONFIG.validate();
+    if (!configValidation.isValid) {
+      // eslint-disable-next-line no-console
+      console.warn('Coralogix configuration incomplete:', configValidation.missing);
+      elements.loginError.textContent = 'Coralogix is not configured. Please check environment variables.';
+      elements.loginError.classList.add('visible');
+    }
+
+    // Initialize Coralogix auth and check for existing session
+    const hasValidSession = await initAuth();
+    if (hasValidSession && isLoggedIn()) {
       preloadAllTemplates();
       syncUIFromState();
       reorderFacets();
-      showDashboard();
+      showCoralogixDashboard();
       updateTimeRangeHint();
       loadDashboard();
+    } else {
+      showCoralogixLogin();
     }
 
-    elements.loginForm.addEventListener('submit', handleLogin);
-    elements.logoutBtn.addEventListener('click', handleLogout);
+    elements.loginForm.addEventListener('submit', handleCoralogixLogin);
+    elements.logoutBtn.addEventListener('click', handleCoralogixLogout);
     elements.refreshBtn.addEventListener('click', () => {
       saveStateToURL(null);
       loadDashboard(true);
@@ -418,19 +462,25 @@ export function initDashboard(config = {}) {
         preloadAllTemplates();
         syncUIFromState();
         reorderFacets();
-        showDashboard();
         updateTimeRangeHint();
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Error during login-success setup:', err);
-        showDashboard();
       }
       loadDashboard();
+    });
+
+    // Listen for auth errors from Coralogix interceptor
+    window.addEventListener('auth-logout', (event) => {
+      const { reason } = event.detail || {};
+      elements.loginError.textContent = reason || 'Session expired. Please sign in again.';
+      elements.loginError.classList.add('visible');
+      showCoralogixLogin();
     });
   }
 
   window.addEventListener('dashboard-shown', () => {
-    setTimeout(loadHostAutocomplete, 100);
+    setTimeout(loadHostAutocomplete, 5000);
   });
 
   init();

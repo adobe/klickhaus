@@ -411,6 +411,66 @@ The `timestamp` column is `DateTime64(3)` (millisecond precision). When construc
 ### Query Deduplication vs SAMPLE Clauses
 ClickHouse Cloud's query deduplication layer caches results based on the execution plan but **ignores the `SAMPLE` clause**. This means two identical queries with different `SAMPLE` rates return the same cached result. If implementing incremental refinement (e.g., fast sampled preview followed by a full query), you must vary the `WHERE` clause between passes to defeat deduplication — for example, adding a tautological condition like `AND sample_hash >= 0` to the refinement query. The current architecture avoids this issue for low-cardinality facets by routing them through the `cdn_facet_minutes` table (no sampling needed), while high-cardinality facets use a single sampling pass without refinement.
 
+## Coralogix Data Prime Query Syntax
+
+The project supports Coralogix as an alternative data source via Data Prime queries. Key syntax rules:
+
+### Time Ranges
+
+Time filtering uses `between ... and ...` on the **source line**, NOT as a separate filter:
+
+```
+source logs between @'2026-02-17T01:39:24Z' and @'2026-02-17T01:49:24Z'
+| filter ...
+```
+
+**WRONG** (Coralogix ignores the second bound and defaults to last 15 minutes):
+```
+source logs
+| filter $m.timestamp >= @'2026-02-17T01:39:24Z' && $m.timestamp <= @'2026-02-17T02:39:24Z'
+```
+
+### Field Namespaces
+
+Data Prime uses three namespaces for field access:
+
+| Namespace | Prefix | Fields |
+|-----------|--------|--------|
+| Metadata | `$m` | `$m.timestamp` (system fields) |
+| Labels | `$l` | `$l.subsystemname` (cloudflare/fastly) |
+| Data | `$d` | `$d.request.host`, `$d.response.status`, `$d.cdn.*`, `$d.client.*`, `$d.helix.*` |
+
+**Column name mapping**: The ClickHouse `source` column maps to `$l.subsystemname` in Data Prime (completely different name, not just a prefix). See `FULL_PATH_MAP` in `js/coralogix/filter-translator.js`.
+
+### Query Structure
+
+```
+source logs between @'<start>' and @'<end>'
+| filter $l.subsystemname in ['cloudflare', 'fastly']
+| filter <host/facet filters>
+| groupby <expression> as <alias> aggregate <aggregations>
+| orderby <field> asc|desc
+| limit <n>
+```
+
+### Type Casting
+
+Use `:num` or `:string` suffixes for type casting in expressions:
+- `$d.response.status:num` — cast to number
+- `$d.response.status:string` — cast to string
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `js/coralogix/adapter.js` | Main query builder — builds time series, breakdown, logs, and multi-facet queries |
+| `js/coralogix/filter-translator.js` | Translates ClickHouse column names/filters to Data Prime syntax |
+| `js/coralogix/api.js` | Low-level API client with retry logic |
+| `js/coralogix/ndjson-parser.js` | Parses NDJSON streaming responses |
+| `js/queries/time-series.dataprime.js` | Standalone time series query builder |
+| `js/queries/logs.dataprime.js` | Standalone logs query builder |
+| `js/queries/breakdown.dataprime.js` | Standalone breakdown query builder |
+
 ## CLI Notes
 
 When running queries from shell, use heredocs for complex queries with backticks:
