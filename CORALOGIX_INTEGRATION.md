@@ -2,261 +2,209 @@
 
 ## Overview
 
-The dashboard initialization has been updated to support Coralogix authentication and API integration while maintaining backward compatibility with ClickHouse.
+The dashboard supports Coralogix as a backend via OAuth2 Authorization Code + PKCE authentication, while maintaining backward compatibility with ClickHouse.
 
-## Changes Made
+## Dev Server Port
 
-### 1. Updated `/Users/yoni/klickhaus/js/dashboard-init.js`
+The dev server port is deterministically derived from the working directory path. The Coralogix OAuth redirect URI is **registered with Coralogix as `http://localhost:5567/oauth-callback.html`**, so the dev server **must run on port 5567**.
 
-#### Authentication Changes
-- **Removed**: ClickHouse-specific auth imports (`setElements`, `handleLogin`, `handleLogout`, `loadStoredCredentials` from `./auth.js`)
-- **Added**: Coralogix auth imports from `./coralogix/auth.js`:
-  - `initAuth` - Initialize auth state from stored session
-  - `login` - Login with username/password
-  - `logout` - Logout and clear session
-  - `isLoggedIn` - Check login state
-  - `getToken` - Get JWT token
-  - `getTeams` - Fetch user's teams
+```bash
+PORT=5567 npm start
+```
 
-#### Configuration Validation
-- Added `isCoralogixConfigured()` and `getConfigurationErrors()` imports from `./coralogix/adapter.js`
-- Displays configuration errors in login form if Coralogix is not properly configured
+To verify the port without starting:
+```bash
+PORT=5567 node scripts/dev-server.mjs --dry-run
+```
 
-#### DOM Elements
-- Added references to login form elements:
-  - `usernameInput` - Username input field
-  - `passwordInput` - Password input field
-  - `forgetMeCheckbox` - Persist session checkbox (not currently used)
+If you start the server on a different port, the OAuth callback will fail with a redirect URI mismatch error.
 
-#### Login Handler (`handleCoralogixLogin`)
-- Prevents default form submission
-- Shows loading state on submit button ("Signing in...")
-- Calls `login()` with credentials
-- Loads user teams after successful login (non-critical)
-- Dispatches `login-success` event
-- Shows error messages on failure
-- Re-enables submit button on error
+## Authentication
 
-#### Logout Handler (`handleCoralogixLogout`)
-- Calls Coralogix `logout()` function
-- Clears localStorage entries:
-  - `hostAutocompleteSuggestions`
-  - All `anomaly_investigation_*` cache keys
-- Shows login screen
+### Protocol: OAuth2 Authorization Code + PKCE
 
-#### UI State Functions
-- `showCoralogixLogin()` - Show login screen, hide dashboard
-- `showCoralogixDashboard()` - Show dashboard, hide login screen
-- Dispatches `dashboard-shown` event for autocomplete loading
+The integration uses **OAuth2 Authorization Code flow with PKCE** (RFC 7636). There is no username/password form — login redirects to the Coralogix authorization endpoint.
 
-#### Initialization Flow
-1. Load URL state
-2. Apply dashboard-specific configuration
-3. Populate UI selects and initialize components
-4. **Check Coralogix configuration** - Log warnings if incomplete
-5. **Initialize Coralogix auth** - Call `initAuth()` to check for existing session
-6. If valid session exists:
-   - Preload SQL templates
-   - Sync UI from state
-   - Reorder facets
-   - Show dashboard
-   - Load data
-7. If no valid session:
-   - Show login screen
-8. Attach event listeners for login/logout
+**Key security properties:**
+- **PKCE** — prevents authorization code interception; the code verifier is never sent to the auth server until the token exchange
+- **State parameter** — CSRF protection
+- **Public client (no secret)** — web apps cannot securely store a client secret; PKCE replaces it
+- **Refresh token in memory only** — never written to localStorage, reducing XSS exposure
+- **Proactive token refresh** — refreshes 60 seconds before expiry to avoid 401 errors
 
-#### Event Listeners
-- `login-success` - Triggered after successful login to setup UI and load data
-- `auth-logout` - Triggered by Coralogix interceptor on auth errors (401, expired token)
-  - Shows error message from event detail
-  - Returns to login screen
+### Login Flow
 
-### 2. Updated `/Users/yoni/klickhaus/js/coralogix/config.js`
-
-#### Browser Environment Support
-- Added `getEnv(key)` helper function to support both Node.js and browser environments
-- Checks `window.ENV` object in browser
-- Falls back to `process.env` in Node.js
-- Returns `null` if neither exists
-
-#### Configuration Properties
-All environment variable references now use `getEnv()`:
-- `CX_DATAPRIME_URL` - Data Prime API endpoint
-- `CX_GRPC_GATEWAY_URL` - gRPC gateway URL
-- `CX_HTTP_GATEWAY_URL` - HTTP gateway URL
-- `CX_BASE_URL` - Base API URL
-- `CX_TEAM_ID` - Team ID
-- `CX_API_KEY` - API key (not used for JWT auth, but kept for backward compatibility)
-
-### 3. Created `/Users/yoni/klickhaus/js/backend-adapter.js`
-
-A unified backend adapter that provides a single interface for both ClickHouse and Coralogix backends.
-
-#### Backend Detection
-- `detectBackend()` - Automatically detects which backend to use
-  - Returns `BACKEND_TYPE.CORALOGIX` if Coralogix is configured and user is logged in
-  - Returns `BACKEND_TYPE.CLICKHOUSE` otherwise
-- `isUsingCoralogix()` - Boolean check for Coralogix backend
-
-#### Query Functions
-- `executeQuery(sql, options)` - Execute raw SQL (ClickHouse only, throws error for Coralogix)
-- `fetchTimeSeriesData(params)` - Fetch time series for chart
-- `fetchBreakdownData(params)` - Fetch facet/breakdown data
-- `fetchLogsData(params)` - Fetch logs data
-
-#### Configuration
-- `getBackendConfig()` - Returns backend capabilities
-  - `type` - Backend type
-  - `isCoralogix` - Boolean flag
-  - `isClickHouse` - Boolean flag
-  - `supportsRawSQL` - Whether raw SQL is supported
-  - `requiresTranslation` - Whether queries need translation
-
-**Note**: The adapter currently throws errors for ClickHouse-specific methods as those need to be implemented to wrap existing `query()` calls.
-
-## Integration Points
-
-### Chart (`js/chart.js`)
-- Uses `loadTimeSeries()` which calls `query()` with SQL
-- **Future**: Should be updated to use `backend-adapter.fetchTimeSeriesData()`
-
-### Breakdowns (`js/breakdowns/index.js`)
-- Uses `loadBreakdown()` which calls `query()` with SQL
-- **Future**: Should be updated to use `backend-adapter.fetchBreakdownData()`
-
-### Logs (`js/logs.js`)
-- Uses `loadLogs()` which calls `query()` with SQL
-- **Future**: Should be updated to use `backend-adapter.fetchLogsData()`
-
-## Existing Features Maintained
-
-All existing dashboard features are maintained:
-- Time range selection
-- Host filtering
-- Facet filtering
-- Dark mode
-- URL state management
-- Keyboard navigation
-- Mobile touch support
-- Anomaly detection and investigation
-- Release tracking
-- Pull-to-refresh
-
-## Authentication Flow
-
-### Login
-1. User enters username and password
-2. Click "Sign In" (button shows "Signing in...")
-3. `login()` calls Coralogix `/api/v1/user/login`
-4. On success:
-   - JWT token stored in localStorage (`token`)
-   - User object stored in localStorage (`auth_user`)
-   - Optional: refresh token stored (`auth_refresh_token`)
-   - Optional: expiry time stored (`auth_expires_at`)
-5. Load user teams (optional, non-blocking)
-6. Show dashboard
-7. Dispatch `login-success` event
-8. Dashboard loads data
+1. User clicks "Sign In"
+2. `login()` in `js/coralogix/auth.js`:
+   - Generates a random PKCE code verifier (43 chars) and SHA-256 challenge
+   - Generates a random state value for CSRF protection
+   - Stores verifier, state, and current URL in `localStorage` (temp)
+   - Redirects browser to `https://api.eu2.coralogix.com/oauth/login` with params:
+     ```
+     response_type=code
+     client_id=<CX_CLIENT_ID>
+     redirect_uri=<CX_REDIRECT_URI>
+     scope=openid profile email offline_access
+     code_challenge=<sha256(verifier)>
+     code_challenge_method=S256
+     state=<random>
+     ```
+3. User authenticates with Coralogix
+4. Coralogix redirects to `oauth-callback.html?code=...&state=...`
+5. `handleOAuthCallback()` in `js/coralogix/auth.js`:
+   - Verifies state matches (CSRF check)
+   - POSTs code + verifier to `https://api.eu2.coralogix.com/oauth/token`
+   - Stores access token and expiry in `localStorage`; refresh token in memory only
+   - Fetches user info and team list
+6. `oauth-callback.html` auto-selects the first available team and redirects back to the original page
 
 ### Session Persistence
-- `initAuth()` checks localStorage for existing token
-- Validates token with server (`/api/v1/user/auth`)
-- If valid, user stays logged in
-- If invalid or expired, shows login screen
+
+`initAuth()` checks `localStorage` for an existing access token and expiry. If valid (not expired), the user stays logged in without re-authenticating. If expired and a refresh token is in memory, it refreshes automatically.
+
+**Storage keys (localStorage):**
+
+| Key | Value |
+|-----|-------|
+| `token` | Access token |
+| `auth_user` | Decoded user info (JSON) |
+| `auth_expires_at` | Expiry timestamp (ms) |
+| `selectedTeamId` | Currently selected Coralogix team ID |
+| `oauth_allowed_teams` | User's accessible teams (JSON) |
+
+**In-memory only (not persisted):**
+- Refresh token — cleared on page reload, requires re-login
+
+### Token Refresh
+
+`ensureFreshToken()` is called before every API request. If the access token is expired or within 60 seconds of expiry, it POSTs to the token endpoint with `grant_type=refresh_token`. On success, the new access token and expiry replace the old ones in `localStorage`.
+
+If refresh fails (e.g., refresh token expired after page reload), an `auth-logout` event is dispatched and the login flow restarts.
+
+### API Request Interceptor
+
+`js/coralogix/interceptor.js` wraps all Coralogix API calls via `authenticatedFetch()`:
+
+1. Calls `ensureFreshToken()` to proactively refresh if needed
+2. Adds `Authorization: Bearer <token>` header
+3. Adds `CGX-Team-Id: <team_id>` header (if a team is selected)
+4. On 401 response: refreshes token and retries the request once
+5. On persistent auth failure: dispatches `auth-logout` event → dashboard shows login screen
 
 ### Logout
-1. User clicks logout button
-2. `logout()` clears localStorage
-3. Calls `/api/v1/user/logout` (best-effort)
-4. Shows login screen
 
-### Auto-Logout on Auth Error
-- Coralogix interceptor (`js/coralogix/interceptor.js`) detects 401 responses
-- Dispatches `auth-logout` event
-- Dashboard shows error message and login screen
+1. User clicks logout
+2. `logout()` clears all `localStorage` auth keys and the in-memory refresh token
+3. POSTs to `/oauth/revoke` to revoke the token server-side (best-effort)
+4. Dashboard shows login screen
 
-## Configuration Requirements
+### Auto-Logout on Auth Errors
 
-### Environment Variables (Browser)
-Set these on `window.ENV` before loading the dashboard:
+`js/coralogix/interceptor.js` dispatches `auth-logout` when token refresh fails. `js/dashboard-init.js` listens for this event, shows the error message, and redirects to the login screen.
+
+## Configuration
+
+### env.js (local, not committed)
+
+Create `env.js` in the repo root (excluded from git). This file is loaded by `dashboard.html` before other scripts:
 
 ```javascript
 window.ENV = {
-  CX_DATAPRIME_URL: 'https://api.coralogix.com/api/v1/dataprime/query',
-  CX_TEAM_ID: 'your-team-id',
-  // Optional overrides:
-  CX_GRPC_GATEWAY_URL: 'https://ng-api-grpc.coralogix.com',
-  CX_HTTP_GATEWAY_URL: 'https://ng-api-http.coralogix.com',
-  CX_BASE_URL: 'https://api.coralogix.com',
+  // OAuth2 public client ID (no secret needed — PKCE handles security)
+  CX_CLIENT_ID: 'a7699e23-6939-4a03-80a4-61c0e883d5bb',
+
+  // Must match the redirect URI registered with Coralogix
+  // Port 5567 is required (see Dev Server Port section above)
+  CX_REDIRECT_URI: 'http://localhost:5567/oauth-callback.html',
+
+  // Coralogix region API base URL
+  CX_BASE_URL: 'https://api.eu2.coralogix.com',
+
+  // DataPrime query endpoint
+  CX_DATAPRIME_URL: 'https://ng-api-http.eu2.coralogix.com/api/v1/dataprime/query',
+
+  // ClickHouse credentials (optional, for Domain Explorer read-only access)
+  CH_USER: '',
+  CH_PASSWORD: '',
 };
 ```
 
-### Environment Variables (Node.js)
-If running in Node.js environment (e.g., tests):
+### Coralogix Config (js/coralogix/config.js)
 
-```bash
-export CX_DATAPRIME_URL=https://api.coralogix.com/api/v1/dataprime/query
-export CX_TEAM_ID=your-team-id
-```
+OAuth2 endpoints are hardcoded to the EU2 region:
+
+| Setting | Value |
+|---------|-------|
+| Authorization endpoint | `https://api.eu2.coralogix.com/oauth/login` |
+| Token endpoint | `https://api.eu2.coralogix.com/oauth/token` |
+| Revocation endpoint | `https://api.eu2.coralogix.com/oauth/revoke` |
+| Client ID | From `window.ENV.CX_CLIENT_ID` |
+| Redirect URI | From `window.ENV.CX_REDIRECT_URI` |
 
 ## Testing
 
 ### Manual Testing
-1. Open dashboard in browser
-2. Should see login form (not auto-login with ClickHouse credentials)
-3. Enter Coralogix username and password
-4. Should show dashboard after successful login
-5. Refresh page - should stay logged in
-6. Click logout - should return to login screen
+
+1. Start dev server on port 5567:
+   ```bash
+   PORT=5567 npm start
+   ```
+2. Open `http://localhost:5567/dashboard.html`
+3. Should see "Sign In" button (not a username/password form)
+4. Click "Sign In" → redirected to Coralogix login page
+5. Authenticate with Coralogix credentials
+6. Browser redirects to `oauth-callback.html` → auto-redirects to dashboard
+7. Dashboard loads data
+8. Refresh page → stays logged in (access token in localStorage)
+9. Click logout → returns to login screen; refresh token cleared from memory
 
 ### Error Cases
-1. Invalid credentials - Shows error message
-2. Network error - Shows error message
-3. Missing configuration - Shows configuration error
-4. Session expired - Auto-logout with error message
 
-## Future Work
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Wrong port (not 5567) | Coralogix rejects redirect URI mismatch |
+| Missing `CX_CLIENT_ID` | Configuration error shown before login |
+| Expired access token (still have refresh token) | Auto-refresh on next API call |
+| Expired access token (no refresh token, e.g. after reload) | `auth-logout` dispatched, login screen shown |
+| Network error during token exchange | Error shown on callback page |
+| Invalid OAuth state (CSRF attempt) | Error thrown, login aborted |
 
-### 1. Complete Backend Adapter Integration
-Update `chart.js`, `breakdowns/index.js`, and `logs.js` to use the backend adapter instead of direct `query()` calls.
+## Architecture
 
-### 2. Add Tier Selection UI
-Optionally add UI controls for selecting query tier (FREQUENT_SEARCH vs ARCHIVE):
-- Could be a dropdown in header
-- Could auto-select based on time range
-- Could be per-query selection
+### Key Files
 
-### 3. Implement ClickHouse Wrappers in Backend Adapter
-Complete the ClickHouse adapter methods to wrap existing `query()` functionality:
-- `fetchTimeSeriesData()` for ClickHouse
-- `fetchBreakdownData()` for ClickHouse
-- `fetchLogsData()` for ClickHouse
+| File | Purpose |
+|------|---------|
+| `js/coralogix/auth.js` | OAuth2 PKCE implementation: login, callback handling, token storage, refresh |
+| `js/coralogix/interceptor.js` | `authenticatedFetch()` — adds auth headers, handles 401 retry |
+| `js/coralogix/config.js` | Configuration with `getEnv()` for browser/Node.js compatibility |
+| `js/coralogix/adapter.js` | Query builder for DataPrime (time series, breakdowns, logs) |
+| `js/dashboard-init.js` | Initialization flow: check auth → show login or dashboard |
+| `oauth-callback.html` | OAuth redirect target: exchanges code, selects team, redirects back |
+| `env.js` | Local config (not committed) |
 
-### 4. Add Team Selector
-If user has access to multiple teams, show team selector in UI:
-- Dropdown in header
-- Load data for selected team
-- Persist selection to localStorage
+### Dashboard Init Flow
 
-### 5. Token Refresh
-Implement automatic token refresh before expiry:
-- Monitor token expiry time
-- Call `/api/v1/user/refresh` before expiry
-- Update stored token
-- Retry failed request with new token
+1. Load URL state
+2. Apply dashboard configuration
+3. Populate UI selects and initialize components
+4. Check Coralogix configuration (warn if incomplete)
+5. Call `initAuth()` — checks for valid existing session
+6. **If authenticated**: preload templates → sync UI → show dashboard → load data
+7. **If not authenticated**: show login screen → wait for `login-success` event
+8. After login: attach team selector, load data
 
-## Backward Compatibility
+## Backend Compatibility
 
-The changes maintain backward compatibility:
-- ClickHouse auth module (`js/auth.js`) is untouched
-- Other dashboards using ClickHouse continue to work
-- Backend adapter defaults to ClickHouse when Coralogix is not configured
-- No breaking changes to existing API
+The changes are backward-compatible:
+- ClickHouse auth (`js/auth.js`) is untouched
+- `js/backend-adapter.js` defaults to ClickHouse when Coralogix is not configured
+- Other dashboards using ClickHouse continue to work unchanged
 
 ## Security Notes
 
-1. **JWT Storage**: Tokens stored in localStorage (not sessionStorage) for persistence
-   - Consider using `httpOnly` cookies in production for better XSS protection
-2. **CORS**: Coralogix API must allow dashboard origin
-3. **Credentials**: Never commit API keys or credentials to repository
-4. **HTTPS**: Always use HTTPS in production to protect credentials in transit
+1. **No client secret** — PKCE replaces it for public clients; the client ID is not sensitive
+2. **Refresh token in memory** — cleared on page reload; trade-off between security (no XSS persistence) and UX (requires re-login after reload)
+3. **Access token in localStorage** — XSS-vulnerable; consider `httpOnly` cookies in production
+4. **HTTPS required in production** — credentials and tokens are exposed over HTTP in dev only
+5. **Never commit `env.js`** — it contains the client ID and redirect URI; git-ignored
