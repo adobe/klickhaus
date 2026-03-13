@@ -25,6 +25,7 @@ const ORIGINAL_PATH = window.location.pathname;
 function resetState() {
   state.timeRange = DEFAULT_TIME_RANGE;
   state.hostFilter = '';
+  state.hostFilterExact = false;
   state.topN = DEFAULT_TOP_N;
   state.filters = [];
   state.showLogs = false;
@@ -88,22 +89,32 @@ describe('loadStateFromURL', () => {
   });
 
   describe('host filter', () => {
-    it('loads host filter', () => {
+    it('loads host filter and detects exact hostname', () => {
       setURL({ host: 'example.com' });
       loadStateFromURL();
       assert.strictEqual(state.hostFilter, 'example.com');
+      assert.isTrue(state.hostFilterExact);
     });
 
-    it('loads AEM domain', () => {
+    it('loads AEM domain as exact', () => {
       setURL({ host: 'main--site--org.aem.live' });
       loadStateFromURL();
       assert.strictEqual(state.hostFilter, 'main--site--org.aem.live');
+      assert.isTrue(state.hostFilterExact);
+    });
+
+    it('loads partial filter as non-exact', () => {
+      setURL({ host: 'adobe' });
+      loadStateFromURL();
+      assert.strictEqual(state.hostFilter, 'adobe');
+      assert.isFalse(state.hostFilterExact);
     });
 
     it('keeps empty when host is absent', () => {
       setURL({});
       loadStateFromURL();
       assert.strictEqual(state.hostFilter, '');
+      assert.isFalse(state.hostFilterExact);
     });
   });
 
@@ -427,6 +438,22 @@ describe('saveStateToURL', () => {
     saveStateToURL();
     const params = new URLSearchParams(window.location.search);
     assert.strictEqual(params.get('host'), 'example.com');
+  });
+
+  it('encodes domainExact when hostFilterExact is true', () => {
+    state.hostFilter = 'example.com';
+    state.hostFilterExact = true;
+    saveStateToURL();
+    const params = new URLSearchParams(window.location.search);
+    assert.strictEqual(params.get('domainExact'), '1');
+  });
+
+  it('omits domainExact when hostFilterExact is false', () => {
+    state.hostFilter = 'example';
+    state.hostFilterExact = false;
+    saveStateToURL();
+    const params = new URLSearchParams(window.location.search);
+    assert.isFalse(params.has('domainExact'));
   });
 
   it('encodes non-default topN', () => {
