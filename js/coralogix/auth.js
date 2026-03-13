@@ -320,6 +320,27 @@ export async function initAuth() {
     }
   }
 
+  if (!getToken()) return false;
+
+  // If the stored token is expired, try to use the in-memory refresh token.
+  // If none is available (e.g. after a page reload), clear the stale session so the
+  // user sees the login screen immediately rather than landing on the dashboard and
+  // being kicked out on the first API call.
+  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
+  if (expiresAt && Date.now() > parseInt(expiresAt, 10)) {
+    if (refreshTokenMemory) {
+      try {
+        await refreshToken();
+      } catch (e) {
+        clearTokens();
+        return false;
+      }
+    } else {
+      clearTokens();
+      return false;
+    }
+  }
+
   // If we have a token but userinfo has never been fetched (key absent in localStorage),
   // fetch it now so the team selector can be populated.
   // Use the raw key check (not getAllowedTeams()) so we don't re-fetch on every page load
