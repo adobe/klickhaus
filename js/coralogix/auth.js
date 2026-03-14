@@ -12,7 +12,7 @@
 
 /**
  * Coralogix authentication management.
- * Handles JWT token-based authentication with Coralogix API.
+ * Implements OAuth2 Authorization Code + PKCE flow.
  */
 
 import { CORALOGIX_CONFIG } from './config.js';
@@ -20,292 +20,397 @@ import { CORALOGIX_CONFIG } from './config.js';
 // Storage keys
 const STORAGE_KEYS = {
   TOKEN: 'token',
-  REFRESH_TOKEN: 'auth_refresh_token',
   USER: 'auth_user',
   EXPIRES_AT: 'auth_expires_at',
   SELECTED_TEAM_ID: 'selectedTeamId',
+  ALLOWED_TEAMS: 'oauth_allowed_teams',
+  PKCE_VERIFIER: 'oauth_code_verifier',
+  OAUTH_STATE: 'oauth_state',
+  RETURN_URL: 'oauth_return_url',
 };
 
-/**
- * Get current bearer token
- * @returns {string|null}
- */
+// Refresh token is kept in memory only (never persisted) to reduce XSS exposure
+let refreshTokenMemory = null;
+
+// ---------------------------------------------------------------------------
+// PKCE helpers
+// ---------------------------------------------------------------------------
+
+function base64UrlEncode(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+function generateCodeVerifier() {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return base64UrlEncode(array);
+}
+
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function generateState() {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return base64UrlEncode(array);
+}
+
+function getRedirectUri() {
+  if (!CORALOGIX_CONFIG.redirectUri) {
+    throw new Error('CX_REDIRECT_URI is required — set it to the registered OAuth callback URL');
+  }
+  return CORALOGIX_CONFIG.redirectUri;
+}
+
+// ---------------------------------------------------------------------------
+// Token storage
+// ---------------------------------------------------------------------------
+
+function storeTokens(data) {
+  if (data.access_token) {
+    localStorage.setItem(STORAGE_KEYS.TOKEN, data.access_token);
+  }
+  if (data.refresh_token) {
+    refreshTokenMemory = data.refresh_token;
+  }
+  if (data.id_token) {
+    // Decode the JWT payload (no verification — just for display purposes)
+    try {
+      const payload = JSON.parse(atob(data.id_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify({
+        email: payload.email,
+        name: payload.name || payload.preferred_username,
+        sub: payload.sub,
+      }));
+    } catch (e) {
+      // Ignore malformed id_token
+    }
+  }
+  if (data.expires_in) {
+    localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, (Date.now() + data.expires_in * 1000).toString());
+  }
+}
+
+function clearTokens() {
+  Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+  localStorage.removeItem(STORAGE_KEYS.ALLOWED_TEAMS);
+  refreshTokenMemory = null;
+}
+
+// ---------------------------------------------------------------------------
+// Public API — credential accessors (used by interceptor.js and tests)
+// ---------------------------------------------------------------------------
+
 export function getToken() {
   return localStorage.getItem(STORAGE_KEYS.TOKEN);
 }
 
-/**
- * Store authentication response data in localStorage
- * @param {Object} data - Response data from login API
- */
-function storeAuthData(data) {
-  if (data.token) {
-    localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
-  }
-  if (data.refreshToken) {
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
-  }
-  if (data.user) {
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
-  }
-  if (data.expiresIn) {
-    const expiresAt = Date.now() + (data.expiresIn * 1000);
-    localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, expiresAt.toString());
-  }
-}
-
-/**
- * Initialize authentication - check for existing session
- * @returns {Promise<boolean>} True if session is valid
- */
-export async function initAuth() {
-  const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
-  if (!token) {
-    return false;
-  }
-
-  // For now, assume token is valid if it exists
-  // In production, you'd validate with the server
-  return true;
-}
-
-/**
- * Login with username and password
- * @param {Object} credentials
- * @param {string} credentials.username - Email address
- * @param {string} credentials.password - Password
- * @returns {Promise<Object>} User object
- */
-export async function login({ username, password }) {
-  const baseUrl = CORALOGIX_CONFIG.baseApiUrl || 'https://api.coralogix.com';
-  const loginUrl = `${baseUrl}/api/v1/user/login`;
-
-  // Build headers with optional captcha bypass token
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-
-  // Add testtoken header for reCAPTCHA bypass in development
-  if (CORALOGIX_CONFIG.skipRecaptcha && CORALOGIX_CONFIG.captchaBypassToken) {
-    headers.testtoken = CORALOGIX_CONFIG.captchaBypassToken;
-  }
-
-  const response = await fetch(loginUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      username,
-      password,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMessage = 'Authentication failed';
-
-    try {
-      const errorData = JSON.parse(errorText);
-      errorMessage = errorData.message || errorData.error || errorMessage;
-    } catch (e) {
-      // Use default error message
-    }
-
-    throw new Error(errorMessage);
-  }
-
-  const data = await response.json();
-
-  // Store authentication data
-  storeAuthData(data);
-
-  // Set team ID from config
-  const teamId = CORALOGIX_CONFIG.teamId || window.ENV?.CX_TEAM_ID || '7667';
-  localStorage.setItem(STORAGE_KEYS.SELECTED_TEAM_ID, teamId);
-
-  return data.user || { email: username };
-}
-
-/**
- * Logout - clear session
- * @returns {Promise<void>}
- */
-export async function logout() {
-  const baseUrl = CORALOGIX_CONFIG.baseApiUrl || 'https://api.coralogix.com';
-  const logoutUrl = `${baseUrl}/api/v1/user/logout`;
-  const token = getToken();
-
-  // Call logout API (best effort, don't block on failure)
-  if (token) {
-    try {
-      await fetch(logoutUrl, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-    } catch (e) {
-      // Ignore logout API errors
-    }
-  }
-
-  // Clear local storage
-  localStorage.removeItem(STORAGE_KEYS.TOKEN);
-  localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-  localStorage.removeItem(STORAGE_KEYS.USER);
-  localStorage.removeItem(STORAGE_KEYS.EXPIRES_AT);
-  localStorage.removeItem(STORAGE_KEYS.SELECTED_TEAM_ID);
-}
-
-/**
- * Get teams for the current user
- * @returns {Promise<Array>} List of teams
- */
-export async function getTeams() {
-  const baseUrl = CORALOGIX_CONFIG.baseApiUrl || 'https://api.coralogix.com';
-  const teamsUrl = `${baseUrl}/api/v1/user/team`;
-  const token = getToken();
-
-  if (!token) {
-    throw new Error('Not authenticated');
-  }
-
-  const response = await fetch(teamsUrl, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch teams');
-  }
-
-  const data = await response.json();
-  return data.teams || [];
-}
-
-/**
- * Get selected team ID
- * @returns {number|null}
- */
 export function getSelectedTeamId() {
   const teamId = localStorage.getItem(STORAGE_KEYS.SELECTED_TEAM_ID);
   return teamId ? parseInt(teamId, 10) : null;
 }
 
-/**
- * Get team ID (alias for getSelectedTeamId)
- * @returns {number|null}
- */
 export function getTeamId() {
   return getSelectedTeamId();
 }
 
-/**
- * Check if user is logged in
- * @returns {boolean}
- */
 export function isLoggedIn() {
   return getToken() !== null;
 }
 
-/**
- * Get current user
- * @returns {Object|null}
- */
 export function getCurrentUser() {
-  const userJson = localStorage.getItem(STORAGE_KEYS.USER);
-  if (!userJson) return null;
+  const raw = localStorage.getItem(STORAGE_KEYS.USER);
+  if (!raw) return null;
   try {
-    return JSON.parse(userJson);
+    return JSON.parse(raw);
   } catch (e) {
     return null;
   }
 }
 
 /**
- * Refresh the authentication token
- * @returns {Promise<string>} New token
- */
-export async function refreshToken() {
-  const baseUrl = CORALOGIX_CONFIG.baseApiUrl || 'https://api.coralogix.com';
-  const refreshUrl = `${baseUrl}/api/v1/user/refresh`;
-  const refreshTokenValue = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-
-  if (!refreshTokenValue) {
-    throw new Error('No refresh token available');
-  }
-
-  const response = await fetch(refreshUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      refreshToken: refreshTokenValue,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Token refresh failed');
-  }
-
-  const data = await response.json();
-
-  if (data.token) {
-    localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
-  }
-  if (data.refreshToken) {
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
-  }
-
-  return data.token;
-}
-
-/**
- * Force logout when authentication fails
- * @param {string} reason - The reason for logout
+ * Force logout when authentication fails unrecoverably.
+ * @param {string} reason
  */
 export function forceLogout(reason) {
-  // Clear all auth data
-  localStorage.removeItem(STORAGE_KEYS.TOKEN);
-  localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-  localStorage.removeItem(STORAGE_KEYS.USER);
-  localStorage.removeItem(STORAGE_KEYS.EXPIRES_AT);
-  localStorage.removeItem(STORAGE_KEYS.SELECTED_TEAM_ID);
-
-  // Dispatch logout event
-  window.dispatchEvent(new CustomEvent('auth-logout', {
-    detail: { reason },
-  }));
+  clearTokens();
+  window.dispatchEvent(new CustomEvent('auth-logout', { detail: { reason } }));
 }
 
-/**
- * Set authentication credentials (for backward compatibility)
- * @param {string} token - Bearer token
- * @param {number|null} teamId - Team ID
- */
+// ---------------------------------------------------------------------------
+// Backward-compat helpers (used by tests via setAuthCredentials)
+// ---------------------------------------------------------------------------
+
 export function setAuthCredentials(token, teamId = null) {
-  if (token) {
-    localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-  }
-  if (teamId) {
-    localStorage.setItem(STORAGE_KEYS.SELECTED_TEAM_ID, teamId.toString());
-  }
+  if (token) localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+  if (teamId) localStorage.setItem(STORAGE_KEYS.SELECTED_TEAM_ID, teamId.toString());
 }
 
-/**
- * Clear authentication credentials
- */
 export function clearAuthCredentials() {
   localStorage.removeItem(STORAGE_KEYS.TOKEN);
   localStorage.removeItem(STORAGE_KEYS.SELECTED_TEAM_ID);
 }
 
-/**
- * Check if authentication credentials are set
- * @returns {boolean}
- */
 export function hasAuthCredentials() {
   return getToken() !== null;
+}
+
+// ---------------------------------------------------------------------------
+// OAuth2 Authorization Code + PKCE flow
+// ---------------------------------------------------------------------------
+
+/**
+ * Start the OAuth2 login flow.
+ * Redirects the browser to the Coralogix authorization endpoint.
+ */
+export async function login() {
+  const verifier = generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+  const state = generateState();
+
+  localStorage.setItem(STORAGE_KEYS.PKCE_VERIFIER, verifier);
+  localStorage.setItem(STORAGE_KEYS.OAUTH_STATE, state);
+  localStorage.setItem(STORAGE_KEYS.RETURN_URL, window.location.href);
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: CORALOGIX_CONFIG.clientId,
+    redirect_uri: getRedirectUri(),
+    scope: 'openid profile email offline_access',
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    state,
+  });
+
+  window.location.href = `${CORALOGIX_CONFIG.authorizationEndpoint}?${params}`;
+}
+
+/**
+ * Fetch user info (including allowed teams) and store in localStorage.
+ * @returns {Promise<Array>} allowed_teams list
+ */
+async function fetchUserInfo() {
+  const token = getToken();
+  if (!token) return [];
+
+  const response = await fetch(`${CORALOGIX_CONFIG.baseApiUrl}/oauth/userinfo`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) return [];
+
+  const data = await response.json();
+
+  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify({
+    email: data.email,
+    sub: data.sub,
+    givenName: data.given_name,
+    familyName: data.family_name,
+  }));
+
+  const teams = data.allowed_teams || [];
+  localStorage.setItem(STORAGE_KEYS.ALLOWED_TEAMS, JSON.stringify(teams));
+  return teams;
+}
+
+/**
+ * Get the list of teams the user is allowed to access.
+ * @returns {Array<{team_id: number, team_name: string}>}
+ */
+export function getAllowedTeams() {
+  const raw = localStorage.getItem(STORAGE_KEYS.ALLOWED_TEAMS);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Set the active team ID.
+ * @param {number} teamId
+ */
+export function setSelectedTeamId(teamId) {
+  localStorage.setItem(STORAGE_KEYS.SELECTED_TEAM_ID, teamId.toString());
+}
+
+/**
+ * Handle the OAuth2 callback — exchange the authorization code for tokens.
+ * Called automatically by initAuth() when a `code` param is present in the URL.
+ * @returns {Promise<boolean>} True on success
+ */
+export async function handleOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const returnedState = params.get('state');
+
+  if (!code) return false;
+
+  const savedState = localStorage.getItem(STORAGE_KEYS.OAUTH_STATE);
+  if (!savedState || returnedState !== savedState) {
+    // eslint-disable-next-line no-console
+    console.warn('OAuth state mismatch — redirecting to restart login', { returnedState, savedState });
+    localStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
+    localStorage.removeItem(STORAGE_KEYS.OAUTH_STATE);
+    // Redirect to the original page (not login()) to avoid storing the callback URL
+    // as the return URL and creating an infinite redirect loop
+    const returnUrl = localStorage.getItem(STORAGE_KEYS.RETURN_URL) || '/';
+    localStorage.removeItem(STORAGE_KEYS.RETURN_URL);
+    window.location.replace(returnUrl);
+    return null;
+  }
+
+  const verifier = localStorage.getItem(STORAGE_KEYS.PKCE_VERIFIER);
+
+  const response = await fetch(CORALOGIX_CONFIG.tokenEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: CORALOGIX_CONFIG.clientId,
+      redirect_uri: getRedirectUri(),
+      code,
+      code_verifier: verifier,
+      token_endpoint_auth_method: 'none',
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Token exchange failed: ${text}`);
+  }
+
+  const data = await response.json();
+  storeTokens(data);
+
+  // Fetch user info and store allowed teams for the team picker
+  await fetchUserInfo();
+
+  // Clean up PKCE state
+  localStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
+  localStorage.removeItem(STORAGE_KEYS.OAUTH_STATE);
+
+  // Return the original page URL so the callback page can redirect back
+  const returnUrl = localStorage.getItem(STORAGE_KEYS.RETURN_URL) || '/';
+  localStorage.removeItem(STORAGE_KEYS.RETURN_URL);
+  return returnUrl;
+}
+
+/**
+ * Initialize authentication.
+ * If the URL contains a `code` param, handles the OAuth callback.
+ * Otherwise, checks for an existing valid session.
+ * @returns {Promise<boolean>} True if authenticated
+ */
+export async function initAuth() {
+  if (new URLSearchParams(window.location.search).has('code')) {
+    try {
+      await handleOAuthCallback();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('OAuth callback failed:', e);
+      return false;
+    }
+  }
+
+  if (!getToken()) return false;
+
+  // If the stored token is expired, try to use the in-memory refresh token.
+  // If none is available (e.g. after a page reload), clear the stale session so the
+  // user sees the login screen immediately rather than landing on the dashboard and
+  // being kicked out on the first API call.
+  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
+  if (expiresAt && Date.now() > parseInt(expiresAt, 10)) {
+    if (refreshTokenMemory) {
+      try {
+        await refreshToken();
+      } catch (e) {
+        clearTokens();
+        return false;
+      }
+    } else {
+      clearTokens();
+      return false;
+    }
+  }
+
+  // If we have a token but userinfo has never been fetched (key absent in localStorage),
+  // fetch it now so the team selector can be populated.
+  // Use the raw key check (not getAllowedTeams()) so we don't re-fetch on every page load
+  // when the user has zero teams or a single team.
+  if (getToken() && localStorage.getItem(STORAGE_KEYS.ALLOWED_TEAMS) === null) {
+    await fetchUserInfo();
+  }
+
+  return getToken() !== null;
+}
+
+/**
+ * Refresh the access token using the stored refresh token.
+ * @returns {Promise<string>} New access token
+ */
+export async function refreshToken() {
+  const storedRefreshToken = refreshTokenMemory;
+  if (!storedRefreshToken) throw new Error('No refresh token available');
+
+  const response = await fetch(CORALOGIX_CONFIG.tokenEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: CORALOGIX_CONFIG.clientId,
+      refresh_token: storedRefreshToken,
+      token_endpoint_auth_method: 'none',
+    }),
+  });
+
+  if (!response.ok) throw new Error('Token refresh failed');
+
+  const data = await response.json();
+  storeTokens(data);
+  return data.access_token;
+}
+
+/**
+ * Logout — revoke the refresh token and clear local session.
+ */
+export async function logout() {
+  const storedRefreshToken = refreshTokenMemory;
+
+  if (storedRefreshToken) {
+    try {
+      await fetch(CORALOGIX_CONFIG.revocationEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: CORALOGIX_CONFIG.clientId,
+          token: storedRefreshToken,
+          token_endpoint_auth_method: 'none',
+        }),
+      });
+    } catch (e) {
+      // Ignore revocation errors
+    }
+  }
+
+  clearTokens();
+}
+
+/**
+ * Refresh the token if it is expired or within 60 seconds of expiry.
+ * Call this before making authenticated requests.
+ */
+export async function ensureFreshToken() {
+  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
+  if (!expiresAt) return;
+  if (Date.now() > parseInt(expiresAt, 10) - 60_000) {
+    await refreshToken();
+  }
 }

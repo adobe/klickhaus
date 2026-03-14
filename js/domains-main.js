@@ -16,8 +16,8 @@ import { formatNumber, formatQueryTime } from './format.js';
 import { escapeHtml } from './utils.js';
 import { loadSql } from './sql-loader.js';
 import {
-  setElements, loadStoredCredentials, handleLogin, handleLogout, showLogin, showDashboard,
-} from './auth.js';
+  initAuth, login, logout, isLoggedIn,
+} from './coralogix/auth.js';
 
 // State
 let rows = [];
@@ -183,37 +183,35 @@ document.getElementById('refreshBtn').addEventListener('click', () => {
 });
 
 // Logout
-document.getElementById('logoutBtn').addEventListener('click', () => {
+document.getElementById('logoutBtn').addEventListener('click', async () => {
   moreMenu.close();
-  handleLogout();
+  await logout();
+  els.loginSection.classList.remove('hidden');
+  els.dashboardSection.classList.remove('visible');
 });
 
-// Wire up auth module
-setElements({
-  loginSection: els.loginSection,
-  dashboardSection: els.dashboardSection,
-  loginError: els.loginError,
+// Login form — triggers Coralogix OAuth redirect
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting…';
+  await login();
 });
 
-// Login form
-document.getElementById('loginForm').addEventListener('submit', handleLogin);
-
-// On successful login, show dashboard and load data
-window.addEventListener('login-success', () => {
-  showDashboard();
-  loadData();
-});
-
-// Auto-login from stored credentials
-const stored = loadStoredCredentials();
-if (stored) {
-  state.credentials = stored;
-  query('SELECT 1').then(() => {
-    showDashboard();
+// Initialize — use Coralogix OAuth session, load CH credentials from env
+(async () => {
+  const authenticated = await initAuth();
+  if (authenticated && isLoggedIn()) {
+    state.credentials = {
+      user: window.ENV?.CH_USER || '',
+      password: window.ENV?.CH_PASSWORD || '',
+    };
+    els.loginSection.classList.add('hidden');
+    els.dashboardSection.classList.add('visible');
     loadData();
-  }).catch(() => {
-    showLogin();
-  });
-} else {
-  showLogin();
-}
+  } else {
+    els.loginSection.classList.remove('hidden');
+    els.dashboardSection.classList.remove('visible');
+  }
+})();

@@ -55,10 +55,8 @@ if (typeof window !== 'undefined' && !window.ENV) {
     CX_GRPC_GATEWAY_URL: 'https://api.coralogix.com',
     CX_HTTP_GATEWAY_URL: 'https://api.coralogix.com',
     CX_BASE_URL: 'https://api.coralogix.com',
-    SKIP_CAPTCHA: 'true',
-    CAPTCHA_BYPASS_TOKEN: 'f11a30f5-6df2-4b5d-842b-62034fb07482',
-    CX_DEFAULT_USERNAME: 'yoni@coralogix.com',
-    CX_DEFAULT_PASSWORD: 'Verint1!',
+    // CX_CLIENT_ID: '',    // required — OAuth2 client ID (public client, no secret needed)
+    // CX_REDIRECT_URI: '', // required — must match the registered redirect URI in Coralogix
   };
 }
 
@@ -72,6 +70,16 @@ export const CORALOGIX_CONFIG = {
   httpGatewayUrl: getEnv('CX_HTTP_GATEWAY_URL') || 'https://ng-api-http.coralogix.com',
   baseApiUrl: getEnv('CX_BASE_URL') || 'https://api.coralogix.com',
 
+  // OAuth2 PKCE endpoints (eu2 region)
+  authorizationEndpoint: 'https://api.eu2.coralogix.com/oauth/login',
+  tokenEndpoint: 'https://api.eu2.coralogix.com/oauth/token',
+  revocationEndpoint: 'https://api.eu2.coralogix.com/oauth/revoke',
+
+  // OAuth2 client ID — public client, no secret needed (PKCE handles security)
+  clientId: getEnv('CX_CLIENT_ID') || null,
+  // Redirect URI after OAuth callback — defaults to the current page URL at runtime
+  redirectUri: getEnv('CX_REDIRECT_URI') || null,
+
   // Authentication & Team Configuration
   teamId: getEnv('CX_TEAM_ID') || null,
   apiKey: getEnv('CX_API_KEY') || null,
@@ -79,10 +87,6 @@ export const CORALOGIX_CONFIG = {
   // Default query settings
   defaultTier: QUERY_TIERS.ARCHIVE,
   enableCredentials: true,
-
-  // reCAPTCHA bypass (for development)
-  skipRecaptcha: getEnv('SKIP_CAPTCHA') === 'true',
-  captchaBypassToken: getEnv('CAPTCHA_BYPASS_TOKEN') || null,
 
   // API Version
   apiVersion: 'v1',
@@ -105,9 +109,8 @@ export const CORALOGIX_CONFIG = {
   validate() {
     const missing = [];
 
-    if (!this.teamId) {
-      missing.push('CX_TEAM_ID');
-    }
+    if (!this.clientId) missing.push('CX_CLIENT_ID');
+    if (!this.redirectUri) missing.push('CX_REDIRECT_URI');
 
     return {
       isValid: missing.length === 0,

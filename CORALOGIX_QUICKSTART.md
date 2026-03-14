@@ -2,37 +2,66 @@
 
 ## Setup (5 minutes)
 
-### 1. Configure Environment
-Add to your HTML before loading dashboard scripts:
+### 1. Start the Dev Server on Port 5567
 
-```html
-<script>
-  window.ENV = {
-    CX_TEAM_ID: 'your-team-id-here'
-  };
-</script>
+The OAuth redirect URI is registered with Coralogix for port 5567:
+
+```bash
+PORT=5567 npm start
 ```
 
-### 2. Login
-The dashboard will show a login form. Enter your Coralogix username and password.
+### 2. Configure Environment
 
-### 3. Done!
-The dashboard now uses Coralogix Data Prime API for all queries.
+Create `env.js` in the repo root (already git-ignored):
+
+```javascript
+window.ENV = {
+  CX_CLIENT_ID: 'a7699e23-6939-4a03-80a4-61c0e883d5bb',
+  CX_REDIRECT_URI: 'http://localhost:5567/oauth-callback.html',
+  CX_BASE_URL: 'https://api.eu2.coralogix.com',
+  CX_DATAPRIME_URL: 'https://ng-api-http.eu2.coralogix.com/api/v1/dataprime/query',
+};
+```
+
+No team ID needed — it is fetched automatically after login.
+
+### 3. Login
+
+Open the dashboard, click **Sign In**, and authenticate with your Coralogix credentials. The OAuth callback auto-selects your first available team and redirects back to the dashboard.
+
+### 4. Done!
+
+The dashboard uses the Coralogix Data Prime API for all queries.
 
 ## How It Works
 
 ### Login Flow
+
 ```
-User enters credentials
+User clicks "Sign In"
     ↓
-POST /api/v1/user/login
+Redirect to Coralogix authorization endpoint (OAuth2 + PKCE)
     ↓
-JWT token stored in localStorage
+User authenticates on Coralogix
     ↓
+Redirect to oauth-callback.html?code=...
+    ↓
+Code exchanged for access + refresh tokens
+Teams fetched, first team auto-selected
+    ↓
+Redirect back to dashboard
 Dashboard loads data via Data Prime
 ```
 
+### Session Management
+
+- Access token stored in `localStorage` — persists across reloads
+- Refresh token stored in memory only — cleared on page reload (requires re-login after reload)
+- Token auto-refreshed 60 seconds before expiry
+- Auto-logout on unrecoverable 401 errors
+
 ### Query Translation
+
 ClickHouse SQL queries are automatically translated to Data Prime syntax:
 
 ```sql
@@ -42,128 +71,52 @@ WHERE timestamp >= now() - INTERVAL 1 HOUR
 ```
 
 ```dataprime
-// Data Prime
-source logs
-| filter $m.timestamp >= timestamp('2024-01-01T00:00:00Z')
+-- Data Prime
+source logs between @'2024-01-01T00:00:00Z' and @'2024-01-01T01:00:00Z'
+| filter $l.subsystemname in ['cloudflare', 'fastly']
 | aggregate count()
 ```
 
-### Session Management
-- Token stored in localStorage (`token` key)
-- Auto-validates on page load
-- Auto-logout on 401 errors
-- Manual logout button available
-
-## Files Modified
-
-1. **`js/dashboard-init.js`** - Main initialization with Coralogix auth
-2. **`js/coralogix/config.js`** - Browser environment support
-3. **`js/backend-adapter.js`** - New: unified backend interface
-
 ## Common Issues
 
-### "Coralogix is not configured"
-**Solution**: Set `window.ENV.CX_TEAM_ID` before loading dashboard
+### Wrong port (not 5567)
+Coralogix rejects the redirect URI with a mismatch error. Always use `PORT=5567 npm start`.
 
-### Login shows "Authentication failed"
-**Check**:
-1. Credentials are correct
-2. Network tab shows 200 response from `/api/v1/user/login`
-3. Token is stored in localStorage
+### "Coralogix is not configured"
+`CX_CLIENT_ID` or `CX_REDIRECT_URI` is missing from `window.ENV`. Check that `env.js` exists and is loaded.
 
 ### Dashboard loads but shows no data
-**Check**:
-1. Token exists in localStorage
-2. Network requests to Data Prime API
-3. Console for query errors
+1. Check `localStorage.getItem('token')` is set
+2. Check `localStorage.getItem('selectedTeamId')` is set
+3. Check the network tab for Data Prime query errors
 
-### "Session expired" after page refresh
-**Check**:
-1. Token exists in localStorage (`localStorage.getItem('token')`)
-2. Token is valid (not expired)
-3. `/api/v1/user/auth` returns 200
+### "Session expired" / auto-logout after reload
+The refresh token is in-memory only and is lost on page reload. Click **Sign In** to re-authenticate.
 
-## API Endpoints
+## Debug Helpers (Browser Console)
 
-All requests go to `https://api.coralogix.com` (configurable):
-
-- `POST /api/v1/user/login` - Login with credentials
-- `GET /api/v1/user/auth` - Validate current session
-- `GET /api/v1/user/team` - Get user's teams
-- `POST /api/v1/dataprime/query` - Execute Data Prime query
-- `DELETE /api/v1/user/logout` - Logout (optional)
-
-## Development
-
-### Enable Debug Logging
 ```javascript
-// In browser console
-localStorage.setItem('debug', 'coralogix:*');
-```
-
-### View Current Token
-```javascript
-// In browser console
+// View current auth state
 console.log('Token:', localStorage.getItem('token'));
 console.log('User:', JSON.parse(localStorage.getItem('auth_user')));
-```
+console.log('Team:', localStorage.getItem('selectedTeamId'));
+console.log('Teams:', JSON.parse(localStorage.getItem('oauth_allowed_teams')));
+console.log('Expires:', new Date(parseInt(localStorage.getItem('auth_expires_at'), 10)));
 
-### Clear Session
-```javascript
-// In browser console
-localStorage.removeItem('token');
-localStorage.removeItem('auth_user');
-localStorage.removeItem('auth_refresh_token');
+// Clear session (forces re-login)
+['token', 'auth_user', 'auth_expires_at', 'selectedTeamId', 'oauth_allowed_teams'].forEach(k => localStorage.removeItem(k));
 location.reload();
 ```
 
-## Next Steps
+## Key Files
 
-### Add Team Selector
-If user has multiple teams, add UI to switch between them:
+| File | Purpose |
+|------|---------|
+| `env.js` | Local config — client ID, redirect URI, API URLs (not committed) |
+| `oauth-callback.html` | OAuth redirect target — exchanges code, selects team, redirects back |
+| `js/coralogix/auth.js` | OAuth2 PKCE implementation |
+| `js/coralogix/interceptor.js` | Adds auth headers, handles token refresh and 401 retry |
+| `js/coralogix/adapter.js` | Data Prime query builder |
+| `js/dashboard-init.js` | Dashboard initialization and auth integration |
 
-```javascript
-import { getTeams, selectTeam } from './coralogix/auth.js';
-
-const teams = await getTeams();
-// Show dropdown with teams
-// On selection: selectTeam(teamId)
-```
-
-### Add Tier Selection
-Add UI control for query tier (Frequent Search vs Archive):
-
-```javascript
-import { QUERY_TIERS } from './coralogix/config.js';
-
-// In dashboard UI:
-<select id="tierSelect">
-  <option value="TIER_FREQUENT_SEARCH">Recent Data (Fast)</option>
-  <option value="TIER_ARCHIVE">Archive (Slower, Cost-effective)</option>
-</select>
-```
-
-### Customize API Endpoints
-Override default endpoints:
-
-```javascript
-window.ENV = {
-  CX_TEAM_ID: 'your-team-id',
-  CX_BASE_URL: 'https://api.eu2.coralogix.com',
-  CX_DATAPRIME_URL: 'https://api.eu2.coralogix.com/api/v1/dataprime/query',
-};
-```
-
-## Support
-
-### Coralogix Documentation
-- [Data Prime Syntax](https://coralogix.com/docs/dataprime-query-language/)
-- [Authentication](https://coralogix.com/docs/authentication/)
-- [API Reference](https://coralogix.com/docs/api-reference/)
-
-### Project Files
-- `/Users/yoni/klickhaus/js/coralogix/README.md` - Full Coralogix module documentation
-- `/Users/yoni/klickhaus/CORALOGIX_INTEGRATION.md` - Integration details
-- `/Users/yoni/klickhaus/js/coralogix/auth.js` - Authentication service
-- `/Users/yoni/klickhaus/js/coralogix/adapter.js` - Query adapter
-- `/Users/yoni/klickhaus/js/backend-adapter.js` - Backend abstraction layer
+See `CORALOGIX_INTEGRATION.md` for full architecture and security details.

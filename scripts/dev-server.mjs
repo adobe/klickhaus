@@ -34,7 +34,7 @@ function getPort() {
   return PORT_MIN + (hash % PORT_RANGE);
 }
 
-const port = getPort();
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : getPort();
 const noReload = process.argv.includes('--no-reload') || process.env.NO_RELOAD === '1';
 
 if (process.argv.includes('--dry-run')) {

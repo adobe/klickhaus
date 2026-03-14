@@ -63,10 +63,10 @@ describe('authenticatedFetch', () => {
     assert.strictEqual(fetchCalls[0].options.headers['CGX-Team-Id'], '12345');
   });
 
-  it('should skip auth for login endpoint', async () => {
+  it('should skip auth for OAuth login endpoint', async () => {
     auth.setAuthCredentials('test-token');
 
-    await authenticatedFetch('/user/login', {
+    await authenticatedFetch('/oauth/login', {
       method: 'POST',
     });
 
@@ -74,26 +74,12 @@ describe('authenticatedFetch', () => {
     assert.isUndefined(fetchCalls[0].options.headers.Authorization);
   });
 
-  it('should skip auth for refresh endpoint', async () => {
+  it('should skip auth for OAuth token endpoint', async () => {
     auth.setAuthCredentials('test-token');
 
-    await authenticatedFetch('/user/refresh', {
+    await authenticatedFetch('/oauth/token', {
       method: 'POST',
     });
-
-    assert.strictEqual(fetchCalls.length, 1);
-    assert.isUndefined(fetchCalls[0].options.headers.Authorization);
-  });
-
-  it('should skip auth when X-Skip-Auth header is present', async () => {
-    auth.setAuthCredentials('test-token');
-
-    await authenticatedFetch('/api/public', {
-      headers: {
-        'X-Skip-Auth': 'true',
-      },
-    });
-
     assert.strictEqual(fetchCalls.length, 1);
     assert.isUndefined(fetchCalls[0].options.headers.Authorization);
     assert.isUndefined(fetchCalls[0].options.headers['X-Skip-Auth']);

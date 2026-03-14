@@ -14,7 +14,7 @@ import {
 } from './state.js';
 import { setForceRefresh } from './api.js';
 import {
-  initAuth, login, logout, isLoggedIn, getTeams,
+  initAuth, login, logout, isLoggedIn, getAllowedTeams, setSelectedTeamId, getSelectedTeamId,
 } from './coralogix/auth.js';
 import { CORALOGIX_CONFIG } from './coralogix/config.js';
 import {
@@ -74,6 +74,28 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.additionalWhereClause] - Extra SQL WHERE clause for all queries
  * @param {string[]} [config.defaultHiddenFacets] - Facet IDs to hide by default
  */
+function initTeamSelect(selectEl, onTeamChange) {
+  if (!selectEl) return;
+  const el = selectEl;
+  const teams = getAllowedTeams();
+  if (teams.length <= 1) {
+    el.hidden = true;
+    return;
+  }
+  const currentTeamId = getSelectedTeamId();
+  teams.forEach((team) => {
+    const opt = document.createElement('option');
+    opt.value = team.team_id;
+    opt.textContent = team.team_name;
+    opt.selected = team.team_id === currentTeamId;
+    el.appendChild(opt);
+  });
+  el.addEventListener('change', (e) => {
+    setSelectedTeamId(parseInt(e.target.value, 10));
+    onTeamChange(true);
+  });
+}
+
 export function initDashboard(config = {}) {
   // DOM Elements
   const elements = {
@@ -83,6 +105,7 @@ export function initDashboard(config = {}) {
     loginError: document.getElementById('loginError'),
     timeRangeSelect: document.getElementById('timeRange'),
     topNSelect: document.getElementById('topN'),
+    teamSelect: document.getElementById('teamSelect'),
     hostFilterInput: document.getElementById('hostFilter'),
     refreshBtn: document.getElementById('refreshBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
@@ -182,21 +205,6 @@ export function initDashboard(config = {}) {
   function showCoralogixLogin() {
     elements.loginSection.classList.remove('hidden');
     elements.dashboardSection.classList.remove('visible');
-
-    // Display team ID if available
-    const teamIdDisplay = document.getElementById('teamIdDisplay');
-    if (teamIdDisplay) {
-      const teamId = window.ENV?.CX_TEAM_ID || '7667';
-      teamIdDisplay.textContent = teamId;
-    }
-
-    // Auto-fill credentials for development (remove in production)
-    if (window.ENV?.CX_DEFAULT_USERNAME) {
-      elements.usernameInput.value = window.ENV.CX_DEFAULT_USERNAME;
-    }
-    if (window.ENV?.CX_DEFAULT_PASSWORD) {
-      elements.passwordInput.value = window.ENV.CX_DEFAULT_PASSWORD;
-    }
   }
 
   function showCoralogixDashboard() {
@@ -209,34 +217,18 @@ export function initDashboard(config = {}) {
   // Coralogix auth handlers
   async function handleCoralogixLogin(e) {
     e.preventDefault();
-    const username = elements.usernameInput.value;
-    const password = elements.passwordInput.value;
-    const submitBtn = elements.loginForm.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.textContent;
-
+    const btn = elements.loginForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Redirecting...';
     elements.loginError.classList.remove('visible');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Signing in...';
-
     try {
-      await login({ username, password });
-
-      // Load teams after successful login
-      try {
-        await getTeams();
-      } catch (teamError) {
-        // Teams load failure is not critical - continue to dashboard
-        // eslint-disable-next-line no-console
-        console.warn('Failed to load teams:', teamError);
-      }
-
-      showCoralogixDashboard();
-      window.dispatchEvent(new CustomEvent('login-success'));
+      await login();
+      // login() redirects the browser — execution stops here
     } catch (err) {
-      elements.loginError.textContent = err.message || 'Authentication failed. Please check your credentials.';
+      elements.loginError.textContent = err.message || 'Failed to start sign-in.';
       elements.loginError.classList.add('visible');
-      submitBtn.disabled = false;
-      submitBtn.textContent = originalBtnText;
+      btn.disabled = false;
+      btn.textContent = 'Sign In with Coralogix';
     }
   }
 
@@ -357,6 +349,8 @@ export function initDashboard(config = {}) {
 
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
+
+    initTeamSelect(elements.teamSelect, loadDashboard);
 
     initFacetObservers();
     initModal();

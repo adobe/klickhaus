@@ -15,14 +15,14 @@ import {
   getSelectedTeamId,
   refreshToken,
   forceLogout,
+  ensureFreshToken,
 } from './auth.js';
 
 // URLs that should skip the auth interceptor
 const SKIP_AUTH_URLS = [
-  '/user/login',
-  '/user/refresh',
-  '/user/forgotpassword',
-  '/user/resetpassword',
+  '/oauth/login',
+  '/oauth/token',
+  '/oauth/revoke',
 ];
 
 /**
@@ -98,6 +98,14 @@ export async function authenticatedFetch(url, options = {}) {
     delete headers['X-Skip-Token-Interceptor'];
     fetchOptions.headers = headers;
   } else {
+    // Proactively refresh if token is expired or about to expire
+    try {
+      await ensureFreshToken();
+    } catch (e) {
+      forceLogout('Session expired');
+      throw e;
+    }
+
     // Add authentication headers
     const token = getToken();
     const teamId = getSelectedTeamId();
@@ -118,7 +126,7 @@ export async function authenticatedFetch(url, options = {}) {
   const response = await fetch(url, fetchOptions);
 
   // Handle 401 Unauthorized - refresh token and retry
-  if (response.status === 401 && !url.includes('/refresh') && !retryingRequests.has(options)) {
+  if (response.status === 401 && !url.includes('/oauth/token') && !retryingRequests.has(options)) {
     try {
       // Mark this request as being retried
       retryingRequests.add(options);
