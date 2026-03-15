@@ -29,8 +29,8 @@ const STORAGE_KEYS = {
   RETURN_URL: 'oauth_return_url',
 };
 
-// Refresh token is kept in memory only (never persisted) to reduce XSS exposure
-let refreshTokenMemory = null;
+// Storage key for the refresh token (persisted in localStorage to survive page reloads)
+const REFRESH_TOKEN_KEY = 'oauth_refresh_token';
 
 // ---------------------------------------------------------------------------
 // PKCE helpers
@@ -77,7 +77,7 @@ function storeTokens(data) {
     localStorage.setItem(STORAGE_KEYS.TOKEN, data.access_token);
   }
   if (data.refresh_token) {
-    refreshTokenMemory = data.refresh_token;
+    localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
   }
   if (data.id_token) {
     // Decode the JWT payload (no verification — just for display purposes)
@@ -93,14 +93,15 @@ function storeTokens(data) {
     }
   }
   if (data.expires_in) {
-    localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, (Date.now() + data.expires_in * 1000).toString());
+    const expiresAt = Date.now() + data.expires_in * 1000;
+    localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, expiresAt.toString());
   }
 }
 
 function clearTokens() {
   Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
   localStorage.removeItem(STORAGE_KEYS.ALLOWED_TEAMS);
-  refreshTokenMemory = null;
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 // ---------------------------------------------------------------------------
@@ -303,86 +304,64 @@ export async function handleOAuthCallback() {
   return returnUrl;
 }
 
-/**
- * Initialize authentication.
- * If the URL contains a `code` param, handles the OAuth callback.
- * Otherwise, checks for an existing valid session.
- * @returns {Promise<boolean>} True if authenticated
- */
-export async function initAuth() {
-  if (new URLSearchParams(window.location.search).has('code')) {
-    try {
-      await handleOAuthCallback();
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('OAuth callback failed:', e);
-      return false;
-    }
-  }
-
-  if (!getToken()) return false;
-
-  // If the stored token is expired, try to use the in-memory refresh token.
-  // If none is available (e.g. after a page reload), clear the stale session so the
-  // user sees the login screen immediately rather than landing on the dashboard and
-  // being kicked out on the first API call.
-  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
-  if (expiresAt && Date.now() > parseInt(expiresAt, 10)) {
-    if (refreshTokenMemory) {
-      try {
-        await refreshToken();
-      } catch (e) {
-        clearTokens();
-        return false;
-      }
-    } else {
-      clearTokens();
-      return false;
-    }
-  }
-
-  // If we have a token but userinfo has never been fetched (key absent in localStorage),
-  // fetch it now so the team selector can be populated.
-  // Use the raw key check (not getAllowedTeams()) so we don't re-fetch on every page load
-  // when the user has zero teams or a single team.
-  if (getToken() && localStorage.getItem(STORAGE_KEYS.ALLOWED_TEAMS) === null) {
-    await fetchUserInfo();
-  }
-
-  return getToken() !== null;
-}
+// Mutex: when multiple callers request a refresh concurrently, only one
+// network request is made — all others await the same in-flight promise.
+let refreshInFlight = null;
 
 /**
  * Refresh the access token using the stored refresh token.
+ * Concurrent calls are deduplicated — only one refresh request is in flight at a time.
  * @returns {Promise<string>} New access token
  */
 export async function refreshToken() {
-  const storedRefreshToken = refreshTokenMemory;
-  if (!storedRefreshToken) throw new Error('No refresh token available');
+  if (refreshInFlight) return refreshInFlight;
 
-  const response = await fetch(CORALOGIX_CONFIG.tokenEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: CORALOGIX_CONFIG.clientId,
-      refresh_token: storedRefreshToken,
-      token_endpoint_auth_method: 'none',
-    }),
-  });
+  refreshInFlight = (async () => {
+    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!storedRefreshToken) throw new Error('No refresh token available');
 
-  if (!response.ok) throw new Error('Token refresh failed');
+    const response = await fetch(CORALOGIX_CONFIG.tokenEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: CORALOGIX_CONFIG.clientId,
+        refresh_token: storedRefreshToken,
+        token_endpoint_auth_method: 'none',
+      }),
+    });
 
-  const data = await response.json();
-  storeTokens(data);
-  return data.access_token;
+    if (!response.ok) throw new Error('Token refresh failed');
+
+    const data = await response.json();
+    storeTokens(data);
+    return data.access_token;
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+/**
+ * Refresh the token if it is expired or within 60 seconds of expiry.
+ * Call this before making authenticated requests.
+ */
+export async function ensureFreshToken() {
+  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
+  if (!expiresAt) return;
+  if (Date.now() > parseInt(expiresAt, 10) - 60_000) {
+    await refreshToken();
+  }
 }
 
 /**
  * Logout — revoke the refresh token and clear local session.
  */
 export async function logout() {
-  const storedRefreshToken = refreshTokenMemory;
+  const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
 
   if (storedRefreshToken) {
     try {
@@ -404,13 +383,47 @@ export async function logout() {
 }
 
 /**
- * Refresh the token if it is expired or within 60 seconds of expiry.
- * Call this before making authenticated requests.
+ * Initialize authentication.
+ * If the URL contains a `code` param, handles the OAuth callback.
+ * Otherwise, checks for an existing valid session.
+ * @returns {Promise<boolean>} True if authenticated
  */
-export async function ensureFreshToken() {
-  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
-  if (!expiresAt) return;
-  if (Date.now() > parseInt(expiresAt, 10) - 60_000) {
-    await refreshToken();
+export async function initAuth() {
+  if (new URLSearchParams(window.location.search).has('code')) {
+    try {
+      await handleOAuthCallback();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('OAuth callback failed:', e);
+      return false;
+    }
   }
+
+  if (!getToken()) return false;
+
+  // If the stored access token is expired, try to refresh it
+  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT);
+  if (expiresAt && Date.now() > parseInt(expiresAt, 10)) {
+    if (localStorage.getItem(REFRESH_TOKEN_KEY)) {
+      try {
+        await refreshToken();
+      } catch (e) {
+        clearTokens();
+        return false;
+      }
+    } else {
+      clearTokens();
+      return false;
+    }
+  }
+
+  // If we have a token but userinfo has never been fetched (key absent in localStorage),
+  // fetch it now so the team selector can be populated.
+  // Use the raw key check (not getAllowedTeams()) so we don't re-fetch on every page load
+  // when the user has zero teams or a single team.
+  if (getToken() && localStorage.getItem(STORAGE_KEYS.ALLOWED_TEAMS) === null) {
+    await fetchUserInfo();
+  }
+
+  return getToken() !== null;
 }
