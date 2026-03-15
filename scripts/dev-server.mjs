@@ -12,6 +12,8 @@
  * governing permissions and limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import liveServer from 'live-server';
 
 const PORT_MIN = 5000;
@@ -44,6 +46,22 @@ if (process.argv.includes('--dry-run')) {
 
 console.log(`Starting dev server on port ${port}...`);
 
+// Middleware to serve .env file at /env (dotfiles are blocked by the static server)
+function serveEnv(req, res, next) {
+  if (req.url !== '/env') {
+    next();
+    return;
+  }
+  try {
+    const content = readFileSync(join(process.cwd(), '.env'), 'utf8');
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(content);
+  } catch (e) {
+    res.statusCode = 404;
+    res.end('');
+  }
+}
+
 liveServer.start({
   port,
   root: '.',
@@ -51,4 +69,5 @@ liveServer.start({
   ignorePattern: /\.md$|package.*\.json$|screenshot\.png$|\.playwright-cli/,
   open: noReload ? false : '/',
   watch: noReload ? [] : undefined,
+  middleware: [serveEnv],
 });

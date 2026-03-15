@@ -9,6 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+import { loadEnvFile } from './coralogix/config.js';
 import { initDashboard } from './dashboard-init.js';
 
 // Hosts excluded from delivery dashboard (backend/admin/RUM/docs services)
@@ -51,8 +52,8 @@ const DEFAULT_HIDDEN_FACETS = [
 
 const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');
 
-initDashboard({
+loadEnvFile().then(() => initDashboard({
   title: 'Delivery',
   additionalWhereClause: `AND \`request.host\` NOT IN (${excludedList})`,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
-});
+}));

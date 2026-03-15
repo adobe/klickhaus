@@ -15,6 +15,7 @@ import { DATABASE } from './config.js';
 import { formatNumber, formatQueryTime } from './format.js';
 import { escapeHtml } from './utils.js';
 import { loadSql } from './sql-loader.js';
+import { loadEnvFile } from './coralogix/config.js';
 import {
   initAuth, login, logout, isLoggedIn,
 } from './coralogix/auth.js';
@@ -199,8 +200,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   await login();
 });
 
-// Initialize — use Coralogix OAuth session, load CH credentials from env
+// Initialize — load .env, then use Coralogix OAuth session
 (async () => {
+  await loadEnvFile();
   const authenticated = await initAuth();
   if (authenticated && isLoggedIn()) {
     state.credentials = {

@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Signing in…</title>
-  <script src="env.js"></script>
   <style>
     body {
       display: flex;
@@ -25,10 +24,12 @@
   <div class="error" id="error" hidden></div>
 
   <script type="module">
+    import { loadEnvFile } from './js/coralogix/config.js';
     import { handleOAuthCallback, getAllowedTeams, setSelectedTeamId } from './js/coralogix/auth.js';
 
     (async () => {
       try {
+        await loadEnvFile();
         const returnUrl = await handleOAuthCallback();
         if (!returnUrl) return; // state mismatch — already redirecting
 

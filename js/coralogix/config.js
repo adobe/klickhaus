@@ -45,19 +45,10 @@ function getEnv(key) {
 }
 
 /**
- * Initialize window.ENV with default values for development
- * This will be populated by reading .env file or set manually
+ * Initialize window.ENV as empty — values are loaded from .env file at runtime
  */
 if (typeof window !== 'undefined' && !window.ENV) {
-  window.ENV = {
-    CX_TEAM_ID: '7667',
-    CX_DATAPRIME_URL: 'https://ng-api-http.coralogix.com/api/v1/dataprime/query',
-    CX_GRPC_GATEWAY_URL: 'https://api.coralogix.com',
-    CX_HTTP_GATEWAY_URL: 'https://api.coralogix.com',
-    CX_BASE_URL: 'https://api.coralogix.com',
-    // CX_CLIENT_ID: '',    // required — OAuth2 client ID (public client, no secret needed)
-    // CX_REDIRECT_URI: '', // required — must match the registered redirect URI in Coralogix
-  };
+  window.ENV = {};
 }
 
 /**
@@ -70,10 +61,10 @@ export const CORALOGIX_CONFIG = {
   httpGatewayUrl: getEnv('CX_HTTP_GATEWAY_URL') || 'https://ng-api-http.coralogix.com',
   baseApiUrl: getEnv('CX_BASE_URL') || 'https://api.coralogix.com',
 
-  // OAuth2 PKCE endpoints (eu2 region)
-  authorizationEndpoint: 'https://api.eu2.coralogix.com/oauth/login',
-  tokenEndpoint: 'https://api.eu2.coralogix.com/oauth/token',
-  revocationEndpoint: 'https://api.eu2.coralogix.com/oauth/revoke',
+  // OAuth2 PKCE endpoints (derived from baseApiUrl)
+  get authorizationEndpoint() { return `${this.baseApiUrl}/oauth/login`; },
+  get tokenEndpoint() { return `${this.baseApiUrl}/oauth/token`; },
+  get revocationEndpoint() { return `${this.baseApiUrl}/oauth/revoke`; },
 
   // OAuth2 client ID — public client, no secret needed (PKCE handles security)
   clientId: getEnv('CX_CLIENT_ID') || null,
@@ -142,6 +133,41 @@ export const CORALOGIX_CONFIG = {
     };
   },
 };
+
+/**
+ * Load environment variables from .env file and populate window.ENV.
+ * Also refreshes CORALOGIX_CONFIG properties that depend on env vars.
+ * @returns {Promise<void>}
+ */
+export async function loadEnvFile() {
+  if (typeof window === 'undefined') return;
+  try {
+    const resp = await fetch('/env');
+    if (!resp.ok) return;
+    const text = await resp.text();
+    text.split('\n').forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) return;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const value = trimmed.slice(eqIdx + 1).trim();
+      window.ENV[key] = value;
+    });
+
+    // Refresh CORALOGIX_CONFIG from newly loaded env
+    CORALOGIX_CONFIG.dataprimeApiUrl = getEnv('CX_DATAPRIME_URL') || CORALOGIX_CONFIG.dataprimeApiUrl;
+    CORALOGIX_CONFIG.grpcGatewayUrl = getEnv('CX_GRPC_GATEWAY_URL') || CORALOGIX_CONFIG.grpcGatewayUrl;
+    CORALOGIX_CONFIG.httpGatewayUrl = getEnv('CX_HTTP_GATEWAY_URL') || CORALOGIX_CONFIG.httpGatewayUrl;
+    CORALOGIX_CONFIG.baseApiUrl = getEnv('CX_BASE_URL') || CORALOGIX_CONFIG.baseApiUrl;
+    CORALOGIX_CONFIG.teamId = getEnv('CX_TEAM_ID') || CORALOGIX_CONFIG.teamId;
+    CORALOGIX_CONFIG.apiKey = getEnv('CX_API_KEY') || CORALOGIX_CONFIG.apiKey;
+    CORALOGIX_CONFIG.clientId = getEnv('CX_CLIENT_ID') || CORALOGIX_CONFIG.clientId;
+    CORALOGIX_CONFIG.redirectUri = getEnv('CX_REDIRECT_URI') || CORALOGIX_CONFIG.redirectUri;
+  } catch (e) {
+    // .env file not available — continue with defaults
+  }
+}
 
 /**
  * Environment-specific configurations
