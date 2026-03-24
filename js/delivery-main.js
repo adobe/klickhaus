@@ -53,6 +53,11 @@ const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', 
 
 initDashboard({
   title: 'Delivery',
+  tableName: 'delivery',
+  weightColumn: 'weight',
+  timeSeriesTemplate: 'time-series-delivery',
+  disableTableSampling: true,
+  supportsSampleHashDedup: false,
   additionalWhereClause: `AND \`request.host\` NOT IN (${excludedList})`,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

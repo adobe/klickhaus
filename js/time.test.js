@@ -26,6 +26,7 @@ beforeEach(() => {
   state.hostFilter = '';
   state.hostFilterColumn = null;
   state.tableName = null;
+  state.disableTableSampling = false;
   setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
 });
 
@@ -122,6 +123,15 @@ describe('getHostFilter', () => {
 });
 
 describe('getSamplingConfig', () => {
+  it('returns no sampling when disableTableSampling is set', () => {
+    state.timeRange = '7d';
+    state.disableTableSampling = true;
+    clearCustomTimeRange();
+    const { sampleClause, multiplier } = getSamplingConfig();
+    assert.strictEqual(sampleClause, '');
+    assert.strictEqual(multiplier, 1);
+  });
+
   it('returns no sampling for 15m range', () => {
     state.timeRange = '15m';
     clearCustomTimeRange();

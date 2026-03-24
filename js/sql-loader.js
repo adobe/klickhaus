@@ -60,6 +60,7 @@ export async function loadSql(name, params) {
 
 const ALL_TEMPLATES = [
   'time-series',
+  'time-series-delivery',
   'logs',
   'logs-more',
   'breakdown',

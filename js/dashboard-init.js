@@ -73,6 +73,9 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.title] - Default title (e.g., 'Delivery')
  * @param {string} [config.additionalWhereClause] - Extra SQL WHERE clause for all queries
  * @param {string[]} [config.defaultHiddenFacets] - Facet IDs to hide by default
+ * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
+ * @param {boolean} [config.disableTableSampling] - Omit SAMPLE clause (use with pre-weighted tables)
+ * @param {boolean} [config.supportsSampleHashDedup] - false if table has no sample_hash column
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -293,6 +296,15 @@ export function initDashboard(config = {}) {
     }
     if (config.tableName) {
       state.tableName = config.tableName;
+    }
+    if (config.weightColumn !== undefined) {
+      state.weightColumn = config.weightColumn;
+    }
+    if (config.disableTableSampling !== undefined) {
+      state.disableTableSampling = config.disableTableSampling;
+    }
+    if (config.supportsSampleHashDedup !== undefined) {
+      state.supportsSampleHashDedup = config.supportsSampleHashDedup;
     }
     if (config.timeSeriesTemplate) {
       state.timeSeriesTemplate = config.timeSeriesTemplate;
