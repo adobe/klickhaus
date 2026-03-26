@@ -391,32 +391,34 @@ export function initDashboard(config = {}) {
       loadAllBreakdowns(facetsContext);
     });
 
-    let filterTimeout;
-    elements.hostFilterInput.addEventListener('input', (e) => {
-      clearTimeout(filterTimeout);
-      filterTimeout = setTimeout(() => {
-        state.hostFilter = e.target.value;
-        saveStateToURL();
-        loadDashboard();
-      }, 500);
-    });
+    function commitHostFilterIfChanged() {
+      const value = elements.hostFilterInput.value;
+      if (value === state.hostFilter) return;
+      state.hostFilter = value;
+      saveStateToURL();
+      loadDashboard();
+    }
 
     let hostFilterOriginalValue = '';
     elements.hostFilterInput.addEventListener('focus', () => {
       hostFilterOriginalValue = elements.hostFilterInput.value;
     });
 
+    elements.hostFilterInput.addEventListener('change', () => {
+      commitHostFilterIfChanged();
+    });
+
+    elements.hostFilterInput.addEventListener('blur', () => {
+      commitHostFilterIfChanged();
+    });
+
     elements.hostFilterInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        clearTimeout(filterTimeout);
-        state.hostFilter = e.target.value;
-        saveStateToURL();
-        loadDashboard();
+        commitHostFilterIfChanged();
         e.target.blur();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        clearTimeout(filterTimeout);
         e.target.value = hostFilterOriginalValue;
         state.hostFilter = hostFilterOriginalValue;
         e.target.blur();
