@@ -205,11 +205,24 @@ export function getTimeFilter() {
   return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
 }
 
+export function isExactHostname(value) {
+  if (!value) return false;
+  if (!value.includes('.')) return false;
+  if (value.endsWith('.')) return false;
+  return /^[a-z0-9.-]+$/i.test(value);
+}
+
 export function getHostFilter() {
   if (!state.hostFilter) return '';
   const escaped = state.hostFilter.replace(/'/g, "\\'");
   if (state.hostFilterColumn) {
+    if (state.hostFilterExact) {
+      return `AND \`${state.hostFilterColumn}\` = '${escaped}'`;
+    }
     return `AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`;
+  }
+  if (state.hostFilterExact) {
+    return `AND (\`request.host\` = '${escaped}' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
   }
   return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
 }

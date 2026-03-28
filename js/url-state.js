@@ -12,6 +12,7 @@
 import { state, loadFacetPrefs } from './state.js';
 import {
   queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange,
+  isExactHostname,
 } from './time.js';
 import { renderActiveFilters } from './filters.js';
 import {
@@ -49,6 +50,7 @@ export function setUrlStateElements(els) {
 function addBasicParams(params) {
   if (state.timeRange !== DEFAULT_TIME_RANGE) params.set('t', state.timeRange);
   if (state.hostFilter) params.set('host', state.hostFilter);
+  if (state.hostFilterExact) params.set('domainExact', '1');
   if (state.topN !== DEFAULT_TOP_N) params.set('n', state.topN);
   if (state.showLogs) params.set('view', 'logs');
   if (state.title) params.set('title', state.title);
@@ -117,7 +119,11 @@ function loadBasicState(params) {
   if (params.has('t') && TIME_RANGES[params.get('t')]) {
     state.timeRange = params.get('t');
   }
-  if (params.has('host')) state.hostFilter = params.get('host');
+  if (params.has('host')) {
+    state.hostFilter = params.get('host');
+    state.hostFilterExact = params.get('domainExact') === '1'
+      || isExactHostname(state.hostFilter);
+  }
   if (params.has('n')) {
     const n = parseInt(params.get('n'), 10);
     if (TOP_N_OPTIONS.includes(n)) state.topN = n;
