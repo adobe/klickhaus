@@ -13,6 +13,41 @@ import { CLICKHOUSE_URL } from './config.js';
 import { TIME_RANGES } from './constants.js';
 import { state } from './state.js';
 
+// Maps AbortSignals to query group prefixes for server-side cancellation
+const signalQueryGroups = new WeakMap();
+const queryState = { counter: 0 };
+
+/**
+ * Associate an AbortSignal with a query group prefix.
+ * All queries using this signal will get a query_id with this prefix.
+ */
+export function setSignalQueryGroup(signal, groupPrefix) {
+  signalQueryGroups.set(signal, groupPrefix);
+}
+
+/**
+ * Get the query group prefix associated with a signal, if any.
+ */
+export function getSignalQueryGroup(signal) {
+  return signalQueryGroups.get(signal);
+}
+
+/**
+ * Cancel running queries on the ClickHouse server matching a group prefix.
+ * Fire-and-forget — errors are silently ignored.
+ */
+export function killQueryGroup(prefix) {
+  if (!prefix || !state.credentials?.user) return;
+  const safePfx = prefix.replace(/'/g, "\\'");
+  fetch(CLICKHOUSE_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`${state.credentials.user}:${state.credentials.password}`)}`,
+    },
+    body: `KILL QUERY WHERE query_id LIKE '${safePfx}-%' ASYNC`,
+  }).catch(() => { /* ignore */ });
+}
+
 // Force refresh state - set by dashboard when refresh button is clicked
 const refreshState = { force: false };
 
@@ -212,6 +247,15 @@ export async function query(
     params.set('use_query_cache', '1');
     params.set('query_cache_ttl', cacheTtl.toString());
     params.set('query_cache_nondeterministic_function_handling', 'save');
+  }
+
+  // Tag query with a server-side query_id for cancellation support
+  if (signal) {
+    const groupPrefix = signalQueryGroups.get(signal);
+    if (groupPrefix) {
+      queryState.counter += 1;
+      params.set('query_id', `${groupPrefix}-${queryState.counter}`);
+    }
   }
 
   // Normalize SQL whitespace for consistent cache keys
