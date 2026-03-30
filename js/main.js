@@ -11,4 +11,10 @@
  */
 import { initDashboard } from './dashboard-init.js';
 
-initDashboard();
+initDashboard({
+  defaultHiddenFacets: [
+    'breakdown-location',
+    'breakdown-content-encoding',
+    'breakdown-surrogate-key',
+  ],
+});

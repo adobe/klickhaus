@@ -33,19 +33,19 @@ const EXCLUDED_DELIVERY_HOSTS = [
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-content-types',
   'breakdown-status',
-  'breakdown-cache',
+
   'breakdown-referers',
   'breakdown-ips',
   'breakdown-request-type',
   'breakdown-methods',
   'breakdown-datacenters',
   'breakdown-asn',
-  'breakdown-accept',
   'breakdown-accept-encoding',
-  'breakdown-req-cache-control',
   'breakdown-push-invalidation',
   'breakdown-content-length',
   'breakdown-location',
+  'breakdown-content-encoding',
+  'breakdown-surrogate-key',
   'breakdown-time-elapsed',
 ];
 

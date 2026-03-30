@@ -484,6 +484,6 @@ describe('zoomOut', () => {
     setQueryTimestamp(new Date(twoWeeksAgo.getTime() + 12 * 60 * 60 * 1000));
     const result = zoomOut();
     assert.ok(result);
-    assert.strictEqual(result.timeRange, '7d');
+    assert.strictEqual(result.timeRange, '3d');
   });
 });

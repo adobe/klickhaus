@@ -65,9 +65,7 @@ export const allBreakdowns = [
     filterOp: 'LIKE',
     extraFilter: "AND `response.headers.x_error` != ''",
   },
-  {
-    id: 'breakdown-cache', col: COLUMN_DEFS.cacheStatus.facetCol, facetName: 'cache_status', summaryCountIf: "upper(`cdn.cache_status`) LIKE 'HIT%'", summaryDimCondition: "dim LIKE 'HIT%'", summaryLabel: 'cache efficiency',
-  },
+
   {
     id: 'breakdown-paths', col: COLUMN_DEFS.url.facetCol, facetName: 'url', linkFn: pathLink, modeToggle: 'contentTypeMode', highCardinality: true,
   },
@@ -78,7 +76,7 @@ export const allBreakdowns = [
     id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, facetName: 'user_agent', dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryDimCondition: "NOT dim LIKE 'Mozilla/%' OR dim LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,
   },
   {
-    id: 'breakdown-ips', col: COLUMN_DEFS.clientIp.facetCol, facetName: 'client_ip', linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`) LIKE '%:%'", summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
+    id: 'breakdown-ips', col: COLUMN_DEFS.originatingIp.facetCol, facetName: 'originating_ip', linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: '`cdn.originating_ip` LIKE \'%:%\'', summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
   },
   {
     id: 'breakdown-request-type', col: COLUMN_DEFS.requestType.facetCol, facetName: 'request_type', extraFilter: "AND `helix.request_type` != ''", modeToggle: 'contentTypeMode',
@@ -96,13 +94,7 @@ export const allBreakdowns = [
     id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", facetName: 'asn', filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' ')[0], 10), dimFormatFn: formatAsn, extraFilter: 'AND `client.asn` != 0', linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage', modeToggle: 'contentTypeMode',
   },
   {
-    id: 'breakdown-accept', col: COLUMN_DEFS.accept.facetCol, facetName: 'accept', extraFilter: "AND `request.headers.accept` != ''", modeToggle: 'contentTypeMode',
-  },
-  {
     id: 'breakdown-accept-encoding', col: COLUMN_DEFS.acceptEncoding.facetCol, facetName: 'accept_encoding', extraFilter: "AND `request.headers.accept_encoding` != ''", modeToggle: 'contentTypeMode',
-  },
-  {
-    id: 'breakdown-req-cache-control', col: COLUMN_DEFS.cacheControl.facetCol, facetName: 'cache_control', extraFilter: "AND `request.headers.cache_control` != ''", modeToggle: 'contentTypeMode',
   },
   {
     id: 'breakdown-byo-cdn', col: COLUMN_DEFS.byoCdn.facetCol, facetName: 'byo_cdn', extraFilter: "AND `request.headers.x_byo_cdn_type` != ''", modeToggle: 'contentTypeMode',
@@ -113,6 +105,12 @@ export const allBreakdowns = [
   },
   {
     id: 'breakdown-location', col: COLUMN_DEFS.location.facetCol, facetName: 'location', extraFilter: "AND `response.headers.location` != ''", highCardinality: true,
+  },
+  {
+    id: 'breakdown-content-encoding', col: COLUMN_DEFS.contentEncoding.facetCol, extraFilter: "AND `response.headers.content_encoding` != ''",
+  },
+  {
+    id: 'breakdown-surrogate-key', col: COLUMN_DEFS.surrogateKey.facetCol, extraFilter: "AND `response.headers.x_surrogate_key` != ''", highCardinality: true,
   },
   {
     id: 'breakdown-time-elapsed', col: timeElapsedBuckets, rawCol: '`cdn.time_elapsed_msec`', orderBy: 'min(`cdn.time_elapsed_msec`)', summaryCountIf: '`cdn.time_elapsed_msec` >= 1000', summaryLabel: 'slow (≥1s)', summaryColor: 'warning', getExpectedLabels: getTimeElapsedLabels,
