@@ -38,7 +38,7 @@ Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)
                               ▲
                     fastly_ingestion (MV)
                               │
-Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)
+Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)1
 ```
 
 Both CDN sources use direct HTTP logging to ClickHouse with async inserts for high-throughput ingestion.
@@ -64,20 +64,23 @@ Click the "copy" button on any facet header to copy its data as TSV. Paste direc
 
 The dashboard state can be controlled via URL parameters for bookmarking and sharing:
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `t` | Time range: `15m`, `1h`, `12h`, `24h`, `7d` | `?t=24h` |
-| `n` | Top N facet values: `5`, `10`, `20`, `50`, `100` | `?n=20` |
-| `host` | Filter by host (substring match) | `?host=example.com` |
-| `view` | View mode: `logs` for logs table | `?view=logs` |
-| `ts` | Query timestamp (ISO 8601) | `?ts=2025-01-15T12:00:00Z` |
-| `filters` | Facet filters (JSON array) | `?filters=[{"col":"\`request.host\`","value":"example.com","exclude":false}]` |
-| `pinned` | Pinned log columns (comma-separated) | `?pinned=timestamp,response.status,request.url` |
-| `hide` | Hide UI controls (comma-separated) | `?hide=timeRange,topN,logout` |
+
+| Parameter | Description                                      | Example                                                                     |
+| --------- | ------------------------------------------------ | --------------------------------------------------------------------------- |
+| `t`       | Time range: `15m`, `1h`, `12h`, `24h`, `7d`      | `?t=24h`                                                                    |
+| `n`       | Top N facet values: `5`, `10`, `20`, `50`, `100` | `?n=20`                                                                     |
+| `host`    | Filter by host (substring match)                 | `?host=example.com`                                                         |
+| `view`    | View mode: `logs` for logs table                 | `?view=logs`                                                                |
+| `ts`      | Query timestamp (ISO 8601)                       | `?ts=2025-01-15T12:00:00Z`                                                  |
+| `filters` | Facet filters (JSON array)                       | `?filters=[{"col":"\`request.host","value":"example.com","exclude":false}]` |
+| `pinned`  | Pinned log columns (comma-separated)             | `?pinned=timestamp,response.status,request.url`                             |
+| `hide`    | Hide UI controls (comma-separated)               | `?hide=timeRange,topN,logout`                                               |
+
 
 ### Hide Parameter Options
 
 The `hide` parameter accepts these control names:
+
 - `timeRange` - Time range selector
 - `topN` - Top N selector
 - `host` - Host filter input
@@ -138,20 +141,23 @@ clickhouse client --host s2p5b8wmt5.eastus2.azure.clickhouse.cloud \
 
 The primary table `cdn_requests_v2` includes:
 
-| Column Group | Examples |
-|-------------|----------|
-| Core | `timestamp`, `source`, `request.host` |
-| CDN | `cdn.cache_status`, `cdn.datacenter`, `cdn.time_elapsed_msec` |
-| Client | `client.ip`, `client.country_name`, `client.asn` |
-| Request | `request.url`, `request.method`, `request.headers.*` |
-| Response | `response.status`, `response.body_size`, `response.headers.*` |
-| Helix | `helix.request_type`, `helix.backend_type` |
+
+| Column Group | Examples                                                      |
+| ------------ | ------------------------------------------------------------- |
+| Core         | `timestamp`, `source`, `request.host`                         |
+| CDN          | `cdn.cache_status`, `cdn.datacenter`, `cdn.time_elapsed_msec` |
+| Client       | `client.ip`, `client.country_name`, `client.asn`              |
+| Request      | `request.url`, `request.method`, `request.headers.*`          |
+| Response     | `response.status`, `response.body_size`, `response.headers.*` |
+| Helix        | `helix.request_type`, `helix.backend_type`                    |
+
 
 ## Runbook
 
 ### No data in dashboard (Cloudflare Logpush disabled)
 
 **Symptoms:**
+
 - Dashboard shows no data or stale data
 - `cloudflare_http_requests` table is empty (1-day TTL expires old data)
 - `cdn_requests_v2` has no recent rows
@@ -160,6 +166,7 @@ The primary table `cdn_requests_v2` includes:
 Cloudflare Logpush jobs auto-disable after repeated delivery failures (e.g., ClickHouse instance was stopped, ran out of credits, or network issues).
 
 **Diagnosis:**
+
 ```bash
 # Check if source tables have recent data
 clickhouse client ... --query "
@@ -174,16 +181,19 @@ curl -s "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs" \
 Look for `"enabled": false` and `error_message` containing delivery errors.
 
 **Resolution:**
+
 1. Ensure ClickHouse instance is running and accessible
 2. Re-enable each Logpush job:
+
 ```bash
 curl -X PUT "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs/<job_id>" \
   -H "Authorization: Bearer <api_token>" \
   -H "Content-Type: application/json" \
   -d '{"enabled": true}'
 ```
-3. Repeat for all zones (aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
-4. Verify data flow: check `last_complete` updates and rows appear in ClickHouse
+
+1. Repeat for all zones (aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
+2. Verify data flow: check `last_complete` updates and rows appear in ClickHouse
 
 **API Token Requirements:**
 Create a Cloudflare API token with **Zone → Logs → Edit** permission for all relevant zones.
@@ -191,6 +201,7 @@ Create a Cloudflare API token with **Zone → Logs → Edit** permission for all
 ### ClickHouse memory limit exceeded (OOM errors)
 
 **Symptoms:**
+
 - Dashboard queries fail with `MEMORY_LIMIT_EXCEEDED` errors
 - Error message shows memory usage near or exceeding the limit (e.g., "would use 30.99 GiB, maximum: 28.80 GiB")
 - Queries against `system.query_log` or `system.asynchronous_metric_log` also fail
@@ -199,6 +210,7 @@ Create a Cloudflare API token with **Zone → Logs → Edit** permission for all
 High-volume Fastly log ingestion combined with dashboard queries and ClickHouse Cloud internal monitoring can exceed available memory. With 9 Fastly services sending logs every 5 seconds, memory pressure builds from concurrent INSERT operations.
 
 **Diagnosis:**
+
 ```bash
 # Check current memory usage
 clickhouse client ... --query "
@@ -231,44 +243,45 @@ clickhouse client ... --query "
 **Resolution options (in order of impact):**
 
 1. **Increase ClickHouse Cloud memory** (immediate relief):
-   - In ClickHouse Cloud console, increase "Minimum memory per replica"
-   - Recommended: 64 GB for production workloads with high ingestion volume
-
+  - In ClickHouse Cloud console, increase "Minimum memory per replica"
+  - Recommended: 64 GB for production workloads with high ingestion volume
 2. **Increase Fastly logging batch sizes** (reduce INSERT frequency):
-   ```bash
+  ```bash
    # Clone active version, update logging endpoint, activate
    # For each service, increase max_entries and max_bytes:
    curl -X PUT -H "Fastly-Key: $FASTLY_TOKEN" \
      "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/logging/https/Clickhouse" \
      -d '{"request_max_entries": 100000, "request_max_bytes": 50000000}'
-   ```
-   - `request_max_entries`: 10,000 → 100,000 (10x)
-   - `request_max_bytes`: 5 MB → 50 MB (10x)
-
+  ```
+  - `request_max_entries`: 10,000 → 100,000 (10x)
+  - `request_max_bytes`: 5 MB → 50 MB (10x)
 3. **Increase Fastly logging period** (fewer flushes per POP):
-   ```bash
+  ```bash
    curl -X PUT -H "Fastly-Key: $FASTLY_TOKEN" \
      "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/logging/https/Clickhouse" \
      -d '{"period": 60}'
-   ```
-   - `period`: 5 → 60 seconds (logs delayed up to 60s)
-   - Trade-off: increased latency before logs appear in ClickHouse
+  ```
+  - `period`: 5 → 60 seconds (logs delayed up to 60s)
+  - Trade-off: increased latency before logs appear in ClickHouse
 
 **Fastly services with ClickHouse logging:**
 
-| Service | Service ID | Domain |
-|---------|------------|--------|
-| helix5 (main) | In8SInYz3UQGjyG0GPZM42 | *.aem.page, *.aem.live |
-| config | SIDuP3HxleUgBDR3Gi8T24 | config.aem.page |
-| admin | 6a6O21m8WoIIVg5cliw7BW | admin.aem.page |
-| www | 00QRLuuAsVNvsKgNWYVCbb | www.aem.live |
-| API | s2dVksBUsvEKaaYF13wIh6 | api.aem.live |
-| form | UDBDj4zfyNdZEpZApUqhL3 | form.aem.page |
-| pipeline | cHpjIl1WNRu9SFyL1eBSj3 | pipeline.aem-fastly.page |
-| static | ItVEMJu5q2pJE3ejseo0W6 | static.aem.page |
-| media | atG7Eq66bH88LhbNq7Fqq2 | media.aem-fastly.page |
+
+| Service       | Service ID             | Domain                              |
+| ------------- | ---------------------- | ----------------------------------- |
+| helix5 (main) | In8SInYz3UQGjyG0GPZM42 | *.aem.page, *.aem.live              |
+| config        | SIDuP3HxleUgBDR3Gi8T24 | config.aem.page                     |
+| admin         | 6a6O21m8WoIIVg5cliw7BW | admin.aem.page                      |
+| www           | 00QRLuuAsVNvsKgNWYVCbb | [www.aem.live](http://www.aem.live) |
+| API           | s2dVksBUsvEKaaYF13wIh6 | api.aem.live                        |
+| form          | UDBDj4zfyNdZEpZApUqhL3 | form.aem.page                       |
+| pipeline      | cHpjIl1WNRu9SFyL1eBSj3 | pipeline.aem-fastly.page            |
+| static        | ItVEMJu5q2pJE3ejseo0W6 | static.aem.page                     |
+| media         | atG7Eq66bH88LhbNq7Fqq2 | media.aem-fastly.page               |
+
 
 **ClickHouse HTTP insert limits (for reference):**
+
 - `async_insert_max_data_size`: 100 MB per query
 - `max_insert_block_size`: ~1M rows per block
 

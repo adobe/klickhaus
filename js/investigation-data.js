@@ -22,6 +22,7 @@ import { getTable, getHostFilter, getTimeFilter } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { compileFilters, isFilterSuperset } from './filter-sql.js';
 import { loadSql } from './sql-loader.js';
+import { getInvestigateMinuteAggregateLines } from './query-aggregations.js';
 
 // Cache version - increment when cache format or algorithm changes
 const CACHE_VERSION = 3;
@@ -417,6 +418,7 @@ export async function investigateFacet(breakdown, anomaly, fullStart, fullEnd) {
     anomalyMinuteFilter,
     col,
     catCountExpr,
+    ...getInvestigateMinuteAggregateLines(),
     database: DATABASE,
     table: getTable(),
     timeFilter: buildTimeFilter(fullStart, fullEnd),
@@ -539,6 +541,7 @@ export async function investigateFacetForSelection(breakdown, selection, fullSta
   const sql = await loadSql('investigate-selection', {
     selectionMinuteFilter,
     col,
+    ...getInvestigateMinuteAggregateLines(),
     database: DATABASE,
     table: getTable(),
     timeFilter: buildTimeFilter(fullStart, fullEnd),

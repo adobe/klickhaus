@@ -11,53 +11,27 @@
  */
 import { initDashboard } from './dashboard-init.js';
 
-// Hosts excluded from delivery dashboard (backend/admin/RUM/docs services)
-const EXCLUDED_DELIVERY_HOSTS = [
-  'config.aem.page',
-  'pipeline.aem-fastly.page',
-  'config.aem-cloudflare.page',
-  'admin.hlx.page',
-  'media.aem-fastly.page',
-  'admin.da.live',
-  'static.aem-fastly.page',
-  'rum.aem.page',
-  'rum.hlx.page',
-  'content.da.live',
-  'da.live',
-  'b4adf6cfdac0918eb6aa5ad033da0747.r2.cloudflarestorage.com',
-  'docs.da.live',
-  'rum.aem-cloudflare.page',
-  'translate.da.live',
-];
-
 const DEFAULT_HIDDEN_FACETS = [
-  'breakdown-content-types',
-  'breakdown-status',
-
+  'breakdown-source',
   'breakdown-referers',
+  'breakdown-user-agents',
   'breakdown-ips',
-  'breakdown-request-type',
   'breakdown-methods',
   'breakdown-datacenters',
   'breakdown-asn',
   'breakdown-accept-encoding',
-  'breakdown-push-invalidation',
   'breakdown-content-length',
   'breakdown-location',
   'breakdown-content-encoding',
-  'breakdown-surrogate-key',
   'breakdown-time-elapsed',
 ];
 
-const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');
-
 initDashboard({
-  title: 'Delivery',
-  tableName: 'delivery',
+  title: 'Backend',
+  tableName: 'backend',
   weightColumn: 'weight',
-  timeSeriesTemplate: 'time-series-delivery',
+  timeSeriesTemplate: 'time-series-backend',
   disableTableSampling: true,
   supportsSampleHashDedup: false,
-  additionalWhereClause: `AND \`request.host\` NOT IN (${excludedList})`,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

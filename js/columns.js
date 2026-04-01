@@ -97,6 +97,11 @@ export const COLUMN_DEFS = {
     facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
     label: 'Client IP',
   },
+  originatingIp: {
+    logKey: 'cdn.originating_ip',
+    facetCol: '`cdn.originating_ip`',
+    label: 'Originating IP',
+  },
   forwardedFor: {
     logKey: 'request.headers.x_forwarded_for',
     facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
@@ -126,6 +131,26 @@ export const COLUMN_DEFS = {
     logKey: 'response.headers.location',
     facetCol: '`response.headers.location`',
     label: 'Location',
+  },
+  contentEncoding: {
+    logKey: 'response.headers.content_encoding',
+    facetCol: '`response.headers.content_encoding`',
+    label: 'Content Encoding',
+  },
+  surrogateKey: {
+    logKey: 'response.headers.x_surrogate_key',
+    facetCol: '`response.headers.x_surrogate_key`',
+    label: 'Surrogate Key',
+  },
+  subsystem: {
+    logKey: 'subsystem',
+    facetCol: '`subsystem`',
+    label: 'Subsystem',
+  },
+  rso: {
+    logKey: 'helix.rso',
+    facetCol: '`helix.rso`',
+    label: 'RSO',
   },
 };
 

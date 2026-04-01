@@ -24,6 +24,12 @@ import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
 import { createLimiter } from '../concurrency-limiter.js';
+import {
+  buildStatusAggregations,
+  buildSummaryCountBreakdownFragment,
+  buildSummaryCountBucketInnerFragment,
+  buildSummaryCountApproxTopFragment,
+} from '../query-aggregations.js';
 
 // Intentionally limits only breakdown queries: breakdowns fan out 20+ parallel
 // queries (one per facet), the only code path with bulk parallelism. Chart, logs,
@@ -45,6 +51,7 @@ export function canUseFacetTable(b) {
   if (!b.facetName) return false;
   if (b.rawCol) return false; // bucketed facets need raw table
   if (b.highCardinality) return false; // sampled raw table is faster
+  if (state.tableName !== 'cdn_requests_v2') return false; // facet table only covers cdn_requests_v2
   if (state.hostFilter) return false;
   if (state.filters && state.filters.length > 0) return false;
   if (state.additionalWhereClause) return false;
@@ -88,35 +95,6 @@ function renderHiddenFacet(cardEl, b) {
 }
 
 /**
- * Build aggregation SQL expressions based on mode
- * @param {boolean} isBytes - Whether to aggregate bytes instead of counts
- * @param {string} mult - Multiplier suffix for sampling
- * @returns {Object} Aggregation expressions
- */
-function buildAggregations(isBytes, mult) {
-  if (state.aggregations) {
-    return {
-      aggTotal: state.aggregations.aggTotal + mult,
-      aggOk: state.aggregations.aggOk + mult,
-      agg4xx: state.aggregations.agg4xx + mult,
-      agg5xx: state.aggregations.agg5xx + mult,
-    };
-  }
-  return {
-    aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
-    aggOk: isBytes
-      ? `sumIf(\`response.headers.content_length\`, \`response.status\` < 400)${mult}`
-      : `countIf(\`response.status\` < 400)${mult}`,
-    agg4xx: isBytes
-      ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 400 AND \`response.status\` < 500)${mult}`
-      : `countIf(\`response.status\` >= 400 AND \`response.status\` < 500)${mult}`,
-    agg5xx: isBytes
-      ? `sumIf(\`response.headers.content_length\`, \`response.status\` >= 500)${mult}`
-      : `countIf(\`response.status\` >= 500)${mult}`,
-  };
-}
-
-/**
  * Fill in missing buckets for continuous range facets
  */
 function fillExpectedLabels(data, b) {
@@ -135,7 +113,7 @@ function fillExpectedLabels(data, b) {
 async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requestStatus) {
   const { isCurrent, signal } = requestStatus || {};
   const shouldApply = () => (typeof isCurrent === 'function' ? isCurrent() : true);
-  const { originalCol, isBytes, mult } = queryParams;
+  const { originalCol } = queryParams;
   const filtersForCol = getFiltersForColumn(originalCol);
   if (filtersForCol.length === 0 || b.getExpectedLabels) return data;
 
@@ -153,7 +131,7 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
 
   const missingValuesSql = await loadSql('breakdown-missing', {
     col,
-    aggTotal: isBytes ? `sum(\`response.headers.content_length\`)${mult}` : `count()${mult}`,
+    aggTotal: aggs.aggTotal,
     aggOk: aggs.aggOk,
     agg4xx: aggs.agg4xx,
     agg5xx: aggs.agg5xx,
@@ -221,6 +199,9 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, samplingOverr
  */
 function buildDedupClause(samplingOverride) {
   const base = state.additionalWhereClause || '';
+  if (!state.supportsSampleHashDedup) {
+    return base;
+  }
   if (!samplingOverride || samplingOverride.multiplier !== 1 || samplingOverride.sampleClause) {
     return base;
   }
@@ -264,9 +245,7 @@ function isApproxTopRefinement(b, samplingOverride) {
 }
 
 async function buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostFilter) {
-  const summaryCol = b.summaryCountIf
-    ? `,\n  countIf(${b.summaryCountIf}) as summary_cnt`
-    : '';
+  const summaryCol = buildSummaryCountApproxTopFragment(b.summaryCountIf);
 
   const sql = await loadSql('breakdown-approx-top', {
     col: params.col,
@@ -324,20 +303,18 @@ async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
       timeFilter,
       hostFilter,
     };
-    return { sql, params, aggs: buildAggregations(false, '') };
+    return { sql, params, aggs: buildStatusAggregations(false, '') };
   }
 
   const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter, samplingOverride);
-  const aggs = buildAggregations(params.isBytes, params.mult);
+  const aggs = buildStatusAggregations(params.isBytes, params.mult);
 
   const dedupClause = buildDedupClause(samplingOverride);
 
   // Two-level query for bucket facets with rawCol (hits raw-value projection)
   if (b.rawCol && typeof b.col === 'function') {
     const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = b.summaryCountIf
-      ? `,\n    countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
-      : '';
+    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, params.mult);
     const outerSummary = b.summaryCountIf
       ? ',\n  sum(summary_cnt) as summary_cnt'
       : '';
@@ -367,9 +344,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
     return buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostFilter);
   }
 
-  const summaryColWithMult = b.summaryCountIf
-    ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
-    : '';
+  const summaryColWithMult = buildSummaryCountBreakdownFragment(b.summaryCountIf, params.mult);
 
   const sql = await loadSql('breakdown', {
     col: params.col,
@@ -588,6 +563,9 @@ function getPreviewTimeFilter(start, end) {
 }
 
 function getPreviewSamplingConfig(durationMs) {
+  if (state.disableTableSampling) {
+    return { sampleClause: '', multiplier: 1 };
+  }
   if (durationMs <= HOUR_MS) {
     return { sampleClause: '', multiplier: 1 };
   }
@@ -657,17 +635,15 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, s
       timeFilter,
       hostFilter,
     };
-    return { sql, params, aggs: buildAggregations(false, '') };
+    return { sql, params, aggs: buildStatusAggregations(false, '') };
   }
 
   const params = buildPreviewQueryParams(b, baseCol, timeFilter, hostFilter, sampling);
-  const aggs = buildAggregations(params.isBytes, params.mult);
+  const aggs = buildStatusAggregations(params.isBytes, params.mult);
 
   if (b.rawCol && typeof b.col === 'function') {
     const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = b.summaryCountIf
-      ? `,\n    countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
-      : '';
+    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, params.mult);
     const outerSummary = b.summaryCountIf
       ? ',\n  sum(summary_cnt) as summary_cnt'
       : '';
@@ -692,9 +668,7 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, s
     return { sql, params, aggs };
   }
 
-  const summaryColWithMult = b.summaryCountIf
-    ? `,\n      countIf(${b.summaryCountIf})${params.mult} as summary_cnt`
-    : '';
+  const summaryColWithMult = buildSummaryCountBreakdownFragment(b.summaryCountIf, params.mult);
 
   const sql = await loadSql('breakdown', {
     col: params.col,

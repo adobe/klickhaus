@@ -964,7 +964,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   const base = state.additionalWhereClause || '';
-  const needsDedup = samplingOverride && !samplingOverride.sampleClause;
+  const needsDedup = state.supportsSampleHashDedup && samplingOverride && !samplingOverride.sampleClause;
   const dedupSuffix = needsDedup ? '\n  AND sample_hash >= 0' : '';
   const additionalWhere = (base || needsDedup) ? `${base} ${dedupSuffix}`.trim() : '';
 

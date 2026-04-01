@@ -15,6 +15,7 @@ import { getTimeFilter, getHostFilter, getTable } from '../time.js';
 import { getFacetFiltersExcluding } from '../breakdowns/index.js';
 import { state } from '../state.js';
 import { loadSql } from '../sql-loader.js';
+import { getDimCountAgg } from '../query-aggregations.js';
 import { renderFacetSearchResultsHtml } from '../templates/facet-search-results.js';
 
 // State
@@ -57,6 +58,7 @@ async function loadInitialResults() {
     // Fetch next 20 values after the currently displayed topN
     const sql = await loadSql('facet-search-initial', {
       searchCol,
+      dimCountAgg: getDimCountAgg(),
       database: DATABASE,
       table: getTable(),
       timeFilter,
@@ -113,6 +115,7 @@ async function searchFacetValues(pattern) {
 
     const sql = await loadSql('facet-search-pattern', {
       searchCol,
+      dimCountAgg: getDimCountAgg(),
       database: DATABASE,
       table: getTable(),
       timeFilter,

@@ -1,4 +1,4 @@
-SELECT {{searchCol}} as dim, count() as cnt
+SELECT {{searchCol}} as dim, {{dimCountAgg}} as cnt
 FROM {{database}}.{{table}}
 WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}}
 GROUP BY dim

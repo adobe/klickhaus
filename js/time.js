@@ -244,6 +244,10 @@ export { getPeriodMs };
  * @returns {{ sampleClause: string, multiplier: number }}
  */
 export function getSamplingConfig() {
+  if (state.disableTableSampling) {
+    return { sampleClause: '', multiplier: 1 };
+  }
+
   const periodMs = getPeriodMs();
 
   // No sampling for time ranges <= 1 hour
