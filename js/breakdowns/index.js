@@ -51,6 +51,7 @@ export function canUseFacetTable(b) {
   if (!b.facetName) return false;
   if (b.rawCol) return false; // bucketed facets need raw table
   if (b.highCardinality) return false; // sampled raw table is faster
+  if (state.tableName !== 'cdn_requests_v2') return false; // facet table only covers cdn_requests_v2
   if (state.hostFilter) return false;
   if (state.filters && state.filters.length > 0) return false;
   if (state.additionalWhereClause) return false;

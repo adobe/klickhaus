@@ -44,6 +44,8 @@ const FACET_COLUMNS = {
   'breakdown-content-encoding': 'response.headers.content_encoding',
   'breakdown-surrogate-key': 'response.headers.x_surrogate_key',
   'breakdown-time-elapsed': 'cdn.time_elapsed_msec',
+  'breakdown-subsystem': 'subsystem',
+  'breakdown-rso': 'helix.rso',
 };
 
 // Aliases for facets (beyond the h3 title)
@@ -71,6 +73,8 @@ const FACET_ALIASES = {
   'breakdown-location': ['redirect', '301', '302', 'location header'],
   'breakdown-content-encoding': ['encoding', 'gzip', 'br', 'compression'],
   'breakdown-surrogate-key': ['surrogate', 'cache key', 'purge key'],
+  'breakdown-subsystem': ['subsystem', 'service', 'backend service'],
+  'breakdown-rso': ['rso'],
   'breakdown-time-elapsed': ['time', 'duration', 'latency', 'ttfb'],
 };
 

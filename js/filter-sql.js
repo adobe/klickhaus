@@ -12,6 +12,7 @@
 import { state } from './state.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
 import { COLUMN_DEFS } from './columns.js';
+import { TOP_N_OPTIONS } from './constants.js';
 
 /**
  * @typedef {Object} Filter
@@ -37,6 +38,10 @@ export function getAllowedColumns() {
   const breakdowns = state.breakdowns?.length ? state.breakdowns : allBreakdowns;
   for (const b of breakdowns) {
     if (typeof b.col === 'string') cols.add(b.col);
+    else if (typeof b.col === 'function') {
+      // Bucketed facets have a function col — pre-generate all topN variants
+      TOP_N_OPTIONS.forEach((n) => cols.add(b.col(n)));
+    }
     if (b.filterCol) cols.add(b.filterCol);
   }
   for (const def of Object.values(COLUMN_DEFS)) {

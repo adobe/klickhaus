@@ -107,12 +107,18 @@ export const allBreakdowns = [
     id: 'breakdown-location', col: COLUMN_DEFS.location.facetCol, facetName: 'location', extraFilter: "AND `response.headers.location` != ''", highCardinality: true,
   },
   {
-    id: 'breakdown-content-encoding', col: COLUMN_DEFS.contentEncoding.facetCol, extraFilter: "AND `response.headers.content_encoding` != ''",
+    id: 'breakdown-content-encoding', col: COLUMN_DEFS.contentEncoding.facetCol,
   },
   {
     id: 'breakdown-surrogate-key', col: COLUMN_DEFS.surrogateKey.facetCol, extraFilter: "AND `response.headers.x_surrogate_key` != ''", highCardinality: true,
   },
   {
     id: 'breakdown-time-elapsed', col: timeElapsedBuckets, rawCol: '`cdn.time_elapsed_msec`', orderBy: 'min(`cdn.time_elapsed_msec`)', summaryCountIf: '`cdn.time_elapsed_msec` >= 1000', summaryLabel: 'slow (≥1s)', summaryColor: 'warning', getExpectedLabels: getTimeElapsedLabels,
+  },
+  {
+    id: 'breakdown-subsystem', col: COLUMN_DEFS.subsystem.facetCol, extraFilter: "AND `subsystem` != ''",
+  },
+  {
+    id: 'breakdown-rso', col: COLUMN_DEFS.rso.facetCol, extraFilter: "AND `helix.rso` != ''",
   },
 ];

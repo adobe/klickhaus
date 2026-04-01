@@ -142,6 +142,16 @@ export const COLUMN_DEFS = {
     facetCol: '`response.headers.x_surrogate_key`',
     label: 'Surrogate Key',
   },
+  subsystem: {
+    logKey: 'subsystem',
+    facetCol: '`subsystem`',
+    label: 'Subsystem',
+  },
+  rso: {
+    logKey: 'helix.rso',
+    facetCol: '`helix.rso`',
+    label: 'RSO',
+  },
 };
 
 /**
