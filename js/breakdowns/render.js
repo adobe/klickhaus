@@ -10,7 +10,9 @@
  * governing permissions and limitations under the License.
  */
 import { escapeHtml, isSyntheticBucket } from '../utils.js';
-import { formatNumber, formatQueryTime, formatBytes } from '../format.js';
+import {
+  formatNumber, formatQueryTime, formatBytes, formatFacetHeaderPercent,
+} from '../format.js';
 import { state } from '../state.js';
 import { TOP_N_OPTIONS } from '../constants.js';
 import { buildBreakdownRow, buildOtherRow } from '../templates/breakdown-table.js';
@@ -58,9 +60,12 @@ function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, sum
     + `data-facet="${escapeHtml(id)}" title="Copy data as TSV">copy</button>`;
 
   const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
+  const pctStr = summaryRatio !== null
+    ? formatFacetHeaderPercent(summaryRatio * 100)
+    : '';
   const summaryHtml = (summaryRatio !== null && summaryLabel)
     ? `<span class="summary-metric${summaryColorClass}" `
-      + `title="${(summaryRatio * 100).toFixed(1)}% ${summaryLabel}">${Math.round(summaryRatio * 100)}%</span>`
+      + `title="${pctStr}% ${summaryLabel}">${pctStr}%</span>`
     : '';
 
   return {

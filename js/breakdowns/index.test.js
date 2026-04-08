@@ -445,8 +445,8 @@ describe('loadBreakdown (facet table path)', () => {
 
     // Card should have rendered (not hidden, not updating)
     assert.isFalse(card.classList.contains('updating'));
-    // The summary metric should be rendered (20% error rate)
-    assert.include(card.innerHTML, '20%');
+    // The summary metric should be rendered (20.0% error rate)
+    assert.include(card.innerHTML, '20.0%');
   });
 });
 
