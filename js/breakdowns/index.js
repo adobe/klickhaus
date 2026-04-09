@@ -220,6 +220,8 @@ function createRequestStatus(requestContext) {
 }
 
 function prepareBreakdownCard(card, b) {
+  if (!card) return false;
+
   if (state.hiddenFacets.includes(b.id)) {
     renderHiddenFacet(card, b);
     return false;

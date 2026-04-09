@@ -38,6 +38,7 @@ export const state = {
   hiddenFacets: [], // Facet IDs hidden at bottom
   additionalWhereClause: '', // Additional WHERE clause for queries (e.g., delivery exclusions)
   tableName: 'cdn_requests_v2', // Table to query (e.g. lambda_logs for Lambda dashboard)
+  logsTableName: null, // Override table for logs queries (falls back to tableName)
   timeSeriesTemplate: 'time-series', // SQL template name for chart (e.g. time-series-lambda)
   weightColumn: null, // When set (e.g. 'weight'), counts use sum(weight) / sumIf(weight, ...)
   disableTableSampling: false, // Skip SAMPLE for pre-weighted tables (e.g. delivery)

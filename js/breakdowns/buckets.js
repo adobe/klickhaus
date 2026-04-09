@@ -167,6 +167,57 @@ export function getTimeElapsedLabels(topN) {
 }
 
 /**
+ * Rate limit rate boundaries (requests per window)
+ */
+const RATELIMIT_RATE_SEQUENCE = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+
+/**
+ * Get rate limit rate bucket labels for a given topN
+ * @param {number} topN - Number of buckets
+ * @returns {string[]} Array of bucket labels in order
+ */
+export function getRatelimitRateLabels(topN) {
+  const numBoundaries = Math.max(1, topN - 1);
+  const boundaries = selectBoundaries(RATELIMIT_RATE_SEQUENCE, numBoundaries);
+
+  const labels = [`< ${boundaries[0]}`];
+
+  for (let i = 1; i < boundaries.length; i += 1) {
+    labels.push(`${boundaries[i - 1]}-${boundaries[i]}`);
+  }
+
+  labels.push(`> ${boundaries[boundaries.length - 1]}`);
+
+  return labels;
+}
+
+/**
+ * Generate multiIf SQL expression for rate limit rate buckets.
+ * The column is a String in ClickHouse, so it is cast with toUInt64OrZero.
+ * Produces exactly topN buckets.
+ * @param {number} topN - Number of buckets
+ * @returns {string} SQL multiIf expression
+ */
+export function ratelimitRateBuckets(topN, colOverride) {
+  const col = colOverride || 'toUInt64OrZero(`response.headers.x_ratelimit_rate`)';
+  const numBoundaries = Math.max(1, topN - 1);
+  const boundaries = selectBoundaries(RATELIMIT_RATE_SEQUENCE, numBoundaries);
+  const labels = getRatelimitRateLabels(topN);
+
+  const conditions = [];
+
+  conditions.push(`${col} < ${boundaries[0]}, '${labels[0]}'`);
+
+  for (let i = 1; i < boundaries.length; i += 1) {
+    conditions.push(`${col} < ${boundaries[i]}, '${labels[i]}'`);
+  }
+
+  conditions.push(`'${labels[labels.length - 1]}'`);
+
+  return `multiIf(${conditions.join(', ')})`;
+}
+
+/**
  * Generate multiIf SQL expression for time elapsed buckets
  * Produces exactly topN buckets
  * @param {number} topN - Number of buckets

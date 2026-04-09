@@ -15,6 +15,7 @@ import {
 import { escapeHtml } from '../utils.js';
 import {
   contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
+  ratelimitRateBuckets, getRatelimitRateLabels,
 } from './buckets.js';
 import { COLUMN_DEFS } from '../columns.js';
 
@@ -120,5 +121,26 @@ export const allBreakdowns = [
   },
   {
     id: 'breakdown-rso', col: COLUMN_DEFS.rso.facetCol, extraFilter: "AND `helix.rso` != ''",
+  },
+  { id: 'breakdown-cdn-version', col: '`cdn.version`', extraFilter: "AND `cdn.version` != ''" },
+  { id: 'breakdown-helix-route', col: '`helix.route`', extraFilter: "AND `helix.route` != ''" },
+  { id: 'breakdown-helix-topic', col: '`helix.topic`', extraFilter: "AND `helix.topic` != ''" },
+  { id: 'breakdown-helix-org', col: '`helix.org`', extraFilter: "AND `helix.org` != ''" },
+  {
+    id: 'breakdown-helix-site', col: '`helix.site`', extraFilter: "AND `helix.site` != ''", highCardinality: true,
+  },
+  {
+    id: 'breakdown-helix-repo', col: '`helix.repo`', extraFilter: "AND `helix.repo` != ''", highCardinality: true,
+  },
+  {
+    id: 'breakdown-helix-owner', col: '`helix.owner`', extraFilter: "AND `helix.owner` != ''", highCardinality: true,
+  },
+  { id: 'breakdown-helix-ref', col: '`helix.ref`', extraFilter: "AND `helix.ref` != ''" },
+  { id: 'breakdown-ratelimit-limit', col: '`response.headers.x_ratelimit_limit`', extraFilter: "AND `response.headers.x_ratelimit_limit` != ''" },
+  {
+    id: 'breakdown-ratelimit-rate', col: ratelimitRateBuckets, rawCol: 'toUInt64OrZero(`response.headers.x_ratelimit_rate`)', orderBy: 'min(toUInt64OrZero(`response.headers.x_ratelimit_rate`))', extraFilter: "AND `response.headers.x_ratelimit_rate` != ''", getExpectedLabels: getRatelimitRateLabels,
+  },
+  {
+    id: 'breakdown-delivery-ratelimit-rate', col: (topN, colOverride) => ratelimitRateBuckets(topN, colOverride || 'toFloat64OrZero(`response.headers.x_rate_limited_rate`)'), rawCol: 'toFloat64OrZero(`response.headers.x_rate_limited_rate`)', orderBy: 'min(toFloat64OrZero(`response.headers.x_rate_limited_rate`))', extraFilter: "AND `response.headers.x_rate_limited_rate` != ''", getExpectedLabels: getRatelimitRateLabels,
   },
 ];

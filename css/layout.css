@@ -143,6 +143,15 @@ header h1 {
   }
 }
 
+/* Total Count */
+.total-count {
+  font-size: 12px;
+  font-weight: normal;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+
 /* Query Timer */
 .query-timer {
   font-size: 12px;

@@ -25,8 +25,8 @@ const DEFAULT_HIDDEN_FACETS = [
 ];
 
 initDashboard({
-  title: 'Backend',
-  tableName: 'backend',
+  title: 'Admin',
+  tableName: 'admin',
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-backend',
   disableTableSampling: true,

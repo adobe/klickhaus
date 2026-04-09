@@ -70,6 +70,18 @@ export function buildDimParts({
 }
 
 /**
+ * Build the exclude button for a breakdown row.
+ */
+function buildExcludeBtn(isSynthetic, isExcluded, filterAttrs) {
+  if (isSynthetic) return '';
+  const action = isExcluded ? 'remove-filter-value' : 'add-filter';
+  const title = isExcluded ? 'Clear exclude' : 'Exclude';
+  const activeClass = isExcluded ? ' active' : '';
+  const dataExclude = isExcluded ? 'false' : 'true';
+  return `<button class="row-exclude-btn${activeClass}" type="button" data-action="${action}" ${filterAttrs} data-exclude="${dataExclude}" title="${title}" aria-label="${title}">≠</button>`;
+}
+
+/**
  * Build a single data row for the breakdown table.
  * Uses the filter-tag-indicator pattern with clickable dim cells.
  * @param {Object} params
@@ -240,9 +252,11 @@ export function buildBreakdownRow({
   const dimExclude = isExcluded ? 'true' : 'false';
   const mobileActions = buildMobileActions(isIncluded, isExcluded, filterAttrs);
 
+  const excludeBtn = buildExcludeBtn(isSynthetic, isExcluded, filterAttrs);
+
   return `
     <tr class="${rowClass}" tabindex="0" role="option" aria-selected="${ariaSelected}" data-value-index="${rowIndex}" data-dim="${dimDataAttr}">
-      <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${bgAttr}">${filterTag}${mobileActions}</td>
+      <td class="dim dim-clickable" title="${escapeHtml(dim)}" data-action="${dimAction}" ${filterAttrs} data-exclude="${dimExclude}" data-bg-color="${bgAttr}">${filterTag}${excludeBtn}${mobileActions}</td>
       <td class="count">
         <span class="value">${valueFormatter(cnt)}</span>
       </td>

@@ -55,7 +55,7 @@
             <rect y="15" width="20" height="2" rx="1"/>
           </svg>
         </button>
-        <h1><span id="dashboardTitle">Delivery Dashboard</span> <span id="queryTimer" class="query-timer"></span></h1>
+        <h1><span id="dashboardTitle">Delivery Dashboard</span> <span id="totalCount" class="total-count"></span> <span id="queryTimer" class="query-timer"></span></h1>
         <div id="activeFilters"></div>
       </div>
       <div class="header-right">
@@ -137,7 +137,7 @@
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-tech-stack">
-          <h3>Tech Stack</h3>
+          <h3>Backend Types</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-methods">
@@ -146,6 +146,10 @@
         </div>
         <div class="breakdown-card" id="breakdown-datacenters">
           <h3>Datacenters</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-cdn-version">
+          <h3>CDN Version</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-asn">
@@ -183,6 +187,10 @@
         </div>
         <div class="breakdown-card" id="breakdown-time-elapsed">
           <h3>Response Time</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-delivery-ratelimit-rate">
+          <h3>Rate Limit Rate</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
       </section>

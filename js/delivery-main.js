@@ -13,21 +13,8 @@ import { initDashboard } from './dashboard-init.js';
 
 // Hosts excluded from delivery dashboard (backend/admin/RUM/docs services)
 const EXCLUDED_DELIVERY_HOSTS = [
-  'config.aem.page',
-  'pipeline.aem-fastly.page',
-  'config.aem-cloudflare.page',
-  'admin.hlx.page',
-  'media.aem-fastly.page',
-  'admin.da.live',
-  'static.aem-fastly.page',
   'rum.aem.page',
   'rum.hlx.page',
-  'content.da.live',
-  'da.live',
-  'b4adf6cfdac0918eb6aa5ad033da0747.r2.cloudflarestorage.com',
-  'docs.da.live',
-  'rum.aem-cloudflare.page',
-  'translate.da.live',
 ];
 
 const DEFAULT_HIDDEN_FACETS = [
