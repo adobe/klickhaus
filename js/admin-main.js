@@ -26,7 +26,6 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-ratelimit-limit',
   'breakdown-ratelimit-rate',
   'breakdown-source',
-  'breakdown-time-elapsed',
   'breakdown-user-agents',
 ];
 
