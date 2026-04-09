@@ -11,31 +11,31 @@
  */
 import { initDashboard } from './dashboard-init.js';
 
-// Hosts excluded from delivery dashboard (backend/admin/RUM/docs services)
-const EXCLUDED_DELIVERY_HOSTS = [
-  'rum.aem.page',
-  'rum.hlx.page',
-];
-
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-accept-encoding',
-  'breakdown-content-encoding',
-  'breakdown-content-types',
   'breakdown-cdn-version',
-  'breakdown-delivery-ratelimit-rate',
+  'breakdown-content-encoding',
+  'breakdown-content-length',
+  'breakdown-content-types',
+  'breakdown-datacenters',
+  'breakdown-forwarded-hosts',
+  'breakdown-helix-ref',
+  'breakdown-ips',
   'breakdown-location',
-  'breakdown-surrogate-key',
+  'breakdown-methods',
+  'breakdown-ratelimit-limit',
+  'breakdown-ratelimit-rate',
+  'breakdown-source',
+  'breakdown-time-elapsed',
+  'breakdown-user-agents',
 ];
 
-const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');
-
 initDashboard({
-  title: 'Delivery',
-  tableName: 'delivery',
+  title: 'Admin',
+  tableName: 'admin',
   weightColumn: 'weight',
-  timeSeriesTemplate: 'time-series-delivery',
+  timeSeriesTemplate: 'time-series-backend',
   disableTableSampling: true,
   supportsSampleHashDedup: false,
-  additionalWhereClause: `AND \`request.host\` NOT IN (${excludedList})`,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

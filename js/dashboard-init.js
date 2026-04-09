@@ -45,7 +45,7 @@ import {
   getFilterForValue,
 } from './filters.js';
 import {
-  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView,
+  loadLogs, toggleLogsView, setLogsElements, setOnShowFiltersView, setOnShowLogsView,
 } from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
@@ -73,6 +73,10 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.title] - Default title (e.g., 'Delivery')
  * @param {string} [config.additionalWhereClause] - Extra SQL WHERE clause for all queries
  * @param {string[]} [config.defaultHiddenFacets] - Facet IDs to hide by default
+ * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
+ * @param {boolean} [config.disableTableSampling] - Omit SAMPLE clause
+ *   (use with pre-weighted tables)
+ * @param {boolean} [config.supportsSampleHashDedup] - false if table has no sample_hash column
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -217,6 +221,12 @@ export function initDashboard(config = {}) {
     }
   });
 
+  // Set up callback to load logs when switching from filters to logs view
+  setOnShowLogsView(() => {
+    const dashboardContext = startRequestContext('dashboard');
+    loadLogs(dashboardContext);
+  });
+
   setFilterCallbacks(saveStateToURL, loadDashboard);
   setOnBeforeRestore(() => invalidateInvestigationCache());
   setOnStateRestored(loadDashboard);
@@ -280,6 +290,12 @@ export function initDashboard(config = {}) {
     }
   }
 
+  function applyDefaultHiddenFacets() {
+    if (!config.defaultHiddenFacets) return;
+    const hasCustomPrefs = localStorage.getItem(`facetPrefs_${state.title || ''}`);
+    if (!hasCustomPrefs) state.hiddenFacets = [...config.defaultHiddenFacets];
+  }
+
   // Initialize
   async function init() {
     loadStateFromURL();
@@ -294,6 +310,18 @@ export function initDashboard(config = {}) {
     if (config.tableName) {
       state.tableName = config.tableName;
     }
+    if (config.logsTableName !== undefined) {
+      state.logsTableName = config.logsTableName;
+    }
+    if (config.weightColumn !== undefined) {
+      state.weightColumn = config.weightColumn;
+    }
+    if (config.disableTableSampling !== undefined) {
+      state.disableTableSampling = config.disableTableSampling;
+    }
+    if (config.supportsSampleHashDedup !== undefined) {
+      state.supportsSampleHashDedup = config.supportsSampleHashDedup;
+    }
     if (config.timeSeriesTemplate) {
       state.timeSeriesTemplate = config.timeSeriesTemplate;
     }
@@ -306,12 +334,7 @@ export function initDashboard(config = {}) {
     if (config.breakdowns) {
       state.breakdowns = config.breakdowns;
     }
-    if (config.defaultHiddenFacets) {
-      const hasCustomPrefs = localStorage.getItem(`facetPrefs_${state.title || ''}`);
-      if (!hasCustomPrefs) {
-        state.hiddenFacets = [...config.defaultHiddenFacets];
-      }
-    }
+    applyDefaultHiddenFacets();
 
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
@@ -379,32 +402,34 @@ export function initDashboard(config = {}) {
       loadAllBreakdowns(facetsContext);
     });
 
-    let filterTimeout;
-    elements.hostFilterInput.addEventListener('input', (e) => {
-      clearTimeout(filterTimeout);
-      filterTimeout = setTimeout(() => {
-        state.hostFilter = e.target.value;
-        saveStateToURL();
-        loadDashboard();
-      }, 500);
-    });
+    function commitHostFilterIfChanged() {
+      const { value } = elements.hostFilterInput;
+      if (value === state.hostFilter) return;
+      state.hostFilter = value;
+      saveStateToURL();
+      loadDashboard();
+    }
 
     let hostFilterOriginalValue = '';
     elements.hostFilterInput.addEventListener('focus', () => {
       hostFilterOriginalValue = elements.hostFilterInput.value;
     });
 
+    elements.hostFilterInput.addEventListener('change', () => {
+      commitHostFilterIfChanged();
+    });
+
+    elements.hostFilterInput.addEventListener('blur', () => {
+      commitHostFilterIfChanged();
+    });
+
     elements.hostFilterInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        clearTimeout(filterTimeout);
-        state.hostFilter = e.target.value;
-        saveStateToURL();
-        loadDashboard();
+        commitHostFilterIfChanged();
         e.target.blur();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        clearTimeout(filterTimeout);
         e.target.value = hostFilterOriginalValue;
         state.hostFilter = hostFilterOriginalValue;
         e.target.blur();

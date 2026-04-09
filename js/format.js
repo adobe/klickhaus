@@ -54,3 +54,58 @@ export function formatQueryTime(ms) {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
+
+const FACET_HEADER_PERCENT_MAX_DECIMALS = 5;
+
+/**
+ * Round a non-negative number to a given count of significant digits.
+ * @param {number} value
+ * @param {number} sig
+ * @returns {number}
+ */
+export function roundToSignificantDigits(value, sig) {
+  if (value === 0 || !Number.isFinite(value)) return value;
+  const sign = value < 0 ? -1 : 1;
+  const v = Math.abs(value);
+  const p = Math.floor(Math.log10(v));
+  const n = 10 ** (sig - 1 - p);
+  return sign * Math.round(v * n) / n;
+}
+
+/**
+ * Format a 0–100 percentage for the top-right facet summary chip:
+ * three significant digits, at most five digits after the decimal point.
+ * @param {number} pct
+ * @returns {string}
+ */
+export function formatFacetHeaderPercent(pct) {
+  if (!Number.isFinite(pct)) {
+    return new Intl.NumberFormat('en-US', {
+      minimumSignificantDigits: 3,
+      maximumSignificantDigits: 3,
+      maximumFractionDigits: FACET_HEADER_PERCENT_MAX_DECIMALS,
+    }).format(0);
+  }
+  if (pct === 0) {
+    return new Intl.NumberFormat('en-US', {
+      minimumSignificantDigits: 3,
+      maximumSignificantDigits: 3,
+      maximumFractionDigits: FACET_HEADER_PERCENT_MAX_DECIMALS,
+    }).format(0);
+  }
+  const sig3 = roundToSignificantDigits(pct, 3);
+  const capped = Math.round(sig3 * 1e5) / 1e5;
+
+  let formatted = new Intl.NumberFormat('en-US', {
+    minimumSignificantDigits: 3,
+    maximumSignificantDigits: 3,
+    maximumFractionDigits: FACET_HEADER_PERCENT_MAX_DECIMALS,
+  }).format(capped);
+
+  const plain = formatted.replace(/,/g, '');
+  const dotIdx = plain.indexOf('.');
+  if (dotIdx !== -1 && plain.slice(dotIdx + 1).length > FACET_HEADER_PERCENT_MAX_DECIMALS) {
+    formatted = capped.toFixed(FACET_HEADER_PERCENT_MAX_DECIMALS).replace(/\.?0+$/, '');
+  }
+  return formatted;
+}

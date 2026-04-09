@@ -152,6 +152,10 @@ export function getTable() {
   return state.tableName || 'cdn_requests_v2';
 }
 
+export function getLogsTable() {
+  return state.logsTableName || state.tableName || 'cdn_requests_v2';
+}
+
 export function getInterval() {
   // Custom time range doesn't use interval (uses explicit timestamps)
   if (timeState.customTimeRange) {
@@ -244,6 +248,10 @@ export { getPeriodMs };
  * @returns {{ sampleClause: string, multiplier: number }}
  */
 export function getSamplingConfig() {
+  if (state.disableTableSampling) {
+    return { sampleClause: '', multiplier: 1 };
+  }
+
   const periodMs = getPeriodMs();
 
   // No sampling for time ranges <= 1 hour

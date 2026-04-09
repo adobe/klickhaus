@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Delivery Dashboard - CDN Analytics</title>
+  <title>Backend Dashboard - CDN Analytics</title>
   <script>
     window.SAMPLE_PAGEVIEWS_AT_RATE = 'high';
   </script>
   <script defer type="text/javascript" src="https://ot.aem.live/.rum/@adobe/helix-rum-js@^2/dist/rum-standalone.js"></script>
-  <link rel="canonical" href="https://klickhaus.aemstatus.net/delivery.html">
+  <link rel="canonical" href="https://klickhaus.aemstatus.net/backend.html">
 
   <!-- Favicon Icons -->
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
@@ -21,8 +21,8 @@
   <!-- Login Form -->
   <div id="login">
     <div class="login-card">
-      <h1>Delivery Dashboard</h1>
-      <p>Sign in to view delivery analytics</p>
+      <h1>Backend Dashboard</h1>
+      <p>Sign in to view backend analytics</p>
       <div id="loginError" class="error-message"></div>
       <form id="loginForm">
         <div class="form-group">
@@ -55,7 +55,7 @@
             <rect y="15" width="20" height="2" rx="1"/>
           </svg>
         </button>
-        <h1><span id="dashboardTitle">Delivery Dashboard</span> <span id="totalCount" class="total-count"></span> <span id="queryTimer" class="query-timer"></span></h1>
+        <h1><span id="dashboardTitle">Backend Dashboard</span> <span id="totalCount" class="total-count"></span> <span id="queryTimer" class="query-timer"></span></h1>
         <div id="activeFilters"></div>
       </div>
       <div class="header-right">
@@ -105,6 +105,14 @@
           <h3>Status Range</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
+        <div class="breakdown-card" id="breakdown-subsystem">
+          <h3>Subsystem</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-rso">
+          <h3>RSO</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
         <div class="breakdown-card" id="breakdown-source">
           <h3>Source</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
@@ -129,21 +137,8 @@
           <h3>Errors</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
-
         <div class="breakdown-card" id="breakdown-paths">
           <h3>Paths</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-referers">
-          <h3>Referers</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-user-agents">
-          <h3>User Agents</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-ips">
-          <h3>Originating IPs</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-request-type">
@@ -152,6 +147,15 @@
         </div>
         <div class="breakdown-card" id="breakdown-tech-stack">
           <h3>Backend Types</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+
+        <div class="breakdown-card" id="breakdown-user-agents">
+          <h3>User Agents</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-ips">
+          <h3>Originating IPs</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-methods">
@@ -166,21 +170,9 @@
           <h3>CDN Version</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
-        <div class="breakdown-card" id="breakdown-asn">
-          <h3>ASN</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
+
         <div class="breakdown-card" id="breakdown-accept-encoding">
           <h3>Accept-Encoding</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-
-        <div class="breakdown-card" id="breakdown-byo-cdn">
-          <h3>BYO CDN Type</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-push-invalidation">
-          <h3>Push Invalidation</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
         <div class="breakdown-card" id="breakdown-content-length">
@@ -195,16 +187,8 @@
           <h3>Content Encoding</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
-        <div class="breakdown-card" id="breakdown-surrogate-key">
-          <h3>Surrogate Keys</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
         <div class="breakdown-card" id="breakdown-time-elapsed">
           <h3>Response Time</h3>
-          <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-        <div class="breakdown-card" id="breakdown-delivery-ratelimit-rate">
-          <h3>Rate Limit Rate</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
       </section>
@@ -229,7 +213,6 @@
     <iframe id="quickLinksFrame" src="index.html"></iframe>
   </dialog>
 
-  <!-- More Actions Menu -->
   <!-- Keyboard Help Dialog -->
   <dialog id="keyboardHelp" role="dialog" aria-labelledby="keyboardHelpTitle">
     <div class="keyboard-help-content">
@@ -326,6 +309,6 @@
     <div id="facetSearchResults" role="listbox" aria-label="Search results"></div>
   </dialog>
 
-  <script type="module" src="js/delivery-main.js"></script>
+  <script type="module" src="js/backend-main.js"></script>
 </body>
 </html>

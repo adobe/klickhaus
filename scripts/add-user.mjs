@@ -19,7 +19,7 @@
 const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
 const DATABASE = 'helix_logs_production';
-const TABLES = ['cdn_requests_v2', 'cdn_facet_minutes', 'releases', 'oncall_shifts', 'lambda_logs', 'optel_admin', 'admin', 'backend', 'delivery', 'delivery_errors', 'user_shifts'];
+const TABLES = ['delivery', 'delivery_errors', 'admin', 'backend', 'cdn_requests_combined', 'cdn_requests_v2', 'cdn_facet_minutes', 'releases', 'oncall_shifts', 'lambda_logs', 'optel_admin', 'user_shifts'];
 const DICTIONARIES = ['asn_dict'];
 
 function generatePassword(length = 16) {

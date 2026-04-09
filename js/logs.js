@@ -12,7 +12,7 @@
 import { DATABASE } from './config.js';
 import { state, setOnPinnedColumnsChange } from './state.js';
 import { query, isAbortError } from './api.js';
-import { getTimeFilter, getHostFilter, getTable } from './time.js';
+import { getTimeFilter, getHostFilter, getLogsTable } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
 import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
@@ -425,7 +425,7 @@ async function loadMoreLogs() {
 
   const sql = await loadSql('logs-more', {
     database: DATABASE,
-    table: getTable(),
+    table: getLogsTable(),
     timeFilter,
     hostFilter,
     facetFilters,
@@ -447,9 +447,7 @@ async function loadMoreLogs() {
     // eslint-disable-next-line no-console
     console.error('Load more logs error:', err);
   } finally {
-    if (isCurrent()) {
-      pagination.loading = false;
-    }
+    pagination.loading = false;
   }
 }
 
@@ -485,9 +483,14 @@ setOnPinnedColumnsChange(renderLogsTable);
 
 // Callback for redrawing chart when switching views
 let onShowFiltersView = null;
+let onShowLogsView = null;
 
 export function setOnShowFiltersView(callback) {
   onShowFiltersView = callback;
+}
+
+export function setOnShowLogsView(callback) {
+  onShowLogsView = callback;
 }
 
 export function toggleLogsView(saveStateToURL) {
@@ -495,11 +498,15 @@ export function toggleLogsView(saveStateToURL) {
   if (state.showLogs) {
     logsView.classList.add('visible');
     filtersView.classList.remove('visible');
-    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    viewToggleBtn.title = 'View Filters';
+    // Load logs if not already loaded
+    if (onShowLogsView && !state.logsReady) {
+      requestAnimationFrame(() => onShowLogsView());
+    }
   } else {
     logsView.classList.remove('visible');
     filtersView.classList.add('visible');
-    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
+    viewToggleBtn.title = 'View Logs';
     // Redraw chart after view becomes visible
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());
@@ -528,7 +535,7 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
 
   const sql = await loadSql('logs', {
     database: DATABASE,
-    table: getTable(),
+    table: getLogsTable(),
     timeFilter,
     hostFilter,
     facetFilters,
@@ -546,12 +553,10 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
   } catch (err) {
     if (!isCurrent() || isAbortError(err)) return;
     // eslint-disable-next-line no-console
-    console.error('Logs error:', err);
+    console.error('Logs error:', err, '\nSQL:', sql);
     renderLogsError(err.message);
   } finally {
-    if (isCurrent()) {
-      state.logsLoading = false;
-      container.classList.remove('updating');
-    }
+    state.logsLoading = false;
+    container.classList.remove('updating');
   }
 }

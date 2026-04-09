@@ -60,7 +60,7 @@ describe('loadStateFromURL', () => {
     });
 
     it('loads all valid time ranges', () => {
-      for (const key of ['15m', '1h', '12h', '24h', '7d']) {
+      for (const key of ['15m', '1h', '12h', '24h', '3d', '7d']) {
         resetState();
         setURL({ t: key });
         loadStateFromURL();
@@ -705,7 +705,7 @@ describe('syncUIFromState', () => {
 
     // Create mock DOM elements
     const timeSelect = document.createElement('select');
-    ['15m', '1h', '12h', '24h', '7d', 'custom'].forEach((v) => {
+    ['15m', '1h', '12h', '24h', '3d', '7d', 'custom'].forEach((v) => {
       const opt = document.createElement('option');
       opt.value = v;
       opt.textContent = v;
@@ -730,11 +730,6 @@ describe('syncUIFromState', () => {
       refreshBtn: document.createElement('button'),
       logoutBtn: document.createElement('button'),
     };
-    // viewToggleBtn needs an inner menu-item-label span
-    const labelSpan = document.createElement('span');
-    labelSpan.className = 'menu-item-label';
-    mockElements.viewToggleBtn.appendChild(labelSpan);
-
     setUrlStateElements(mockElements);
 
     // Create dashboard title element in DOM
@@ -800,10 +795,7 @@ describe('syncUIFromState', () => {
     syncUIFromState();
     assert.isTrue(mockElements.logsView.classList.contains('visible'));
     assert.isFalse(mockElements.filtersView.classList.contains('visible'));
-    assert.strictEqual(
-      mockElements.viewToggleBtn.querySelector('.menu-item-label').textContent,
-      'View Filters',
-    );
+    assert.strictEqual(mockElements.viewToggleBtn.title, 'View Filters');
   });
 
   it('shows filters view when showLogs is false', () => {
@@ -811,10 +803,7 @@ describe('syncUIFromState', () => {
     syncUIFromState();
     assert.isFalse(mockElements.logsView.classList.contains('visible'));
     assert.isTrue(mockElements.filtersView.classList.contains('visible'));
-    assert.strictEqual(
-      mockElements.viewToggleBtn.querySelector('.menu-item-label').textContent,
-      'View Logs',
-    );
+    assert.strictEqual(mockElements.viewToggleBtn.title, 'View Logs');
   });
 
   it('hides controls based on hiddenControls', () => {

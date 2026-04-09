@@ -8,9 +8,9 @@ FROM (
   SELECT
     toStartOfMinute(timestamp) as minute,
     {{col}} as dim,
-    count() as cnt,
-    countIf(`response.status` >= 400 AND `response.status` < 500) as cnt_4xx,
-    countIf(`response.status` >= 500) as cnt_5xx
+    {{innerCnt}},
+    {{inner4xx}},
+    {{inner5xx}}
   FROM {{database}}.{{table}}
   WHERE {{timeFilter}}
     {{hostFilter}} {{facetFilters}} {{extra}}

@@ -301,6 +301,28 @@ describe('canUseFacetTable', () => {
     const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
     assert.isFalse(canUseFacetTable(b));
   });
+
+  it('returns false when tableName is not cdn_requests_v2', () => {
+    state.tableName = 'backend';
+    const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
+    assert.isFalse(canUseFacetTable(b));
+    state.tableName = 'cdn_requests_v2';
+  });
+
+  it('returns false for highCardinality facets', () => {
+    const b = {
+      id: 'breakdown-hosts', col: '`request.host`', facetName: 'host', highCardinality: true,
+    };
+    assert.isFalse(canUseFacetTable(b));
+  });
+
+  it('returns true for count mode with modeToggle', () => {
+    state.contentTypeMode = 'count';
+    const b = {
+      id: 'breakdown-content-types', col: 'x', facetName: 'content_type', modeToggle: 'contentTypeMode',
+    };
+    assert.isTrue(canUseFacetTable(b));
+  });
 });
 
 describe('loadBreakdown', () => {
@@ -423,8 +445,8 @@ describe('loadBreakdown (facet table path)', () => {
 
     // Card should have rendered (not hidden, not updating)
     assert.isFalse(card.classList.contains('updating'));
-    // The summary metric should be rendered (20% error rate)
-    assert.include(card.innerHTML, '20%');
+    // The summary metric should be rendered (20.0% error rate)
+    assert.include(card.innerHTML, '20.0%');
   });
 });
 
@@ -831,28 +853,6 @@ describe('loadBreakdown (renderHiddenFacet edge cases)', () => {
   });
 });
 
-describe('canUseFacetTable (highCardinality)', () => {
-  beforeEach(() => {
-    state.hostFilter = '';
-    state.filters = [];
-    state.additionalWhereClause = '';
-  });
-
-  it('returns false for highCardinality facets', () => {
-    const b = {
-      id: 'breakdown-hosts', col: '`request.host`', facetName: 'host', highCardinality: true,
-    };
-    assert.isFalse(canUseFacetTable(b));
-  });
-
-  it('returns true for count mode with modeToggle', () => {
-    state.contentTypeMode = 'count';
-    const b = {
-      id: 'breakdown-content-types', col: 'x', facetName: 'content_type', modeToggle: 'contentTypeMode',
-    };
-    assert.isTrue(canUseFacetTable(b));
-  });
-});
 describe('isPreviewActive', () => {
   it('returns false initially', () => {
     assert.isFalse(isPreviewActive());

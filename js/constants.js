@@ -23,7 +23,7 @@
  */
 
 /** @type {string[]} */
-export const TIME_RANGE_ORDER = ['15m', '1h', '12h', '24h', '7d'];
+export const TIME_RANGE_ORDER = ['15m', '1h', '12h', '24h', '3d', '7d'];
 
 /** @type {Record<string, TimeRangeDefinition>} */
 export const TIME_RANGES = {
@@ -62,6 +62,15 @@ export const TIME_RANGES = {
     step: 'INTERVAL 5 MINUTE',
     periodMs: 24 * 60 * 60 * 1000,
     cacheTtl: 900,
+  },
+  '3d': {
+    label: 'Last 3 days',
+    shortLabel: '3d',
+    interval: 'INTERVAL 3 DAY',
+    bucket: 'toStartOfInterval(timestamp, INTERVAL 30 MINUTE)',
+    step: 'INTERVAL 30 MINUTE',
+    periodMs: 3 * 24 * 60 * 60 * 1000,
+    cacheTtl: 1800,
   },
   '7d': {
     label: 'Last 7 days',

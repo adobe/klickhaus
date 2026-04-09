@@ -11,7 +11,12 @@
  */
 import { assert } from 'chai';
 import {
-  formatNumber, formatBytes, formatBytesCompact, formatPercent, formatQueryTime,
+  formatNumber,
+  formatBytes,
+  formatBytesCompact,
+  formatPercent,
+  formatQueryTime,
+  formatFacetHeaderPercent,
 } from './format.js';
 
 describe('formatNumber', () => {
@@ -110,6 +115,22 @@ describe('formatPercent', () => {
     const result = formatPercent(100, 100);
     assert.strictEqual(result.text, '+0.0%');
     assert.strictEqual(result.className, 'positive');
+  });
+});
+
+describe('formatFacetHeaderPercent', () => {
+  it('uses three significant digits', () => {
+    assert.strictEqual(formatFacetHeaderPercent(20), '20.0');
+    assert.strictEqual(formatFacetHeaderPercent(20.55), '20.6');
+  });
+
+  it('allows at most five digits after the decimal', () => {
+    assert.strictEqual(formatFacetHeaderPercent(0.0123456), '0.0123');
+    assert.strictEqual(formatFacetHeaderPercent(0.000012345), '0.00001');
+  });
+
+  it('formats zero with three significant digits', () => {
+    assert.strictEqual(formatFacetHeaderPercent(0), '0.00');
   });
 });
 

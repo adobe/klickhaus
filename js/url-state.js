@@ -227,11 +227,11 @@ export function syncUIFromState() {
   if (state.showLogs) {
     elements.logsView.classList.add('visible');
     elements.filtersView.classList.remove('visible');
-    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    elements.viewToggleBtn.title = 'View Filters';
   } else {
     elements.logsView.classList.remove('visible');
     elements.filtersView.classList.add('visible');
-    elements.viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
+    elements.viewToggleBtn.title = 'View Logs';
   }
 
   // Apply hidden controls from URL

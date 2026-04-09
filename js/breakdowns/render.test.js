@@ -372,7 +372,7 @@ describe('renderBreakdownTable', () => {
     );
     assert.include(card.innerHTML, 'mode-toggle');
     assert.include(card.innerHTML, 'summary-metric');
-    assert.include(card.innerHTML, '20%');
+    assert.include(card.innerHTML, '20.0%');
   });
 
   it('renders pinned facet title in speed indicator', () => {

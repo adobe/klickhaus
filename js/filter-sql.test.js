@@ -83,6 +83,14 @@ describe('getAllowedColumns', () => {
     assert.ok(cols.has('`client.asn`'));
     assert.ok(cols.has('`response.headers.x_error`'));
   });
+
+  it('contains evaluated multiIf expressions for bucketed facets', () => {
+    const cols = getAllowedColumns();
+    // Bucketed facets (content-length, time-elapsed) have function cols —
+    // all topN variants must be in the allowlist so bucket filters are accepted
+    const hasSomeMultiIf = [...cols].some((c) => c.startsWith('multiIf('));
+    assert.ok(hasSomeMultiIf, 'allowlist should include multiIf expressions from bucketed facets');
+  });
 });
 
 describe('isValidFilterColumn', () => {

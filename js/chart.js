@@ -266,9 +266,13 @@ export function renderChart(data) {
   setShipPositions(null);
   hideReleaseTooltip();
 
+  const sumRow = (row) => (row.cnt_ok || 0) + (row.cnt_4xx || 0) + (row.cnt_5xx || 0);
+  const totalEl = document.getElementById('totalCount');
+  const totalReqs = data.reduce((sum, row) => sum + sumRow(row), 0);
+  if (totalEl) totalEl.textContent = formatNumber(Math.round(totalReqs));
+
   const { ctx, rect } = initChartCanvas();
-  const { width } = rect;
-  const { height } = rect;
+  const { width, height } = rect;
   const padding = {
     top: 20, right: 0, bottom: 40, left: 0,
   };
@@ -962,11 +966,10 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
 
   const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
-
   const base = state.additionalWhereClause || '';
-  const needsDedup = samplingOverride && !samplingOverride.sampleClause;
-  const dedupSuffix = needsDedup ? '\n  AND sample_hash >= 0' : '';
-  const additionalWhere = (base || needsDedup) ? `${base} ${dedupSuffix}`.trim() : '';
+  const needsDedup = state.supportsSampleHashDedup
+    && samplingOverride && !samplingOverride.sampleClause;
+  const additionalWhere = needsDedup ? `${base}\n  AND sample_hash >= 0`.trim() : base;
 
   const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
   const sql = await loadSql(timeSeriesTemplate, {

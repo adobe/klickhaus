@@ -398,7 +398,7 @@ export async function investigateAnomalies(anomalies, chartData) {
   // Select facets to investigate
   const facetsToInvestigate = getBreakdowns().filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-    'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
+    'breakdown-asn', 'breakdown-datacenters',
     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
 
   // Helper to process a single facet investigation
@@ -641,7 +641,7 @@ export async function investigateTimeRange(selectionStart, selectionEnd, fullSta
   // Select facets to investigate (same as anomaly investigation)
   const facetsToInvestigate = getBreakdowns().filter((b) => ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-paths',
     'breakdown-errors', 'breakdown-user-agents', 'breakdown-ips',
-    'breakdown-asn', 'breakdown-datacenters', 'breakdown-cache',
+    'breakdown-asn', 'breakdown-datacenters',
     'breakdown-content-types', 'breakdown-backend-type'].includes(b.id));
 
   // Create a pseudo-anomaly object for the investigateFacet function
