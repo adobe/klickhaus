@@ -730,11 +730,6 @@ describe('syncUIFromState', () => {
       refreshBtn: document.createElement('button'),
       logoutBtn: document.createElement('button'),
     };
-    // viewToggleBtn needs an inner menu-item-label span
-    const labelSpan = document.createElement('span');
-    labelSpan.className = 'menu-item-label';
-    mockElements.viewToggleBtn.appendChild(labelSpan);
-
     setUrlStateElements(mockElements);
 
     // Create dashboard title element in DOM
@@ -800,10 +795,7 @@ describe('syncUIFromState', () => {
     syncUIFromState();
     assert.isTrue(mockElements.logsView.classList.contains('visible'));
     assert.isFalse(mockElements.filtersView.classList.contains('visible'));
-    assert.strictEqual(
-      mockElements.viewToggleBtn.querySelector('.menu-item-label').textContent,
-      'View Filters',
-    );
+    assert.strictEqual(mockElements.viewToggleBtn.title, 'View Filters');
   });
 
   it('shows filters view when showLogs is false', () => {
@@ -811,10 +803,7 @@ describe('syncUIFromState', () => {
     syncUIFromState();
     assert.isFalse(mockElements.logsView.classList.contains('visible'));
     assert.isTrue(mockElements.filtersView.classList.contains('visible'));
-    assert.strictEqual(
-      mockElements.viewToggleBtn.querySelector('.menu-item-label').textContent,
-      'View Logs',
-    );
+    assert.strictEqual(mockElements.viewToggleBtn.title, 'View Logs');
   });
 
   it('hides controls based on hiddenControls', () => {

@@ -12,16 +12,16 @@
 import { initDashboard } from './dashboard-init.js';
 
 const DEFAULT_HIDDEN_FACETS = [
-  'breakdown-source',
-  'breakdown-user-agents',
-  'breakdown-ips',
-  'breakdown-methods',
-  'breakdown-datacenters',
-  'breakdown-accept-encoding',
-  'breakdown-content-length',
+  'breakdown-subsystem',
+  'breakdown-forwarded-hosts',
+  'breakdown-content-types',
   'breakdown-location',
+  'breakdown-cdn-version',
+  'breakdown-accept-encoding',
+  'breakdown-datacenters',
+  'breakdown-methods',
   'breakdown-content-encoding',
-  'breakdown-time-elapsed',
+  'breakdown-ips',
 ];
 
 initDashboard({

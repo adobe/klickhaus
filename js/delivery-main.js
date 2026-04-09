@@ -18,22 +18,13 @@ const EXCLUDED_DELIVERY_HOSTS = [
 ];
 
 const DEFAULT_HIDDEN_FACETS = [
-  'breakdown-content-types',
-  'breakdown-status',
-
-  'breakdown-referers',
-  'breakdown-ips',
-  'breakdown-request-type',
-  'breakdown-methods',
-  'breakdown-datacenters',
-  'breakdown-asn',
   'breakdown-accept-encoding',
-  'breakdown-push-invalidation',
-  'breakdown-content-length',
-  'breakdown-location',
   'breakdown-content-encoding',
+  'breakdown-content-types',
+  'breakdown-cdn-version',
+  'breakdown-delivery-ratelimit-rate',
+  'breakdown-location',
   'breakdown-surrogate-key',
-  'breakdown-time-elapsed',
 ];
 
 const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');

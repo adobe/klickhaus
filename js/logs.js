@@ -498,7 +498,7 @@ export function toggleLogsView(saveStateToURL) {
   if (state.showLogs) {
     logsView.classList.add('visible');
     filtersView.classList.remove('visible');
-    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Filters';
+    viewToggleBtn.title = 'View Filters';
     // Load logs if not already loaded
     if (onShowLogsView && !state.logsReady) {
       requestAnimationFrame(() => onShowLogsView());
@@ -506,7 +506,7 @@ export function toggleLogsView(saveStateToURL) {
   } else {
     logsView.classList.remove('visible');
     filtersView.classList.add('visible');
-    viewToggleBtn.querySelector('.menu-item-label').textContent = 'View Logs';
+    viewToggleBtn.title = 'View Logs';
     // Redraw chart after view becomes visible
     if (onShowFiltersView) {
       requestAnimationFrame(() => onShowFiltersView());

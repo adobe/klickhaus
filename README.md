@@ -65,16 +65,16 @@ Click the "copy" button on any facet header to copy its data as TSV. Paste direc
 The dashboard state can be controlled via URL parameters for bookmarking and sharing:
 
 
-| Parameter | Description                                      | Example                                                                     |
-| --------- | ------------------------------------------------ | --------------------------------------------------------------------------- |
-| `t`       | Time range: `15m`, `1h`, `12h`, `24h`, `7d`      | `?t=24h`                                                                    |
-| `n`       | Top N facet values: `5`, `10`, `20`, `50`, `100` | `?n=20`                                                                     |
-| `host`    | Filter by host (substring match)                 | `?host=example.com`                                                         |
-| `view`    | View mode: `logs` for logs table                 | `?view=logs`                                                                |
-| `ts`      | Query timestamp (ISO 8601)                       | `?ts=2025-01-15T12:00:00Z`                                                  |
-| `filters` | Facet filters (JSON array)                       | `?filters=[{"col":"\`request.host","value":"example.com","exclude":false}]` |
-| `pinned`  | Pinned log columns (comma-separated)             | `?pinned=timestamp,response.status,request.url`                             |
-| `hide`    | Hide UI controls (comma-separated)               | `?hide=timeRange,topN,logout`                                               |
+| Parameter | Description                                       | Example                                                                     |
+| --------- | ------------------------------------------------- | --------------------------------------------------------------------------- |
+| `t`       | Time range: `15m`, `1h`, `12h`, `24h`, `3d`, `7d` | `?t=24h`                                                                    |
+| `n`       | Top N facet values: `5`, `10`, `20`, `50`, `100`  | `?n=20`                                                                     |
+| `host`    | Filter by host (substring match)                  | `?host=example.com`                                                         |
+| `view`    | View mode: `logs` for logs table                  | `?view=logs`                                                                |
+| `ts`      | Query timestamp (ISO 8601)                        | `?ts=2025-01-15T12:00:00Z`                                                  |
+| `filters` | Facet filters (JSON array)                        | `?filters=[{"col":"\`request.host","value":"example.com","exclude":false}]` |
+| `pinned`  | Pinned log columns (comma-separated)              | `?pinned=timestamp,response.status,request.url`                             |
+| `hide`    | Hide UI controls (comma-separated)                | `?hide=timeRange,topN,logout`                                               |
 
 
 ### Hide Parameter Options
