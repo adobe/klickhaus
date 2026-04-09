@@ -22,7 +22,7 @@
     "chai": "^6.2.2",
     "husky": "^9.1.7",
     "jscpd": "^4.0.5",
-    "knip": "^5.82.1",
+    "knip": "^6.0.0",
     "lint-staged": "^16.2.7",
     "live-server": "^1.2.2",
     "puppeteer-core": "24.40.0"
