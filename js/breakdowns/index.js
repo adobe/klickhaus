@@ -11,7 +11,9 @@
  */
 import { DATABASE } from '../config.js';
 import { state } from '../state.js';
-import { query, getQueryErrorDetails, isAbortError } from '../api.js';
+import {
+  query, getQueryErrorDetails, isAbortError, setSignalQueryGroup, getSignalQueryGroup,
+} from '../api.js';
 import {
   startRequestContext, getRequestContext, isRequestCurrent, mergeAbortSignals,
 } from '../request-context.js';
@@ -214,6 +216,13 @@ function createRequestStatus(requestContext) {
   const globalContext = getRequestContext('facets');
   const activeContext = requestContext || globalContext;
   const combinedSignal = mergeAbortSignals([activeContext.signal, globalContext.signal]);
+  // AbortSignal.any() returns a new native signal that loses WeakMap associations,
+  // so explicitly propagate the query group to the merged signal
+  const group = getSignalQueryGroup(activeContext.signal)
+    || getSignalQueryGroup(globalContext.signal);
+  if (group && combinedSignal) {
+    setSignalQueryGroup(combinedSignal, group);
+  }
   const isCurrent = () => isRequestCurrent(activeContext.requestId, activeContext.scope)
     && isRequestCurrent(globalContext.requestId, globalContext.scope);
   return { isCurrent, signal: combinedSignal };

@@ -41,6 +41,10 @@ const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total
 
 // Approx-top template: like BREAKDOWN_SQL_TEMPLATE but without {{orderBy}} (hardcodes cnt DESC)
 const APPROX_TOP_SQL_TEMPLATE = BREAKDOWN_SQL_TEMPLATE.replace('{{orderBy}}', 'cnt DESC');
+
+// Filter helper: extract only ClickHouse data query POSTs (exclude KILL QUERY calls)
+const queryPosts = (calls) => calls.filter((c) => c.options?.method === 'POST' && c.options?.body?.includes('FORMAT JSON'));
+
 // Create a mock fetch that returns SQL templates and ClickHouse query results.
 function createMockFetch(queryResponse = {
   data: [{
@@ -53,7 +57,6 @@ function createMockFetch(queryResponse = {
   const calls = [];
   const mockFetch = async (url, options) => {
     calls.push({ url, options });
-    // SQL template requests (GET)
     if (typeof url === 'string' && url.endsWith('.sql')) {
       let template = BREAKDOWN_SQL_TEMPLATE;
       if (url.includes('breakdown-facet.sql')) template = FACET_SQL_TEMPLATE;
@@ -61,12 +64,8 @@ function createMockFetch(queryResponse = {
       else if (url.includes('breakdown-approx-top.sql')) template = APPROX_TOP_SQL_TEMPLATE;
       return { ok: true, text: async () => template };
     }
-    // ClickHouse API POST requests
     if (options && options.method === 'POST') {
-      return {
-        ok: true,
-        json: async () => ({ ...queryResponse, networkTime: 42 }),
-      };
+      return { ok: true, json: async () => ({ ...queryResponse, networkTime: 42 }) };
     }
     return { ok: false, status: 404 };
   };
@@ -393,7 +392,7 @@ describe('loadBreakdown (facet table path)', () => {
     assert.ok(sqlCalls.some((c) => c.url.includes('breakdown-facet.sql')), 'should use facet template');
 
     // Should have posted a query
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should execute query');
 
     // Card should contain rendered table content
@@ -498,7 +497,7 @@ describe('loadBreakdown (raw table path)', () => {
     await loadBreakdown(b, '1=1', '', ctx);
 
     // Verify query uses raw table (cdn_requests_v2, not cdn_facet_minutes)
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, 'cdn_requests_v2', 'should query raw table');
@@ -515,7 +514,7 @@ describe('loadBreakdown (raw table path)', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx);
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, 'cdn_requests_v2', 'should query raw table for high-cardinality');
@@ -533,7 +532,7 @@ describe('loadBreakdown (raw table path)', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx);
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, 'cdn_requests_v2', 'should query raw table');
@@ -552,7 +551,7 @@ describe('loadBreakdown (raw table path)', () => {
     await loadBreakdown(b, '1=1', '', ctx);
 
     // Verify it used raw table (bytes mode disables facet table)
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0);
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, 'cdn_requests_v2', 'should query raw table in bytes mode');
@@ -803,7 +802,7 @@ describe('loadBreakdown (custom aggregations)', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx);
 
-    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    const queryCalls = queryPosts(calls);
     assert.isAbove(queryCalls.length, 0);
     const queryBody = queryCalls[0].options.body;
     assert.include(queryBody, "countIf(`level` = 'INFO')", 'should use custom aggOk');
@@ -957,7 +956,7 @@ describe('gradual refinement', () => {
     window.fetch = mockFetch;
     const ctx = startRequestContext('facets');
     await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    const { body } = queryPosts(calls)[0].options;
     assert.notInclude(body, 'SAMPLE');
     assert.include(body, 'sample_hash >= 0');
   });
@@ -967,7 +966,7 @@ describe('gradual refinement', () => {
     window.fetch = mockFetch;
     const ctx = startRequestContext('facets');
     await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: 'SAMPLE 0.5', multiplier: 2 });
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    const { body } = queryPosts(calls)[0].options;
     assert.include(body, 'SAMPLE 0.5');
     assert.notInclude(body, 'sample_hash');
   });
@@ -977,7 +976,7 @@ describe('gradual refinement', () => {
     const { fetch: mockFetch, calls } = createMockFetch();
     window.fetch = mockFetch;
     await loadAllBreakdownsRefined(startRequestContext('facets'));
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    const { body } = queryPosts(calls)[0].options;
     assert.include(body, 'sample_hash >= 0');
   });
 
@@ -986,7 +985,7 @@ describe('gradual refinement', () => {
     const { fetch: mockFetch, calls } = createMockFetch();
     window.fetch = mockFetch;
     await loadAllBreakdownsRefined(startRequestContext('facets'));
-    assert.strictEqual(calls.filter((c) => c.options?.method === 'POST').length, 0);
+    assert.strictEqual(queryPosts(calls).length, 0);
   });
 
   it('includes facet filters in approx-top SQL', async () => {
@@ -995,6 +994,6 @@ describe('gradual refinement', () => {
     window.fetch = mockFetch;
     await loadBreakdown({ id: refId, col: '`request.host`', highCardinality: true }, '1=1', '', startRequestContext('facets'), { sampleClause: '', multiplier: 1 });
     assert.ok(calls.some((c) => c.url?.includes('breakdown-approx-top.sql')), 'should use approx-top template');
-    assert.include(calls.filter((c) => c.options?.method === 'POST')[0].options.body, "`request.method` = 'GET'", 'approx-top SQL should include facet filter');
+    assert.include(queryPosts(calls)[0].options.body, "`request.method` = 'GET'", 'approx-top SQL should include facet filter');
   });
 });
