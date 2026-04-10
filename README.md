@@ -47,7 +47,7 @@ Both CDN sources use direct HTTP logging to ClickHouse with async inserts for hi
 
 ### General Dashboard
 
-1. Open `dashboard.html` in a browser (or visit [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/), fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/))
+1. Open the home page at [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/) (fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/))
 2. Log in with your ClickHouse credentials
 3. Use the time range selector and host filter to narrow down results
 4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
