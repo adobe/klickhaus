@@ -42,12 +42,7 @@ The ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inse
 
 ## Usage
 
-### General Dashboard
-
-1. Open the home page at [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/) (fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/))
-2. Log in with your ClickHouse credentials
-3. Use the time range selector and host filter to narrow down results
-4. Click on any breakdown value to filter, or use the "Exclude" button to exclude it
+Open [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/) (fallback: [maisonclic.aemstatus.net](https://maisonclic.aemstatus.net/)), log in with your ClickHouse credentials, then use the time range selector and host filter to narrow down results. Click any breakdown value to filter, or use "Exclude" to exclude it.
 
 ### Delivery Dashboard
 
