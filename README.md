@@ -51,7 +51,21 @@ The ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inse
 
 ### Delivery Dashboard
 
-A focused dashboard for core delivery monitoring is available at `delivery.html`. It excludes backend, admin, RUM, and docs services (15 hosts) via hard-coded SQL filters, showing only user-facing delivery traffic. All main dashboard facets are available; a curated subset is shown by default. See `js/delivery-main.js` for the exclusion list.
+`delivery.html` — queries the `delivery` table, which contains edge CDN requests from:
+- **Fastly**: `*.aem.live`, `*.aem.page`, `*.aem-fastly.live`, `*.aem-fastly.page`
+- **Cloudflare**: `*.aem.live`, `*.aem.page`, `*.aem-cloudflare.live`, `*.aem-cloudflare.page`
+
+### Admin Dashboard
+
+`admin.html` — queries the `admin` table, which contains logs from two Fastly services:
+- `admin.hlx.page`
+- `api.aem.live`
+
+### Backend Dashboard
+
+`backend.html` — queries the `backend` table, which contains logs from:
+- **Fastly**: `config.aem.page`, `config.aem-fastly.page`, `pipeline.aem-fastly.page`, `static.aem-fastly.page`, `media.aem-fastly.page`
+- **Cloudflare**: `config.aem.page`, `config.aem-cloudflare.page`
 
 ### Copy Facet Data
 
