@@ -49,7 +49,7 @@ jobs:
         run: rm -f /tmp/gcp-key.json
 
       - name: Create GitHub deployment
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         id: deployment
         with:
           script: |
@@ -79,7 +79,7 @@ jobs:
             });
 
       - name: Post or update PR comment
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -141,7 +141,7 @@ jobs:
         run: rm -f /tmp/gcp-key.json
 
       - name: Deactivate GitHub deployment
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -164,7 +164,7 @@ jobs:
             }
 
       - name: Update PR comment (preview removed)
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
