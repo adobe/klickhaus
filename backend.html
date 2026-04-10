@@ -84,6 +84,13 @@
             <line x1="15" y1="9" x2="7" y2="9"/>
           </svg>
         </button>
+        <button id="moreBtn" class="menu-btn" title="More actions">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.5"/>
+            <circle cx="10" cy="10" r="1.5"/>
+            <circle cx="10" cy="16" r="1.5"/>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -211,6 +218,22 @@
       <button class="modal-close" data-action="close-quick-links">&times;</button>
     </div>
     <iframe id="quickLinksFrame" src="index.html"></iframe>
+  </dialog>
+
+  <!-- More Actions Menu -->
+  <dialog id="moreMenu" class="dropdown-menu">
+    <button class="menu-item" id="moreViewToggleItem">
+      <span class="menu-item-label">View Logs</span>
+      <kbd class="menu-item-kbd">t</kbd>
+    </button>
+    <button class="menu-item" id="moreRefreshItem">
+      <span class="menu-item-label">Refresh</span>
+      <kbd class="menu-item-kbd">r</kbd>
+    </button>
+    <div class="menu-divider"></div>
+    <button class="menu-item" id="moreLogoutItem">
+      <span class="menu-item-label">Logout</span>
+    </button>
   </dialog>
 
   <!-- Keyboard Help Dialog -->

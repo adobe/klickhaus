@@ -74,6 +74,10 @@ header h1 {
   display: none;
 }
 
+#moreBtn {
+  display: none;
+}
+
 @media (max-width: 600px) {
   header h1 {
     display: none;
@@ -88,7 +92,9 @@ header h1 {
     font-size: 16px;
   }
 
-  #refreshBtn {
+  #viewToggleBtn,
+  #refreshBtn,
+  #logoutBtn {
     display: none;
   }
 
@@ -106,7 +112,7 @@ header h1 {
   #menuBtn { order: 1; }
   #hostFilter { order: 2; flex: 1; min-width: 0; width: auto; }
   #timeRange { order: 3; flex: 1; min-width: 0; width: auto; }
-  #moreBtn { order: 4; }
+  #moreBtn { order: 4; display: flex; }
 
   /* Hide these on mobile */
   #topN,
