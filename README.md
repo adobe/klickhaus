@@ -59,7 +59,7 @@ Open [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/) (fallback: [mai
 ### Backend Dashboard
 
 `backend.html` — queries the `backend` table, which contains logs from:
-- **Fastly**: `config.aem.page`, `config.aem-fastly.page`, `pipeline.aem-fastly.page`, `static.aem-fastly.page`, `media.aem-fastly.page`
+- **Fastly**: `config.aem.page`, `config.aem-fastly.page`, `pipeline.aem.page`, `pipeline.aem-fastly.page`, `static.aem.page`, `static.aem-fastly.page`, `media.aem.page`, `media.aem-fastly.page`
 - **Cloudflare**: `config.aem.page`, `config.aem-cloudflare.page`
 
 ### Copy Facet Data
