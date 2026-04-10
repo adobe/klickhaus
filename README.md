@@ -26,22 +26,19 @@ A real-time analytics dashboard for CDN log analysis, built with ClickHouse and 
 
 ## Architecture
 
-The dashboard queries a ClickHouse database containing unified CDN logs from Cloudflare and Fastly:
+CDN logs from Cloudflare and Fastly are shipped to a GCS bucket and ingested into ClickHouse by a Cloud Run service:
 
 ```
-Cloudflare Logpush ──► cloudflare_http_requests (1-day TTL)
-                              │
-                    cloudflare_http_ingestion (MV)
-                              │
-                              ▼
-                     cdn_requests_v2 (2-week TTL)
-                              ▲
-                    fastly_ingestion (MV)
-                              │
-Fastly HTTP Logging ─► fastly_logs_incoming2 (1-day TTL)1
+Cloudflare ──► gs://helix-logs/cloudflare/ ─┐
+                                             ├─► Pub/Sub ──► Cloud Run (helix-gcs2clickhouse-ingestor)
+Fastly ──────► gs://helix-logs/fastly/ ──────┘                    │
+                                                        ┌──────────┼───────────┐
+                                                        ▼          ▼           ▼
+                                                    delivery    admin       backend
+                                                  + delivery_errors
 ```
 
-Both CDN sources use direct HTTP logging to ClickHouse with async inserts for high-throughput ingestion.
+The ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inserts into four ClickHouse tables. Source: [helix-gcs2clickhouse-ingestor](https://github.com/adobe/helix-gcs2clickhouse-ingestor).
 
 ## Usage
 
@@ -119,7 +116,7 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users receive read-only access (`SELECT` on `cdn_requests_v2`).
+New users receive read-only `SELECT` access to the analytics tables (`delivery`, `delivery_errors`, `admin`, `backend`).
 
 ## Local Development
 
@@ -139,8 +136,16 @@ clickhouse client --host s2p5b8wmt5.eastus2.azure.clickhouse.cloud \
 
 ## Data Schema
 
-The primary table `cdn_requests_v2` includes:
+Four ClickHouse tables in `helix_logs_production`, all `SharedMergeTree`, partitioned by day, 2-week TTL:
 
+| Table | Contents | Sampling |
+|-------|----------|----------|
+| `delivery` | All edge CDN requests (`cdn.is_edge = true`) from Fastly and Cloudflare | Yes (`weight` column) |
+| `delivery_errors` | Subset of `delivery` — only `response.status >= 500`, never sampled | No |
+| `admin` | Fastly admin service logs (`admin.hlx.page`, `api.aem.live`) | No |
+| `backend` | Fastly and Cloudflare backend/subrequest logs | Yes (`weight` column) |
+
+Common columns across all tables:
 
 | Column Group | Examples                                                      |
 | ------------ | ------------------------------------------------------------- |
@@ -151,139 +156,47 @@ The primary table `cdn_requests_v2` includes:
 | Response     | `response.status`, `response.body_size`, `response.headers.*` |
 | Helix        | `helix.request_type`, `helix.backend_type`                    |
 
+Sampling is controlled by `gs://helix-logs/sampling.json` (cached 5 min). The algorithm hashes `timestamp_ms + ":" + cdn.originating_ip` and keeps rows where `hash % rate === 0`, setting `weight` to the rate on kept rows.
+
 
 ## Runbook
 
-### No data in dashboard (Cloudflare Logpush disabled)
+### No data in dashboard
 
-**Symptoms:**
-
-- Dashboard shows no data or stale data
-- `cloudflare_http_requests` table is empty (1-day TTL expires old data)
-- `cdn_requests_v2` has no recent rows
-
-**Cause:**
-Cloudflare Logpush jobs auto-disable after repeated delivery failures (e.g., ClickHouse instance was stopped, ran out of credits, or network issues).
+**Symptoms:** Dashboard shows no data or stale data.
 
 **Diagnosis:**
 
 ```bash
-# Check if source tables have recent data
-clickhouse client ... --query "
-  SELECT count(), max(EdgeStartTimestamp)
-  FROM helix_logs_production.cloudflare_http_requests"
-
-# Check Logpush job status via Cloudflare API
-curl -s "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs" \
-  -H "Authorization: Bearer <api_token>" | jq '.result[] | {id, name, enabled, last_complete, last_error, error_message}'
+# Check recent rows in the delivery table
+clickhouse client --host s2p5b8wmt5.eastus2.azure.clickhouse.cloud \
+  --user default --password '<password>' --secure \
+  --query "SELECT count(), max(timestamp) FROM helix_logs_production.delivery
+           WHERE timestamp > now() - INTERVAL 1 HOUR"
 ```
 
-Look for `"enabled": false` and `error_message` containing delivery errors.
+If `delivery` has no recent rows, check the GCS ingestor:
+- Verify Cloud Run service `helix-gcs2clickhouse-ingestor` is running (GCP project `helix-225321`)
+- Check Cloud Run logs for errors: `gcloud run services logs read helix-gcs2clickhouse-ingestor --region us-west1`
+- Verify new files are appearing in `gs://helix-logs/` (Fastly/Cloudflare should be uploading continuously)
+- Check that the Pub/Sub subscription `helix-logs-ingestor-sub` has no undelivered message backlog
 
-**Resolution:**
-
-1. Ensure ClickHouse instance is running and accessible
-2. Re-enable each Logpush job:
-
-```bash
-curl -X PUT "https://api.cloudflare.com/client/v4/zones/<zone_id>/logpush/jobs/<job_id>" \
-  -H "Authorization: Bearer <api_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"enabled": true}'
-```
-
-1. Repeat for all zones (aem.live, aem.page, aem-cloudflare.live, aem-cloudflare.page, aem.network, da.live)
-2. Verify data flow: check `last_complete` updates and rows appear in ClickHouse
-
-**API Token Requirements:**
-Create a Cloudflare API token with **Zone → Logs → Edit** permission for all relevant zones.
+Processing errors are written to `gs://helix-logs/ingestion-errors/YYYYMMDD/`.
 
 ### ClickHouse memory limit exceeded (OOM errors)
 
-**Symptoms:**
-
-- Dashboard queries fail with `MEMORY_LIMIT_EXCEEDED` errors
-- Error message shows memory usage near or exceeding the limit (e.g., "would use 30.99 GiB, maximum: 28.80 GiB")
-- Queries against `system.query_log` or `system.asynchronous_metric_log` also fail
-
-**Cause:**
-High-volume Fastly log ingestion combined with dashboard queries and ClickHouse Cloud internal monitoring can exceed available memory. With 9 Fastly services sending logs every 5 seconds, memory pressure builds from concurrent INSERT operations.
+**Symptoms:** Dashboard queries fail with `MEMORY_LIMIT_EXCEEDED`.
 
 **Diagnosis:**
 
 ```bash
-# Check current memory usage
 clickhouse client ... --query "
   SELECT metric, round(value / 1024 / 1024 / 1024, 2) as gb
   FROM system.asynchronous_metrics
   WHERE metric IN ('CGroupMemoryTotal', 'CGroupMemoryUsed', 'MemoryResident')"
-
-# Check memory trend over time
-clickhouse client ... --query "
-  SELECT toStartOfMinute(event_time) as minute,
-         round(max(CurrentMetric_MemoryTracking) / 1024/1024/1024, 2) as max_mem_gb
-  FROM system.metric_log
-  WHERE event_time > now() - INTERVAL 30 MINUTE
-  GROUP BY minute ORDER BY minute"
-
-# Check INSERT volume by table
-clickhouse client ... --query "
-  SELECT substring(query, position(query, 'helix_logs_production.') + 22, 40) as tbl,
-         count() as inserts,
-         round(avg(written_rows), 0) as avg_rows
-  FROM system.query_log
-  WHERE event_time > now() - INTERVAL 30 MINUTE
-    AND type = 'QueryFinish'
-    AND query LIKE 'INSERT INTO helix_logs_production.%'
-    AND written_rows > 0
-  GROUP BY tbl ORDER BY inserts DESC
-  SETTINGS max_memory_usage = 500000000"
 ```
 
-**Resolution options (in order of impact):**
-
-1. **Increase ClickHouse Cloud memory** (immediate relief):
-  - In ClickHouse Cloud console, increase "Minimum memory per replica"
-  - Recommended: 64 GB for production workloads with high ingestion volume
-2. **Increase Fastly logging batch sizes** (reduce INSERT frequency):
-  ```bash
-   # Clone active version, update logging endpoint, activate
-   # For each service, increase max_entries and max_bytes:
-   curl -X PUT -H "Fastly-Key: $FASTLY_TOKEN" \
-     "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/logging/https/Clickhouse" \
-     -d '{"request_max_entries": 100000, "request_max_bytes": 50000000}'
-  ```
-  - `request_max_entries`: 10,000 → 100,000 (10x)
-  - `request_max_bytes`: 5 MB → 50 MB (10x)
-3. **Increase Fastly logging period** (fewer flushes per POP):
-  ```bash
-   curl -X PUT -H "Fastly-Key: $FASTLY_TOKEN" \
-     "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/logging/https/Clickhouse" \
-     -d '{"period": 60}'
-  ```
-  - `period`: 5 → 60 seconds (logs delayed up to 60s)
-  - Trade-off: increased latency before logs appear in ClickHouse
-
-**Fastly services with ClickHouse logging:**
-
-
-| Service       | Service ID             | Domain                              |
-| ------------- | ---------------------- | ----------------------------------- |
-| helix5 (main) | In8SInYz3UQGjyG0GPZM42 | *.aem.page, *.aem.live              |
-| config        | SIDuP3HxleUgBDR3Gi8T24 | config.aem.page                     |
-| admin         | 6a6O21m8WoIIVg5cliw7BW | admin.aem.page                      |
-| www           | 00QRLuuAsVNvsKgNWYVCbb | [www.aem.live](http://www.aem.live) |
-| API           | s2dVksBUsvEKaaYF13wIh6 | api.aem.live                        |
-| form          | UDBDj4zfyNdZEpZApUqhL3 | form.aem.page                       |
-| pipeline      | cHpjIl1WNRu9SFyL1eBSj3 | pipeline.aem-fastly.page            |
-| static        | ItVEMJu5q2pJE3ejseo0W6 | static.aem.page                     |
-| media         | atG7Eq66bH88LhbNq7Fqq2 | media.aem-fastly.page               |
-
-
-**ClickHouse HTTP insert limits (for reference):**
-
-- `async_insert_max_data_size`: 100 MB per query
-- `max_insert_block_size`: ~1M rows per block
+**Resolution:** Increase "Minimum memory per replica" in the ClickHouse Cloud console (64 GB recommended for production).
 
 ## License
 
