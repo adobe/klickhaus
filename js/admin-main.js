@@ -35,6 +35,5 @@ initDashboard({
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-backend',
   disableTableSampling: true,
-  supportsSampleHashDedup: false,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

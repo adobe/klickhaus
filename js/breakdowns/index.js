@@ -225,15 +225,8 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, samplingOverr
   };
 }
 
-/**
- * Build the WHERE clause, appending a dedup-defeating condition when
- * a refinement pass overrides sampling to full fidelity (multiplier === 1).
- */
 function buildDedupClause(samplingOverride) {
   const base = state.additionalWhereClause || '';
-  if (!state.supportsSampleHashDedup) {
-    return base;
-  }
   if (!samplingOverride || samplingOverride.multiplier !== 1 || samplingOverride.sampleClause) {
     return base;
   }

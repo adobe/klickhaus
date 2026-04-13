@@ -617,7 +617,7 @@ describe('loadBreakdown (bucketed facets)', () => {
 
     const b = {
       id: bucketId,
-      col: (topN, alias) => `multiIf(${alias || '`cdn.time_elapsed_msec`'} < 100, '0-100ms', '100ms+')`,
+      col: (_topN, alias) => `multiIf(${alias || '`cdn.time_elapsed_msec`'} < 100, '0-100ms', '100ms+')`,
       rawCol: '`cdn.time_elapsed_msec`',
       orderBy: 'min(`cdn.time_elapsed_msec`)',
     };
@@ -649,7 +649,7 @@ describe('loadBreakdown (bucketed facets)', () => {
 
     const b = {
       id: bucketId,
-      col: (topN, alias) => `multiIf(${alias || 'val'} < 100, '0-100ms', '100ms+')`,
+      col: (_topN, alias) => `multiIf(${alias || 'val'} < 100, '0-100ms', '100ms+')`,
       rawCol: '`cdn.time_elapsed_msec`',
       orderBy: 'min(`cdn.time_elapsed_msec`)',
       getExpectedLabels: () => expectedLabels,
@@ -1004,17 +1004,6 @@ describe('gradual refinement', () => {
     const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
     assert.notInclude(body, 'SAMPLE');
     assert.include(body, 'sample_hash >= 0');
-  });
-
-  it('skips dedup clause when supportsSampleHashDedup is false', async () => {
-    state.supportsSampleHashDedup = false;
-    const { fetch: mockFetch, calls } = createMockFetch();
-    window.fetch = mockFetch;
-    const ctx = startRequestContext('facets');
-    await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
-    state.supportsSampleHashDedup = true;
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
-    assert.notInclude(body, 'sample_hash');
   });
 
   it('skips dedup clause when override has multiplier > 1', async () => {
