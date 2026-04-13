@@ -46,6 +46,7 @@ export const state = {
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
   applyFilters: null, // Optional filter callback; defaults to compileFilters() SQL compilation
+  seriesLabels: { ok: '2xx', client: '4xx', server: '5xx' }, // Customizable series labels
 };
 
 // Callback for re-rendering logs table when pinned columns change

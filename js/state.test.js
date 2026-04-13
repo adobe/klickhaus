@@ -44,6 +44,10 @@ describe('state', () => {
     assert.strictEqual(state.contentTypeMode, 'count');
   });
 
+  it('has seriesLabels with default 2xx/4xx/5xx values', () => {
+    assert.deepEqual(state.seriesLabels, { ok: '2xx', client: '4xx', server: '5xx' });
+  });
+
   it('has applyFilters defaulting to null', () => {
     assert.isNull(state.applyFilters);
   });
