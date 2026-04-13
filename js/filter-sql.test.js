@@ -41,6 +41,22 @@ describe('compileFilters', () => {
     assert.ok(sql.includes('`client.asn` = 15169'));
     assert.ok(!sql.includes("'15169'"));
   });
+
+  it('uses has() for HAS operator include filter', () => {
+    const filters = [{
+      col: '`response.headers.x_surrogate_key`', value: 'mykey', filterOp: 'HAS', exclude: false,
+    }];
+    const { sql } = compileFilters(filters);
+    assert.ok(sql.includes("has(`response.headers.x_surrogate_key`, 'mykey')"));
+  });
+
+  it('uses NOT has() for HAS operator exclude filter', () => {
+    const filters = [{
+      col: '`response.headers.x_surrogate_key`', value: 'mykey', filterOp: 'HAS', exclude: true,
+    }];
+    const { sql } = compileFilters(filters);
+    assert.ok(sql.includes("NOT has(`response.headers.x_surrogate_key`, 'mykey')"));
+  });
 });
 
 describe('isFilterSuperset', () => {
@@ -102,7 +118,7 @@ describe('isValidFilterColumn', () => {
 
   it('rejects SQL injection strings', () => {
     assert.strictEqual(isValidFilterColumn('1=1 OR 1=1 --'), false);
-    assert.strictEqual(isValidFilterColumn("'; DROP TABLE cdn_requests_v2; --"), false);
+    assert.strictEqual(isValidFilterColumn("'; DROP TABLE delivery; --"), false);
     assert.strictEqual(isValidFilterColumn('`request.host`; DELETE FROM'), false);
   });
 });

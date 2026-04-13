@@ -248,7 +248,9 @@ describe('query()', () => {
     await query('SELECT   1\n  FROM\ttable');
 
     const { opts } = mockFetch.lastCall;
-    assert.strictEqual(opts.body, 'SELECT 1 FROM table FORMAT JSON');
+    // Horizontal whitespace (spaces/tabs) is collapsed; newlines are preserved
+    // so that -- line comments don't accidentally eat subsequent clauses
+    assert.strictEqual(opts.body, 'SELECT 1\nFROM table FORMAT JSON');
   });
 
   it('uses default cache TTL from TIME_RANGES for current time range', async () => {

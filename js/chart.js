@@ -10,10 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-/**
- * UI plane for chart - handles rendering and event handling.
- * State management and navigation logic are in chart-state.js.
- */
+/** UI plane for chart - rendering and event handling. State management in chart-state.js. */
 
 import { query, isAbortError } from './api.js';
 import {
@@ -25,16 +22,8 @@ import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
-  getHostFilter,
-  getTable,
-  getTimeBucket,
-  getTimeBucketStep,
-  getTimeFilter,
-  getSamplingConfig,
-  setCustomTimeRange,
-  getTimeRangeBounds,
-  getTimeRangeStart,
-  getTimeRangeEnd,
+  getHostFilter, getTable, getTimeBucket, getTimeBucketStep, getTimeFilter, getSamplingConfig,
+  setCustomTimeRange, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
 } from './time.js';
 import { loadSql } from './sql-loader.js';
 import { saveStateToURL } from './url-state.js';
@@ -43,42 +32,17 @@ import {
 } from './releases.js';
 import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 import {
-  setNavigationCallback,
-  getNavigationCallback,
-  navigateTime,
-  setChartLayout,
-  getChartLayout,
-  setLastChartData,
-  getLastChartData,
-  getDataAtTime,
-  addAnomalyBounds,
-  resetAnomalyBounds,
-  setDetectedSteps,
-  getDetectedSteps,
-  setShipPositions,
-  getShipPositions,
-  setPendingSelection,
-  getPendingSelection,
-  getAnomalyAtX,
-  getTimeAtX,
-  getXAtTime,
-  formatScrubberTime,
-  formatDuration,
-  zoomToAnomalyByRank,
-  getShipNearX,
-  hexToRgba,
-  parseUTC,
+  setNavigationCallback, getNavigationCallback, navigateTime, setChartLayout, getChartLayout,
+  setLastChartData, getLastChartData, getDataAtTime, addAnomalyBounds, resetAnomalyBounds,
+  setDetectedSteps, getDetectedSteps, setShipPositions, getShipPositions, setPendingSelection,
+  getPendingSelection, getAnomalyAtX, getTimeAtX, getXAtTime, formatScrubberTime, formatDuration,
+  zoomToAnomalyByRank, getShipNearX, hexToRgba, parseUTC,
 } from './chart-state.js';
 
 // Re-export state functions for external use
 export {
-  getAnomalyCount,
-  getAnomalyTimeRange,
-  getDetectedAnomalies,
-  getLastChartData,
-  getMostRecentTimeRange,
-  zoomToAnomalyByRank,
-  zoomToAnomaly,
+  getAnomalyCount, getAnomalyTimeRange, getDetectedAnomalies, getLastChartData,
+  getMostRecentTimeRange, zoomToAnomalyByRank, zoomToAnomaly,
 } from './chart-state.js';
 
 // UI elements and drag state
@@ -90,9 +54,7 @@ let isDragging = false;
 let dragStartX = null;
 let justCompletedDrag = false;
 
-/**
- * Initialize canvas for chart rendering
- */
+/** Initialize canvas for chart rendering */
 function initChartCanvas() {
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
@@ -104,9 +66,7 @@ function initChartCanvas() {
   return { canvas, ctx, rect };
 }
 
-/**
- * Draw Y axis with grid lines and labels
- */
+/** Draw Y axis with grid lines and labels */
 function drawYAxis(ctx, chartDimensions, cssVar, minValue, maxValue) {
   const {
     width, height, padding, chartHeight, labelInset,
@@ -130,9 +90,7 @@ function drawYAxis(ctx, chartDimensions, cssVar, minValue, maxValue) {
   }
 }
 
-/**
- * Draw X axis labels
- */
+/** Draw X axis labels */
 function drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intendedTimeRange, cssVar) {
   const {
     width, height, padding, chartWidth, labelInset,
@@ -170,9 +128,7 @@ function drawXAxisLabels(ctx, data, chartDimensions, intendedStartTime, intended
   }
 }
 
-/**
- * Draw anomaly highlight for a detected step
- */
+/** Draw anomaly highlight for a detected step */
 function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stacks) {
   const { height, padding, chartWidth } = chartDimensions;
   const { stackedServer, stackedClient, stackedOk } = stacks;
@@ -212,7 +168,9 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
   ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${0.35 * opacityMultiplier})`;
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y);
+  for (let i = 1; i < points.length; i += 1) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
   ctx.closePath();
   ctx.fill();
 
@@ -238,23 +196,29 @@ function drawAnomalyHighlight(ctx, step, data, chartDimensions, getX, getY, stac
   ctx.fillText(`${step.rank} ${arrow} ${magnitudeLabel}`, (bandLeft + bandRight) / 2, padding.top + 12);
 }
 
-/**
- * Draw a stacked area with line on top
- */
+/** Draw a stacked area with line on top */
 function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
-  if (!topStack.some((v, i) => v > bottomStack[i])) return;
+  if (!topStack.some((v, i) => v > bottomStack[i])) {
+    return;
+  }
 
   ctx.beginPath();
   ctx.moveTo(getX(0), getY(bottomStack[0]));
-  for (let i = 0; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
-  for (let i = data.length - 1; i >= 0; i -= 1) ctx.lineTo(getX(i), getY(bottomStack[i]));
+  for (let i = 0; i < data.length; i += 1) {
+    ctx.lineTo(getX(i), getY(topStack[i]));
+  }
+  for (let i = data.length - 1; i >= 0; i -= 1) {
+    ctx.lineTo(getX(i), getY(bottomStack[i]));
+  }
   ctx.closePath();
   ctx.fillStyle = colors.fill;
   ctx.fill();
 
   ctx.beginPath();
   ctx.moveTo(getX(0), getY(topStack[0]));
-  for (let i = 1; i < data.length; i += 1) ctx.lineTo(getX(i), getY(topStack[i]));
+  for (let i = 1; i < data.length; i += 1) {
+    ctx.lineTo(getX(i), getY(topStack[i]));
+  }
   ctx.strokeStyle = colors.line;
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -269,7 +233,9 @@ export function renderChart(data) {
   const sumRow = (row) => (row.cnt_ok || 0) + (row.cnt_4xx || 0) + (row.cnt_5xx || 0);
   const totalEl = document.getElementById('totalCount');
   const totalReqs = data.reduce((sum, row) => sum + sumRow(row), 0);
-  if (totalEl) totalEl.textContent = formatNumber(Math.round(totalReqs));
+  if (totalEl) {
+    totalEl.textContent = formatNumber(Math.round(totalReqs));
+  }
 
   const { ctx, rect } = initChartCanvas();
   const { width, height } = rect;
@@ -475,7 +441,9 @@ export function setupChartNavigation(callback) {
   // Drag selection helper functions
   function updateSelectionOverlay(startX, endX) {
     const chartLayout = getChartLayout();
-    if (!chartLayout) return;
+    if (!chartLayout) {
+      return;
+    }
     const { padding, height } = chartLayout;
     const left = Math.min(startX, endX);
     const width = Math.abs(endX - startX);
@@ -515,7 +483,9 @@ export function setupChartNavigation(callback) {
       setCustomTimeRange(startTime, endTime);
       saveStateToURL();
       const onNavigate = getNavigationCallback();
-      if (onNavigate) onNavigate();
+      if (onNavigate) {
+        onNavigate();
+      }
     }
   });
 
@@ -528,7 +498,9 @@ export function setupChartNavigation(callback) {
   }, { passive: true });
 
   container.addEventListener('touchend', (e) => {
-    if (touchStartX === null) return;
+    if (touchStartX === null) {
+      return;
+    }
     const touchEndX = e.changedTouches[0].clientX;
     const deltaX = touchEndX - touchStartX;
     touchStartX = null;
@@ -555,36 +527,45 @@ export function setupChartNavigation(callback) {
     }
   }, { passive: true });
 
-  /**
-   * Build value badges HTML for scrubber (2xx/4xx/5xx counts)
-   */
+  /** Build value badges HTML for scrubber (2xx/4xx/5xx counts) */
   function buildValueBadges(time) {
     const dataPoint = getDataAtTime(time);
-    if (!dataPoint) return '';
+    if (!dataPoint) {
+      return '';
+    }
     const ok = parseInt(dataPoint.cnt_ok, 10) || 0;
     const client = parseInt(dataPoint.cnt_4xx, 10) || 0;
     const server = parseInt(dataPoint.cnt_5xx, 10) || 0;
     let html = '';
-    if (ok > 0) html += `<span class="scrubber-value scrubber-value-ok">${formatNumber(ok)}</span>`;
-    if (client > 0) html += `<span class="scrubber-value scrubber-value-4xx">${formatNumber(client)}</span>`;
-    if (server > 0) html += `<span class="scrubber-value scrubber-value-5xx">${formatNumber(server)}</span>`;
+    if (ok > 0) {
+      html += `<span class="scrubber-value scrubber-value-ok">${formatNumber(ok)}</span>`;
+    }
+    if (client > 0) {
+      html += `<span class="scrubber-value scrubber-value-4xx">${formatNumber(client)}</span>`;
+    }
+    if (server > 0) {
+      html += `<span class="scrubber-value scrubber-value-5xx">${formatNumber(server)}</span>`;
+    }
     return html;
   }
 
-  /**
-   * Build anomaly info HTML for scrubber
-   */
+  /** Build anomaly info HTML for scrubber */
   function buildAnomalyInfo(x) {
     const anomaly = getAnomalyAtX(x);
-    if (!anomaly) return null;
+    if (!anomaly) {
+      return null;
+    }
 
     const detectedSteps = getDetectedSteps();
     const step = detectedSteps.find((s) => s.rank === anomaly.rank);
     const duration = formatDuration(anomaly.startTime, anomaly.endTime);
     const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
     let categoryLabel = '2xx';
-    if (step?.category === 'red') categoryLabel = '5xx';
-    else if (step?.category === 'yellow') categoryLabel = '4xx';
+    if (step?.category === 'red') {
+      categoryLabel = '5xx';
+    } else if (step?.category === 'yellow') {
+      categoryLabel = '4xx';
+    }
 
     let magnitudeLabel;
     if (step?.magnitude >= 1) {
@@ -598,12 +579,12 @@ export function setupChartNavigation(callback) {
     return `<span class="scrubber-anomaly scrubber-anomaly-${cat}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`;
   }
 
-  /**
-   * Build release info HTML for scrubber
-   */
+  /** Build release info HTML for scrubber */
   function buildReleaseInfo(x) {
     const ship = getShipNearX(x);
-    if (!ship) return null;
+    if (!ship) {
+      return null;
+    }
 
     const { release } = ship;
     if (release.repo === 'aem-certificate-rotation') {
@@ -614,15 +595,16 @@ export function setupChartNavigation(callback) {
     let releaseType = 'patch';
     if (versionMatch) {
       const [, , minor, patch] = versionMatch;
-      if (minor === '0' && patch === '0') releaseType = 'breaking';
-      else if (patch === '0') releaseType = 'feature';
+      if (minor === '0' && patch === '0') {
+        releaseType = 'breaking';
+      } else if (patch === '0') {
+        releaseType = 'feature';
+      }
     }
     return `<span class="scrubber-release scrubber-release-${releaseType}">Release: ${release.repo} ${release.tag}</span>`;
   }
 
-  /**
-   * Position scrubber status bar inner element with edge easing
-   */
+  /** Position scrubber status bar inner element with edge easing */
   function positionScrubberInner(inner, x, scrubWidth) {
     const innerWidth = inner.offsetWidth;
     const statusPadding = 24;
@@ -667,7 +649,9 @@ export function setupChartNavigation(callback) {
   // Update scrubber position and content
   function updateScrubber(x, _) {
     const chartLayout = getChartLayout();
-    if (!chartLayout) return;
+    if (!chartLayout) {
+      return;
+    }
 
     const { padding, height } = chartLayout;
 
@@ -705,9 +689,13 @@ export function setupChartNavigation(callback) {
     // Row 2: Anomaly and/or release info
     const row2Parts = [];
     const anomalyHtml = buildAnomalyInfo(x);
-    if (anomalyHtml) row2Parts.push(anomalyHtml);
+    if (anomalyHtml) {
+      row2Parts.push(anomalyHtml);
+    }
     const releaseHtml = buildReleaseInfo(x);
-    if (releaseHtml) row2Parts.push(releaseHtml);
+    if (releaseHtml) {
+      row2Parts.push(releaseHtml);
+    }
 
     // Build final content
     let content = `<div class="chart-scrubber-status-row">${row1}</div>`;
@@ -763,7 +751,9 @@ export function setupChartNavigation(callback) {
   // Start drag tracking from a mouse event (works for canvas and nav zones)
   function startDragTracking(e) {
     // Only handle left mouse button
-    if (e.button !== 0) return;
+    if (e.button !== 0) {
+      return;
+    }
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -796,7 +786,9 @@ export function setupChartNavigation(callback) {
 
   // Use container-level mousemove so drag works even when over nav zones
   container.addEventListener('mousemove', (e) => {
-    if (dragStartX === null) return;
+    if (dragStartX === null) {
+      return;
+    }
 
     const chartLayout = getChartLayout();
     const rect = canvas.getBoundingClientRect();
@@ -906,7 +898,9 @@ export function setupChartNavigation(callback) {
 
   // Nav zone click handlers - check for anomaly first, ignore if just completed a drag
   navOverlay.querySelector('.chart-nav-left').addEventListener('click', (e) => {
-    if (justCompletedDrag) return;
+    if (justCompletedDrag) {
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const anomaly = getAnomalyAtX(x);
@@ -918,7 +912,9 @@ export function setupChartNavigation(callback) {
   });
 
   navOverlay.querySelector('.chart-nav-right').addEventListener('click', (e) => {
-    if (justCompletedDrag) return;
+    if (justCompletedDrag) {
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const anomaly = getAnomalyAtX(x);
@@ -967,8 +963,7 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
   const mult = multiplier > 1 ? ` * ${multiplier}` : '';
   const base = state.additionalWhereClause || '';
-  const needsDedup = state.supportsSampleHashDedup
-    && samplingOverride && !samplingOverride.sampleClause;
+  const needsDedup = samplingOverride && !samplingOverride.sampleClause;
   const additionalWhere = needsDedup ? `${base}\n  AND sample_hash >= 0`.trim() : base;
 
   const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
@@ -989,11 +984,15 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
 
   try {
     const result = await query(sql, { signal });
-    if (!isCurrent()) return;
+    if (!isCurrent()) {
+      return;
+    }
     state.chartData = result.data;
     renderChart(result.data);
   } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
+    if (!isCurrent() || isAbortError(err)) {
+      return;
+    }
     // eslint-disable-next-line no-console
     console.error('Chart error:', err);
   }

@@ -16,7 +16,7 @@ import {
   isCustomTimeRange, getCustomTimeRange, customTimeRange,
   getTimeFilter, getTimeBucket, getTimeBucketStep, getPeriodMs,
   getInterval, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
-  getTable, getHostFilter,
+  getTable, getLogsTable, getHostFilter,
   getSamplingConfig, getFacetTimeFilter, zoomOut,
 } from './time.js';
 
@@ -80,14 +80,27 @@ describe('time helpers', () => {
 });
 
 describe('getTable', () => {
-  it('returns cdn_requests_v2 when state.tableName is not set', () => {
+  it('returns delivery when state.tableName is not set', () => {
     state.tableName = null;
-    assert.strictEqual(getTable(), 'cdn_requests_v2');
+    assert.strictEqual(getTable(), 'delivery');
   });
 
   it('returns state.tableName when set', () => {
     state.tableName = 'lambda_logs';
     assert.strictEqual(getTable(), 'lambda_logs');
+  });
+});
+
+describe('getLogsTable', () => {
+  it('returns delivery when neither logsTableName nor tableName is set', () => {
+    state.logsTableName = null;
+    state.tableName = null;
+    assert.strictEqual(getLogsTable(), 'delivery');
+  });
+
+  it('returns logsTableName when set', () => {
+    state.logsTableName = 'lambda_logs';
+    assert.strictEqual(getLogsTable(), 'lambda_logs');
   });
 });
 

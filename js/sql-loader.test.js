@@ -15,8 +15,8 @@ import { interpolate, loadSql, preloadAllTemplates } from './sql-loader.js';
 describe('interpolate', () => {
   it('replaces single placeholder', () => {
     assert.strictEqual(
-      interpolate('SELECT * FROM {{table}}', { table: 'cdn_requests_v2' }),
-      'SELECT * FROM cdn_requests_v2',
+      interpolate('SELECT * FROM {{table}}', { table: 'delivery' }),
+      'SELECT * FROM delivery',
     );
   });
 
@@ -24,10 +24,10 @@ describe('interpolate', () => {
     const result = interpolate(
       'SELECT {{col}} FROM {{db}}.{{table}} WHERE {{filter}}',
       {
-        col: 'host', db: 'helix_logs_production', table: 'cdn_requests_v2', filter: '1=1',
+        col: 'host', db: 'helix_logs_production', table: 'delivery', filter: '1=1',
       },
     );
-    assert.strictEqual(result, 'SELECT host FROM helix_logs_production.cdn_requests_v2 WHERE 1=1');
+    assert.strictEqual(result, 'SELECT host FROM helix_logs_production.delivery WHERE 1=1');
   });
 
   it('replaces repeated placeholders', () => {

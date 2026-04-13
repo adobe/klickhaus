@@ -266,7 +266,7 @@ describe('loadStateFromURL', () => {
     });
 
     it('rejects filter with invalid SQL column', () => {
-      const filters = [{ col: "'; DROP TABLE cdn_requests_v2; --", value: 'x', exclude: false }];
+      const filters = [{ col: "'; DROP TABLE delivery; --", value: 'x', exclude: false }];
       setURL({ filters: JSON.stringify(filters) });
       loadStateFromURL();
       assert.strictEqual(state.filters.length, 0);

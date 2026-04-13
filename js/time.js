@@ -29,7 +29,9 @@ function floorToInterval(date, intervalMs) {
 
 function parseIntervalToMs(interval) {
   const match = interval.match(/INTERVAL\s+(\d+)\s+(\w+)/i);
-  if (!match) return MINUTE_MS;
+  if (!match) {
+    return MINUTE_MS;
+  }
   const amount = parseInt(match[1], 10);
   const unit = match[2].toUpperCase().replace(/S$/, '');
   const multipliers = {
@@ -58,10 +60,18 @@ function getTimeBucketStep() {
   if (timeState.customTimeRange) {
     const durationMs = timeState.customTimeRange.end - timeState.customTimeRange.start;
     const durationMinutes = durationMs / 60000;
-    if (durationMinutes <= 15) return 'INTERVAL 5 SECOND';
-    if (durationMinutes <= 60) return 'INTERVAL 10 SECOND';
-    if (durationMinutes <= 720) return 'INTERVAL 1 MINUTE';
-    if (durationMinutes <= 1440) return 'INTERVAL 5 MINUTE';
+    if (durationMinutes <= 15) {
+      return 'INTERVAL 5 SECOND';
+    }
+    if (durationMinutes <= 60) {
+      return 'INTERVAL 10 SECOND';
+    }
+    if (durationMinutes <= 720) {
+      return 'INTERVAL 1 MINUTE';
+    }
+    if (durationMinutes <= 1440) {
+      return 'INTERVAL 5 MINUTE';
+    }
     return 'INTERVAL 10 MINUTE';
   }
   return TIME_RANGES[state.timeRange]?.step;
@@ -149,11 +159,11 @@ export function getCustomTimeRange() {
 }
 
 export function getTable() {
-  return state.tableName || 'cdn_requests_v2';
+  return state.tableName || 'delivery';
 }
 
 export function getLogsTable() {
-  return state.logsTableName || state.tableName || 'cdn_requests_v2';
+  return state.logsTableName || state.tableName || 'delivery';
 }
 
 export function getInterval() {
@@ -210,7 +220,9 @@ export function getTimeFilter() {
 }
 
 export function getHostFilter() {
-  if (!state.hostFilter) return '';
+  if (!state.hostFilter) {
+    return '';
+  }
   const escaped = state.hostFilter.replace(/'/g, "\\'");
   if (state.hostFilterColumn) {
     return `AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`;

@@ -48,17 +48,35 @@ export const facetTimings = {};
  * Requires: facetName set, no active filters, no bytes mode, not bucketed.
  */
 export function canUseFacetTable(b) {
-  if (!b.facetName) return false;
-  if (b.rawCol) return false; // bucketed facets need raw table
-  if (b.highCardinality) return false; // sampled raw table is faster
-  if (state.tableName !== 'cdn_requests_v2') return false; // facet table only covers cdn_requests_v2
-  if (state.hostFilter) return false;
-  if (state.filters && state.filters.length > 0) return false;
-  if (state.additionalWhereClause) return false;
+  if (!b.facetName) {
+    return false;
+  }
+  if (b.rawCol) {
+    return false; // bucketed facets need raw table
+  }
+  if (b.highCardinality) {
+    return false; // sampled raw table is faster
+  }
+  if (state.tableName !== 'delivery') {
+    return false; // facet table only covers delivery
+  }
+  if (state.hostFilter) {
+    return false;
+  }
+  if (state.filters && state.filters.length > 0) {
+    return false;
+  }
+  if (state.additionalWhereClause) {
+    return false;
+  }
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
-  if (mode === 'bytes') return false;
+  if (mode === 'bytes') {
+    return false;
+  }
   // ASN uses dictGet which produces different dim values than the facet table
-  if (b.id === 'breakdown-asn') return false;
+  if (b.id === 'breakdown-asn') {
+    return false;
+  }
   return true;
 }
 
@@ -98,7 +116,9 @@ function renderHiddenFacet(cardEl, b) {
  * Fill in missing buckets for continuous range facets
  */
 function fillExpectedLabels(data, b) {
-  if (!b.getExpectedLabels) return data;
+  if (!b.getExpectedLabels) {
+    return data;
+  }
 
   const expectedLabels = b.getExpectedLabels(state.topN);
   const existingByLabel = new Map(data.map((row) => [row.dim, row]));
@@ -115,14 +135,18 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
   const shouldApply = () => (typeof isCurrent === 'function' ? isCurrent() : true);
   const { originalCol } = queryParams;
   const filtersForCol = getFiltersForColumn(originalCol);
-  if (filtersForCol.length === 0 || b.getExpectedLabels) return data;
+  if (filtersForCol.length === 0 || b.getExpectedLabels) {
+    return data;
+  }
 
   const existingDims = new Set(data.map((row) => row.dim));
   const missingFilterValues = filtersForCol
     .map((f) => f.value)
     .filter((v) => v !== '' && !existingDims.has(v));
 
-  if (missingFilterValues.length === 0) return data;
+  if (missingFilterValues.length === 0) {
+    return data;
+  }
 
   const searchCol = b.filterCol || col;
   const valuesList = missingFilterValues
@@ -147,9 +171,13 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
   });
 
   try {
-    if (!shouldApply()) return data;
+    if (!shouldApply()) {
+      return data;
+    }
     const missingResult = await query(missingValuesSql, { signal });
-    if (!shouldApply()) return data;
+    if (!shouldApply()) {
+      return data;
+    }
     if (missingResult.data && missingResult.data.length > 0) {
       const markedRows = missingResult.data.map((row) => ({
         ...row,
@@ -158,8 +186,12 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
       return [...data, ...markedRows];
     }
   } catch (err) {
-    if (!shouldApply()) return data;
-    if (isAbortError(err)) return data;
+    if (!shouldApply()) {
+      return data;
+    }
+    if (isAbortError(err)) {
+      return data;
+    }
     // Silently ignore errors fetching filtered values
   }
   return data;
@@ -193,15 +225,8 @@ function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, samplingOverr
   };
 }
 
-/**
- * Build the WHERE clause, appending a dedup-defeating condition when
- * a refinement pass overrides sampling to full fidelity (multiplier === 1).
- */
 function buildDedupClause(samplingOverride) {
   const base = state.additionalWhereClause || '';
-  if (!state.supportsSampleHashDedup) {
-    return base;
-  }
   if (!samplingOverride || samplingOverride.multiplier !== 1 || samplingOverride.sampleClause) {
     return base;
   }
@@ -220,7 +245,9 @@ function createRequestStatus(requestContext) {
 }
 
 function prepareBreakdownCard(card, b) {
-  if (!card) return false;
+  if (!card) {
+    return false;
+  }
 
   if (state.hiddenFacets.includes(b.id)) {
     renderHiddenFacet(card, b);
@@ -240,8 +267,12 @@ function prepareBreakdownCard(card, b) {
  * finds top-N candidates in bounded memory, then computes exact counts.
  */
 function isApproxTopRefinement(b, samplingOverride) {
-  if (!b.highCardinality) return false;
-  if (!samplingOverride) return false;
+  if (!b.highCardinality) {
+    return false;
+  }
+  if (!samplingOverride) {
+    return false;
+  }
   // Refinement pass: no SAMPLE clause, multiplier === 1
   return samplingOverride.multiplier === 1 && !samplingOverride.sampleClause;
 }
@@ -368,8 +399,12 @@ async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
 }
 
 function getSummaryRatio(b, totals) {
-  if (!b.summaryCountIf || !totals || totals.cnt <= 0) return null;
-  if (totals.summary_cnt === undefined) return null;
+  if (!b.summaryCountIf || !totals || totals.cnt <= 0) {
+    return null;
+  }
+  if (totals.summary_cnt === undefined) {
+    return null;
+  }
   return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
 }
 
@@ -379,7 +414,9 @@ function getSummaryRatio(b, totals) {
  */
 function extractApproxTopTotals(result) {
   const { data } = result;
-  if (!data || data.length === 0) return { data: [], totals: {} };
+  if (!data || data.length === 0) {
+    return { data: [], totals: {} };
+  }
 
   const lastRow = data[data.length - 1];
   if (lastRow.dim === '') {
@@ -397,7 +434,9 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samp
   } = built;
   const startTime = performance.now();
   const result = await queryLimiter(() => query(sql, { signal }));
-  if (!isCurrent()) return null;
+  if (!isCurrent()) {
+    return null;
+  }
 
   const elapsed = result.networkTime ?? (performance.now() - startTime);
   facetTimings[b.id] = elapsed;
@@ -416,7 +455,9 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samp
 
   let data = fillExpectedLabels(resultData, b);
   data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
-  if (!isCurrent()) return null;
+  if (!isCurrent()) {
+    return null;
+  }
 
   return {
     data,
@@ -441,7 +482,9 @@ export async function loadBreakdown(
   const requestStatus = createRequestStatus(requestContext);
   const card = document.getElementById(b.id);
 
-  if (!prepareBreakdownCard(card, b)) return;
+  if (!prepareBreakdownCard(card, b)) {
+    return;
+  }
 
   try {
     const result = await fetchBreakdownData(
@@ -451,7 +494,9 @@ export async function loadBreakdown(
       requestStatus,
       samplingOverride,
     );
-    if (!result) return;
+    if (!result) {
+      return;
+    }
 
     renderBreakdownTable(
       b.id,
@@ -474,7 +519,9 @@ export async function loadBreakdown(
       result.params.hasActiveFilter ? null : b.filterOp,
     );
   } catch (err) {
-    if (shouldIgnoreBreakdownError(requestStatus, err)) return;
+    if (shouldIgnoreBreakdownError(requestStatus, err)) {
+      return;
+    }
     const details = getQueryErrorDetails(err);
     // eslint-disable-next-line no-console
     console.error(`Breakdown error (${b.id}):`, err);
@@ -515,7 +562,9 @@ export async function loadAllBreakdownsRefined(requestContext = getRequestContex
 // Mark the slowest facet in the toolbar timer tooltip
 export function markSlowestFacet() {
   const queryTimerEl = document.getElementById('queryTimer');
-  if (!queryTimerEl) return;
+  if (!queryTimerEl) {
+    return;
+  }
 
   // Find the slowest facet
   let slowestId = null;
@@ -709,7 +758,9 @@ async function loadPreviewBreakdown(
   const { isCurrent, signal } = requestStatus;
   const card = document.getElementById(b.id);
 
-  if (state.hiddenFacets.includes(b.id)) return;
+  if (state.hiddenFacets.includes(b.id)) {
+    return;
+  }
 
   card.classList.add('updating');
 
@@ -718,14 +769,18 @@ async function loadPreviewBreakdown(
     const { sql, params, aggs } = built;
     const startTime = performance.now();
     const result = await queryLimiter(() => query(sql, { signal }));
-    if (!isCurrent()) return;
+    if (!isCurrent()) {
+      return;
+    }
 
     const elapsed = result.networkTime ?? (performance.now() - startTime);
     const summaryRatio = getSummaryRatio(b, result.totals);
 
     let data = fillExpectedLabels(result.data, b);
     data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
-    if (!isCurrent()) return;
+    if (!isCurrent()) {
+      return;
+    }
 
     renderBreakdownTable(
       b.id,
@@ -750,7 +805,9 @@ async function loadPreviewBreakdown(
 
     card.classList.add('preview');
   } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
+    if (!isCurrent() || isAbortError(err)) {
+      return;
+    }
     const details = getQueryErrorDetails(err);
     // eslint-disable-next-line no-console
     console.error(`Preview breakdown error (${b.id}):`, err);
@@ -791,7 +848,9 @@ export async function loadPreviewBreakdowns(selectionStart, selectionEnd) {
 }
 
 export async function revertPreviewBreakdowns() {
-  if (!previewActive) return;
+  if (!previewActive) {
+    return;
+  }
   previewActive = false;
   // Cancel any in-flight preview queries
   startRequestContext('preview');

@@ -76,7 +76,6 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
  * @param {boolean} [config.disableTableSampling] - Omit SAMPLE clause
  *   (use with pre-weighted tables)
- * @param {boolean} [config.supportsSampleHashDedup] - false if table has no sample_hash column
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -113,7 +112,9 @@ export function initDashboard(config = {}) {
 
     const facetPromises = getBreakdowns().map(
       (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
-        if (!isFacetsCurrent()) return;
+        if (!isFacetsCurrent()) {
+          return;
+        }
         if (!hasVisibleUpdatingFacets()) {
           stopQueryTimer();
         }
@@ -126,7 +127,9 @@ export function initDashboard(config = {}) {
 
     await timeSeriesPromise;
 
-    if (!isDashboardCurrent()) return;
+    if (!isDashboardCurrent()) {
+      return;
+    }
 
     if (!hasVisibleUpdatingFacets()) {
       stopQueryTimer();
@@ -141,17 +144,23 @@ export function initDashboard(config = {}) {
       if (hasCache) {
         investigateAnomalies(anomalies, chartData);
         Promise.all(facetPromises).then(() => {
-          if (isFacetsCurrent()) markSlowestFacet();
+          if (isFacetsCurrent()) {
+            markSlowestFacet();
+          }
         });
       } else {
         await Promise.all(facetPromises);
-        if (!isFacetsCurrent()) return;
+        if (!isFacetsCurrent()) {
+          return;
+        }
         markSlowestFacet();
         await investigateAnomalies(anomalies, chartData);
       }
     } else {
       Promise.all(facetPromises).then(() => {
-        if (isFacetsCurrent()) markSlowestFacet();
+        if (isFacetsCurrent()) {
+          markSlowestFacet();
+        }
       });
     }
 
@@ -170,7 +179,9 @@ export function initDashboard(config = {}) {
   function updateTimeRangeHint() {
     const hint = document.getElementById('timeRangeHint');
     const select = document.getElementById('timeRange');
-    if (!hint || !select) return;
+    if (!hint || !select) {
+      return;
+    }
 
     const nextIndex = (select.selectedIndex + 1) % select.options.length;
     hint.textContent = nextIndex + 1;
@@ -291,9 +302,13 @@ export function initDashboard(config = {}) {
   }
 
   function applyDefaultHiddenFacets() {
-    if (!config.defaultHiddenFacets) return;
+    if (!config.defaultHiddenFacets) {
+      return;
+    }
     const hasCustomPrefs = localStorage.getItem(`facetPrefs_${state.title || ''}`);
-    if (!hasCustomPrefs) state.hiddenFacets = [...config.defaultHiddenFacets];
+    if (!hasCustomPrefs) {
+      state.hiddenFacets = [...config.defaultHiddenFacets];
+    }
   }
 
   // Initialize
@@ -318,9 +333,6 @@ export function initDashboard(config = {}) {
     }
     if (config.disableTableSampling !== undefined) {
       state.disableTableSampling = config.disableTableSampling;
-    }
-    if (config.supportsSampleHashDedup !== undefined) {
-      state.supportsSampleHashDedup = config.supportsSampleHashDedup;
     }
     if (config.timeSeriesTemplate) {
       state.timeSeriesTemplate = config.timeSeriesTemplate;
@@ -404,7 +416,9 @@ export function initDashboard(config = {}) {
 
     function commitHostFilterIfChanged() {
       const { value } = elements.hostFilterInput;
-      if (value === state.hostFilter) return;
+      if (value === state.hostFilter) {
+        return;
+      }
       state.hostFilter = value;
       saveStateToURL();
       loadDashboard();
