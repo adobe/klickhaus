@@ -19,12 +19,17 @@ const EXCLUDED_DELIVERY_HOSTS = [
 
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-accept-encoding',
-  'breakdown-content-encoding',
-  'breakdown-content-types',
   'breakdown-cdn-version',
+  'breakdown-content-encoding',
+  'breakdown-content-length',
+  'breakdown-content-types',
   'breakdown-delivery-ratelimit-rate',
+  'breakdown-ips',
   'breakdown-location',
+  'breakdown-paths',
+  'breakdown-referers',
   'breakdown-surrogate-key',
+  'breakdown-time-elapsed',
 ];
 
 const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');

@@ -238,9 +238,30 @@ export function initDashboard(config = {}) {
     loadLogs(dashboardContext);
   });
 
+  function applyDefaultHiddenFacets() {
+    if (!config.defaultHiddenFacets) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('hf')) {
+      return;
+    }
+    if (!window.location.search) {
+      state.hiddenFacets = [...config.defaultHiddenFacets];
+      return;
+    }
+    const hasCustomPrefs = localStorage.getItem(`facetPrefs_${state.title || ''}`);
+    if (!hasCustomPrefs) {
+      state.hiddenFacets = [...config.defaultHiddenFacets];
+    }
+  }
+
   setFilterCallbacks(saveStateToURL, loadDashboard);
   setOnBeforeRestore(() => invalidateInvestigationCache());
-  setOnStateRestored(loadDashboard);
+  setOnStateRestored(() => {
+    applyDefaultHiddenFacets();
+    loadDashboard();
+  });
 
   // Move facets between pinned/normal/hidden sections based on state
   function reorderFacets(toggledFacetId = null) {
@@ -301,18 +322,15 @@ export function initDashboard(config = {}) {
     }
   }
 
-  function applyDefaultHiddenFacets() {
-    if (!config.defaultHiddenFacets) {
-      return;
-    }
-    const hasCustomPrefs = localStorage.getItem(`facetPrefs_${state.title || ''}`);
-    if (!hasCustomPrefs) {
-      state.hiddenFacets = [...config.defaultHiddenFacets];
-    }
-  }
-
   // Initialize
   async function init() {
+    // Set title before loadStateFromURL → loadFacetPrefs() so the storage key matches
+    // this dashboard (e.g. facetPrefs_Delivery), not the generic facetPrefs key.
+    const initialParams = new URLSearchParams(window.location.search);
+    if (config.title && !initialParams.has('title')) {
+      state.title = config.title;
+    }
+
     loadStateFromURL();
 
     // Apply dashboard-specific configuration
