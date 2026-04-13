@@ -1,0 +1,13 @@
+{
+  "milestone": "foundation",
+  "overridden": true,
+  "overrideJustification": "Scrutiny validator failed on npm run lint, but ALL 365 errors are pre-existing curly rule violations in files not modified by this mission. All 14 mission-modified files pass lint individually (verified by regression-verification worker). Tests: 926 passed at 96.23% coverage. Typecheck: passed. CPD: passed (1.41% duplication within threshold). The lint failures predate this mission and are not caused by any mission changes.",
+  "validatorResults": {
+    "test": { "status": "pass", "details": "926 tests passed, 96.23% coverage" },
+    "typecheck": { "status": "pass" },
+    "lint": { "status": "fail", "details": "365 pre-existing curly rule errors in unmodified files. All mission files pass individually." },
+    "cpd": { "status": "pass", "details": "1.41% duplication within threshold" }
+  },
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": []
+}
