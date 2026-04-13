@@ -118,6 +118,9 @@ function initAuthHandlers(config, elements, callbacks) {
  *   authentication itself and dispatch 'login-success' when ready.
  * @param {Function} [config.onLogout] - Optional logout callback. When provided,
  *   replaces the default ClickHouse logout handler.
+ * @param {boolean} [config.skipLogs] - When true, skips SQL-based log loading
+ *   entirely. Use for non-SQL data sources (e.g., RUM pages) that don't have
+ *   a corresponding logs table.
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -280,7 +283,9 @@ export function initDashboard(config = {}) {
     const timeFilter = getTimeFilter();
     const hostFilter = getHostFilter();
 
-    if (state.showLogs) {
+    if (config.skipLogs) {
+      await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+    } else if (state.showLogs) {
       await loadLogs(dashboardContext);
       loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
     } else {

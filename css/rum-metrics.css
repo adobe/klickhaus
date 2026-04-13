@@ -1,0 +1,67 @@
+/*
+ * RUM Key Metrics Overlay
+ * Displays page views, visits, bounce rate, and CWV p75 metrics
+ * positioned over the chart canvas area.
+ */
+
+.key-metrics-overlay {
+  position: absolute;
+  top: 8px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 8;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.key-metrics-overlay.visible {
+  opacity: 1;
+}
+
+.key-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.key-metric-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  text-shadow: 0 0 8px var(--chart-bg), 0 0 4px var(--chart-bg);
+}
+
+.key-metric-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  text-shadow: 0 0 6px var(--chart-bg), 0 0 3px var(--chart-bg);
+}
+
+@media (max-width: 600px) {
+  .key-metrics-overlay {
+    left: 12px;
+    right: 12px;
+    gap: 4px;
+  }
+
+  .key-metric-value {
+    font-size: 14px;
+  }
+
+  .key-metric-label {
+    font-size: 9px;
+  }
+}

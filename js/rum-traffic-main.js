@@ -20,12 +20,152 @@ import {
   clearRumCredentials,
   validateRumCredentials,
 } from './rum/rum-auth.js';
+import { fetchRumData } from './rum/rum-adapter.js';
+import { renderChart } from './chart.js';
+import { renderBreakdownTable } from './breakdowns/render.js';
+import { isRequestCurrent } from './request-context.js';
+import {
+  RUM_BREAKDOWNS,
+  getRumDateRange,
+  buildDataChunksFilters,
+  renderKeyMetrics,
+  populateRumTimeRangeSelect,
+} from './rum/rum-traffic-utils.js';
 
 /**
  * RUM credentials for the current session.
  * Stored separately from ClickHouse credentials to avoid interference.
  */
 let rumCredentials = null;
+
+/**
+ * Cached data from the most recent fetchRumData call.
+ * Shared between loadRumTimeSeries and loadRumBreakdowns
+ * since both consume data from the same API call.
+ */
+let cachedRumResult = null;
+
+/**
+ * Fetch RUM data and render the time series chart.
+ * Called by dashboard-init via the pluggable loadTimeSeries callback.
+ * @param {object} requestContext - From startRequestContext()
+ */
+async function loadRumTimeSeries(requestContext) {
+  const { requestId, scope } = requestContext;
+  const isCurrent = () => isRequestCurrent(requestId, scope);
+
+  // Invalidate cache so concurrent loadRumBreakdowns fetches fresh data
+  cachedRumResult = null;
+
+  if (!rumCredentials) {
+    return;
+  }
+
+  const { startDate, endDate } = getRumDateRange(state.timeRange);
+  const filters = buildDataChunksFilters(state.filters);
+
+  try {
+    const result = await fetchRumData({
+      domain: rumCredentials.domain,
+      domainkey: rumCredentials.domainkey,
+      startDate,
+      endDate,
+      viewType: 'traffic',
+      filters,
+    });
+
+    if (!isCurrent()) {
+      return;
+    }
+
+    if (result.error) {
+      if (result.error === 'auth') {
+        window.dispatchEvent(new CustomEvent('auth-error'));
+      }
+      return;
+    }
+
+    // Cache result for loadRumBreakdowns (if it hasn't fetched yet)
+    cachedRumResult = result;
+    state.chartData = result.chartData;
+    renderChart(result.chartData);
+
+    const overlay = document.getElementById('keyMetricsOverlay');
+    renderKeyMetrics(result.totals, overlay);
+  } catch (err) {
+    if (!isCurrent()) {
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.error('RUM time series error:', err);
+  }
+}
+
+/**
+ * Render breakdown facet tables from RUM data.
+ * Called by dashboard-init via the pluggable loadBreakdowns callback.
+ * @param {object} requestContext - From startRequestContext()
+ */
+async function loadRumBreakdowns(requestContext) {
+  const { requestId, scope } = requestContext;
+  const isCurrent = () => isRequestCurrent(requestId, scope);
+
+  let result = cachedRumResult;
+
+  // If no cached data, fetch independently (rare — only if breakdowns start
+  // before time series finishes, which shouldn't happen with current flow)
+  if (!result && rumCredentials) {
+    const { startDate, endDate } = getRumDateRange(state.timeRange);
+    const filters = buildDataChunksFilters(state.filters);
+    result = await fetchRumData({
+      domain: rumCredentials.domain,
+      domainkey: rumCredentials.domainkey,
+      startDate,
+      endDate,
+      viewType: 'traffic',
+      filters,
+    });
+  }
+
+  if (!isCurrent() || !result || result.error) {
+    return;
+  }
+
+  for (const bd of RUM_BREAKDOWNS) {
+    const breakdownData = result.breakdowns[bd.facetName] || [];
+    const card = document.getElementById(bd.id);
+    if (card) {
+      // Compute totals for this breakdown (sum of all rows)
+      const totals = {
+        cnt: breakdownData.reduce((sum, row) => sum + row.cnt, 0),
+        cnt_ok: breakdownData.reduce((sum, row) => sum + row.cnt_ok, 0),
+        cnt_4xx: breakdownData.reduce((sum, row) => sum + row.cnt_4xx, 0),
+        cnt_5xx: breakdownData.reduce((sum, row) => sum + row.cnt_5xx, 0),
+      };
+
+      renderBreakdownTable(
+        bd.id,
+        breakdownData.slice(0, state.topN),
+        totals,
+        bd.col,
+        null, // linkPrefix
+        null, // linkSuffix
+        null, // linkFn
+        0, // elapsed
+        null, // dimPrefixes
+        null, // dimFormatFn
+        null, // summaryRatio
+        null, // summaryLabel
+        null, // summaryColor
+        null, // modeToggle
+        false, // isContinuous
+        null, // filterCol
+        null, // filterValueFn
+        null, // filterOp
+      );
+    }
+  }
+}
 
 /**
  * Handle RUM login form submission.
@@ -73,6 +213,7 @@ async function handleRumLogin(e) {
 function handleRumLogout() {
   rumCredentials = null;
   state.credentials = null;
+  cachedRumResult = null;
   clearRumCredentials();
   showLogin();
 }
@@ -119,22 +260,23 @@ document.getElementById('loginForm').addEventListener('submit', handleRumLogin);
 // Initialize authentication
 initRumAuth();
 
-// Placeholder data loading — the rum-traffic-view feature will replace these
-// with actual bundles.aem.page data loading via rum-adapter.
-async function loadRumTimeSeries() {
-  // No-op: will be implemented by rum-traffic-view feature
-}
-
-async function loadRumBreakdowns() {
-  // No-op: will be implemented by rum-traffic-view feature
+// Hide the logs view toggle (RUM pages don't have SQL-based logs)
+const viewToggleBtn = document.getElementById('viewToggleBtn');
+if (viewToggleBtn) {
+  viewToggleBtn.style.display = 'none';
 }
 
 // Initialize the dashboard with RUM-specific config
 initDashboard({
   title: 'RUM Traffic',
   skipDefaultAuth: true,
+  skipLogs: true,
   onLogout: handleRumLogout,
   seriesLabels: { ok: 'good', client: 'needs improvement', server: 'poor' },
   loadTimeSeries: loadRumTimeSeries,
   loadBreakdowns: loadRumBreakdowns,
 });
+
+// Replace time range options with RUM-specific ranges (week/month/year)
+const timeRangeSelect = document.getElementById('timeRange');
+state.timeRange = populateRumTimeRangeSelect(timeRangeSelect, state.timeRange);
