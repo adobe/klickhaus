@@ -68,6 +68,34 @@ import { preloadAllTemplates } from './sql-loader.js';
 import { startRequestContext, isRequestCurrent } from './request-context.js';
 
 /**
+ * Set up auth handlers (login form, logout button, stored credentials).
+ * Extracted from init() to keep cyclomatic complexity manageable.
+ * @param {Object} config - Dashboard configuration
+ * @param {Object} elements - DOM element references
+ * @param {Object} callbacks - Dashboard lifecycle callbacks
+ */
+function initAuthHandlers(config, elements, callbacks) {
+  if (!config.skipDefaultAuth) {
+    const storedCredentials = loadStoredCredentials();
+    if (storedCredentials) {
+      state.credentials = storedCredentials;
+      preloadAllTemplates();
+      callbacks.syncUIFromState();
+      callbacks.reorderFacets();
+      showDashboard();
+      callbacks.updateTimeRangeHint();
+      callbacks.loadDashboard();
+    }
+    elements.loginForm.addEventListener('submit', handleLogin);
+  }
+
+  const logoutHandler = typeof config.onLogout === 'function'
+    ? config.onLogout
+    : handleLogout;
+  elements.logoutBtn.addEventListener('click', logoutHandler);
+}
+
+/**
  * Initialize a dashboard instance.
  * @param {Object} [config] - Optional dashboard configuration
  * @param {string} [config.title] - Default title (e.g., 'Delivery')
@@ -85,6 +113,11 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {Function} [config.applyFilters] - Optional filter callback. Defaults to
  *   compileFilters() SQL compilation. Can be replaced with DataChunks-based filtering
  *   for non-SQL data sources.
+ * @param {boolean} [config.skipDefaultAuth] - When true, skips the default ClickHouse
+ *   credential loading, login form handling, and logout. The entry point must handle
+ *   authentication itself and dispatch 'login-success' when ready.
+ * @param {Function} [config.onLogout] - Optional logout callback. When provided,
+ *   replaces the default ClickHouse logout handler.
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -382,6 +415,9 @@ export function initDashboard(config = {}) {
     if (typeof config.applyFilters === 'function') {
       state.applyFilters = config.applyFilters;
     }
+    if (config.seriesLabels) {
+      state.seriesLabels = config.seriesLabels;
+    }
     applyDefaultHiddenFacets();
 
     populateTimeRangeSelect(elements.timeRangeSelect);
@@ -414,19 +450,9 @@ export function initDashboard(config = {}) {
       copyFacetTsv: copyFacetAsTsv,
     });
 
-    const storedCredentials = loadStoredCredentials();
-    if (storedCredentials) {
-      state.credentials = storedCredentials;
-      preloadAllTemplates();
-      syncUIFromState();
-      reorderFacets();
-      showDashboard();
-      updateTimeRangeHint();
-      loadDashboard();
-    }
-
-    elements.loginForm.addEventListener('submit', handleLogin);
-    elements.logoutBtn.addEventListener('click', handleLogout);
+    initAuthHandlers(config, elements, {
+      syncUIFromState, reorderFacets, updateTimeRangeHint, loadDashboard,
+    });
     elements.refreshBtn.addEventListener('click', () => {
       saveStateToURL(null);
       loadDashboard(true);
