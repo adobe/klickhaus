@@ -16,7 +16,8 @@
   "ignoreDependencies": [
     "live-server",
     "chai",
-    "@playwright/cli"
+    "@playwright/cli",
+    "@adobe/rum-distiller"
   ],
   "ignoreBinaries": [
     "eslint",
