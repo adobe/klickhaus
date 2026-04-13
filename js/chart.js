@@ -46,9 +46,6 @@ export {
   getMostRecentTimeRange, zoomToAnomalyByRank, zoomToAnomaly,
 } from './chart-state.js';
 
-// Re-export label helpers for external use
-export { buildValueBadges, buildAnomalyInfo } from './chart-labels.js';
-
 // UI elements and drag state
 let scrubberLine = null;
 let scrubberStatusBar = null;
