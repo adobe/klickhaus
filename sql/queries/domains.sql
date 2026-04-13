@@ -8,11 +8,11 @@ SELECT
   round(count() / (dateDiff('hour', min(timestamp), max(timestamp)) + 1), 1) AS req_per_hour,
   count() AS total,
   dateDiff('day', min(timestamp), now()) AS age_days
-FROM {{database}}.cdn_requests_v2
+FROM {{database}}.delivery
 WHERE `request.host` LIKE '%.aem.live'
   AND `request.headers.x_forwarded_host` != ''
   AND `request.headers.x_forwarded_host` != `request.host`
-  AND `request.headers.x_forwarded_host` NOT LIKE '%.aem.live'
+  --- AND `request.headers.x_forwarded_host` NOT LIKE '%.aem.live'
   AND `request.headers.x_forwarded_host` NOT LIKE '%.aem.page'
   AND `request.headers.x_forwarded_host` NOT LIKE 'localhost%'
   AND `request.headers.x_forwarded_host` NOT LIKE '%.workers.dev%'

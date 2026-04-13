@@ -80,9 +80,9 @@ describe('time helpers', () => {
 });
 
 describe('getTable', () => {
-  it('returns cdn_requests_v2 when state.tableName is not set', () => {
+  it('returns delivery when state.tableName is not set', () => {
     state.tableName = null;
-    assert.strictEqual(getTable(), 'cdn_requests_v2');
+    assert.strictEqual(getTable(), 'delivery');
   });
 
   it('returns state.tableName when set', () => {

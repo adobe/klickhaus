@@ -37,11 +37,11 @@ export const state = {
   pinnedFacets: [], // Facet IDs pinned to top
   hiddenFacets: [], // Facet IDs hidden at bottom
   additionalWhereClause: '', // Additional WHERE clause for queries (e.g., delivery exclusions)
-  tableName: 'cdn_requests_v2', // Table to query (e.g. lambda_logs for Lambda dashboard)
+  tableName: 'delivery', // Table to query (e.g. lambda_logs for Lambda dashboard)
   logsTableName: null, // Override table for logs queries (falls back to tableName)
   timeSeriesTemplate: 'time-series', // SQL template name for chart (e.g. time-series-lambda)
   weightColumn: null, // When set (e.g. 'weight'), counts use sum(weight) / sumIf(weight, ...)
-  disableTableSampling: false, // Skip SAMPLE for pre-weighted tables (e.g. delivery)
+  disableTableSampling: true, // Skip SAMPLE for pre-weighted tables (e.g. delivery)
   supportsSampleHashDedup: true, // false when table has no sample_hash (refinement dedup clause)
   aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
@@ -117,7 +117,9 @@ export function togglePinnedFacet(facetId) {
     state.pinnedFacets.splice(idx, 1);
   }
   saveFacetPrefs();
-  if (onFacetOrderChange) onFacetOrderChange();
+  if (onFacetOrderChange) {
+    onFacetOrderChange();
+  }
 }
 
 // Toggle hidden state for a facet
@@ -136,5 +138,7 @@ export function toggleHiddenFacet(facetId) {
     state.hiddenFacets.splice(idx, 1);
   }
   saveFacetPrefs();
-  if (onFacetOrderChange) onFacetOrderChange(facetId);
+  if (onFacetOrderChange) {
+    onFacetOrderChange(facetId);
+  }
 }

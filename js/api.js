@@ -40,7 +40,9 @@ const CATEGORY_LABELS = {
 };
 
 export function summarizeErrorText(text) {
-  if (!text) return 'Unknown error';
+  if (!text) {
+    return 'Unknown error';
+  }
   const trimmed = String(text).trim();
   const firstLine = trimmed.split('\n').map((line) => line.trim()).find(Boolean) || trimmed;
   const normalized = firstLine.replace(/\s+/g, ' ').trim();
@@ -52,7 +54,9 @@ export function summarizeErrorText(text) {
 
 export function extractErrorType(text) {
   const matches = [...String(text).matchAll(/\(([A-Z0-9_]+)\)/g)];
-  if (matches.length === 0) return null;
+  if (matches.length === 0) {
+    return null;
+  }
   return matches[matches.length - 1][1];
 }
 
@@ -91,20 +95,34 @@ export function classifyCategory(text, status, type) {
     PERMISSION_TYPES.has(type),
     matchesAny(lower, PERMISSION_TEXT),
   ].some(Boolean);
-  if (isPermissions) return 'permissions';
+  if (isPermissions) {
+    return 'permissions';
+  }
 
-  if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) return 'memory';
-  if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) return 'syntax';
-  if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) return 'timeout';
+  if (type === 'MEMORY_LIMIT_EXCEEDED' || lower.includes('memory limit')) {
+    return 'memory';
+  }
+  if (type === 'SYNTAX_ERROR' || lower.includes('syntax error')) {
+    return 'syntax';
+  }
+  if (type === 'TIMEOUT_EXCEEDED' || lower.includes('timeout')) {
+    return 'timeout';
+  }
 
   const isSchema = [
     SCHEMA_TYPES.has(type),
     matchesAny(lower, SCHEMA_TEXT),
   ].some(Boolean);
-  if (isSchema) return 'schema';
+  if (isSchema) {
+    return 'schema';
+  }
 
-  if (RESOURCE_TYPES.has(type)) return 'resource';
-  if (matchesAny(lower, NETWORK_TEXT)) return 'network';
+  if (RESOURCE_TYPES.has(type)) {
+    return 'resource';
+  }
+  if (matchesAny(lower, NETWORK_TEXT)) {
+    return 'network';
+  }
   return 'unknown';
 }
 
@@ -214,8 +232,11 @@ export async function query(
     params.set('query_cache_nondeterministic_function_handling', 'save');
   }
 
-  // Normalize SQL whitespace for consistent cache keys
-  const normalizedSql = sql.replace(/\s+/g, ' ').trim();
+  // Normalize SQL whitespace for consistent cache keys.
+  // Only collapse horizontal whitespace (spaces/tabs), not newlines — collapsing
+  // newlines would turn SQL line comments (--) into block comments that eat
+  // everything on the same line, including GROUP BY clauses that follow.
+  const normalizedSql = sql.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
 
   const url = `${CLICKHOUSE_URL}?${params}`;
   const fetchStart = performance.now();

@@ -9,6 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+/* eslint-disable max-lines */
 import { assert } from 'chai';
 import { state } from '../state.js';
 import {
@@ -56,9 +57,13 @@ function createMockFetch(queryResponse = {
     // SQL template requests (GET)
     if (typeof url === 'string' && url.endsWith('.sql')) {
       let template = BREAKDOWN_SQL_TEMPLATE;
-      if (url.includes('breakdown-facet.sql')) template = FACET_SQL_TEMPLATE;
-      else if (url.includes('breakdown-bucketed.sql')) template = BUCKETED_SQL_TEMPLATE;
-      else if (url.includes('breakdown-approx-top.sql')) template = APPROX_TOP_SQL_TEMPLATE;
+      if (url.includes('breakdown-facet.sql')) {
+        template = FACET_SQL_TEMPLATE;
+      } else if (url.includes('breakdown-bucketed.sql')) {
+        template = BUCKETED_SQL_TEMPLATE;
+      } else if (url.includes('breakdown-approx-top.sql')) {
+        template = APPROX_TOP_SQL_TEMPLATE;
+      }
       return { ok: true, text: async () => template };
     }
     // ClickHouse API POST requests
@@ -76,7 +81,9 @@ function createMockFetch(queryResponse = {
 // Create a DOM card element for a breakdown facet.
 function createCard(id, title) {
   let card = document.getElementById(id);
-  if (card) card.remove();
+  if (card) {
+    card.remove();
+  }
   card = document.createElement('div');
   card.id = id;
   const h3 = document.createElement('h3');
@@ -95,7 +102,7 @@ beforeEach(() => {
   state.contentTypeMode = 'count';
   state.topN = DEFAULT_TOP_N;
   state.aggregations = null;
-  state.tableName = 'cdn_requests_v2';
+  state.tableName = 'delivery';
   state.credentials = { user: 'test', password: 'test' };
   state.timeRange = '1h';
   state.pinnedFacets = [];
@@ -185,8 +192,12 @@ describe('markSlowestFacet', () => {
   });
 
   afterEach(() => {
-    if (facetTimings['breakdown-level'] !== undefined) delete facetTimings['breakdown-level'];
-    if (facetTimings['breakdown-host'] !== undefined) delete facetTimings['breakdown-host'];
+    if (facetTimings['breakdown-level'] !== undefined) {
+      delete facetTimings['breakdown-level'];
+    }
+    if (facetTimings['breakdown-host'] !== undefined) {
+      delete facetTimings['breakdown-host'];
+    }
   });
 
   it('sets queryTimer title to slowest facet when facetTimings has entries', () => {
@@ -302,11 +313,11 @@ describe('canUseFacetTable', () => {
     assert.isFalse(canUseFacetTable(b));
   });
 
-  it('returns false when tableName is not cdn_requests_v2', () => {
+  it('returns false when tableName is not delivery', () => {
     state.tableName = 'backend';
     const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
     assert.isFalse(canUseFacetTable(b));
-    state.tableName = 'cdn_requests_v2';
+    state.tableName = 'delivery';
   });
 
   it('returns false for highCardinality facets', () => {
@@ -374,7 +385,9 @@ describe('loadBreakdown (facet table path)', () => {
 
   afterEach(() => {
     window.fetch = originalFetch;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('renders breakdown table via facet table path when canUseFacetTable is true', async () => {
@@ -462,7 +475,9 @@ describe('loadBreakdown (raw table path)', () => {
 
   afterEach(() => {
     window.fetch = originalFetch;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('uses raw table with sampling when host filter prevents facet table', async () => {
@@ -497,11 +512,11 @@ describe('loadBreakdown (raw table path)', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx);
 
-    // Verify query uses raw table (cdn_requests_v2, not cdn_facet_minutes)
+    // Verify query uses raw table (delivery, not cdn_facet_minutes)
     const queryCalls = calls.filter((c) => c.options?.method === 'POST');
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
-    assert.include(queryBody, 'cdn_requests_v2', 'should query raw table');
+    assert.include(queryBody, 'delivery', 'should query raw table');
     assert.notInclude(queryBody, 'cdn_facet_minutes', 'should not query facet table');
   });
 
@@ -518,7 +533,7 @@ describe('loadBreakdown (raw table path)', () => {
     const queryCalls = calls.filter((c) => c.options?.method === 'POST');
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
-    assert.include(queryBody, 'cdn_requests_v2', 'should query raw table for high-cardinality');
+    assert.include(queryBody, 'delivery', 'should query raw table for high-cardinality');
   });
 
   it('uses raw table for breakdown without facetName', async () => {
@@ -536,7 +551,7 @@ describe('loadBreakdown (raw table path)', () => {
     const queryCalls = calls.filter((c) => c.options?.method === 'POST');
     assert.isAbove(queryCalls.length, 0, 'should send query');
     const queryBody = queryCalls[0].options.body;
-    assert.include(queryBody, 'cdn_requests_v2', 'should query raw table');
+    assert.include(queryBody, 'delivery', 'should query raw table');
     assert.include(queryBody, 'x_push_invalidation', 'should include the column');
   });
 
@@ -555,7 +570,7 @@ describe('loadBreakdown (raw table path)', () => {
     const queryCalls = calls.filter((c) => c.options?.method === 'POST');
     assert.isAbove(queryCalls.length, 0);
     const queryBody = queryCalls[0].options.body;
-    assert.include(queryBody, 'cdn_requests_v2', 'should query raw table in bytes mode');
+    assert.include(queryBody, 'delivery', 'should query raw table in bytes mode');
     assert.include(queryBody, 'response.headers.content_length', 'should use bytes aggregation');
   });
 });
@@ -572,7 +587,9 @@ describe('loadBreakdown (bucketed facets)', () => {
 
   afterEach(() => {
     window.fetch = originalFetch;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('uses bucketed template for facets with rawCol and function col', async () => {
@@ -650,7 +667,9 @@ describe('loadBreakdown (error handling)', () => {
 
   afterEach(() => {
     window.fetch = originalFetch;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('renders error state when query fails', async () => {
@@ -710,7 +729,9 @@ describe('loadBreakdown (prepareBreakdownCard)', () => {
 
   afterEach(() => {
     window.fetch = originalFetch;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('adds updating class during load and removes it after', async () => {
@@ -786,7 +807,9 @@ describe('loadBreakdown (custom aggregations)', () => {
   afterEach(() => {
     window.fetch = originalFetch;
     state.aggregations = null;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('uses custom aggregations from state when set', async () => {
@@ -820,7 +843,9 @@ describe('loadBreakdown (renderHiddenFacet edge cases)', () => {
   });
 
   afterEach(() => {
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
     state.hiddenFacets = [];
   });
 
@@ -949,7 +974,9 @@ describe('gradual refinement', () => {
   afterEach(() => {
     window.fetch = originalFetch;
     state.breakdowns = null;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('adds dedup clause when samplingOverride has multiplier=1', async () => {

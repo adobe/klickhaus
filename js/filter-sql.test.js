@@ -102,7 +102,7 @@ describe('isValidFilterColumn', () => {
 
   it('rejects SQL injection strings', () => {
     assert.strictEqual(isValidFilterColumn('1=1 OR 1=1 --'), false);
-    assert.strictEqual(isValidFilterColumn("'; DROP TABLE cdn_requests_v2; --"), false);
+    assert.strictEqual(isValidFilterColumn("'; DROP TABLE delivery; --"), false);
     assert.strictEqual(isValidFilterColumn('`request.host`; DELETE FROM'), false);
   });
 });

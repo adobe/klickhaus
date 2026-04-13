@@ -34,7 +34,9 @@ function createMockFetch(queryResponse = {
     calls.push({ url, options });
     if (typeof url === 'string' && url.endsWith('.sql')) {
       let template = BREAKDOWN_SQL_TEMPLATE;
-      if (url.includes('breakdown-approx-top.sql')) template = APPROX_TOP_SQL_TEMPLATE;
+      if (url.includes('breakdown-approx-top.sql')) {
+        template = APPROX_TOP_SQL_TEMPLATE;
+      }
       return { ok: true, text: async () => template };
     }
     if (options && options.method === 'POST') {
@@ -50,7 +52,9 @@ function createMockFetch(queryResponse = {
 
 function createCard(id, title) {
   let card = document.getElementById(id);
-  if (card) card.remove();
+  if (card) {
+    card.remove();
+  }
   card = document.createElement('div');
   card.id = id;
   const h3 = document.createElement('h3');
@@ -69,7 +73,7 @@ beforeEach(() => {
   state.contentTypeMode = 'count';
   state.topN = DEFAULT_TOP_N;
   state.aggregations = null;
-  state.tableName = 'cdn_requests_v2';
+  state.tableName = 'delivery';
   state.credentials = { user: 'test', password: 'test' };
   state.timeRange = '1h';
   state.pinnedFacets = [];
@@ -91,7 +95,9 @@ describe('approx_top_count refinement for high-cardinality breakdowns', () => {
   afterEach(() => {
     window.fetch = originalFetch;
     state.breakdowns = null;
-    if (card && card.parentNode) card.remove();
+    if (card && card.parentNode) {
+      card.remove();
+    }
   });
 
   it('uses approx_top_count for high-cardinality refinement', async () => {
