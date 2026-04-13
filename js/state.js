@@ -45,6 +45,7 @@ export const state = {
   aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
+  applyFilters: null, // Optional filter callback; defaults to compileFilters() SQL compilation
 };
 
 // Callback for re-rendering logs table when pinned columns change

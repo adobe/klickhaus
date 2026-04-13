@@ -26,6 +26,7 @@ function resetState() {
   state.hiddenFacets = [];
   state.logsData = null;
   state.title = '';
+  state.applyFilters = null;
   setOnPinnedColumnsChange(null);
   setOnFacetOrderChange(null);
   localStorage.removeItem('pinnedColumns');
@@ -41,6 +42,22 @@ describe('state', () => {
     assert.isNull(state.credentials);
     assert.isArray(state.filters);
     assert.strictEqual(state.contentTypeMode, 'count');
+  });
+
+  it('has applyFilters defaulting to null', () => {
+    assert.isNull(state.applyFilters);
+  });
+
+  it('allows applyFilters to be set to a function', () => {
+    const customFilter = (_) => ({ sql: '', map: {} });
+    state.applyFilters = customFilter;
+    assert.strictEqual(state.applyFilters, customFilter);
+  });
+
+  it('allows applyFilters to be reset to null', () => {
+    state.applyFilters = () => {};
+    state.applyFilters = null;
+    assert.isNull(state.applyFilters);
   });
 });
 

@@ -76,6 +76,15 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
  * @param {boolean} [config.disableTableSampling] - Omit SAMPLE clause
  *   (use with pre-weighted tables)
+ * @param {Function} [config.loadTimeSeries] - Optional callback replacing the default
+ *   SQL-based time series loading. Receives (requestContext) and should populate
+ *   state.chartData and call renderChart().
+ * @param {Function} [config.loadBreakdowns] - Optional callback replacing the default
+ *   SQL-based breakdown loading. Receives (requestContext) and should render all
+ *   breakdown facets.
+ * @param {Function} [config.applyFilters] - Optional filter callback. Defaults to
+ *   compileFilters() SQL compilation. Can be replaced with DataChunks-based filtering
+ *   for non-SQL data sources.
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -102,7 +111,14 @@ export function initDashboard(config = {}) {
 
   // Load dashboard queries (chart and facets)
   async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
-    const timeSeriesPromise = loadTimeSeries(dashboardContext);
+    const useCustomTimeSeries = typeof config.loadTimeSeries === 'function';
+    const useCustomBreakdowns = typeof config.loadBreakdowns === 'function';
+
+    // Use pluggable data source if provided, otherwise default to SQL-based loading
+    const timeSeriesPromise = useCustomTimeSeries
+      ? config.loadTimeSeries(dashboardContext)
+      : loadTimeSeries(dashboardContext);
+
     const focusedFacetId = getFocusedFacetId();
     const isDashboardCurrent = () => isRequestCurrent(
       dashboardContext.requestId,
@@ -110,20 +126,26 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
-    const facetPromises = getBreakdowns().map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
-        if (!isFacetsCurrent()) {
-          return;
-        }
-        if (!hasVisibleUpdatingFacets()) {
-          stopQueryTimer();
-        }
-        if (focusedFacetId === b.id) {
-          restoreKeyboardFocus();
-        }
-        reapplyHighlightsIfCached();
-      }),
-    );
+    // Use pluggable breakdown loading if provided, otherwise default per-facet SQL loading
+    let facetPromises;
+    if (useCustomBreakdowns) {
+      facetPromises = [config.loadBreakdowns(facetsContext)];
+    } else {
+      facetPromises = getBreakdowns().map(
+        (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
+          if (!isFacetsCurrent()) {
+            return;
+          }
+          if (!hasVisibleUpdatingFacets()) {
+            stopQueryTimer();
+          }
+          if (focusedFacetId === b.id) {
+            restoreKeyboardFocus();
+          }
+          reapplyHighlightsIfCached();
+        }),
+      );
+    }
 
     await timeSeriesPromise;
 
@@ -135,43 +157,54 @@ export function initDashboard(config = {}) {
       stopQueryTimer();
     }
 
-    const anomalies = getDetectedAnomalies();
-    const chartData = getLastChartData();
+    // Anomaly investigation and refinement are SQL-specific;
+    // skip when using custom data source callbacks
+    if (!useCustomTimeSeries && !useCustomBreakdowns) {
+      const anomalies = getDetectedAnomalies();
+      const chartData = getLastChartData();
 
-    if (anomalies.length > 0 && chartData) {
-      const hasCache = hasCachedInvestigation();
+      if (anomalies.length > 0 && chartData) {
+        const hasCache = hasCachedInvestigation();
 
-      if (hasCache) {
-        investigateAnomalies(anomalies, chartData);
+        if (hasCache) {
+          investigateAnomalies(anomalies, chartData);
+          Promise.all(facetPromises).then(() => {
+            if (isFacetsCurrent()) {
+              markSlowestFacet();
+            }
+          });
+        } else {
+          await Promise.all(facetPromises);
+          if (!isFacetsCurrent()) {
+            return;
+          }
+          markSlowestFacet();
+          await investigateAnomalies(anomalies, chartData);
+        }
+      } else {
         Promise.all(facetPromises).then(() => {
           if (isFacetsCurrent()) {
             markSlowestFacet();
           }
         });
-      } else {
-        await Promise.all(facetPromises);
-        if (!isFacetsCurrent()) {
-          return;
-        }
-        markSlowestFacet();
-        await investigateAnomalies(anomalies, chartData);
+      }
+
+      // Schedule refinement pass if initial load used sampling
+      const { multiplier } = getSamplingConfig();
+      if (multiplier > 1) {
+        const refinedSampling = { sampleClause: '', multiplier: 1 };
+        const refinementDashCtx = startRequestContext('dashboard');
+        const refinementFacetsCtx = startRequestContext('facets');
+        loadTimeSeries(refinementDashCtx, refinedSampling);
+        loadAllBreakdownsRefined(refinementFacetsCtx);
       }
     } else {
+      // Custom data source path: wait for breakdowns to complete
       Promise.all(facetPromises).then(() => {
         if (isFacetsCurrent()) {
           markSlowestFacet();
         }
       });
-    }
-
-    // Schedule refinement pass if initial load used sampling
-    const { multiplier } = getSamplingConfig();
-    if (multiplier > 1) {
-      const refinedSampling = { sampleClause: '', multiplier: 1 };
-      const refinementDashCtx = startRequestContext('dashboard');
-      const refinementFacetsCtx = startRequestContext('facets');
-      loadTimeSeries(refinementDashCtx, refinedSampling);
-      loadAllBreakdownsRefined(refinementFacetsCtx);
     }
   }
 
@@ -345,6 +378,9 @@ export function initDashboard(config = {}) {
     }
     if (config.breakdowns) {
       state.breakdowns = config.breakdowns;
+    }
+    if (typeof config.applyFilters === 'function') {
+      state.applyFilters = config.applyFilters;
     }
     applyDefaultHiddenFacets();
 
