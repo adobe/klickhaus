@@ -132,6 +132,11 @@ describe('formatFacetHeaderPercent', () => {
   it('formats zero with three significant digits', () => {
     assert.strictEqual(formatFacetHeaderPercent(0), '0.00');
   });
+
+  it('formats non-finite values as zero', () => {
+    assert.strictEqual(formatFacetHeaderPercent(NaN), '0.00');
+    assert.strictEqual(formatFacetHeaderPercent(Infinity), '0.00');
+  });
 });
 
 describe('formatQueryTime', () => {

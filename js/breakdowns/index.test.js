@@ -213,6 +213,13 @@ describe('markSlowestFacet', () => {
     markSlowestFacet();
     assert.strictEqual(queryTimerEl.title, '');
   });
+
+  it('returns early when queryTimer element does not exist', () => {
+    queryTimerEl.remove();
+    facetTimings['breakdown-level'] = 200;
+    // Should not throw
+    markSlowestFacet();
+  });
 });
 
 describe('increaseTopN', () => {
@@ -792,6 +799,16 @@ describe('loadBreakdown (prepareBreakdownCard)', () => {
     assert.isFalse(card.hasAttribute('data-action'), 'should remove data-action');
     assert.isFalse(card.hasAttribute('data-facet'), 'should remove data-facet');
   });
+
+  it('returns early without querying when card element does not exist', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+
+    const ctx = startRequestContext('facets');
+    await loadBreakdown({ id: 'non-existent-breakdown-card', col: '`source`' }, '1=1', '', ctx);
+
+    assert.strictEqual(calls.filter((c) => c.options?.method === 'POST').length, 0);
+  });
 });
 
 describe('loadBreakdown (custom aggregations)', () => {
@@ -987,6 +1004,17 @@ describe('gradual refinement', () => {
     const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
     assert.notInclude(body, 'SAMPLE');
     assert.include(body, 'sample_hash >= 0');
+  });
+
+  it('skips dedup clause when supportsSampleHashDedup is false', async () => {
+    state.supportsSampleHashDedup = false;
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    const ctx = startRequestContext('facets');
+    await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
+    state.supportsSampleHashDedup = true;
+    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
+    assert.notInclude(body, 'sample_hash');
   });
 
   it('skips dedup clause when override has multiplier > 1', async () => {

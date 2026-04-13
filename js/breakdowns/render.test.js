@@ -211,6 +211,36 @@ describe('renderBreakdownTable', () => {
     assert.include(card.innerHTML, 'Clear');
   });
 
+  it('renders clear button in header when column has filters and data is non-empty', () => {
+    state.filters = [{ col: '`request.host`', value: 'example.com', exclude: false }];
+    const data = [{
+      dim: 'example.com', cnt: '50', cnt_ok: '48', cnt_4xx: '1', cnt_5xx: '1',
+    }];
+    renderBreakdownTable(
+      cardId,
+      data,
+      {
+        cnt: '50', cnt_ok: '48', cnt_4xx: '1', cnt_5xx: '1',
+      },
+      '`request.host`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    assert.include(card.innerHTML, 'clear-facet-btn');
+  });
+
   it('renders table with data and stores facet data on card', () => {
     const data = [
       {
