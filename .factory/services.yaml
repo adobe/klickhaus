@@ -1,0 +1,14 @@
+commands:
+  install: npm install
+  test: npm test
+  lint: npm run lint
+  dead-code: npm run dead-code
+  cpd: npm run cpd:ci
+
+services:
+  dev-server:
+    start: cd /Users/trieloff/Developer/clickhouse-queries && NO_RELOAD=1 node scripts/dev-server.mjs &
+    stop: lsof -ti :5561 | xargs kill
+    healthcheck: curl -sf http://localhost:5561/
+    port: 5561
+    depends_on: []
