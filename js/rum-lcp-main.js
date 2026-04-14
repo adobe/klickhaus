@@ -122,8 +122,8 @@ async function loadLcpTimeSeries(requestContext) {
     state.chartData = interpolatedChartData;
     renderChart(interpolatedChartData);
 
-    const overlay = document.getElementById('keyMetricsOverlay');
-    renderKeyMetrics(result.totals, overlay);
+    const navEl = document.getElementById('rumNav');
+    renderKeyMetrics(result.totals, navEl);
   } catch (err) {
     if (!isCurrent()) {
       return;
@@ -289,6 +289,10 @@ function initRumAuth() {
     // Auto-authenticate — dispatch login-success after init completes
     setTimeout(() => window.dispatchEvent(new CustomEvent('login-success')), 0);
   }
+
+  // No credentials found — show login, hide dashboard
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('dashboard').classList.remove('visible');
 
   // Render nav even without credentials (links still useful for structure)
   renderRumNav(document.getElementById('rumNav'), 'lcp');

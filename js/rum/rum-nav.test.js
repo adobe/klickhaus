@@ -292,6 +292,32 @@ describe('rum-nav', () => {
       assert.isTrue(container.classList.contains('rum-nav'));
     });
 
+    it('adds metric value spans to CWV tabs', () => {
+      renderRumNav(container, 'traffic');
+      const lcpSpan = container.querySelector('[data-metric="lcp"]');
+      const clsSpan = container.querySelector('[data-metric="cls"]');
+      const inpSpan = container.querySelector('[data-metric="inp"]');
+      assert.isNotNull(lcpSpan, 'LCP metric span should exist');
+      assert.isNotNull(clsSpan, 'CLS metric span should exist');
+      assert.isNotNull(inpSpan, 'INP metric span should exist');
+      assert.isTrue(lcpSpan.classList.contains('rum-nav-metric'));
+      assert.isTrue(clsSpan.classList.contains('rum-nav-metric'));
+      assert.isTrue(inpSpan.classList.contains('rum-nav-metric'));
+    });
+
+    it('does not add metric span to Traffic tab', () => {
+      renderRumNav(container, 'traffic');
+      const trafficLink = container.querySelector('[data-view="traffic"]');
+      const metricSpan = trafficLink.querySelector('.rum-nav-metric');
+      assert.isNull(metricSpan);
+    });
+
+    it('creates nav-metrics container for traffic metrics', () => {
+      renderRumNav(container, 'traffic');
+      const metricsDiv = container.querySelector('.nav-metrics');
+      assert.isNotNull(metricsDiv, 'nav-metrics container should exist');
+    });
+
     it('replaces content on subsequent calls', () => {
       renderRumNav(container, 'traffic');
       renderRumNav(container, 'lcp');

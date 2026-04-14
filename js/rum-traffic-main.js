@@ -116,8 +116,8 @@ async function loadRumTimeSeries(requestContext) {
     state.chartData = result.chartData;
     renderChart(result.chartData);
 
-    const overlay = document.getElementById('keyMetricsOverlay');
-    renderKeyMetrics(result.totals, overlay);
+    const navEl = document.getElementById('rumNav');
+    renderKeyMetrics(result.totals, navEl);
   } catch (err) {
     if (!isCurrent()) {
       return;
@@ -284,6 +284,10 @@ function initRumAuth() {
     setTimeout(() => window.dispatchEvent(new CustomEvent('login-success')), 0);
   }
 
+  // No credentials found — show login, hide dashboard
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('dashboard').classList.remove('visible');
+
   // Render nav even without credentials (links still useful for structure)
   renderRumNav(document.getElementById('rumNav'), 'traffic');
 }
@@ -316,7 +320,7 @@ initDashboard({
   skipReleases: true,
   skipAutocomplete: true,
   onLogout: handleRumLogout,
-  seriesLabels: { ok: 'good', client: 'needs improvement', server: 'poor' },
+  seriesLabels: { ok: 'engaged', client: 'existing', server: 'bouncing' },
   loadTimeSeries: loadRumTimeSeries,
   loadBreakdowns: loadRumBreakdowns,
 });

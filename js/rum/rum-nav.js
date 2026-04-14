@@ -129,7 +129,17 @@ export function renderRumNav(container, currentView, params) {
   for (const view of RUM_VIEWS) {
     const link = document.createElement('a');
     link.className = 'rum-nav-link';
-    link.textContent = view.label;
+    link.dataset.view = view.id;
+    link.appendChild(document.createTextNode(view.label));
+
+    // Add metric value placeholder for CWV tabs
+    if (['lcp', 'cls', 'inp'].includes(view.id)) {
+      const metricSpan = document.createElement('span');
+      metricSpan.className = 'rum-nav-metric';
+      metricSpan.dataset.metric = view.id;
+      link.appendChild(metricSpan);
+    }
+
     link.href = buildNavUrl(view.href, currentParams, window.location.hash);
 
     if (view.id === currentView) {
@@ -153,6 +163,11 @@ export function renderRumNav(container, currentView, params) {
 
     nav.appendChild(link);
   }
+
+  // Add traffic metrics container (populated by renderKeyMetrics)
+  const metricsDiv = document.createElement('div');
+  metricsDiv.className = 'nav-metrics';
+  nav.appendChild(metricsDiv);
 }
 
 /**

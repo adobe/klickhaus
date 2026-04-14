@@ -25,7 +25,7 @@
 </head>
 <body>
   <!-- Login Form (RUM-specific: domain + domainkey) -->
-  <div id="login">
+  <div id="login" class="hidden">
     <div class="login-card">
       <h1>RUM Traffic</h1>
       <p>Sign in to view your RUM analytics dashboard</p>
@@ -51,7 +51,7 @@
   </div>
 
   <!-- Dashboard -->
-  <div id="dashboard">
+  <div id="dashboard" class="visible">
     <header>
       <div class="header-left">
         <button id="menuBtn" class="menu-btn" title="Quick Links">
@@ -109,7 +109,6 @@
       <section class="chart-section">
         <h2>Requests over time</h2>
         <div class="chart-container">
-          <div id="keyMetricsOverlay" class="key-metrics-overlay"></div>
           <canvas id="chart"></canvas>
         </div>
       </section>

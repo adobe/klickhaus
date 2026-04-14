@@ -90,51 +90,71 @@ function formatLcp(ms) {
 }
 
 /**
- * Render key metrics into the overlay element.
+ * Render key metrics into the navigation bar.
+ * CWV metrics (LCP, CLS, INP) are shown inline in the nav tab labels.
+ * Traffic metrics (page views, visits, bounce rate) are shown in the
+ * `.nav-metrics` container within the nav bar.
+ *
  * @param {object|null} totals - Totals from fetchRumData
- * @param {HTMLElement|null} overlay - The overlay DOM element
+ * @param {HTMLElement|null} navElement - The nav element containing tabs and metrics container
  */
-export function renderKeyMetrics(totals, overlay) {
-  if (!overlay) {
+export function renderKeyMetrics(totals, navElement) {
+  if (!navElement) {
     return;
   }
-  const el = overlay;
+
+  const metricsContainer = navElement.querySelector('.nav-metrics');
+
   if (!totals) {
-    el.classList.remove('visible');
+    // Clear CWV metric spans in nav tabs
+    navElement.querySelectorAll('.rum-nav-metric').forEach((metricSpan) => {
+      const el = metricSpan;
+      el.textContent = '';
+    });
+    if (metricsContainer) {
+      metricsContainer.classList.remove('visible');
+      metricsContainer.innerHTML = '';
+    }
     return;
   }
 
-  const bounceRate = totals.visits > 0
-    ? Math.round((totals.bounces / totals.visits) * 100)
-    : 0;
+  // Update CWV values in nav tabs
+  const lcpSpan = navElement.querySelector('[data-metric="lcp"]');
+  const clsSpan = navElement.querySelector('[data-metric="cls"]');
+  const inpSpan = navElement.querySelector('[data-metric="inp"]');
 
-  el.innerHTML = `
-    <div class="key-metric">
-      <span class="key-metric-value">${formatNumber(totals.pageViews)}</span>
-      <span class="key-metric-label">Page Views</span>
-    </div>
-    <div class="key-metric">
-      <span class="key-metric-value">${formatNumber(totals.visits)}</span>
-      <span class="key-metric-label">Visits</span>
-    </div>
-    <div class="key-metric">
-      <span class="key-metric-value">${bounceRate}%</span>
-      <span class="key-metric-label">Bounce Rate</span>
-    </div>
-    <div class="key-metric">
-      <span class="key-metric-value">${formatLcp(totals.lcpP75)}</span>
-      <span class="key-metric-label">LCP p75</span>
-    </div>
-    <div class="key-metric">
-      <span class="key-metric-value">${totals.clsP75.toFixed(2)}</span>
-      <span class="key-metric-label">CLS p75</span>
-    </div>
-    <div class="key-metric">
-      <span class="key-metric-value">${Math.round(totals.inpP75)}ms</span>
-      <span class="key-metric-label">INP p75</span>
-    </div>
-  `;
-  el.classList.add('visible');
+  if (lcpSpan) {
+    lcpSpan.textContent = `: ${formatLcp(totals.lcpP75)}`;
+  }
+  if (clsSpan) {
+    clsSpan.textContent = `: ${totals.clsP75.toFixed(2)}`;
+  }
+  if (inpSpan) {
+    inpSpan.textContent = `: ${Math.round(totals.inpP75)}ms`;
+  }
+
+  // Render traffic metrics in the nav metrics container
+  if (metricsContainer) {
+    const bounceRate = totals.visits > 0
+      ? Math.round((totals.bounces / totals.visits) * 100)
+      : 0;
+
+    metricsContainer.innerHTML = `
+      <div class="key-metric">
+        <span class="key-metric-value">${formatNumber(totals.pageViews)}</span>
+        <span class="key-metric-label">Page Views</span>
+      </div>
+      <div class="key-metric">
+        <span class="key-metric-value">${formatNumber(totals.visits)}</span>
+        <span class="key-metric-label">Visits</span>
+      </div>
+      <div class="key-metric">
+        <span class="key-metric-value">${bounceRate}%</span>
+        <span class="key-metric-label">Bounce Rate</span>
+      </div>
+    `;
+    metricsContainer.classList.add('visible');
+  }
 }
 
 /**

@@ -120,126 +120,181 @@ describe('rum-traffic-utils', () => {
   });
 
   describe('LCP formatting (via renderKeyMetrics)', () => {
+    function createNavElement() {
+      const nav = document.createElement('nav');
+      nav.innerHTML = `
+        <a class="rum-nav-link">Traffic</a>
+        <a class="rum-nav-link">LCP<span class="rum-nav-metric" data-metric="lcp"></span></a>
+        <a class="rum-nav-link">CLS<span class="rum-nav-metric" data-metric="cls"></span></a>
+        <a class="rum-nav-link">INP<span class="rum-nav-metric" data-metric="inp"></span></a>
+        <div class="nav-metrics"></div>
+      `;
+      return nav;
+    }
+
     it('formats sub-second LCP as ms', () => {
-      const el = document.createElement('div');
+      const nav = createNavElement();
       renderKeyMetrics({
         pageViews: 1, visits: 1, bounces: 0, lcpP75: 500, clsP75: 0, inpP75: 0,
-      }, el);
-      assert.include(el.textContent, '500ms');
+      }, nav);
+      const lcpSpan = nav.querySelector('[data-metric="lcp"]');
+      assert.include(lcpSpan.textContent, '500ms');
     });
 
     it('formats LCP >= 1000ms as seconds', () => {
-      const el = document.createElement('div');
+      const nav = createNavElement();
       renderKeyMetrics({
         pageViews: 1, visits: 1, bounces: 0, lcpP75: 2500, clsP75: 0, inpP75: 0,
-      }, el);
-      assert.include(el.textContent, '2.5s');
+      }, nav);
+      const lcpSpan = nav.querySelector('[data-metric="lcp"]');
+      assert.include(lcpSpan.textContent, '2.5s');
     });
 
     it('formats exactly 1000ms as 1.0s', () => {
-      const el = document.createElement('div');
+      const nav = createNavElement();
       renderKeyMetrics({
         pageViews: 1, visits: 1, bounces: 0, lcpP75: 1000, clsP75: 0, inpP75: 0,
-      }, el);
-      assert.include(el.textContent, '1.0s');
+      }, nav);
+      const lcpSpan = nav.querySelector('[data-metric="lcp"]');
+      assert.include(lcpSpan.textContent, '1.0s');
     });
   });
 
   describe('renderKeyMetrics', () => {
-    let overlay;
+    let navEl;
+
+    function createNavElement() {
+      const nav = document.createElement('nav');
+      nav.innerHTML = `
+        <a class="rum-nav-link">Traffic</a>
+        <a class="rum-nav-link">LCP<span class="rum-nav-metric" data-metric="lcp"></span></a>
+        <a class="rum-nav-link">CLS<span class="rum-nav-metric" data-metric="cls"></span></a>
+        <a class="rum-nav-link">INP<span class="rum-nav-metric" data-metric="inp"></span></a>
+        <div class="nav-metrics"></div>
+      `;
+      return nav;
+    }
 
     beforeEach(() => {
-      overlay = document.createElement('div');
+      navEl = createNavElement();
     });
 
-    it('adds visible class when totals provided', () => {
+    it('adds visible class to metrics container when totals provided', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.isTrue(overlay.classList.contains('visible'));
+      renderKeyMetrics(totals, navEl);
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      assert.isTrue(metricsDiv.classList.contains('visible'));
     });
 
     it('removes visible class when totals is null', () => {
-      overlay.classList.add('visible');
-      renderKeyMetrics(null, overlay);
-      assert.isFalse(overlay.classList.contains('visible'));
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      metricsDiv.classList.add('visible');
+      renderKeyMetrics(null, navEl);
+      assert.isFalse(metricsDiv.classList.contains('visible'));
     });
 
-    it('does nothing when overlay is null', () => {
+    it('does nothing when navElement is null', () => {
       // Should not throw
       renderKeyMetrics({ pageViews: 100 }, null);
     });
 
-    it('renders all six metrics', () => {
+    it('renders three traffic metrics in nav-metrics container', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      const metrics = overlay.querySelectorAll('.key-metric');
-      assert.strictEqual(metrics.length, 6);
+      renderKeyMetrics(totals, navEl);
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      const metrics = metricsDiv.querySelectorAll('.key-metric');
+      assert.strictEqual(metrics.length, 3);
+    });
+
+    it('renders CWV values in nav tab spans', () => {
+      const totals = {
+        pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
+      };
+      renderKeyMetrics(totals, navEl);
+      assert.include(navEl.querySelector('[data-metric="lcp"]').textContent, '2.5s');
+      assert.include(navEl.querySelector('[data-metric="cls"]').textContent, '0.10');
+      assert.include(navEl.querySelector('[data-metric="inp"]').textContent, '200ms');
+    });
+
+    it('clears CWV spans when totals is null', () => {
+      const totals = {
+        pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
+      };
+      renderKeyMetrics(totals, navEl);
+      renderKeyMetrics(null, navEl);
+      assert.strictEqual(navEl.querySelector('[data-metric="lcp"]').textContent, '');
+      assert.strictEqual(navEl.querySelector('[data-metric="cls"]').textContent, '');
+      assert.strictEqual(navEl.querySelector('[data-metric="inp"]').textContent, '');
     });
 
     it('renders page views', () => {
       const totals = {
         pageViews: 1500, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '1.50K');
-      assert.include(overlay.textContent, 'Page Views');
+      renderKeyMetrics(totals, navEl);
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      assert.include(metricsDiv.textContent, '1.50K');
+      assert.include(metricsDiv.textContent, 'Page Views');
     });
 
     it('renders visits', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '500');
-      assert.include(overlay.textContent, 'Visits');
+      renderKeyMetrics(totals, navEl);
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      assert.include(metricsDiv.textContent, '500');
+      assert.include(metricsDiv.textContent, 'Visits');
     });
 
     it('renders bounce rate as percentage', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '20%');
-      assert.include(overlay.textContent, 'Bounce Rate');
+      renderKeyMetrics(totals, navEl);
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      assert.include(metricsDiv.textContent, '20%');
+      assert.include(metricsDiv.textContent, 'Bounce Rate');
     });
 
     it('renders 0% bounce rate when no visits', () => {
       const totals = {
         pageViews: 0, visits: 0, bounces: 0, lcpP75: 0, clsP75: 0, inpP75: 0,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '0%');
+      renderKeyMetrics(totals, navEl);
+      const metricsDiv = navEl.querySelector('.nav-metrics');
+      assert.include(metricsDiv.textContent, '0%');
     });
 
-    it('renders LCP p75', () => {
+    it('renders LCP p75 in nav tab', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '2.5s');
-      assert.include(overlay.textContent, 'LCP p75');
+      renderKeyMetrics(totals, navEl);
+      const lcpSpan = navEl.querySelector('[data-metric="lcp"]');
+      assert.include(lcpSpan.textContent, '2.5s');
     });
 
-    it('renders CLS p75', () => {
+    it('renders CLS p75 in nav tab', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.15, inpP75: 200,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '0.15');
-      assert.include(overlay.textContent, 'CLS p75');
+      renderKeyMetrics(totals, navEl);
+      const clsSpan = navEl.querySelector('[data-metric="cls"]');
+      assert.include(clsSpan.textContent, '0.15');
     });
 
-    it('renders INP p75', () => {
+    it('renders INP p75 in nav tab', () => {
       const totals = {
         pageViews: 1000, visits: 500, bounces: 100, lcpP75: 2500, clsP75: 0.1, inpP75: 250,
       };
-      renderKeyMetrics(totals, overlay);
-      assert.include(overlay.textContent, '250ms');
-      assert.include(overlay.textContent, 'INP p75');
+      renderKeyMetrics(totals, navEl);
+      const inpSpan = navEl.querySelector('[data-metric="inp"]');
+      assert.include(inpSpan.textContent, '250ms');
     });
   });
 
