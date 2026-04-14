@@ -1,0 +1,24 @@
+{
+  "milestone": "cwv-views",
+  "round": 2,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 3,
+    "passed": 2,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-NAV-004",
+    "VAL-CROSS-002"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-NAV-007",
+      "reason": "Round-trip INP -> LCP -> INP preserved query params (t, n, filters) and filter UI, but dropped URL hash (#f=url) from start state."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/cwv-views/user-testing/synthesis.round1.json"
+}

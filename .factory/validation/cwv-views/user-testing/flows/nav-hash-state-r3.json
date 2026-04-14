@@ -1,0 +1,94 @@
+{
+  "groupId": "nav-hash-state-r3",
+  "testedAt": "2026-04-14T17:15:45Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appBaseUrl": "http://localhost:5561",
+    "surface": "agent-browser",
+    "session": "8f940975ba18__navhash_r3",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    },
+    "allowedExternalRequests": [
+      "https://bundles.aem.page/*"
+    ]
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-NAV-007",
+      "title": "Round-trip navigation preserves state",
+      "status": "fail",
+      "reason": "INP -> LCP -> INP preserved pathname, t, n, filters param, and active filter tags, but hash fragment (#f=url) was dropped on the first navigation and remained missing after returning to INP.",
+      "reproductionSteps": [
+        "Open /rum-inp.html with domain and domainkey URL params.",
+        "Apply URL facet filter value 'https://www.aem.live/developer/tutorial'.",
+        "Set time range to Last Month (t=30d) and Top N to Top 20 (n=20).",
+        "Set hash to #f=url and capture start state.",
+        "Navigate INP -> LCP -> INP via top nav tabs.",
+        "Compare start vs end URL/DOM state."
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav-hash-state-r3/VAL-NAV-007-start-inp.png",
+          "cwv-views/nav-hash-state-r3/VAL-NAV-007-mid-lcp.png",
+          "cwv-views/nav-hash-state-r3/VAL-NAV-007-end-inp.png"
+        ],
+        "urlDomEvidence": {
+          "start": {
+            "pathname": "/rum-inp.html",
+            "t": "30d",
+            "n": "20",
+            "filtersParam": "[{\"col\":\"url\",\"value\":\"https://www.aem.live/developer/tutorial\",\"exclude\":false,\"filterCol\":\"url\",\"filterValue\":\"https://www.aem.live/developer/tutorial\"}]",
+            "hash": "#f=url",
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "mid": {
+            "pathname": "/rum-lcp.html",
+            "t": "30d",
+            "n": "20",
+            "filtersParam": "[{\"col\":\"url\",\"value\":\"https://www.aem.live/developer/tutorial\",\"exclude\":false,\"filterCol\":\"url\",\"filterValue\":\"https://www.aem.live/developer/tutorial\"}]",
+            "hash": "",
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "end": {
+            "pathname": "/rum-inp.html",
+            "t": "30d",
+            "n": "20",
+            "filtersParam": "[{\"col\":\"url\",\"value\":\"https://www.aem.live/developer/tutorial\",\"exclude\":false,\"filterCol\":\"url\",\"filterValue\":\"https://www.aem.live/developer/tutorial\"}]",
+            "hash": "",
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "roundTripMatch": false,
+          "mismatchedFields": [
+            "hash"
+          ]
+        },
+        "consoleErrors": "none (agent-browser errors returned no entries)",
+        "network": "agent-browser network requests returned no captured entries; fallback evidence via performance resource timings showed 62 fetch entries to bundles.aem.page (latest included /2026/04/12, /2026/04/13, /2026/04/14 endpoints)."
+      },
+      "issues": "Expected #f=url hash to survive round-trip navigation, but destination URLs had empty hash."
+    }
+  ],
+  "blockers": [],
+  "frictions": [
+    {
+      "description": "agent-browser network requests command reported no captured entries during this run.",
+      "resolved": true,
+      "resolution": "Used performance.getEntriesByType('resource') in page context as fallback network evidence.",
+      "affectedAssertions": [
+        "VAL-NAV-007"
+      ]
+    }
+  ],
+  "summary": "Tested 1 assertion (VAL-NAV-007): failed due to hash fragment loss on INP -> LCP -> INP round-trip despite preserved query params and active filter tag."
+}
