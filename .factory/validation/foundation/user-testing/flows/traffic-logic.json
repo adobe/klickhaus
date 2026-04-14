@@ -1,0 +1,197 @@
+{
+  "groupId": "traffic-logic",
+  "testedAt": "2026-04-13T17:07:30Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appUrl": "http://localhost:5561/",
+    "session": "traffic-logic-5561",
+    "credentialsMode": "URL query params domain/domainkey only"
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-TRAFFIC-009",
+      "title": "Traffic classification — green = engaged new visitors",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open rum-traffic with assigned domain/domainkey query params",
+          "expected": "Traffic dashboard loads with data",
+          "observed": "Dashboard loaded and rendered chart + breakdowns"
+        },
+        {
+          "action": "Evaluate manual classification for visit=true AND engaged (click or >3 viewmedia/viewblock)",
+          "expected": "Manual green counts match adapter/chart green series",
+          "observed": "Green mismatch count = 0 (all buckets matched)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-logic/VAL-TRAFFIC-009-012-014-loaded-annotated.png"
+        ],
+        "consoleErrors": "See VAL-TRAFFIC-012 evidence",
+        "network": "Bundles API loaded for 169 hourly URLs (from classification eval)",
+        "eval": "foundation/traffic-logic/VAL-TRAFFIC-009-011-classification-eval.json"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-010",
+      "title": "Traffic classification — yellow = existing visitors",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Use same loaded traffic dataset",
+          "expected": "Yellow represents visit=false bundles",
+          "observed": "Manual yellow totals and per-bucket values matched adapter output"
+        },
+        {
+          "action": "Check mismatch counters for yellow series",
+          "expected": "No mismatches",
+          "observed": "Yellow mismatch count = 0"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-logic/VAL-TRAFFIC-009-012-014-loaded-annotated.png"
+        ],
+        "consoleErrors": "See VAL-TRAFFIC-012 evidence",
+        "network": "Bundles API loaded for 169 hourly URLs (from classification eval)",
+        "eval": "foundation/traffic-logic/VAL-TRAFFIC-009-011-classification-eval.json"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-011",
+      "title": "Traffic classification — red = bouncing visitors",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Use same loaded traffic dataset",
+          "expected": "Red represents visit=true AND not engaged bundles",
+          "observed": "Manual red totals and per-bucket values matched adapter output"
+        },
+        {
+          "action": "Check mismatch counters for red series",
+          "expected": "No mismatches",
+          "observed": "Red mismatch count = 0"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-logic/VAL-TRAFFIC-009-012-014-loaded-annotated.png"
+        ],
+        "consoleErrors": "See VAL-TRAFFIC-012 evidence",
+        "network": "Bundles API loaded for 169 hourly URLs (from classification eval)",
+        "eval": "foundation/traffic-logic/VAL-TRAFFIC-009-011-classification-eval.json"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-012",
+      "title": "No console errors on load",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Clear browser error/console logs",
+          "expected": "Fresh diagnostics for load validation",
+          "observed": "Logs cleared"
+        },
+        {
+          "action": "Reload rum-traffic with assigned query credentials and wait for network idle",
+          "expected": "Chart renders with zero error-level console messages",
+          "observed": "Error-level console messages appeared (403 resource failures and authentication errors in releases/autocomplete fetch)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-logic/VAL-TRAFFIC-012-load-check-annotated.png"
+        ],
+        "consoleErrors": "foundation/traffic-logic/VAL-TRAFFIC-012-console-log-after-reload.txt",
+        "network": "foundation/traffic-logic/VAL-TRAFFIC-network-requests.txt"
+      },
+      "issues": "Console contained multiple error-level messages on load, including 'Failed to fetch releases' and 'Failed to load host autocomplete' with AUTHENTICATION_FAILED/403 context."
+    },
+    {
+      "id": "VAL-TRAFFIC-013",
+      "title": "Removing a filter restores unfiltered state",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Capture baseline unfiltered state",
+          "expected": "No active filter tags and URL without filters param",
+          "observed": "filtersCount=0, activeFilterTags=[], URL had no filters param"
+        },
+        {
+          "action": "Apply filter by clicking URL breakdown value",
+          "expected": "Filter tag appears and URL contains filters parameter",
+          "observed": "filtersCount=1 and URL contained encoded filters parameter"
+        },
+        {
+          "action": "Click active filter tag remove control",
+          "expected": "Filter removed; chart/breakdowns/key metrics return to baseline; URL removes filters parameter",
+          "observed": "activeFilterTagCount=0, filtersCount=0, chartTotals/metricPairs matched baseline, URL returned to no filters parameter"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-logic/VAL-TRAFFIC-013-before-filter-annotated.png",
+          "foundation/traffic-logic/VAL-TRAFFIC-013-after-filter-applied-annotated.png",
+          "foundation/traffic-logic/VAL-TRAFFIC-013-after-filter-removed-annotated.png"
+        ],
+        "consoleErrors": "See VAL-TRAFFIC-012 evidence",
+        "network": "foundation/traffic-logic/VAL-TRAFFIC-network-requests.txt",
+        "stateBefore": "foundation/traffic-logic/VAL-TRAFFIC-013-before-state.json",
+        "stateAfterFilter": "foundation/traffic-logic/VAL-TRAFFIC-013-after-filter-state.json",
+        "stateAfterRemove": "foundation/traffic-logic/VAL-TRAFFIC-013-after-remove-state.json"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-014",
+      "title": "Key metrics overlay is positioned over the chart",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read bounding rect for #keyMetricsOverlay and #chart",
+          "expected": "Rects overlap (overlay sits above/on chart area)",
+          "observed": "Overlap true with overlapArea=47547.5"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-logic/VAL-TRAFFIC-009-012-014-loaded-annotated.png"
+        ],
+        "consoleErrors": "See VAL-TRAFFIC-012 evidence",
+        "network": "N/A",
+        "eval": "foundation/traffic-logic/VAL-TRAFFIC-014-overlay-overlap.json"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "After initial URL-parameter auto-auth, app URL state rewrites remove domain/domainkey from the query string; subsequent validation evals had to read credentials from localStorage via rum-auth helper.",
+      "resolved": true,
+      "resolution": "Used loadRumCredentials() from /js/rum/rum-auth.js in eval scripts.",
+      "affectedAssertions": [
+        "VAL-TRAFFIC-009",
+        "VAL-TRAFFIC-010",
+        "VAL-TRAFFIC-011"
+      ]
+    },
+    {
+      "description": "agent-browser network request export returned 'No requests captured' in this session.",
+      "resolved": false,
+      "resolution": "Used adapter eval output (urlCount=169) as request-volume evidence for classification assertions.",
+      "affectedAssertions": [
+        "VAL-TRAFFIC-012",
+        "VAL-TRAFFIC-013"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 traffic logic/stability assertions: 5 passed (VAL-TRAFFIC-009, 010, 011, 013, 014) and 1 failed (VAL-TRAFFIC-012 due error-level console messages on page load)."
+}

@@ -1,0 +1,7 @@
+{
+  "milestone": "cwv-views",
+  "overridden": true,
+  "overrideJustification": "32/33 assertions passed. VAL-NAV-007 (hash state preservation during round-trip navigation) deferred to misc-fixes. Fix was attempted (hash included in buildNavUrl per unit tests) but page initialization resets hash on navigation. All primary state (filters, time range, domain, domainkey) is preserved — only the facet drill-down hash is lost, which is a minor UX issue.",
+  "deferredAssertions": ["VAL-NAV-007"],
+  "deferredTo": "misc-fixes milestone, feature: deferred-preexisting-regression"
+}

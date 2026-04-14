@@ -2,6 +2,10 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
     "js/main.js",
+    "js/rum-traffic-main.js",
+    "js/rum-lcp-main.js",
+    "js/rum-cls-main.js",
+    "js/rum-inp-main.js",
     "scripts/*.mjs",
     "eslint.config.js",
     "web-test-runner.config.mjs"
@@ -16,7 +20,8 @@
   "ignoreDependencies": [
     "live-server",
     "chai",
-    "@playwright/cli"
+    "@playwright/cli",
+    "@adobe/rum-distiller"
   ],
   "ignoreBinaries": [
     "eslint",

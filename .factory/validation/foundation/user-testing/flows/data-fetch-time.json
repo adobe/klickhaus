@@ -1,0 +1,190 @@
+{
+  "groupId": "data-fetch-time",
+  "testedAt": "2026-04-13T23:55:50Z",
+  "isolation": {
+    "milestone": "foundation",
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "devServerUrl": "http://localhost:5561/",
+    "session": "data-fetch-time",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    }
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-DATA-001",
+      "title": "Bundles API fetches data for a valid domain",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET bundles endpoint for 2026/04/13 via curl",
+          "expected": "HTTP 200 and JSON body with rumBundles array",
+          "observed": "HTTP 200 with rumBundles_len=94"
+        },
+        {
+          "action": "Inspect first rumBundles item keys",
+          "expected": "Contains id, host, time, timeSlot, url, weight, events",
+          "observed": "first_keys=[events, host, id, time, timeSlot, url, userAgent, weight] (required keys present)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (curl assertion)",
+        "network": "curl GET https://bundles.aem.page/bundles/www.aem.live/2026/04/13?... -> 200",
+        "commands": [
+          "curl -sS \"https://bundles.aem.page/bundles/www.aem.live/2026/04/13?domainkey=53A02890-F91F-428B-A870-A809B82D953E\" -w \"\\nHTTP_STATUS:%{http_code}\\n\" | python3 -c '...'"
+        ],
+        "keyOutput": "200; rumBundles_len 94; first_keys ['events','host','id','time','timeSlot','url','userAgent','weight']",
+        "artifacts": [
+          "foundation/data-fetch-time/data-fetch-time-commands.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DATA-002",
+      "title": "DataChunks correctly ingests raw bundles",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open rum-traffic page with valid credentials",
+          "expected": "Dashboard loads with data",
+          "observed": "Dashboard loaded and screenshot captured"
+        },
+        {
+          "action": "Eval fetch + addCalculatedProps + DataChunks.load in page context",
+          "expected": "dataChunks.bundles.length matches input bundle count",
+          "observed": "inputCount=94 and dataChunksCount=94"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-fetch-time/VAL-DATA-002-initial-dashboard.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no error entries)",
+        "network": "Browser fetch in eval to bundles.aem.page day endpoint returned status 200",
+        "commands": [
+          "agent-browser --session data-fetch-time eval --stdin (DataChunks ingestion eval)"
+        ],
+        "keyOutput": "{\"status\":200,\"inputCount\":94,\"dataChunksCount\":94,...}",
+        "artifacts": [
+          "foundation/data-fetch-time/data-fetch-time-commands.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DATA-003",
+      "title": "Time granularity — hourly buckets for week range",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Set/confirm time range to week (7d)",
+          "expected": "Chart data grouped hourly",
+          "observed": "state.timeRange=7d"
+        },
+        {
+          "action": "Eval first 5 consecutive chart points in state.chartData",
+          "expected": "~1 hour spacing",
+          "observed": "2026-04-07T01:00Z, 02:00Z, 03:00Z, 04:00Z, 05:00Z (diffsHours=[1,1,1,1])"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-fetch-time/VAL-DATA-003-week-range.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no error entries)",
+        "network": "Intercepted week-range fetches included hourly URLs like /2026/04/07/00 and /2026/04/07/01, all status 200",
+        "commands": [
+          "agent-browser --session data-fetch-time eval --stdin (hourly window extraction)",
+          "agent-browser --session data-fetch-time eval --stdin (fetch interception for 7d)"
+        ],
+        "keyOutput": "firstFive=['2026-04-07T01:00:00.000Z','2026-04-07T02:00:00.000Z','2026-04-07T03:00:00.000Z','2026-04-07T04:00:00.000Z','2026-04-07T05:00:00.000Z']; diffsHours=[1,1,1,1]",
+        "artifacts": [
+          "foundation/data-fetch-time/data-fetch-time-commands.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DATA-004",
+      "title": "Time granularity — daily buckets for month range",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Change time range control to month (30d)",
+          "expected": "Chart reloads with daily buckets",
+          "observed": "state.timeRange=30d; chartDataLength=31"
+        },
+        {
+          "action": "Inspect first 5 chart timestamps",
+          "expected": "~1 day spacing",
+          "observed": "2026-03-14T00:00Z, 03-15T00:00Z, 03-16T00:00Z, 03-17T00:00Z, 03-18T00:00Z (diffsDays=[1,1,1,1])"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-fetch-time/VAL-DATA-004-month-range.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no error entries)",
+        "network": "Fetch interception captured daily endpoints /2026/03/14, /2026/03/15, /2026/03/16 with status 200",
+        "commands": [
+          "agent-browser --session data-fetch-time eval --stdin (set timeRange 30d)",
+          "agent-browser --session data-fetch-time eval --stdin (daily spacing eval)",
+          "agent-browser --session data-fetch-time eval --stdin (fetch interception 30d+365d)"
+        ],
+        "keyOutput": "firstFive=['2026-03-14T00:00:00.000Z','2026-03-15T00:00:00.000Z','2026-03-16T00:00:00.000Z','2026-03-17T00:00:00.000Z','2026-03-18T00:00:00.000Z']; diffsDays=[1,1,1,1]",
+        "artifacts": [
+          "foundation/data-fetch-time/data-fetch-time-commands.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DATA-005",
+      "title": "Time granularity — weekly/monthly buckets for year range",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Change time range control to year (365d)",
+          "expected": "Chart reloads with coarse (weekly/monthly) buckets",
+          "observed": "state.timeRange=365d; chartDataLength=13"
+        },
+        {
+          "action": "Inspect first 5 chart timestamps",
+          "expected": "~7 day or ~30 day spacing",
+          "observed": "2025-04-01T00:00Z, 2025-05-01T00:00Z, 2025-06-01T00:00Z, 2025-07-01T00:00Z, 2025-08-01T00:00Z (diffsDays=[30,31,30,31])"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-fetch-time/VAL-DATA-005-year-range.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no error entries)",
+        "network": "Fetch interception captured monthly endpoints /2025/04, /2025/05, /2025/06 with status 200",
+        "commands": [
+          "agent-browser --session data-fetch-time eval --stdin (set timeRange 365d)",
+          "agent-browser --session data-fetch-time eval --stdin (year spacing eval)",
+          "agent-browser --session data-fetch-time eval --stdin (fetch interception 30d+365d)"
+        ],
+        "keyOutput": "firstFive=['2025-04-01T00:00:00.000Z','2025-05-01T00:00:00.000Z','2025-06-01T00:00:00.000Z','2025-07-01T00:00:00.000Z','2025-08-01T00:00:00.000Z']; diffsDays=[30,31,30,31]",
+        "artifacts": [
+          "foundation/data-fetch-time/data-fetch-time-commands.txt"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "`agent-browser network requests` did not provide request history in this run ('No requests captured'), so request/status evidence was collected via temporary fetch interception in page eval.",
+      "resolved": true,
+      "resolution": "Wrapped window.fetch during controlled time-range changes, captured URL+status, then restored original fetch.",
+      "affectedAssertions": ["VAL-DATA-003", "VAL-DATA-004", "VAL-DATA-005"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions (VAL-DATA-001..005): 5 passed, 0 failed, 0 blocked."
+}

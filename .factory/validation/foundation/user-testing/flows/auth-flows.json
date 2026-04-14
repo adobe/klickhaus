@@ -1,0 +1,174 @@
+{
+  "groupId": "auth-flows",
+  "testedAt": "2026-04-13T23:55:41Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appUrl": "http://localhost:5561/",
+    "browserSession": "auth-flows",
+    "rumCredentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    }
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-001",
+      "title": "URL params auto-authenticate",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Clear storage/cookies, navigate to rum-traffic.html with domain/domainkey URL params",
+          "expected": "Login is skipped and dashboard is shown directly",
+          "observed": "Dashboard displayed immediately; login hidden"
+        },
+        {
+          "action": "Check resource activity after load",
+          "expected": "Data loading begins automatically",
+          "observed": "Performance resource entries include multiple fetch requests to bundles.aem.page endpoints"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/auth-flows/VAL-AUTH-001-dashboard.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing entries show fetch calls to https://bundles.aem.page/bundles/www.aem.live/... with supplied domainkey"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-002",
+      "title": "Login form appears without URL params",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Clear storage/cookies and open rum-traffic.html without domain/domainkey params",
+          "expected": "Login form visible; dashboard hidden",
+          "observed": "loginVisible=true, dashboardVisible=false, and URL has no domain/domainkey params"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/auth-flows/VAL-AUTH-002-login-form.png"
+        ],
+        "consoleErrors": "none",
+        "network": "No authenticated data-loading requests observed before login form submission"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-003",
+      "title": "Login form authenticates successfully",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Fill login form with valid domain/domainkey and submit",
+          "expected": "Login form hides and dashboard appears",
+          "observed": "loginVisible=false and dashboardVisible=true after submit"
+        },
+        {
+          "action": "Inspect data-loading activity",
+          "expected": "Data loading starts after successful auth",
+          "observed": "Performance resource entries show repeated bundles.aem.page fetch requests"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/auth-flows/VAL-AUTH-003-dashboard-after-login.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Performance entries captured 6 recent bundles.aem.page fetch requests after successful sign-in"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-004",
+      "title": "Invalid credentials show error",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Logout, submit login form with invalid domainkey",
+          "expected": "Error shown and login remains visible",
+          "observed": "Error text shown: \"Authentication failed. Please check your domain and domain key.\", loginVisible=true, dashboardVisible=false"
+        },
+        {
+          "action": "Validate invalid-key API behavior",
+          "expected": "Authentication request should be rejected",
+          "observed": "Direct browser fetch to bundles endpoint with invalid key returned status 403"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/auth-flows/VAL-AUTH-004-invalid-credentials-error.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET https://bundles.aem.page/bundles/www.aem.live/2026/04/10/00?domainkey=INVALID-DOMAIN-KEY -> 403"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-005",
+      "title": "Credentials persist in localStorage",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Sign in with valid credentials from login form",
+          "expected": "Credentials are persisted",
+          "observed": "localStorage contains key rum_credentials with domain and domainkey JSON payload"
+        },
+        {
+          "action": "Reload page after successful form login",
+          "expected": "Dashboard shown without re-login",
+          "observed": "After reload, login hidden and dashboard visible"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/auth-flows/VAL-AUTH-005-dashboard-after-reload.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Post-login dashboard reload completed and remained authenticated",
+        "localStorage": "{\"count\":1,\"entries\":[{\"key\":\"rum_credentials\",\"value\":\"{\\\"domain\\\":\\\"www.aem.live\\\",\\\"domainkey\\\":\\\"53A02890-F91F-428B-A870-A809B82D953E\\\"}\"}]}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "title": "Logout clears credentials",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Click Logout from authenticated dashboard",
+          "expected": "Stored credentials removed and login form shown",
+          "observed": "localStorage.rum_credentials=null, loginVisible=true, dashboardVisible=false"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/auth-flows/VAL-AUTH-006-login-after-logout.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Logout action transitioned to unauthenticated state without additional errors",
+        "localStorage": "{\"rumCredentials\":null}"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser `network requests` returned \"No requests captured\" despite active bundle fetches during page load.",
+      "resolved": true,
+      "resolution": "Used `performance.getEntriesByType('resource')` for request evidence and a direct browser-side fetch for explicit invalid-key 403 status evidence.",
+      "affectedAssertions": [
+        "VAL-AUTH-001",
+        "VAL-AUTH-003",
+        "VAL-AUTH-004"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 authentication assertions: 6 passed, 0 failed, 0 blocked."
+}

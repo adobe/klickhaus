@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" class="traffic-colors">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RUM Traffic - CDN Analytics</title>
+  <script>
+    window.SAMPLE_PAGEVIEWS_AT_RATE = 'high';
+  </script>
+  <script defer type="text/javascript" src="https://ot.aem.live/.rum/@adobe/helix-rum-js@^2/dist/rum-standalone.js"></script>
+
+  <!-- Favicon Icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+  <link rel="stylesheet" href="dashboard.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "@adobe/rum-distiller": "https://esm.sh/@adobe/rum-distiller@1.23.0"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Login Form (RUM-specific: domain + domainkey) -->
+  <div id="login" class="hidden">
+    <div class="login-card">
+      <h1>RUM Traffic</h1>
+      <p>Sign in to view your RUM analytics dashboard</p>
+      <div id="loginError" class="error-message"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="domain">Domain</label>
+          <input type="text" id="domain" name="domain" required autocomplete="url" placeholder="www.example.com">
+        </div>
+        <div class="form-group">
+          <label for="domainkey">Domain Key</label>
+          <input type="text" id="domainkey" name="domainkey" required autocomplete="off">
+        </div>
+        <div class="form-group form-option">
+          <label class="checkbox-label">
+            <input type="checkbox" id="forgetMe" name="forgetMe">
+            Forget me on this device
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="visible">
+    <header>
+      <div class="header-left">
+        <button id="menuBtn" class="menu-btn" title="Quick Links">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <rect y="3" width="20" height="2" rx="1"/>
+            <rect y="9" width="20" height="2" rx="1"/>
+            <rect y="15" width="20" height="2" rx="1"/>
+          </svg>
+        </button>
+        <h1><span id="dashboardTitle">RUM Traffic</span> <span id="queryTimer" class="query-timer"></span></h1>
+        <div id="activeFilters"></div>
+      </div>
+      <div class="header-right">
+        <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange"></select></span>
+        <select id="topN"></select>
+        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by domain..." list="hostSuggestions" autocomplete="off"></span>
+        <datalist id="hostSuggestions"></datalist>
+        <button id="viewToggleBtn" class="menu-btn" title="View Logs">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="14" height="12" rx="2"/>
+            <line x1="5" y1="7" x2="13" y2="7"/>
+            <line x1="5" y1="10.5" x2="13" y2="10.5"/>
+            <line x1="5" y1="14" x2="10" y2="14"/>
+          </svg>
+        </button>
+        <button id="refreshBtn" class="menu-btn" title="Refresh">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 9A6 6 0 1 0 13.2 13.2"/>
+            <polyline points="15,5 15,9 11,9"/>
+          </svg>
+        </button>
+        <button id="logoutBtn" class="menu-btn" title="Logout">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 3H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>
+            <polyline points="11,6 15,9 11,12"/>
+            <line x1="15" y1="9" x2="7" y2="9"/>
+          </svg>
+        </button>
+        <button id="moreBtn" class="menu-btn" title="More actions">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.5"/>
+            <circle cx="10" cy="10" r="1.5"/>
+            <circle cx="10" cy="16" r="1.5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <nav id="rumNav"></nav>
+
+    <div id="dashboardError" class="error-message"></div>
+
+    <main id="dashboardContent">
+      <!-- Time Series Chart -->
+      <section class="chart-section">
+        <h2>Requests over time</h2>
+        <div class="chart-container">
+          <canvas id="chart"></canvas>
+        </div>
+      </section>
+
+      <!-- Filters View (Breakdowns) -->
+      <div id="filtersView" class="visible">
+        <section class="breakdowns breakdowns-pinned" id="breakdowns-pinned"></section>
+        <section class="breakdowns" id="breakdowns">
+          <div class="breakdown-card" id="breakdown-url">
+            <h3>URL</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-userAgent">
+            <h3>Device Type / OS</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-checkpoint">
+            <h3>Checkpoint</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-enterSource">
+            <h3>External Referrer</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-clickTarget">
+            <h3>Click Targets</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-mediaTarget">
+            <h3>Viewmedia</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-viewblock">
+            <h3>Viewblock</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-navigate">
+            <h3>Navigate</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-language">
+            <h3>Language</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-accessibility">
+            <h3>Accessibility</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-consent">
+            <h3>Consent</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-loadresource">
+            <h3>Loadresource</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-acquisitionSource">
+            <h3>Acquisition</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-error">
+            <h3>Error</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-four04">
+            <h3>404</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+          <div class="breakdown-card" id="breakdown-redirect">
+            <h3>Redirect</h3>
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+          </div>
+        </section>
+        <section class="breakdowns breakdowns-hidden" id="breakdowns-hidden"></section>
+      </div>
+
+      <!-- Logs View -->
+      <div id="logsView">
+        <div class="logs-table-container">
+          <div class="logs-loading"><div class="spinner"></div>Loading logs...</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Quick Links Modal -->
+  <dialog id="quickLinksModal">
+    <div class="modal-header">
+      <h2>Quick Links</h2>
+      <button class="modal-close" data-action="close-quick-links">&times;</button>
+    </div>
+    <iframe id="quickLinksFrame" src="index.html"></iframe>
+  </dialog>
+
+  <!-- More Actions Menu -->
+  <dialog id="moreMenu" class="dropdown-menu">
+    <button class="menu-item" id="moreViewToggleItem">
+      <span class="menu-item-label">View Logs</span>
+      <kbd class="menu-item-kbd">t</kbd>
+    </button>
+    <button class="menu-item" id="moreRefreshItem">
+      <span class="menu-item-label">Refresh</span>
+      <kbd class="menu-item-kbd">r</kbd>
+    </button>
+    <div class="menu-divider"></div>
+    <button class="menu-item" id="moreLogoutItem">
+      <span class="menu-item-label">Logout</span>
+    </button>
+  </dialog>
+
+  <!-- Keyboard Help Dialog -->
+  <dialog id="keyboardHelp" role="dialog" aria-labelledby="keyboardHelpTitle">
+    <div class="keyboard-help-content">
+      <h2 id="keyboardHelpTitle">Keyboard Shortcuts <button data-action="close-dialog" aria-label="Close">&times;</button></h2>
+      <div class="keyboard-help-grid">
+        <div class="key-group"><kbd>j</kbd> <kbd>k</kbd></div>
+        <div class="key-desc">Navigate between values</div>
+
+        <div class="key-group"><kbd>h</kbd> <kbd>l</kbd></div>
+        <div class="key-desc">Navigate between facets</div>
+
+        <div class="key-group"><kbd>Tab</kbd></div>
+        <div class="key-desc">Next value (wraps to next facet)</div>
+
+        <div class="key-group"><kbd>i</kbd> <kbd>c</kbd> <kbd>Space</kbd></div>
+        <div class="key-desc">Toggle filter on value</div>
+
+        <div class="key-group"><kbd>e</kbd> <kbd>x</kbd></div>
+        <div class="key-desc">Toggle exclude on value</div>
+
+        <div class="key-group"><kbd>c</kbd><kbd>c</kbd></div>
+        <div class="key-desc">Clear all filters</div>
+
+        <div class="key-group"><kbd>.</kbd></div>
+        <div class="key-desc">Expand (other) / show more</div>
+
+        <div class="key-group"><kbd>o</kbd></div>
+        <div class="key-desc">Open link in new tab</div>
+
+        <div class="key-group"><kbd>p</kbd></div>
+        <div class="key-desc">Pin/unpin facet</div>
+
+        <div class="key-group"><kbd>d</kbd></div>
+        <div class="key-desc">Hide/show facet</div>
+
+        <div class="key-group"><kbd>g</kbd></div>
+        <div class="key-desc">Go to facet (quick navigation)</div>
+
+        <div class="key-group"><kbd>r</kbd></div>
+        <div class="key-desc">Refresh data</div>
+
+        <div class="key-group"><kbd>f</kbd></div>
+        <div class="key-desc">Focus host filter</div>
+
+        <div class="key-group"><kbd>t</kbd></div>
+        <div class="key-desc">Toggle logs view</div>
+
+        <div class="key-group"><kbd>?</kbd></div>
+        <div class="key-desc">Show this help</div>
+
+        <div class="key-group"><kbd>Esc</kbd></div>
+        <div class="key-desc">Exit keyboard mode</div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Log Detail Modal -->
+  <dialog id="logDetailModal" role="dialog" aria-labelledby="logDetailTitle">
+    <div class="log-detail-header">
+      <h2 id="logDetailTitle">Log Entry Details</h2>
+      <button class="modal-close" data-action="close-log-detail">&times;</button>
+    </div>
+    <div class="log-detail-content">
+      <table class="log-detail-table" id="logDetailTable"></table>
+    </div>
+  </dialog>
+
+  <!-- Facet Command Palette -->
+  <dialog id="facetPalette" role="dialog" aria-labelledby="facetPaletteTitle">
+    <div class="palette-header">
+      <input type="text" id="facetPaletteInput" placeholder="Go to facet..." aria-label="Search facets">
+    </div>
+    <div id="facetPaletteList" role="listbox" aria-label="Facet list"></div>
+  </dialog>
+
+  <!-- Facet Value Search Popover -->
+  <dialog id="facetSearchPopover" role="dialog" aria-labelledby="facetSearchTitle">
+    <div class="facet-search-header">
+      <h4 id="facetSearchTitle">Search</h4>
+      <input type="text" id="facetSearchInput" placeholder="Search values..." aria-label="Search facet values">
+    </div>
+    <div id="facetSearchResults" role="listbox" aria-label="Search results"></div>
+  </dialog>
+
+  <script type="module" src="js/rum-traffic-main.js"></script>
+</body>
+</html>

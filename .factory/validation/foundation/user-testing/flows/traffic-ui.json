@@ -1,0 +1,215 @@
+{
+  "groupId": "traffic-ui",
+  "testedAt": "2026-04-13T23:55:57Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "baseUrl": "http://localhost:5561/",
+    "page": "rum-traffic.html",
+    "session": "traffic-ui-flow",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    }
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-TRAFFIC-001",
+      "title": "Page loads with stacked area chart",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open rum-traffic with domain/domainkey params",
+          "expected": "Canvas chart renders",
+          "observed": "Chart rendered with visible stacked green/yellow/red areas"
+        },
+        {
+          "action": "Inspect canvas geometry",
+          "expected": "Canvas exists with non-zero dimensions",
+          "observed": "canvasExists=true, width=1280, height=250, nonZero=true"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-001-chart.png"
+        ],
+        "consoleErrors": "none",
+        "network": "bundles.aem.page fetches observed during page data load"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-002",
+      "title": "Chart scrubber shows custom labels",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Hover chart data points",
+          "expected": "Scrubber uses labels good / needs improvement / poor",
+          "observed": "Visible scrubber labels included good, needs improvement, poor (examples: good 2.40K, needs improvement 9.75K, poor 200)"
+        },
+        {
+          "action": "Check for old status labels",
+          "expected": "No 2xx/4xx/5xx scrubber labels",
+          "observed": "No 2xx/4xx/5xx labels found in visible scrubber badge text"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-002-scrubber-all-labels.png"
+        ],
+        "consoleErrors": "none",
+        "network": "not applicable"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-003",
+      "title": "Key metrics overlay — page views",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read PAGE VIEWS metric",
+          "expected": "Positive numeric page views value",
+          "observed": "PAGE VIEWS = 25.37K (numericValue=25370)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-003-page-views.png"
+        ],
+        "consoleErrors": "none",
+        "network": "not applicable"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-004",
+      "title": "Key metrics overlay — visits and bounce rate",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read VISITS and BOUNCE RATE metrics",
+          "expected": "Visits positive and bounce rate between 0 and 100",
+          "observed": "VISITS = 12.40K (12400), BOUNCE RATE = 70%"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-004-visits-bounce.png"
+        ],
+        "consoleErrors": "none",
+        "network": "not applicable"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-005",
+      "title": "Key metrics overlay — CWV p75 values",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read LCP/CLS/INP p75 metrics",
+          "expected": "LCP, CLS, INP p75 values are populated and positive",
+          "observed": "LCP P75 = 1.2s, CLS P75 = 0.06, INP P75 = 48ms"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-005-cwv-metrics.png"
+        ],
+        "consoleErrors": "none",
+        "network": "not applicable"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-006",
+      "title": "Breakdown cards with stacked bars",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect breakdown section",
+          "expected": "At least 2 cards with stacked good/meh/bad bars",
+          "observed": "3 breakdown cards rendered with 72 bar segment elements (bar-ok/bar-4xx/bar-5xx classes)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-006-breakdown-cards.png"
+        ],
+        "consoleErrors": "none",
+        "network": "not applicable"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-007",
+      "title": "Time range selector works",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Baseline on week",
+          "expected": "Week data visible",
+          "observed": "timeRange=7d with PAGE VIEWS=25.37K"
+        },
+        {
+          "action": "Change time range to month",
+          "expected": "Chart and breakdowns reload for month",
+          "observed": "timeRange=30d, PAGE VIEWS=106.02K, URL includes t=30d"
+        },
+        {
+          "action": "Change time range to year",
+          "expected": "Chart and breakdowns reload for year",
+          "observed": "timeRange=365d, PAGE VIEWS=1.14M, URL includes t=365d"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-001-chart.png",
+          "foundation/traffic-ui/VAL-TRAFFIC-007-time-range-month.png",
+          "foundation/traffic-ui/VAL-TRAFFIC-007-time-range-year.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET fetches to bundles.aem.page switched by range granularity (daily paths for 30d, monthly paths for 365d)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TRAFFIC-008",
+      "title": "Filter by clicking breakdown value",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Click first URL facet value in breakdown",
+          "expected": "Filter is applied and data reloads",
+          "observed": "Filter applied for url=https://www.aem.live/developer/tutorial"
+        },
+        {
+          "action": "Verify filter tag and URL",
+          "expected": "Filter tag visible and URL contains filter param",
+          "observed": "filterTags=[\"https://www.aem.live/developer/tutorial\"], removeButtons=1, URL contains encoded filters parameter"
+        },
+        {
+          "action": "Verify chart/metrics changed",
+          "expected": "Filtered data differs from unfiltered",
+          "observed": "PAGE VIEWS changed from 1.14M (unfiltered year) to 89.25K after filter"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/traffic-ui/VAL-TRAFFIC-008-before-filter.png",
+          "foundation/traffic-ui/VAL-TRAFFIC-008-after-filter.png"
+        ],
+        "consoleErrors": "none",
+        "network": "New bundles.aem.page fetch sequence observed after filter click"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 8 assertions (VAL-TRAFFIC-001..008): 8 passed, 0 failed, 0 blocked."
+}

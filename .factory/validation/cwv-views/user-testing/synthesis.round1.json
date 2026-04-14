@@ -1,0 +1,66 @@
+{
+  "milestone": "cwv-views",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 33,
+    "passed": 30,
+    "failed": 3,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CLS-001",
+    "VAL-CLS-002",
+    "VAL-CLS-003",
+    "VAL-CLS-004",
+    "VAL-CLS-005",
+    "VAL-CLS-006",
+    "VAL-CLS-007",
+    "VAL-CROSS-001",
+    "VAL-CROSS-003",
+    "VAL-CROSS-004",
+    "VAL-CROSS-005",
+    "VAL-INP-001",
+    "VAL-INP-002",
+    "VAL-INP-003",
+    "VAL-INP-004",
+    "VAL-INP-005",
+    "VAL-INP-006",
+    "VAL-INP-007",
+    "VAL-LCP-001",
+    "VAL-LCP-002",
+    "VAL-LCP-003",
+    "VAL-LCP-004",
+    "VAL-LCP-005",
+    "VAL-LCP-006",
+    "VAL-LCP-007",
+    "VAL-NAV-001",
+    "VAL-NAV-002",
+    "VAL-NAV-003",
+    "VAL-NAV-005",
+    "VAL-NAV-006"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-NAV-004",
+      "reason": "Filter state was dropped when navigating from CLS to INP."
+    },
+    {
+      "id": "VAL-NAV-007",
+      "reason": "Round-trip navigation did not preserve full URL state (filters/hash lost)."
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "reason": "Filter state is not preserved when opening copied filtered URL in a new context."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added checkpoint-facet note: expand Checkpoint facet via \"other\" (Top 10/20) when `click` is not visible in Top 5 for VAL-NAV-006 style flows.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

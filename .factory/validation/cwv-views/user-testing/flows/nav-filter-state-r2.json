@@ -1,0 +1,186 @@
+{
+  "groupId": "nav-filter-state-r2",
+  "testedAt": "2026-04-14T17:05:47Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appBaseUrl": "http://localhost:5561",
+    "pages": [
+      "rum-traffic.html",
+      "rum-cls.html",
+      "rum-inp.html",
+      "rum-lcp.html"
+    ],
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    },
+    "session": "nav-filter-state-r2"
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-NAV-004",
+      "title": "Navigation preserves filters",
+      "status": "pass",
+      "reason": "Filter state persisted from CLS to INP in both URL query and active filter UI.",
+      "reproductionSteps": [
+        "Open rum-cls with valid domain/domainkey.",
+        "Click URL facet value 'https://www.aem.live/developer/tutorial' to apply filter.",
+        "Navigate via INP tab.",
+        "Verify filters param and active filter tag still present on INP."
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav-filter-state-r2/VAL-NAV-004-before-filter-cls.png",
+          "cwv-views/nav-filter-state-r2/VAL-NAV-004-after-filter-cls.png",
+          "cwv-views/nav-filter-state-r2/VAL-NAV-004-after-nav-inp.png"
+        ],
+        "urlDomEvidence": {
+          "source": {
+            "page": "/rum-cls.html",
+            "filterCountInUrl": 1,
+            "firstFilter": {
+              "col": "url",
+              "value": "https://www.aem.live/developer/tutorial",
+              "exclude": false,
+              "filterCol": "url",
+              "filterValue": "https://www.aem.live/developer/tutorial"
+            },
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "destination": {
+            "page": "/rum-inp.html",
+            "filterCountInUrl": 1,
+            "firstFilter": {
+              "col": "url",
+              "value": "https://www.aem.live/developer/tutorial",
+              "exclude": false,
+              "filterCol": "url",
+              "filterValue": "https://www.aem.live/developer/tutorial"
+            },
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          }
+        },
+        "consoleErrors": "none",
+        "network": "bundles.aem.page resource requests observed in performance entries during navigation"
+      }
+    },
+    {
+      "id": "VAL-NAV-007",
+      "title": "Round-trip navigation preserves state",
+      "status": "fail",
+      "reason": "Round-trip INP -> LCP -> INP preserved query params (t, n, filters) and filter UI, but dropped URL hash (#f=url) from start state.",
+      "reproductionSteps": [
+        "On INP with URL filter active, set time range to Last Month (t=30d) and Top 20 (n=20).",
+        "Set hash to #f=url and capture start URL/UI state.",
+        "Navigate INP -> LCP -> INP using top nav tabs.",
+        "Compare start/end URL state and active filter tags."
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav-filter-state-r2/VAL-NAV-007-start-inp.png",
+          "cwv-views/nav-filter-state-r2/VAL-NAV-007-mid-lcp.png",
+          "cwv-views/nav-filter-state-r2/VAL-NAV-007-end-inp.png"
+        ],
+        "urlDomEvidence": {
+          "start": {
+            "page": "/rum-inp.html",
+            "t": "30d",
+            "n": "20",
+            "hash": "#f=url",
+            "filterCountInUrl": 1,
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "mid": {
+            "page": "/rum-lcp.html",
+            "t": "30d",
+            "n": "20",
+            "hash": "",
+            "filterCountInUrl": 1,
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "end": {
+            "page": "/rum-inp.html",
+            "t": "30d",
+            "n": "20",
+            "hash": "",
+            "filterCountInUrl": 1,
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          }
+        },
+        "consoleErrors": "none",
+        "network": "bundles.aem.page resource requests observed in performance entries during round-trip"
+      }
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "URL shareability",
+      "status": "pass",
+      "reason": "Opening the filtered/time-ranged INP URL in a new browser context reproduced identical URL and active filter UI state.",
+      "reproductionSteps": [
+        "From filtered INP state (t=30d, n=20, URL filter), capture source URL/UI.",
+        "Open same URL in a new tab context within the same dedicated session.",
+        "Compare page, t, n, filter query payload, and active filter tags between source and new context."
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav-filter-state-r2/VAL-CROSS-002-source-state.png",
+          "cwv-views/nav-filter-state-r2/VAL-CROSS-002-new-context-state.png"
+        ],
+        "urlDomEvidence": {
+          "source": {
+            "page": "/rum-inp.html",
+            "t": "30d",
+            "n": "20",
+            "hash": "",
+            "filterCountInUrl": 1,
+            "firstFilter": {
+              "col": "url",
+              "value": "https://www.aem.live/developer/tutorial",
+              "exclude": false,
+              "filterCol": "url",
+              "filterValue": "https://www.aem.live/developer/tutorial"
+            },
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          },
+          "newContext": {
+            "page": "/rum-inp.html",
+            "t": "30d",
+            "n": "20",
+            "hash": "",
+            "filterCountInUrl": 1,
+            "firstFilter": {
+              "col": "url",
+              "value": "https://www.aem.live/developer/tutorial",
+              "exclude": false,
+              "filterCol": "url",
+              "filterValue": "https://www.aem.live/developer/tutorial"
+            },
+            "activeFilterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ]
+          }
+        },
+        "consoleErrors": "none",
+        "network": "bundles.aem.page resource requests observed in performance entries in both contexts"
+      }
+    }
+  ],
+  "blockers": [],
+  "frictions": [],
+  "summary": "Retested 3 assertions: VAL-NAV-004 passed, VAL-NAV-007 failed (hash state dropped on round-trip), VAL-CROSS-002 passed."
+}

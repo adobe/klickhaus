@@ -68,6 +68,34 @@ import { preloadAllTemplates } from './sql-loader.js';
 import { startRequestContext, isRequestCurrent } from './request-context.js';
 
 /**
+ * Set up auth handlers (login form, logout button, stored credentials).
+ * Extracted from init() to keep cyclomatic complexity manageable.
+ * @param {Object} config - Dashboard configuration
+ * @param {Object} elements - DOM element references
+ * @param {Object} callbacks - Dashboard lifecycle callbacks
+ */
+function initAuthHandlers(config, elements, callbacks) {
+  if (!config.skipDefaultAuth) {
+    const storedCredentials = loadStoredCredentials();
+    if (storedCredentials) {
+      state.credentials = storedCredentials;
+      preloadAllTemplates();
+      callbacks.syncUIFromState();
+      callbacks.reorderFacets();
+      showDashboard();
+      callbacks.updateTimeRangeHint();
+      callbacks.loadDashboard();
+    }
+    elements.loginForm.addEventListener('submit', handleLogin);
+  }
+
+  const logoutHandler = typeof config.onLogout === 'function'
+    ? config.onLogout
+    : handleLogout;
+  elements.logoutBtn.addEventListener('click', logoutHandler);
+}
+
+/**
  * Initialize a dashboard instance.
  * @param {Object} [config] - Optional dashboard configuration
  * @param {string} [config.title] - Default title (e.g., 'Delivery')
@@ -76,6 +104,27 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
  * @param {boolean} [config.disableTableSampling] - Omit SAMPLE clause
  *   (use with pre-weighted tables)
+ * @param {Function} [config.loadTimeSeries] - Optional callback replacing the default
+ *   SQL-based time series loading. Receives (requestContext) and should populate
+ *   state.chartData and call renderChart().
+ * @param {Function} [config.loadBreakdowns] - Optional callback replacing the default
+ *   SQL-based breakdown loading. Receives (requestContext) and should render all
+ *   breakdown facets.
+ * @param {Function} [config.applyFilters] - Optional filter callback. Defaults to
+ *   compileFilters() SQL compilation. Can be replaced with DataChunks-based filtering
+ *   for non-SQL data sources.
+ * @param {boolean} [config.skipDefaultAuth] - When true, skips the default ClickHouse
+ *   credential loading, login form handling, and logout. The entry point must handle
+ *   authentication itself and dispatch 'login-success' when ready.
+ * @param {Function} [config.onLogout] - Optional logout callback. When provided,
+ *   replaces the default ClickHouse logout handler.
+ * @param {boolean} [config.skipLogs] - When true, skips SQL-based log loading
+ *   entirely. Use for non-SQL data sources (e.g., RUM pages) that don't have
+ *   a corresponding logs table.
+ * @param {boolean} [config.skipReleases] - When true, skips ClickHouse-based release
+ *   marker fetching in the chart. Use for non-SQL data sources.
+ * @param {boolean} [config.skipAutocomplete] - When true, skips ClickHouse-based host
+ *   autocomplete loading. Use for non-SQL data sources.
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -102,7 +151,14 @@ export function initDashboard(config = {}) {
 
   // Load dashboard queries (chart and facets)
   async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
-    const timeSeriesPromise = loadTimeSeries(dashboardContext);
+    const useCustomTimeSeries = typeof config.loadTimeSeries === 'function';
+    const useCustomBreakdowns = typeof config.loadBreakdowns === 'function';
+
+    // Use pluggable data source if provided, otherwise default to SQL-based loading
+    const timeSeriesPromise = useCustomTimeSeries
+      ? config.loadTimeSeries(dashboardContext)
+      : loadTimeSeries(dashboardContext);
+
     const focusedFacetId = getFocusedFacetId();
     const isDashboardCurrent = () => isRequestCurrent(
       dashboardContext.requestId,
@@ -110,20 +166,26 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
-    const facetPromises = getBreakdowns().map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
-        if (!isFacetsCurrent()) {
-          return;
-        }
-        if (!hasVisibleUpdatingFacets()) {
-          stopQueryTimer();
-        }
-        if (focusedFacetId === b.id) {
-          restoreKeyboardFocus();
-        }
-        reapplyHighlightsIfCached();
-      }),
-    );
+    // Use pluggable breakdown loading if provided, otherwise default per-facet SQL loading
+    let facetPromises;
+    if (useCustomBreakdowns) {
+      facetPromises = [config.loadBreakdowns(facetsContext)];
+    } else {
+      facetPromises = getBreakdowns().map(
+        (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
+          if (!isFacetsCurrent()) {
+            return;
+          }
+          if (!hasVisibleUpdatingFacets()) {
+            stopQueryTimer();
+          }
+          if (focusedFacetId === b.id) {
+            restoreKeyboardFocus();
+          }
+          reapplyHighlightsIfCached();
+        }),
+      );
+    }
 
     await timeSeriesPromise;
 
@@ -135,43 +197,54 @@ export function initDashboard(config = {}) {
       stopQueryTimer();
     }
 
-    const anomalies = getDetectedAnomalies();
-    const chartData = getLastChartData();
+    // Anomaly investigation and refinement are SQL-specific;
+    // skip when using custom data source callbacks
+    if (!useCustomTimeSeries && !useCustomBreakdowns) {
+      const anomalies = getDetectedAnomalies();
+      const chartData = getLastChartData();
 
-    if (anomalies.length > 0 && chartData) {
-      const hasCache = hasCachedInvestigation();
+      if (anomalies.length > 0 && chartData) {
+        const hasCache = hasCachedInvestigation();
 
-      if (hasCache) {
-        investigateAnomalies(anomalies, chartData);
+        if (hasCache) {
+          investigateAnomalies(anomalies, chartData);
+          Promise.all(facetPromises).then(() => {
+            if (isFacetsCurrent()) {
+              markSlowestFacet();
+            }
+          });
+        } else {
+          await Promise.all(facetPromises);
+          if (!isFacetsCurrent()) {
+            return;
+          }
+          markSlowestFacet();
+          await investigateAnomalies(anomalies, chartData);
+        }
+      } else {
         Promise.all(facetPromises).then(() => {
           if (isFacetsCurrent()) {
             markSlowestFacet();
           }
         });
-      } else {
-        await Promise.all(facetPromises);
-        if (!isFacetsCurrent()) {
-          return;
-        }
-        markSlowestFacet();
-        await investigateAnomalies(anomalies, chartData);
+      }
+
+      // Schedule refinement pass if initial load used sampling
+      const { multiplier } = getSamplingConfig();
+      if (multiplier > 1) {
+        const refinedSampling = { sampleClause: '', multiplier: 1 };
+        const refinementDashCtx = startRequestContext('dashboard');
+        const refinementFacetsCtx = startRequestContext('facets');
+        loadTimeSeries(refinementDashCtx, refinedSampling);
+        loadAllBreakdownsRefined(refinementFacetsCtx);
       }
     } else {
+      // Custom data source path: wait for breakdowns to complete
       Promise.all(facetPromises).then(() => {
         if (isFacetsCurrent()) {
           markSlowestFacet();
         }
       });
-    }
-
-    // Schedule refinement pass if initial load used sampling
-    const { multiplier } = getSamplingConfig();
-    if (multiplier > 1) {
-      const refinedSampling = { sampleClause: '', multiplier: 1 };
-      const refinementDashCtx = startRequestContext('dashboard');
-      const refinementFacetsCtx = startRequestContext('facets');
-      loadTimeSeries(refinementDashCtx, refinedSampling);
-      loadAllBreakdownsRefined(refinementFacetsCtx);
     }
   }
 
@@ -214,7 +287,9 @@ export function initDashboard(config = {}) {
     const timeFilter = getTimeFilter();
     const hostFilter = getHostFilter();
 
-    if (state.showLogs) {
+    if (config.skipLogs) {
+      await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+    } else if (state.showLogs) {
       await loadLogs(dashboardContext);
       loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
     } else {
@@ -267,10 +342,15 @@ export function initDashboard(config = {}) {
     if (toggledFacetId) {
       const breakdown = getBreakdowns().find((b) => b.id === toggledFacetId);
       if (breakdown) {
-        const timeFilter = getTimeFilter();
-        const hostFilter = getHostFilter();
-        const facetsContext = startRequestContext(`facet:${breakdown.id}`);
-        loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+        if (typeof config.loadBreakdowns === 'function') {
+          const facetsContext = startRequestContext('facets');
+          config.loadBreakdowns(facetsContext);
+        } else {
+          const timeFilter = getTimeFilter();
+          const hostFilter = getHostFilter();
+          const facetsContext = startRequestContext(`facet:${breakdown.id}`);
+          loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+        }
       }
     }
   }
@@ -284,7 +364,11 @@ export function initDashboard(config = {}) {
       elements.topNSelect.value = next;
       saveStateToURL();
       const facetsContext = startRequestContext('facets');
-      loadAllBreakdowns(facetsContext);
+      if (typeof config.loadBreakdowns === 'function') {
+        config.loadBreakdowns(facetsContext);
+      } else {
+        loadAllBreakdowns(facetsContext);
+      }
     }
   }
 
@@ -311,42 +395,54 @@ export function initDashboard(config = {}) {
     }
   }
 
-  // Initialize
-  async function init() {
-    loadStateFromURL();
-
-    // Apply dashboard-specific configuration
+  /**
+   * Apply dashboard-specific configuration to global state.
+   * Extracted from init() to keep cyclomatic complexity manageable.
+   */
+  function applyConfig() {
     if (config.title && !state.title) {
       state.title = config.title;
     }
-    if (config.additionalWhereClause !== undefined) {
-      state.additionalWhereClause = config.additionalWhereClause;
+
+    // Transfer config properties to state when explicitly set
+    const directTransfers = [
+      'additionalWhereClause', 'logsTableName', 'weightColumn', 'disableTableSampling',
+      'hostFilterColumn',
+    ];
+    for (const key of directTransfers) {
+      if (config[key] !== undefined) {
+        state[key] = config[key];
+      }
     }
-    if (config.tableName) {
-      state.tableName = config.tableName;
+
+    // Transfer truthy config properties to state
+    const truthyTransfers = [
+      'tableName', 'timeSeriesTemplate', 'aggregations', 'breakdowns', 'seriesLabels',
+    ];
+    for (const key of truthyTransfers) {
+      if (config[key]) {
+        state[key] = config[key];
+      }
     }
-    if (config.logsTableName !== undefined) {
-      state.logsTableName = config.logsTableName;
+
+    if (typeof config.applyFilters === 'function') {
+      state.applyFilters = config.applyFilters;
     }
-    if (config.weightColumn !== undefined) {
-      state.weightColumn = config.weightColumn;
+
+    // Boolean flags for suppressing ClickHouse-specific features
+    if (config.skipReleases) {
+      state.skipReleases = true;
     }
-    if (config.disableTableSampling !== undefined) {
-      state.disableTableSampling = config.disableTableSampling;
-    }
-    if (config.timeSeriesTemplate) {
-      state.timeSeriesTemplate = config.timeSeriesTemplate;
-    }
-    if (config.aggregations) {
-      state.aggregations = config.aggregations;
-    }
-    if (config.hostFilterColumn !== undefined) {
-      state.hostFilterColumn = config.hostFilterColumn;
-    }
-    if (config.breakdowns) {
-      state.breakdowns = config.breakdowns;
+    if (config.skipAutocomplete) {
+      state.skipAutocomplete = true;
     }
     applyDefaultHiddenFacets();
+  }
+
+  // Initialize
+  async function init() {
+    loadStateFromURL();
+    applyConfig();
 
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
@@ -378,19 +474,9 @@ export function initDashboard(config = {}) {
       copyFacetTsv: copyFacetAsTsv,
     });
 
-    const storedCredentials = loadStoredCredentials();
-    if (storedCredentials) {
-      state.credentials = storedCredentials;
-      preloadAllTemplates();
-      syncUIFromState();
-      reorderFacets();
-      showDashboard();
-      updateTimeRangeHint();
-      loadDashboard();
-    }
-
-    elements.loginForm.addEventListener('submit', handleLogin);
-    elements.logoutBtn.addEventListener('click', handleLogout);
+    initAuthHandlers(config, elements, {
+      syncUIFromState, reorderFacets, updateTimeRangeHint, loadDashboard,
+    });
     elements.refreshBtn.addEventListener('click', () => {
       saveStateToURL(null);
       loadDashboard(true);
@@ -411,7 +497,11 @@ export function initDashboard(config = {}) {
       document.body.dataset.topn = state.topN;
       saveStateToURL();
       const facetsContext = startRequestContext('facets');
-      loadAllBreakdowns(facetsContext);
+      if (typeof config.loadBreakdowns === 'function') {
+        config.loadBreakdowns(facetsContext);
+      } else {
+        loadAllBreakdowns(facetsContext);
+      }
     });
 
     function commitHostFilterIfChanged() {
@@ -469,7 +559,9 @@ export function initDashboard(config = {}) {
   }
 
   window.addEventListener('dashboard-shown', () => {
-    setTimeout(loadHostAutocomplete, 100);
+    if (!state.skipAutocomplete) {
+      setTimeout(loadHostAutocomplete, 100);
+    }
   });
 
   init();

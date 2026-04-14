@@ -1,0 +1,225 @@
+{
+  "groupId": "cls",
+  "testedAt": "2026-04-14T16:46:00Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appBaseUrl": "http://localhost:5561",
+    "page": "rum-cls.html",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    },
+    "assignedAssertions": [
+      "VAL-CLS-001",
+      "VAL-CLS-002",
+      "VAL-CLS-003",
+      "VAL-CLS-004",
+      "VAL-CLS-005",
+      "VAL-CLS-006",
+      "VAL-CLS-007"
+    ]
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": [
+    {
+      "id": "VAL-CLS-001",
+      "title": "CLS page loads with stacked area chart",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to rum-cls.html with domain/domainkey URL params",
+          "expected": "CLS dashboard loads and chart renders",
+          "observed": "Dashboard loaded directly (no login), chart canvas rendered"
+        },
+        {
+          "action": "Inspect canvas in DOM",
+          "expected": "Canvas exists with non-zero dimensions",
+          "observed": "#chart exists with width=1280 and height=250"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-001-initial-load.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-initial-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "GET https://bundles.aem.page/bundles/www.aem.live/2026/04/10/21?domainkey=... -> 200 (see cwv-views/cls/network-check.json)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLS-002",
+      "title": "CLS key metrics displayed",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect key metrics overlay values",
+          "expected": "Six populated metrics are visible",
+          "observed": "Page Views, Visits, Bounce Rate, LCP p75, CLS p75, INP p75 all populated"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-002-key-metrics.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-initial-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "bundles.aem.page resource fetches observed during load (see cwv-views/cls/VAL-CLS-initial-eval.json)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLS-003",
+      "title": "CLS breakdown facets show metric-specific proportions",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect rendered breakdown rows and stacked bar segments",
+          "expected": "Breakdown rows include CLS good/needs-improvement/poor proportions",
+          "observed": "Rows contain bar-ok/bar-4xx/bar-5xx segments with non-zero NI/Poor widths in sampled rows"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-003-breakdowns.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-003-breakdown-bars-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "bundles.aem.page fetches present for breakdown data load (see cwv-views/cls/VAL-CLS-initial-eval.json)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLS-004",
+      "title": "All required facets present",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Query required facet card IDs in sidebar",
+          "expected": "All required facets exist",
+          "observed": "16/16 required facets present (URL, Device Type/OS, Checkpoint, External Referrer, Click targets, Viewmedia, Viewblock, Navigate, Language, Accessibility, Consent, Loadresource, Acquisition, Error, 404, Redirect)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-004-facets.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-initial-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "bundles.aem.page requests active during page data population (see cwv-views/cls/VAL-CLS-initial-eval.json)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLS-005",
+      "title": "CLS filtering works",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Click URL facet value https://www.aem.live/developer/tutorial",
+          "expected": "Filter is applied; chart/metrics update",
+          "observed": "Filter tag displayed and URL contains filters param"
+        },
+        {
+          "action": "Compare metrics and chart state before vs after filter",
+          "expected": "Values reflect filtered subset",
+          "observed": "Page Views changed from 25.44K to 1.10K; chart points changed from 132 to 24"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-005-before-filter.png",
+          "cwv-views/cls/VAL-CLS-005-after-filter.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-initial-eval.json",
+          "cwv-views/cls/VAL-CLS-005-after-filter-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "bundles.aem.page requests executed after filter application (resource entries in cwv-views/cls/VAL-CLS-initial-eval.json)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLS-006",
+      "title": "CLS interpolation handles missing CWV data",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Fetch raw CLS chartData and run interpolateCwvGaps",
+          "expected": "Sparse interior buckets are interpolated; no visible gaps",
+          "observed": "17 sparse-candidate buckets found; sampled buckets changed from rawTotal=0 to interpolated totals >0; noZeroInteriorPointsAfterInterpolation=true"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-006-interpolation.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-initial-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "bundles data fetch succeeded for interpolation check (see cwv-views/cls/network-check.json)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLS-007",
+      "title": "CLS chart scrubber shows custom labels",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Hover chart at points containing NI and poor counts",
+          "expected": "Scrubber labels use good/needs improvement/poor and not 2xx/4xx/5xx",
+          "observed": "Combined hovers produced labels good 200, needs improvement 100, poor 100; no legacy 2xx/4xx/5xx labels observed"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cls/VAL-CLS-007-scrubber-good-ni.png",
+          "cwv-views/cls/VAL-CLS-007-scrubber-poor.png"
+        ],
+        "dom": [
+          "cwv-views/cls/VAL-CLS-007-scrubber-labels-eval.json"
+        ],
+        "consoleErrors": "none (see cwv-views/cls/console-errors.txt)",
+        "network": "page remained data-backed by bundles.aem.page while scrubber labels were validated"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network requests output returned no captured entries in-session despite active data fetches.",
+      "resolved": true,
+      "resolution": "Used performance resource entries and a direct in-page fetch status check for concrete network evidence.",
+      "affectedAssertions": [
+        "VAL-CLS-001",
+        "VAL-CLS-002",
+        "VAL-CLS-003",
+        "VAL-CLS-004",
+        "VAL-CLS-005",
+        "VAL-CLS-006",
+        "VAL-CLS-007"
+      ]
+    },
+    {
+      "description": "No single hovered timestamp exposed all three scrubber badges simultaneously because chart points with NI and poor were at different times.",
+      "resolved": true,
+      "resolution": "Hovered two representative timestamps and combined scrubber label evidence.",
+      "affectedAssertions": [
+        "VAL-CLS-007"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 CLS assertions: 7 passed, 0 failed, 0 blocked."
+}

@@ -16,6 +16,7 @@ import { query, isAbortError } from './api.js';
 import {
   getFacetFilters, loadPreviewBreakdowns, revertPreviewBreakdowns, isPreviewActive,
 } from './breakdowns/index.js';
+import { buildValueBadges, buildAnomalyInfo } from './chart-labels.js';
 import { DATABASE } from './config.js';
 import { formatNumber } from './format.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
@@ -33,8 +34,8 @@ import {
 import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 import {
   setNavigationCallback, getNavigationCallback, navigateTime, setChartLayout, getChartLayout,
-  setLastChartData, getLastChartData, getDataAtTime, addAnomalyBounds, resetAnomalyBounds,
-  setDetectedSteps, getDetectedSteps, setShipPositions, getShipPositions, setPendingSelection,
+  setLastChartData, getLastChartData, addAnomalyBounds, resetAnomalyBounds,
+  setDetectedSteps, setShipPositions, getShipPositions, setPendingSelection,
   getPendingSelection, getAnomalyAtX, getTimeAtX, getXAtTime, formatScrubberTime, formatDuration,
   zoomToAnomalyByRank, getShipNearX, hexToRgba, parseUTC,
 } from './chart-state.js';
@@ -220,7 +221,7 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
     ctx.lineTo(getX(i), getY(topStack[i]));
   }
   ctx.strokeStyle = colors.line;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.stroke();
 }
 
@@ -295,9 +296,9 @@ export function renderChart(data) {
   const clientColor = cssVar('--status-client-error');
   const serverColor = cssVar('--status-server-error');
   const colors = {
-    ok: { line: okColor, fill: hexToRgba(okColor, 0.3) },
-    client: { line: clientColor, fill: hexToRgba(clientColor, 0.3) },
-    server: { line: serverColor, fill: hexToRgba(serverColor, 0.3) },
+    ok: { line: okColor, fill: hexToRgba(okColor, 0.12) },
+    client: { line: clientColor, fill: hexToRgba(clientColor, 0.12) },
+    server: { line: serverColor, fill: hexToRgba(serverColor, 0.12) },
   };
 
   // Draw X axis line
@@ -390,24 +391,28 @@ export function renderChart(data) {
     }
   }
 
-  // Fetch and render release ships asynchronously
-  const intendedStartDate = new Date(intendedStartTime);
-  const intendedEndDate = new Date(intendedEndTime);
-  getReleasesInRange(intendedStartDate, intendedEndDate).then((releases) => {
-    if (releases.length > 0) {
-      const dims = {
-        width, height, padding, chartWidth,
-      };
-      const timeRange = { start: intendedStartTime, end: intendedEndTime };
-      setShipPositions(renderReleaseShips(ctx, releases, data, dims, timeRange));
-    } else {
-      setShipPositions(null);
-    }
-  }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('Failed to render releases:', err);
+  // Fetch and render release ships asynchronously (skip for non-SQL data sources)
+  if (state.skipReleases) {
     setShipPositions(null);
-  });
+  } else {
+    const intendedStartDate = new Date(intendedStartTime);
+    const intendedEndDate = new Date(intendedEndTime);
+    getReleasesInRange(intendedStartDate, intendedEndDate).then((releases) => {
+      if (releases.length > 0) {
+        const dims = {
+          width, height, padding, chartWidth,
+        };
+        const timeRange = { start: intendedStartTime, end: intendedEndTime };
+        setShipPositions(renderReleaseShips(ctx, releases, data, dims, timeRange));
+      } else {
+        setShipPositions(null);
+      }
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to render releases:', err);
+      setShipPositions(null);
+    });
+  }
 }
 
 export function setupChartNavigation(callback) {
@@ -526,58 +531,6 @@ export function setupChartNavigation(callback) {
       lastTap = now;
     }
   }, { passive: true });
-
-  /** Build value badges HTML for scrubber (2xx/4xx/5xx counts) */
-  function buildValueBadges(time) {
-    const dataPoint = getDataAtTime(time);
-    if (!dataPoint) {
-      return '';
-    }
-    const ok = parseInt(dataPoint.cnt_ok, 10) || 0;
-    const client = parseInt(dataPoint.cnt_4xx, 10) || 0;
-    const server = parseInt(dataPoint.cnt_5xx, 10) || 0;
-    let html = '';
-    if (ok > 0) {
-      html += `<span class="scrubber-value scrubber-value-ok">${formatNumber(ok)}</span>`;
-    }
-    if (client > 0) {
-      html += `<span class="scrubber-value scrubber-value-4xx">${formatNumber(client)}</span>`;
-    }
-    if (server > 0) {
-      html += `<span class="scrubber-value scrubber-value-5xx">${formatNumber(server)}</span>`;
-    }
-    return html;
-  }
-
-  /** Build anomaly info HTML for scrubber */
-  function buildAnomalyInfo(x) {
-    const anomaly = getAnomalyAtX(x);
-    if (!anomaly) {
-      return null;
-    }
-
-    const detectedSteps = getDetectedSteps();
-    const step = detectedSteps.find((s) => s.rank === anomaly.rank);
-    const duration = formatDuration(anomaly.startTime, anomaly.endTime);
-    const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
-    let categoryLabel = '2xx';
-    if (step?.category === 'red') {
-      categoryLabel = '5xx';
-    } else if (step?.category === 'yellow') {
-      categoryLabel = '4xx';
-    }
-
-    let magnitudeLabel;
-    if (step?.magnitude >= 1) {
-      magnitudeLabel = step.magnitude >= 10
-        ? `${Math.round(step.magnitude)}x`
-        : `${step.magnitude.toFixed(1).replace(/\.0$/, '')}x`;
-    } else {
-      magnitudeLabel = `${Math.round((step?.magnitude || 0) * 100)}%`;
-    }
-    const cat = step?.category || 'red';
-    return `<span class="scrubber-anomaly scrubber-anomaly-${cat}">${typeLabel} #${anomaly.rank}: ${categoryLabel} ${magnitudeLabel} over ${duration}</span>`;
-  }
 
   /** Build release info HTML for scrubber */
   function buildReleaseInfo(x) {

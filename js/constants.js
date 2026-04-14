@@ -81,6 +81,25 @@ export const TIME_RANGES = {
     periodMs: 7 * 24 * 60 * 60 * 1000,
     cacheTtl: 1800,
   },
+  // RUM-only ranges (not in TIME_RANGE_ORDER, so not shown in ClickHouse dashboards)
+  '30d': {
+    label: 'Last Month',
+    shortLabel: 'Month',
+    interval: 'INTERVAL 30 DAY',
+    bucket: 'toStartOfHour(timestamp)',
+    step: 'INTERVAL 1 HOUR',
+    periodMs: 30 * 24 * 60 * 60 * 1000,
+    cacheTtl: 3600,
+  },
+  '365d': {
+    label: 'Last Year',
+    shortLabel: 'Year',
+    interval: 'INTERVAL 365 DAY',
+    bucket: 'toStartOfDay(timestamp)',
+    step: 'INTERVAL 1 DAY',
+    periodMs: 365 * 24 * 60 * 60 * 1000,
+    cacheTtl: 7200,
+  },
 };
 
 /** @type {string} */

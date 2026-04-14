@@ -1,0 +1,7 @@
+{
+  "milestone": "foundation",
+  "overridden": true,
+  "overrideJustification": "30 of 38 assertions passed. 4 real failures (VAL-DATA-008/009/010, VAL-TRAFFIC-012) addressed by fix-rum-error-handling feature in foundation milestone. 4 pre-existing/infrastructure failures (VAL-REG-001/002/005/006) moved to misc-fixes milestone — ClickHouse credentials expired (003) and pre-existing lint/dead-code baseline failures.",
+  "deferredAssertions": ["VAL-REG-001", "VAL-REG-002", "VAL-REG-005", "VAL-REG-006"],
+  "deferredTo": "misc-fixes milestone, feature: deferred-preexisting-regression"
+}

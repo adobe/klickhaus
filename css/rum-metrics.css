@@ -1,0 +1,100 @@
+/*
+ * RUM Key Metrics in Navigation Bar
+ * Displays page views, visits, and bounce rate in the nav bar.
+ * CWV metrics (LCP, CLS, INP) are shown inline in the nav tab labels.
+ */
+
+/* Metric value displayed inline in CWV nav tabs */
+.rum-nav-metric {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.rum-nav-link.active .rum-nav-metric {
+  color: var(--primary);
+}
+
+/* Traffic metrics container (right-aligned in nav bar) */
+.nav-metrics {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.nav-metrics.visible {
+  display: flex;
+}
+
+.nav-metrics .key-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.nav-metrics .key-metric-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.nav-metrics .key-metric-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 768px) {
+  .nav-metrics {
+    gap: 8px;
+    padding: 0 8px;
+  }
+
+  .nav-metrics .key-metric-value {
+    font-size: 12px;
+  }
+
+  .nav-metrics .key-metric-label {
+    font-size: 9px;
+  }
+
+  .rum-nav-metric {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 600px) {
+  .nav-metrics {
+    display: none !important;
+  }
+
+  .rum-nav-metric {
+    display: none;
+  }
+}
+
+/*
+ * Traffic-specific color overrides
+ * Applied via class="traffic-colors" on <html> in rum-traffic.html.
+ * Replaces green/yellow/red (HTTP status) with blue/purple/gray (engagement).
+ */
+.traffic-colors {
+  --status-ok: #3b82f6;
+  --status-client-error: #8b5cf6;
+  --status-server-error: #94a3b8;
+}
+
+@media (prefers-color-scheme: dark) {
+  .traffic-colors {
+    --status-ok: #60a5fa;
+    --status-client-error: #a78bfa;
+    --status-server-error: #64748b;
+  }
+}

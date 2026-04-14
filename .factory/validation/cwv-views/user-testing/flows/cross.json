@@ -1,0 +1,217 @@
+{
+  "groupId": "cross",
+  "testedAt": "2026-04-14T16:36:51Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "baseUrl": "http://localhost:5561",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    },
+    "session": "cwv-cross",
+    "assignedAssertions": [
+      "VAL-CROSS-001",
+      "VAL-CROSS-002",
+      "VAL-CROSS-003",
+      "VAL-CROSS-004",
+      "VAL-CROSS-005"
+    ]
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-001",
+      "title": "First visit without credentials shows login then data",
+      "status": "pass",
+      "reason": "Opening rum-traffic without params showed login form; submitting valid credentials transitioned to dashboard with chart canvas and bundles requests.",
+      "steps": [
+        {
+          "action": "Open /rum-traffic.html without query params",
+          "expected": "Login form visible",
+          "observed": "Domain/domainkey login form rendered with Sign In button"
+        },
+        {
+          "action": "Fill valid domain and domainkey and submit",
+          "expected": "Dashboard appears with data loading",
+          "observed": "URL updated with auth params, login hidden, chart canvas rendered (1280x250), bundles.aem.page resource entries observed"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cross/VAL-CROSS-001-login-form.png",
+          "cwv-views/cross/VAL-CROSS-001-filled-form.png",
+          "cwv-views/cross/VAL-CROSS-001-dashboard-with-data.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no entries)",
+        "network": "Fallback via performance entries: bundles.aem.page requests observed after login (agent-browser network requests reported no captured entries)",
+        "domEval": {
+          "urlContainsAuthParams": true,
+          "loginVisible": false,
+          "chartCanvas": {
+            "width": 1280,
+            "height": 250
+          }
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "URL shareability",
+      "status": "fail",
+      "reason": "Copied URL with filter+time range did not reproduce identical state in new tab: time range persisted but filter state was dropped.",
+      "steps": [
+        {
+          "action": "Set Last Month and apply URL filter (https://www.aem.live/developer/tutorial)",
+          "expected": "Source context has t=30d and filter chip visible",
+          "observed": "Source tab had t=30d, filter chip present, filtered key metrics (7.14K page views)"
+        },
+        {
+          "action": "Open copied URL in new context",
+          "expected": "Identical state including filter chip and filtered metrics",
+          "observed": "Destination tab kept t=30d but URL dropped filters param; filterTags=[]; metrics changed to unfiltered totals (108.95K page views)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cross/VAL-CROSS-002-context-a.png",
+          "cwv-views/cross/VAL-CROSS-002-context-b.png"
+        ],
+        "consoleErrors": "none",
+        "network": "not required for this assertion",
+        "domEval": {
+          "source": {
+            "timeRange": "30d",
+            "filterTags": [
+              "https://www.aem.live/developer/tutorial"
+            ],
+            "keyMetrics": "7.14K Page Views 2.20K Visits 77% Bounce Rate 1.1s LCP p75 0.04 CLS p75 48ms INP p75",
+            "urlHasFiltersParam": true
+          },
+          "destination": {
+            "timeRange": "30d",
+            "filterTags": [],
+            "keyMetrics": "108.95K Page Views 51.50K Visits 70% Bounce Rate 1.2s LCP p75 0.06 CLS p75 48ms INP p75",
+            "urlHasFiltersParam": false
+          }
+        }
+      },
+      "issues": "Filter state is not preserved when opening copied filtered URL in a new context."
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "Time range change updates all components",
+      "status": "pass",
+      "reason": "Changing time range from Last Month (30d) to Last Year (365d) updated URL parameter, chart raster checksum, key metrics totals, and breakdown row counts.",
+      "steps": [
+        {
+          "action": "Capture baseline at Last Month",
+          "expected": "Chart/metrics/breakdowns reflect 30d and URL has t=30d",
+          "observed": "t=30d; key metrics 108.95K page views; first URL breakdown row 11.24K; chartChecksum=62415"
+        },
+        {
+          "action": "Change time range to Last Year",
+          "expected": "All components and URL update to 365d data",
+          "observed": "t=365d; key metrics 1.15M page views; first URL breakdown row 141.75K; chartChecksum=97986; URL updated with t=365d"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cross/VAL-CROSS-003-before-time-change.png",
+          "cwv-views/cross/VAL-CROSS-003-after-time-change.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no entries)",
+        "network": "not required for this assertion",
+        "domEval": {
+          "before": {
+            "timeRange": "30d",
+            "breakdownCount": 5,
+            "chartChecksum": 62415,
+            "urlContains": "t=30d"
+          },
+          "after": {
+            "timeRange": "365d",
+            "breakdownCount": 5,
+            "chartChecksum": 97986,
+            "urlContains": "t=365d"
+          }
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-004",
+      "title": "Mobile responsive layout",
+      "status": "pass",
+      "reason": "At 375x812 viewport, page had no horizontal overflow, chart fit viewport width, and breakdown cards were stacked vertically.",
+      "steps": [
+        {
+          "action": "Set viewport to 375x812 and open rum-traffic with valid credentials",
+          "expected": "Mobile layout with no horizontal scrolling and stacked cards",
+          "observed": "document scrollWidth=375 equals viewport width; canvas width=375; breakdown cards share same left and increase by top position"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cross/VAL-CROSS-004-mobile-375x812.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no entries)",
+        "network": "not required for this assertion",
+        "domEval": {
+          "viewport": {
+            "width": 375,
+            "height": 812
+          },
+          "hasHorizontalOverflow": false,
+          "canvasRect": {
+            "width": 375,
+            "left": 0,
+            "right": 375
+          },
+          "stackedVertically": true
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "title": "Dark mode renders correctly",
+      "status": "pass",
+      "reason": "With dark media emulation active, page rendered dark theme colors with high contrast, chart rendered with data, and no JS errors were reported.",
+      "steps": [
+        {
+          "action": "Emulate prefers-color-scheme: dark and open rum-traffic",
+          "expected": "Dark UI + legible text + chart data + no errors",
+          "observed": "matchMedia dark=true, body background rgb(13,17,23), text rgb(230,237,243), contrast ratio 16.02, key metrics populated, chartChecksum=36976"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/cross/VAL-CROSS-005-dark-mode.png"
+        ],
+        "consoleErrors": "none (agent-browser errors returned no entries)",
+        "network": "not required for this assertion",
+        "domEval": {
+          "prefersColorSchemeDark": true,
+          "contrastRatio": 16.02,
+          "chartChecksum": 36976
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network requests returned no captured entries during validation even though bundles requests occurred.",
+      "resolved": true,
+      "resolution": "Used performance.getEntriesByType('resource') in page eval as fallback network evidence.",
+      "affectedAssertions": [
+        "VAL-CROSS-001"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 4 passed, 1 failed (VAL-CROSS-002 URL shareability dropped filter state in new context)."
+}
