@@ -65,3 +65,4 @@
 
 - `agent-browser network requests` can occasionally return no captured entries even when requests are happening. Use `performance.getEntriesByType('resource')` and/or temporary in-page `fetch` interception as fallback evidence.
 - ClickHouse-backed browser regression checks may be blocked by credential rotation (403). Treat as blocked with explicit login/console/network evidence rather than misclassifying as product regressions.
+- For `VAL-NAV-006`/checkpoint-subfacet flows, the `click` checkpoint might not appear in Top 5 immediately. Expand the Checkpoint facet with `other` (Top 10/Top 20) before selecting `click`.

@@ -1,0 +1,236 @@
+{
+  "groupId": "nav",
+  "testedAt": "2026-04-14T16:42:01.128663Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appBaseUrl": "http://localhost:5561",
+    "pages": [
+      "rum-traffic.html",
+      "rum-lcp.html",
+      "rum-cls.html",
+      "rum-inp.html"
+    ],
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    }
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-NAV-001",
+      "title": "Navigation links exist between all four views",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open each page (traffic, lcp, cls, inp) with valid credentials",
+          "expected": "Each page shows nav links to all four views",
+          "observed": "All four pages rendered Traffic/LCP/CLS/INP links"
+        },
+        {
+          "action": "Run DOM eval for nav anchors",
+          "expected": "Each page has visible links to the other three views",
+          "observed": "Each page had 4 visible rum-nav-link anchors with unique targets rum-traffic/lcp/cls/inp"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-001-traffic-nav.png",
+          "cwv-views/nav/VAL-NAV-001-lcp-nav.png",
+          "cwv-views/nav/VAL-NAV-001-cls-nav.png",
+          "cwv-views/nav/VAL-NAV-001-inp-nav.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing showed bundles.aem.page fetches during page loads; agent-browser network logger returned no captured requests"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NAV-002",
+      "title": "Navigation preserves domain and domainkey",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open rum-traffic with domain/domainkey params",
+          "expected": "URL includes both params",
+          "observed": "URL contained domain=www.aem.live and domainkey"
+        },
+        {
+          "action": "Click LCP nav link",
+          "expected": "Destination URL keeps domain/domainkey",
+          "observed": "Arrived at rum-lcp with same domain and domainkey parameters"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-002-before.png",
+          "cwv-views/nav/VAL-NAV-002-after-lcp.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing included bundles.aem.page requests after navigation"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NAV-003",
+      "title": "Navigation preserves time range",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Set time range to Last Month on LCP view",
+          "expected": "UI value and URL state reflect month selection",
+          "observed": "Dropdown value became 30d and URL had t=30d"
+        },
+        {
+          "action": "Navigate from LCP to CLS",
+          "expected": "Destination preserves time range",
+          "observed": "CLS showed Last Month selected and URL retained t=30d"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-003-time-set-on-lcp.png",
+          "cwv-views/nav/VAL-NAV-003-after-nav-cls.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing included bundles.aem.page day-bucket requests on destination"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NAV-004",
+      "title": "Navigation preserves filters",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Apply a URL filter on CLS by clicking a URL facet value",
+          "expected": "Source URL/UI shows active filter",
+          "observed": "Source URL contained filters=[{\"col\":\"url\",...}] and filtered data"
+        },
+        {
+          "action": "Navigate from CLS to INP",
+          "expected": "Destination keeps same filter state in URL and UI",
+          "observed": "Destination URL had no filters param and filtered state was not preserved"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-004-before-filter.png",
+          "cwv-views/nav/VAL-NAV-004-after-filter-cls.png",
+          "cwv-views/nav/VAL-NAV-004-after-nav-inp.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing showed bundles.aem.page requests; destination state lacked filter query",
+        "sourceFilterState": "CLS URL had filters query for selected URL facet",
+        "destinationFilterState": "INP URL search = ?domain=...&domainkey=...&t=30d&title=RUM+INP&ts=... (no filters)"
+      },
+      "issues": "Filter state was dropped when navigating from CLS to INP."
+    },
+    {
+      "id": "VAL-NAV-005",
+      "title": "Active view highlighted",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect nav links on current view",
+          "expected": "Exactly one nav element is active and visually distinct",
+          "observed": "INP link had class 'rum-nav-link active' with distinct color/fontWeight; others were non-active"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-005-active-inp.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing showed ongoing bundles.aem.page fetches"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NAV-006",
+      "title": "Checkpoint sub-facets appear on filter",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Load traffic view without checkpoint filter",
+          "expected": "Checkpoint sub-facets are not visible",
+          "observed": "Visible listboxes were URL/Device Type/OS/Checkpoint only"
+        },
+        {
+          "action": "Select checkpoint value 'click' from Checkpoint facet",
+          "expected": "Click-specific sub-facets appear",
+          "observed": "URL gained checkpoint click filter and visible listboxes included 'Click Source values' and 'Click Target values'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-006-before-checkpoint-filter.png",
+          "cwv-views/nav/VAL-NAV-006-after-click-checkpoint-selected.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing showed bundles.aem.page requests while reloading filtered state",
+        "before": "No visible click.source/click.target listboxes",
+        "after": "Visible listboxes included Click Source values and Click Target values; filters included checkpoint=click"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NAV-007",
+      "title": "Round-trip navigation preserves state",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Start on traffic with checkpoint=click filter and additional URL state",
+          "expected": "Start URL captures full state",
+          "observed": "Start params included domain/domainkey/t=30d/n=20/filters plus hash #f=url"
+        },
+        {
+          "action": "Navigate Traffic -> LCP -> Traffic",
+          "expected": "Return URL preserves same state",
+          "observed": "Returned URL kept domain/domainkey/t/n but dropped filters and hash"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/nav/VAL-NAV-007-start-traffic.png",
+          "cwv-views/nav/VAL-NAV-007-mid-lcp.png",
+          "cwv-views/nav/VAL-NAV-007-end-traffic.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Resource timing showed bundles.aem.page requests across round-trip",
+        "startState": "filters present + hash #f=url",
+        "endState": "filters missing, hash empty"
+      },
+      "issues": "Round-trip navigation did not preserve full URL state (filters/hash lost)."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network requests reported 'No requests captured' during flows.",
+      "resolved": true,
+      "resolution": "Used performance.getEntriesByType('resource') as fallback network evidence per guidance.",
+      "affectedAssertions": [
+        "VAL-NAV-001",
+        "VAL-NAV-002",
+        "VAL-NAV-003",
+        "VAL-NAV-004",
+        "VAL-NAV-005",
+        "VAL-NAV-006",
+        "VAL-NAV-007"
+      ]
+    },
+    {
+      "description": "Checkpoint value 'click' was not visible in initial Top 5 checkpoint facet list.",
+      "resolved": true,
+      "resolution": "Expanded checkpoint facet using 'other' twice (Top 5 -> Top 10 -> Top 20), then selected 'click'.",
+      "affectedAssertions": [
+        "VAL-NAV-006",
+        "VAL-NAV-007"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 navigation assertions: 5 passed (VAL-NAV-001/002/003/005/006), 2 failed (VAL-NAV-004, VAL-NAV-007 due to filter/hash state loss during navigation)."
+}

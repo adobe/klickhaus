@@ -1,0 +1,205 @@
+{
+  "groupId": "inp",
+  "testedAt": "2026-04-14T16:37:49Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appBaseUrl": "http://localhost:5561",
+    "page": "rum-inp.html",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    },
+    "assignedAssertions": [
+      "VAL-INP-001",
+      "VAL-INP-002",
+      "VAL-INP-003",
+      "VAL-INP-004",
+      "VAL-INP-005",
+      "VAL-INP-006",
+      "VAL-INP-007"
+    ],
+    "browserSession": "inp-flow-validator"
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-INP-001",
+      "title": "INP page loads with stacked area chart",
+      "status": "pass",
+      "reason": "Page loaded directly with credentials, chart canvas rendered, and RUM bundle fetches were observed.",
+      "steps": [
+        {
+          "action": "Navigate to rum-inp.html with domain/domainkey params",
+          "expected": "INP dashboard loads with chart",
+          "observed": "Loaded RUM INP dashboard; login form not shown"
+        },
+        {
+          "action": "Verify chart canvas",
+          "expected": "Canvas exists with non-zero dimensions",
+          "observed": "canvas.exists=true, width=1280, height=250"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-001-page-load.png"
+        ],
+        "dom": "canvas exists true; css size 1280x250",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "performance resource entries include bundles.aem.page fetches (e.g. /bundles/www.aem.live/2026/04/10/{19..23})"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INP-002",
+      "title": "INP key metrics displayed",
+      "status": "pass",
+      "reason": "All six key metrics were present with populated values.",
+      "steps": [
+        {
+          "action": "Inspect #keyMetricsOverlay",
+          "expected": "Six metrics shown (Page Views, Visits, Bounce Rate, LCP p75, CLS p75, INP p75)",
+          "observed": "6 metrics found with values: 25.44K, 13.10K, 72%, 1.1s, 0.06, 48ms"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-002-key-metrics.png"
+        ],
+        "dom": "metrics.labels=[Page Views, Visits, Bounce Rate, LCP p75, CLS p75, INP p75]; metrics.count=6",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "not required"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INP-003",
+      "title": "INP breakdown facets show metric-specific proportions",
+      "status": "pass",
+      "reason": "Breakdown cards rendered populated stacked bar segments for INP view facets.",
+      "steps": [
+        {
+          "action": "Scroll to breakdown section",
+          "expected": "Breakdown cards with stacked bars are visible",
+          "observed": "16 breakdown cards visible; barSegmentCount=180"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-003-breakdowns.png"
+        ],
+        "dom": "breakdowns.count=16; barSegmentCount=180",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "not required"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INP-004",
+      "title": "All required facets present",
+      "status": "pass",
+      "reason": "All required INP breakdown facet cards were present in the DOM.",
+      "steps": [
+        {
+          "action": "Query required facet IDs in #breakdowns",
+          "expected": "All 16 required facet cards exist",
+          "observed": "missingFacetIds=[]"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-003-breakdowns.png"
+        ],
+        "dom": "required facet IDs checked: breakdown-url,userAgent,checkpoint,enterSource,clickTarget,mediaTarget,viewblock,navigate,language,accessibility,consent,loadresource,acquisitionSource,error,four04,redirect; missingFacetIds=[]",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "not required"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INP-005",
+      "title": "INP filtering works",
+      "status": "pass",
+      "reason": "Clicking a facet value added a filter, updated URL/metrics, and showed an active filter tag.",
+      "steps": [
+        {
+          "action": "Capture baseline and click Device Type / OS value 'desktop'",
+          "expected": "Filter applied and dashboard updates",
+          "observed": "state.filters length changed 0 -> 1; active filter tag 'desktop' shown; URL gained filters param"
+        },
+        {
+          "action": "Compare key metric",
+          "expected": "Metrics reflect filtered subset",
+          "observed": "Page Views changed 25.44K -> 21.44K"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-005-before-filter.png",
+          "cwv-views/inp/VAL-INP-005-after-filter.png"
+        ],
+        "dom": "before: filterCount=0,pageViews=25.44K; after: filterCount=1,filters=[{col:userAgent,value:desktop,exclude:false}],activeFiltersText=[desktop],pageViews=21.44K",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "not required"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INP-006",
+      "title": "INP interpolation handles missing CWV data",
+      "status": "pass",
+      "reason": "Rendered chart data showed no zero-value gaps and no zero buckets between non-zero points.",
+      "steps": [
+        {
+          "action": "Inspect interpolated chart data in state.chartData",
+          "expected": "No visible/structural gaps in buckets",
+          "observed": "chartPoints=132, zeroBucketsCount=0, zeroGapsBetweenNonZero=[]"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-006-interpolation-chart.png"
+        ],
+        "dom": "chartPoints=132; first10Totals=[100,150,200,100,100,100,100,100,100,100]; last10Totals=[134,100,100,200,167,134,100,200,100,100]",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "not required"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INP-007",
+      "title": "INP chart scrubber shows custom labels",
+      "status": "pass",
+      "reason": "Scrubber badges used custom labels (good/needs improvement/poor) and did not show legacy 2xx/4xx/5xx labels.",
+      "steps": [
+        {
+          "action": "Switch time range to Last Year and hover chart",
+          "expected": "Scrubber badges show custom category labels",
+          "observed": "badges=[\"good 31.70K\",\"needs improvement 1.00K\",\"poor 600\"]"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/inp/VAL-INP-007-scrubber-labels.png"
+        ],
+        "dom": "scrubber badges extracted from .chart-scrubber-status .scrubber-value; hasLegacyLabels=false",
+        "consoleErrors": "none (agent-browser errors --json => [])",
+        "network": "not required"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network requests output did not surface bundles fetches during this run.",
+      "resolved": true,
+      "resolution": "Used performance.getEntriesByType('resource') fallback to capture bundles.aem.page fetch evidence.",
+      "affectedAssertions": [
+        "VAL-INP-001"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 assertions (VAL-INP-001..007): 7 passed, 0 failed, 0 blocked."
+}

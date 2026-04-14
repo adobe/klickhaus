@@ -1,0 +1,216 @@
+{
+  "groupId": "lcp",
+  "testedAt": "2026-04-14T16:36:59Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appBaseUrl": "http://localhost:5561",
+    "page": "rum-lcp.html",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    },
+    "assignedAssertions": [
+      "VAL-LCP-001",
+      "VAL-LCP-002",
+      "VAL-LCP-003",
+      "VAL-LCP-004",
+      "VAL-LCP-005",
+      "VAL-LCP-006",
+      "VAL-LCP-007"
+    ],
+    "browserSession": "lcp-validator"
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-LCP-001",
+      "title": "LCP page loads with stacked area chart",
+      "status": "pass",
+      "reason": "The LCP dashboard auto-loaded from URL credentials, rendered the chart canvas at non-zero dimensions, and loaded bundles resources.",
+      "steps": [
+        {
+          "action": "Open rum-lcp.html with domain and domainkey query params",
+          "expected": "Dashboard loads directly and chart is visible",
+          "observed": "Dashboard rendered immediately; chart canvas visible"
+        },
+        {
+          "action": "Inspect chart canvas and resource entries",
+          "expected": "Canvas exists with size > 0 and data requests begin",
+          "observed": "Canvas 1280x250; bundles.aem.page resource entries present"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-001-loaded-page.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-001-004-baseline.json (canvas.exists=true, width=1280, height=250)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-initial.txt is empty)",
+        "network": "bundles.aem.page resource URLs captured in cwv-views/lcp/VAL-LCP-001-004-baseline.json (bundlesResourceEntries)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LCP-002",
+      "title": "LCP key metrics displayed",
+      "status": "pass",
+      "reason": "All six required key metrics were present with populated values.",
+      "steps": [
+        {
+          "action": "Inspect key metrics overlay",
+          "expected": "Page Views, Visits, Bounce Rate, LCP p75, CLS p75, INP p75 shown",
+          "observed": "All six labels and values were rendered"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-002-key-metrics.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-001-004-baseline.json (metrics array with six populated values)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-initial.txt is empty)",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LCP-003",
+      "title": "LCP breakdown facets show metric-specific proportions",
+      "status": "pass",
+      "reason": "Breakdown rows rendered stacked bar segments (bar-ok/bar-4xx/bar-5xx) with LCP-specific proportions.",
+      "steps": [
+        {
+          "action": "Inspect rendered breakdown rows",
+          "expected": "Facet rows show good/ni/poor stacked bars",
+          "observed": "Rows include bar segment classes and percentage widths for bar-ok/bar-4xx/bar-5xx"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-003-breakdowns.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-001-004-baseline.json (firstBarRows with bar-segment widths and classes)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-initial.txt is empty)",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LCP-004",
+      "title": "All required facets present",
+      "status": "pass",
+      "reason": "All 16 required facet cards were present; no required facet was missing.",
+      "steps": [
+        {
+          "action": "Query facet card headings in the breakdown section",
+          "expected": "Full required facet set is present",
+          "observed": "All required headings found; missingFacets=[]"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-003-breakdowns.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-001-004-baseline.json (facetTitles + requiredFacets + missingFacets)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-initial.txt is empty)",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LCP-005",
+      "title": "LCP filtering works",
+      "status": "pass",
+      "reason": "Clicking a facet value added an active filter tag, updated URL filters param, and changed key metric values.",
+      "steps": [
+        {
+          "action": "Click URL facet value https://www.aem.live/developer/tutorial",
+          "expected": "Filter is applied and dashboard reloads with filtered state",
+          "observed": "Active filter tag appeared; URL gained filters param"
+        },
+        {
+          "action": "Compare key metrics before/after filter",
+          "expected": "Metrics update to filtered subset",
+          "observed": "Page Views changed from 25.44K to 1.10K; Visits changed from 13.10K to 300"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-001-loaded-page.png",
+          "cwv-views/lcp/VAL-LCP-005-after-filter.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-005-filter-state.json (activeFilters contains selected URL; filtered metrics recorded)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-after-filter.txt is empty)",
+        "network": "Dashboard refreshed after filter application (URL state and metrics changed)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LCP-006",
+      "title": "LCP interpolation handles missing CWV data",
+      "status": "pass",
+      "reason": "Sparse buckets were interpolated and rendered output matched interpolateCwvGaps(raw) exactly.",
+      "steps": [
+        {
+          "action": "Fetch raw LCP chartData and compute interpolateCwvGaps(raw)",
+          "expected": "Sparse buckets (<5 samples) are filled by interpolation",
+          "observed": "54 sparse buckets found and all 54 changed after interpolation"
+        },
+        {
+          "action": "Compare rendered chart state to interpolated series",
+          "expected": "Rendered series equals interpolated output",
+          "observed": "renderedMatchesExpectedInterpolated=true"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-006-interpolated-chart.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-006-interpolation-check.json (sparseBucketCount=54, changedSparseBucketCount=54, renderedMatchesExpectedInterpolated=true)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-final.txt is empty)",
+        "network": "Raw data fetched from bundles API during interpolation check"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LCP-007",
+      "title": "LCP chart scrubber shows custom labels",
+      "status": "pass",
+      "reason": "Scrubber badges used custom labels (good/needs improvement/poor) and never showed legacy 2xx/4xx/5xx labels.",
+      "steps": [
+        {
+          "action": "Hover chart over a point with nonzero needs-improvement values",
+          "expected": "Scrubber shows custom label 'needs improvement'",
+          "observed": "Badges: good 200, needs improvement 100"
+        },
+        {
+          "action": "Hover chart over a point with nonzero poor values",
+          "expected": "Scrubber shows custom label 'poor'",
+          "observed": "Badges: good 100, poor 100"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "cwv-views/lcp/VAL-LCP-007-scrubber-labels.png",
+          "cwv-views/lcp/VAL-LCP-007-scrubber-labels-poor.png"
+        ],
+        "domEval": "cwv-views/lcp/VAL-LCP-007-scrubber-text.json and cwv-views/lcp/VAL-LCP-007-scrubber-text-poor.json (legacy labels absent)",
+        "consoleErrors": "none (cwv-views/lcp/VAL-LCP-console-errors-final.txt is empty)",
+        "network": "N/A"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network requests output returned no captured entries despite active data loading.",
+      "resolved": true,
+      "resolution": "Used performance.getEntriesByType('resource') in page eval to capture bundles.aem.page request evidence per user-testing guidance.",
+      "affectedAssertions": [
+        "VAL-LCP-001"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 assertions for LCP view: 7 passed, 0 failed, 0 blocked."
+}
