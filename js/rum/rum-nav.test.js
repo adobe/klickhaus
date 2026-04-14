@@ -11,8 +11,10 @@
  */
 import { assert } from 'chai';
 import {
-  RUM_VIEWS, buildNavUrl, renderRumNav, updateCheckpointSubfacets,
+  ALL_RUM_BREAKDOWNS, RUM_VIEWS, buildNavUrl, renderRumNav, updateCheckpointSubfacets,
 } from './rum-nav.js';
+import { state } from '../state.js';
+import { isValidFilterColumn, resetAllowedColumnsCache } from '../filter-sql.js';
 
 describe('rum-nav', () => {
   describe('RUM_VIEWS', () => {
@@ -42,6 +44,51 @@ describe('rum-nav', () => {
         'rum-cls.html',
         'rum-inp.html',
       ]);
+    });
+  });
+
+  describe('ALL_RUM_BREAKDOWNS', () => {
+    it('includes all RUM facet columns', () => {
+      const cols = ALL_RUM_BREAKDOWNS.map((b) => b.col);
+      // Core facets
+      assert.include(cols, 'url');
+      assert.include(cols, 'userAgent');
+      assert.include(cols, 'checkpoint');
+      // Checkpoint subfacets
+      assert.include(cols, 'clickSource');
+      assert.include(cols, 'clickTarget');
+      assert.include(cols, 'mediaSource');
+      assert.include(cols, 'mediaTarget');
+      // CWV-specific facets
+      assert.include(cols, 'enterSource');
+      assert.include(cols, 'viewblock');
+      assert.include(cols, 'navigate');
+      assert.include(cols, 'language');
+      assert.include(cols, 'accessibility');
+      assert.include(cols, 'consent');
+      assert.include(cols, 'loadresource');
+      assert.include(cols, 'acquisitionSource');
+      assert.include(cols, 'error');
+      assert.include(cols, 'four04');
+      assert.include(cols, 'redirect');
+    });
+
+    it('has 18 unique facet columns', () => {
+      const cols = new Set(ALL_RUM_BREAKDOWNS.map((b) => b.col));
+      assert.strictEqual(cols.size, 18);
+    });
+
+    it('each entry has id, facetName, and col', () => {
+      for (const bd of ALL_RUM_BREAKDOWNS) {
+        assert.isString(bd.id);
+        assert.isString(bd.facetName);
+        assert.isString(bd.col);
+      }
+    });
+
+    it('has no duplicate IDs', () => {
+      const ids = ALL_RUM_BREAKDOWNS.map((b) => b.id);
+      assert.strictEqual(new Set(ids).size, ids.length);
     });
   });
 
@@ -347,6 +394,53 @@ describe('rum-nav', () => {
       updateCheckpointSubfacets([
         { col: 'checkpoint', value: 'click', exclude: false },
       ]);
+    });
+  });
+
+  describe('filter column validation with RUM breakdowns', () => {
+    const savedBreakdowns = state.breakdowns;
+
+    beforeEach(() => {
+      // Set state.breakdowns to ALL_RUM_BREAKDOWNS (as RUM entry points do)
+      state.breakdowns = ALL_RUM_BREAKDOWNS;
+      resetAllowedColumnsCache();
+    });
+
+    afterEach(() => {
+      state.breakdowns = savedBreakdowns;
+      resetAllowedColumnsCache();
+    });
+
+    it('accepts core RUM filter columns when state.breakdowns is set', () => {
+      assert.isTrue(isValidFilterColumn('url'));
+      assert.isTrue(isValidFilterColumn('userAgent'));
+      assert.isTrue(isValidFilterColumn('checkpoint'));
+    });
+
+    it('accepts checkpoint subfacet columns', () => {
+      assert.isTrue(isValidFilterColumn('clickSource'));
+      assert.isTrue(isValidFilterColumn('clickTarget'));
+      assert.isTrue(isValidFilterColumn('mediaSource'));
+      assert.isTrue(isValidFilterColumn('mediaTarget'));
+    });
+
+    it('accepts CWV-specific facet columns', () => {
+      assert.isTrue(isValidFilterColumn('enterSource'));
+      assert.isTrue(isValidFilterColumn('viewblock'));
+      assert.isTrue(isValidFilterColumn('navigate'));
+      assert.isTrue(isValidFilterColumn('language'));
+      assert.isTrue(isValidFilterColumn('accessibility'));
+      assert.isTrue(isValidFilterColumn('consent'));
+      assert.isTrue(isValidFilterColumn('loadresource'));
+      assert.isTrue(isValidFilterColumn('acquisitionSource'));
+      assert.isTrue(isValidFilterColumn('error'));
+      assert.isTrue(isValidFilterColumn('four04'));
+      assert.isTrue(isValidFilterColumn('redirect'));
+    });
+
+    it('rejects unknown columns', () => {
+      assert.isFalse(isValidFilterColumn('nonexistent'));
+      assert.isFalse(isValidFilterColumn('sql_injection'));
     });
   });
 });

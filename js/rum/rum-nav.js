@@ -20,6 +20,44 @@
 import { state } from '../state.js';
 
 /**
+ * Comprehensive list of all RUM breakdown facet definitions across all views.
+ * Used to set state.breakdowns so that parseFilter() in url-state.js accepts
+ * RUM-specific filter columns (e.g., 'url', 'checkpoint', 'userAgent') when
+ * loading filters from URL parameters. Without this, filters are rejected
+ * because the default SQL-based breakdown columns don't include RUM facet names.
+ *
+ * This is the union of:
+ * - Traffic core facets (url, userAgent, checkpoint)
+ * - Traffic checkpoint subfacets (clickSource, clickTarget, mediaSource, mediaTarget)
+ * - CWV view facets (enterSource, viewblock, navigate, language, accessibility,
+ *   consent, loadresource, acquisitionSource, error, four04, redirect)
+ */
+export const ALL_RUM_BREAKDOWNS = [
+  { id: 'breakdown-url', facetName: 'url', col: 'url' },
+  { id: 'breakdown-userAgent', facetName: 'userAgent', col: 'userAgent' },
+  { id: 'breakdown-checkpoint', facetName: 'checkpoint', col: 'checkpoint' },
+  { id: 'breakdown-enterSource', facetName: 'enterSource', col: 'enterSource' },
+  { id: 'breakdown-clickSource', facetName: 'clickSource', col: 'clickSource' },
+  { id: 'breakdown-clickTarget', facetName: 'clickTarget', col: 'clickTarget' },
+  { id: 'breakdown-mediaSource', facetName: 'mediaSource', col: 'mediaSource' },
+  { id: 'breakdown-mediaTarget', facetName: 'mediaTarget', col: 'mediaTarget' },
+  { id: 'breakdown-viewblock', facetName: 'viewblock', col: 'viewblock' },
+  { id: 'breakdown-navigate', facetName: 'navigate', col: 'navigate' },
+  { id: 'breakdown-language', facetName: 'language', col: 'language' },
+  { id: 'breakdown-accessibility', facetName: 'accessibility', col: 'accessibility' },
+  { id: 'breakdown-consent', facetName: 'consent', col: 'consent' },
+  { id: 'breakdown-loadresource', facetName: 'loadresource', col: 'loadresource' },
+  {
+    id: 'breakdown-acquisitionSource',
+    facetName: 'acquisitionSource',
+    col: 'acquisitionSource',
+  },
+  { id: 'breakdown-error', facetName: 'error', col: 'error' },
+  { id: 'breakdown-four04', facetName: 'four04', col: 'four04' },
+  { id: 'breakdown-redirect', facetName: 'redirect', col: 'redirect' },
+];
+
+/**
  * RUM view definitions.
  * Each view maps to a separate HTML page with its own entry point JS.
  */

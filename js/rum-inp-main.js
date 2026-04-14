@@ -34,7 +34,7 @@ import {
   showDashboardError,
   hideDashboardError,
 } from './rum/rum-inp-utils.js';
-import { renderRumNav } from './rum/rum-nav.js';
+import { renderRumNav, ALL_RUM_BREAKDOWNS } from './rum/rum-nav.js';
 
 /**
  * RUM credentials for the current session.
@@ -309,6 +309,10 @@ const viewToggleBtn = document.getElementById('viewToggleBtn');
 if (viewToggleBtn) {
   viewToggleBtn.style.display = 'none';
 }
+
+// Register all RUM facet columns so loadStateFromURL() accepts RUM filters.
+// Must be set before initDashboard() which calls loadStateFromURL().
+state.breakdowns = ALL_RUM_BREAKDOWNS;
 
 // Initialize the dashboard with INP-specific config
 initDashboard({
