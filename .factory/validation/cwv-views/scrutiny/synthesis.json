@@ -1,0 +1,12 @@
+{
+  "milestone": "cwv-views",
+  "overridden": true,
+  "overrideJustification": "Same pre-existing issues as foundation milestone. Tests: 1057 passed at 96.31% coverage. Lint: 340 pre-existing curly rule errors in unmodified files. Typecheck: no typecheck script exists in project (vanilla JS, not TypeScript). All mission-modified files pass lint individually.",
+  "validatorResults": {
+    "test": { "status": "pass", "details": "1057 tests passed, 96.31% coverage" },
+    "typecheck": { "status": "not-applicable", "details": "No typecheck script in project (vanilla JS)" },
+    "lint": { "status": "fail", "details": "340 pre-existing curly rule errors in unmodified files" }
+  },
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": []
+}
