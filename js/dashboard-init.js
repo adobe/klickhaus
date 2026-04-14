@@ -342,10 +342,15 @@ export function initDashboard(config = {}) {
     if (toggledFacetId) {
       const breakdown = getBreakdowns().find((b) => b.id === toggledFacetId);
       if (breakdown) {
-        const timeFilter = getTimeFilter();
-        const hostFilter = getHostFilter();
-        const facetsContext = startRequestContext(`facet:${breakdown.id}`);
-        loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+        if (typeof config.loadBreakdowns === 'function') {
+          const facetsContext = startRequestContext('facets');
+          config.loadBreakdowns(facetsContext);
+        } else {
+          const timeFilter = getTimeFilter();
+          const hostFilter = getHostFilter();
+          const facetsContext = startRequestContext(`facet:${breakdown.id}`);
+          loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+        }
       }
     }
   }
@@ -359,7 +364,11 @@ export function initDashboard(config = {}) {
       elements.topNSelect.value = next;
       saveStateToURL();
       const facetsContext = startRequestContext('facets');
-      loadAllBreakdowns(facetsContext);
+      if (typeof config.loadBreakdowns === 'function') {
+        config.loadBreakdowns(facetsContext);
+      } else {
+        loadAllBreakdowns(facetsContext);
+      }
     }
   }
 
@@ -488,7 +497,11 @@ export function initDashboard(config = {}) {
       document.body.dataset.topn = state.topN;
       saveStateToURL();
       const facetsContext = startRequestContext('facets');
-      loadAllBreakdowns(facetsContext);
+      if (typeof config.loadBreakdowns === 'function') {
+        config.loadBreakdowns(facetsContext);
+      } else {
+        loadAllBreakdowns(facetsContext);
+      }
     });
 
     function commitHostFilterIfChanged() {
