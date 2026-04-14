@@ -25,8 +25,6 @@ import { renderChart } from './chart.js';
 import { renderBreakdownTable } from './breakdowns/render.js';
 import { isRequestCurrent } from './request-context.js';
 import {
-  RUM_BREAKDOWNS,
-  RUM_CHECKPOINT_SUBFACETS,
   getRumDateRange,
   buildDataChunksFilters,
   renderKeyMetrics,
@@ -34,7 +32,7 @@ import {
   showDashboardError,
   hideDashboardError,
 } from './rum/rum-traffic-utils.js';
-import { renderRumNav, updateCheckpointSubfacets, ALL_RUM_BREAKDOWNS } from './rum/rum-nav.js';
+import { renderRumNav, ALL_RUM_BREAKDOWNS } from './rum/rum-nav.js';
 
 /**
  * RUM credentials for the current session.
@@ -158,16 +156,10 @@ async function loadRumBreakdowns(requestContext) {
     return;
   }
 
-  // Update checkpoint sub-facet visibility based on active filters
-  updateCheckpointSubfacets(state.filters);
-
-  // Render core breakdowns plus visible checkpoint sub-facets
-  const allBreakdownDefs = [...RUM_BREAKDOWNS, ...RUM_CHECKPOINT_SUBFACETS];
-
-  for (const bd of allBreakdownDefs) {
+  for (const bd of ALL_RUM_BREAKDOWNS) {
     const breakdownData = result.breakdowns[bd.facetName] || [];
     const card = document.getElementById(bd.id);
-    if (card && card.style.display !== 'none') {
+    if (card) {
       // Compute totals for this breakdown (sum of all rows)
       const totals = {
         cnt: breakdownData.reduce((sum, row) => sum + row.cnt, 0),
