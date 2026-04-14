@@ -1,0 +1,176 @@
+{
+  "groupId": "data-shape-errors",
+  "testedAt": "2026-04-14T00:01:33.355019+00:00",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "appUrl": "http://localhost:5561/",
+    "agentBrowserSession": "rum-data-shape-errors",
+    "credentials": {
+      "domain": "www.aem.live",
+      "domainkey": "53A02890-F91F-428B-A870-A809B82D953E"
+    }
+  },
+  "toolsUsed": [
+    "agent-browser",
+    "curl"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-DATA-006",
+      "title": "Chart data has required shape",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open rum-traffic page with valid domain/domainkey",
+          "expected": "Dashboard loads with chart data",
+          "observed": "Dashboard loaded; screenshot captured"
+        },
+        {
+          "action": "Evaluate state.chartData sample rows in page context",
+          "expected": "Rows include t,cnt_ok,cnt_4xx,cnt_5xx and numeric non-negative values",
+          "observed": "132 points loaded; first 3 rows had required keys and non-negative numeric values"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-shape-errors/VAL-DATA-006-chart-shape.png"
+        ],
+        "consoleErrors": "none",
+        "network": "RUM bundles requests issued to bundles.aem.page during load"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DATA-007",
+      "title": "Breakdown data has required shape",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Evaluate fetchRumData(...) in page context for current range",
+          "expected": "Breakdown rows include dim,cnt,cnt_ok,cnt_4xx,cnt_5xx with valid invariants",
+          "observed": "Facet samples for url and userAgent returned rows with correct keys/types, non-negative numbers, and cnt_ok+cnt_4xx+cnt_5xx==cnt"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-shape-errors/VAL-DATA-007-breakdown-shape.png"
+        ],
+        "consoleErrors": "none",
+        "network": "RUM bundles requests issued to bundles.aem.page during adapter fetch"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DATA-008",
+      "title": "Network error shows user-visible error",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Intercept https://bundles.aem.page/** and abort requests",
+          "expected": "Dashboard should show a visible error message",
+          "observed": "Dashboard remained visible with no user-visible error text"
+        },
+        {
+          "action": "Inspect loginError and visible error-like text in DOM",
+          "expected": "Error message should be visible",
+          "observed": "loginError empty/non-visible; no visible error-like text found"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-shape-errors/VAL-DATA-008-network-error-state.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Request interception applied via agent-browser route abort for https://bundles.aem.page/**"
+      },
+      "issues": "Silent failure on network error: no user-visible error state"
+    },
+    {
+      "id": "VAL-DATA-009",
+      "title": "Invalid domain shows empty/error state",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open rum-traffic with domain=nonexistent.invalid",
+          "expected": "UI shows empty-data message or error state without JS exceptions",
+          "observed": "No visible empty/error message; dashboard remained visible with no breakdown rows"
+        },
+        {
+          "action": "Check console errors",
+          "expected": "No unhandled JS exceptions",
+          "observed": "No console error entries"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-shape-errors/VAL-DATA-009-invalid-domain-state.png"
+        ],
+        "consoleErrors": "none",
+        "network": "curl https://bundles.aem.page/bundles/nonexistent.invalid/2026/04/13/00?... -> HTTP 401"
+      },
+      "issues": "Expected empty/error message was not shown"
+    },
+    {
+      "id": "VAL-DATA-010",
+      "title": "Invalid domainkey returns error",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Confirm API response with invalid domainkey via curl",
+          "expected": "API returns 403",
+          "observed": "HTTP 403 confirmed"
+        },
+        {
+          "action": "Open rum-traffic with domainkey=INVALID-KEY",
+          "expected": "Dashboard shows authentication error",
+          "observed": "No visible auth error; login remained hidden and dashboard stayed visible"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-shape-errors/VAL-DATA-010-invalid-domainkey-state.png"
+        ],
+        "consoleErrors": "none",
+        "network": "curl https://bundles.aem.page/bundles/www.aem.live/2026/04/13/00?domainkey=INVALID-KEY -> HTTP 403"
+      },
+      "issues": "Auth failure is not surfaced to the user"
+    },
+    {
+      "id": "VAL-DATA-011",
+      "title": "Empty bundles renders zero-data state",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "In page context, request future range (+30 days) using fetchRumData",
+          "expected": "Empty bundles result for future range",
+          "observed": "chartPoints=0, all breakdown row counts=0, totals all zero, error=null"
+        },
+        {
+          "action": "Render returned zero-data chart and empty breakdown tables",
+          "expected": "Zero-data chart and empty breakdown state with no JS exceptions",
+          "observed": "Zero-data render captured; rendered breakdown rows=0; no console errors"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/data-shape-errors/VAL-DATA-011-zero-data-render.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Future-range adapter call: 2026-05-14..2026-05-20 returned empty bundles"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "RUM UI offers only relative ranges (7d/30d/365d); no direct future-date selector is exposed.",
+      "resolved": true,
+      "resolution": "Validated VAL-DATA-011 by invoking fetchRumData for a future range in page context, then rendering returned zero-data payload through existing chart/breakdown renderers.",
+      "affectedAssertions": [
+        "VAL-DATA-011"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 3 passed (VAL-DATA-006, VAL-DATA-007, VAL-DATA-011) and 3 failed (VAL-DATA-008, VAL-DATA-009, VAL-DATA-010). Failures were due to missing user-visible error/auth states under network/auth/domain failure conditions."
+}

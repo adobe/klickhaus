@@ -35,3 +35,33 @@
 - `agent-browser` skill for browser-based validation
 - `curl` for direct API testing
 - Shell commands for unit tests, lint, dead-code, cpd
+
+## Flow Validator Guidance: agent-browser
+
+- Use dedicated sessions only; never use a shared/default session.
+- Stay on `http://localhost:5561/` for app pages and `https://bundles.aem.page/` for API-bound behavior checks.
+- Keep validation read-only: do not modify app source files, local config, or mission artifacts except your assigned flow report/evidence.
+- Isolation boundary: only test the assertions assigned in your prompt. Avoid changing global browser state beyond that scope.
+- If login state impacts assertions, include explicit reload/navigation steps and capture before/after evidence.
+- Always collect both screenshot evidence and DOM/eval evidence when assertions require numeric/shape checks.
+- Capture console and network output whenever assertions mention errors, requests, or “no JS exceptions”.
+- Close every agent-browser session you open before finishing.
+
+## Flow Validator Guidance: shell
+
+- Run only the commands needed for assigned assertions.
+- Execute commands from `/Users/trieloff/Developer/clickhouse-queries`.
+- Do not edit source code or install new runtime dependencies during validation.
+- Record exact exit codes and key output excerpts for each command.
+- If command failures are caused by known mission constraints (e.g., expected credential issues), mark clearly with evidence.
+
+## Flow Validator Guidance: curl
+
+- Use `curl` only against endpoints required by assigned assertions.
+- Prefer explicit status capture (`-w "%{http_code}"`) and response body snippets for evidence.
+- Do not send mutating requests; validation should remain read-only.
+
+## Operational Notes (foundation run)
+
+- `agent-browser network requests` can occasionally return no captured entries even when requests are happening. Use `performance.getEntriesByType('resource')` and/or temporary in-page `fetch` interception as fallback evidence.
+- ClickHouse-backed browser regression checks may be blocked by credential rotation (403). Treat as blocked with explicit login/console/network evidence rather than misclassifying as product regressions.

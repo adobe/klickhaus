@@ -1,0 +1,143 @@
+{
+  "groupId": "regression-shell",
+  "testedAt": "2026-04-13T23:54:09Z",
+  "isolation": {
+    "workingDirectory": "/Users/trieloff/Developer/clickhouse-queries",
+    "mode": "read-only validation execution",
+    "assignedAssertions": [
+      "VAL-REG-003",
+      "VAL-REG-004",
+      "VAL-REG-005",
+      "VAL-REG-006",
+      "VAL-REG-007"
+    ]
+  },
+  "toolsUsed": [
+    "shell"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-REG-003",
+      "title": "All unit tests pass",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `npm test`",
+          "expected": "Exit code 0 with all tests passing",
+          "observed": "Exit code 0; Chromium ran 37/37 test files with 926 passed and 0 failed."
+        }
+      ],
+      "evidence": {
+        "command": "npm test",
+        "exitCode": 0,
+        "logs": [
+          "foundation/regression-shell/VAL-REG-003-004-npm-test.log"
+        ],
+        "keyOutput": [
+          "Chromium: 37/37 test files | 926 passed, 0 failed",
+          "Finished running tests in 2.7s, all tests passed"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REG-004",
+      "title": "Coverage meets 95% threshold",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect coverage in `npm test` output",
+          "expected": "Line coverage >= 95%",
+          "observed": "Code coverage reported 96.23%."
+        }
+      ],
+      "evidence": {
+        "command": "npm test",
+        "exitCode": 0,
+        "logs": [
+          "foundation/regression-shell/VAL-REG-003-004-npm-test.log"
+        ],
+        "keyOutput": [
+          "Code coverage: 96.23 %"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REG-005",
+      "title": "ESLint passes",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run `npm run lint`",
+          "expected": "Exit code 0 with zero errors",
+          "observed": "Exit code 1; ESLint reported 944 problems (365 errors, 579 warnings)."
+        }
+      ],
+      "evidence": {
+        "command": "npm run lint",
+        "exitCode": 1,
+        "logs": [
+          "foundation/regression-shell/VAL-REG-005-lint.log"
+        ],
+        "keyOutput": [
+          "✖ 944 problems (365 errors, 579 warnings)",
+          "Includes project files with `curly` errors (e.g., js/url-state.js, js/logs.js, js/keyboard.js)."
+        ]
+      },
+      "issues": "`npm run lint` did not meet contract requirement (non-zero exit and lint errors present)."
+    },
+    {
+      "id": "VAL-REG-006",
+      "title": "Dead code detection passes",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run `npm run dead-code`",
+          "expected": "Exit code 0 with no dead-code findings",
+          "observed": "Exit code 1; knip reported unused files, unresolved import, and 88 unused exports."
+        }
+      ],
+      "evidence": {
+        "command": "npm run dead-code",
+        "exitCode": 1,
+        "logs": [
+          "foundation/regression-shell/VAL-REG-006-dead-code.log"
+        ],
+        "keyOutput": [
+          "Unused files (6)",
+          "Unresolved imports (1): ./logpush-config.mjs",
+          "Unused exports (88)"
+        ]
+      },
+      "issues": "`npm run dead-code` failed contract requirement due to non-zero exit and multiple knip findings."
+    },
+    {
+      "id": "VAL-REG-007",
+      "title": "Copy-paste detection passes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `npm run cpd:ci`",
+          "expected": "Exit code 0 with duplication within threshold",
+          "observed": "Exit code 0; jscpd completed with 10 clones and 1.41% duplicated lines."
+        }
+      ],
+      "evidence": {
+        "command": "npm run cpd:ci",
+        "exitCode": 0,
+        "logs": [
+          "foundation/regression-shell/VAL-REG-007-cpd.log"
+        ],
+        "keyOutput": [
+          "Found 10 clones.",
+          "Duplicated lines: 207 (1.41%)"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 3 passed (VAL-REG-003, VAL-REG-004, VAL-REG-007) and 2 failed (VAL-REG-005, VAL-REG-006)."
+}

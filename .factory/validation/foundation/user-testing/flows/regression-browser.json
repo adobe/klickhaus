@@ -1,0 +1,102 @@
+{
+  "groupId": "regression-browser",
+  "testedAt": "2026-04-14T00:04:21Z",
+  "isolation": {
+    "missionDir": "/Users/trieloff/.factory/missions/8f94bba5-904b-4fef-b084-753f2447ec61",
+    "baseUrl": "http://localhost:5561/",
+    "session": "regression-browser-8f94bba5",
+    "assignedAssertions": [
+      "VAL-REG-001",
+      "VAL-REG-002"
+    ]
+  },
+  "toolsUsed": [
+    "agent-browser"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-REG-001",
+      "title": "Existing delivery dashboard still works",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Navigate to /dashboard.html",
+          "expected": "Dashboard renders chart and breakdowns with 2xx/4xx/5xx labels",
+          "observed": "Login form displayed; chart canvas exists but not visible (visibleCanvasCount=0)"
+        },
+        {
+          "action": "Attempt sign-in to verify live dashboard rendering",
+          "expected": "Successful auth and visible delivery data",
+          "observed": "Authentication failed. Please check your credentials."
+        },
+        {
+          "action": "Check console/network after sign-in attempt",
+          "expected": "No auth errors; dashboard data requests succeed",
+          "observed": "Console error includes 403 Forbidden; POST requests to ClickHouse endpoint observed"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/regression-browser/VAL-REG-001-dashboard-initial.png",
+          "foundation/regression-browser/VAL-REG-001-login-attempt-invalid.png"
+        ],
+        "consoleErrors": "Failed to load resource: the server responded with a status of 403 (Forbidden) after sign-in attempt",
+        "network": "POST https://s2p5b8wmt5.eastus2.azure.clickhouse.cloud/?use_query_cache=1&query_cache_ttl=1800&query_cache_nondeterministic_function_handling=save (fetch)"
+      },
+      "issues": "Blocked on ClickHouse authentication for live dashboard verification within mission constraints (no secret-file access; known rotated david_query credentials can produce 403)."
+    },
+    {
+      "id": "VAL-REG-002",
+      "title": "Existing lambda dashboard still works",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Navigate to /lambda.html",
+          "expected": "Lambda Logs dashboard renders title and chart with data",
+          "observed": "Page title shows Lambda Logs but login form is displayed and chart not visible (visibleCanvasCount=0)"
+        },
+        {
+          "action": "Attempt sign-in to verify live lambda rendering",
+          "expected": "Successful auth and visible lambda chart with custom aggregations",
+          "observed": "Authentication failed. Please check your credentials."
+        },
+        {
+          "action": "Check console/network after sign-in attempt",
+          "expected": "No auth errors; lambda data requests succeed",
+          "observed": "Console error includes 403 Forbidden; POST requests to ClickHouse endpoint observed"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "foundation/regression-browser/VAL-REG-002-lambda-initial.png",
+          "foundation/regression-browser/VAL-REG-002-login-attempt-invalid.png"
+        ],
+        "consoleErrors": "Failed to load resource: the server responded with a status of 403 (Forbidden) after sign-in attempt",
+        "network": "POST https://s2p5b8wmt5.eastus2.azure.clickhouse.cloud/?use_query_cache=1&query_cache_ttl=1800&query_cache_nondeterministic_function_handling=save (fetch)"
+      },
+      "issues": "Blocked on ClickHouse authentication for live lambda verification within mission constraints (no secret-file access; known rotated david_query credentials can produce 403)."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Regression assertions require authenticated ClickHouse access, but mission constraints disallow reading secret files for credentials.",
+      "resolved": false,
+      "resolution": "Used non-secret verification attempts and captured login/auth-failure evidence.",
+      "affectedAssertions": [
+        "VAL-REG-001",
+        "VAL-REG-002"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Unable to authenticate to ClickHouse-backed dashboards for live data verification; console showed 403 Forbidden on ClickHouse requests after sign-in attempts.",
+      "affectedAssertions": [
+        "VAL-REG-001",
+        "VAL-REG-002"
+      ],
+      "quickFixAttempted": "Retried page navigation and performed sign-in attempts from both dashboard.html and lambda.html; both remained at login with authentication failure."
+    }
+  ],
+  "summary": "Tested 2 assertions: 0 passed, 0 failed, 2 blocked due ClickHouse authentication constraints/403 during live dashboard verification."
+}
