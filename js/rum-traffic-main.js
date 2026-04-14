@@ -30,6 +30,8 @@ import {
   buildDataChunksFilters,
   renderKeyMetrics,
   populateRumTimeRangeSelect,
+  showDashboardError,
+  hideDashboardError,
 } from './rum/rum-traffic-utils.js';
 
 /**
@@ -44,6 +46,23 @@ let rumCredentials = null;
  * since both consume data from the same API call.
  */
 let cachedRumResult = null;
+
+/**
+ * Handle RUM authentication errors.
+ * Shows the login form with an authentication error message.
+ */
+function handleRumAuthError() {
+  rumCredentials = null;
+  state.credentials = null;
+  cachedRumResult = null;
+  clearRumCredentials();
+  const loginError = document.getElementById('loginError');
+  if (loginError) {
+    loginError.textContent = 'Authentication failed. Please check your domain and domain key.';
+    loginError.classList.add('visible');
+  }
+  showLogin();
+}
 
 /**
  * Fetch RUM data and render the time series chart.
@@ -80,10 +99,17 @@ async function loadRumTimeSeries(requestContext) {
 
     if (result.error) {
       if (result.error === 'auth') {
-        window.dispatchEvent(new CustomEvent('auth-error'));
+        handleRumAuthError();
+      } else {
+        showDashboardError(
+          `Failed to load data: ${result.error}. Please check your connection and try again.`,
+        );
       }
       return;
     }
+
+    // Clear any previous error banner on successful load
+    hideDashboardError();
 
     // Cache result for loadRumBreakdowns (if it hasn't fetched yet)
     cachedRumResult = result;
@@ -96,8 +122,7 @@ async function loadRumTimeSeries(requestContext) {
     if (!isCurrent()) {
       return;
     }
-    // eslint-disable-next-line no-console
-    console.error('RUM time series error:', err);
+    showDashboardError('An unexpected error occurred while loading data. Please try again.');
   }
 }
 
@@ -271,6 +296,8 @@ initDashboard({
   title: 'RUM Traffic',
   skipDefaultAuth: true,
   skipLogs: true,
+  skipReleases: true,
+  skipAutocomplete: true,
   onLogout: handleRumLogout,
   seriesLabels: { ok: 'good', client: 'needs improvement', server: 'poor' },
   loadTimeSeries: loadRumTimeSeries,

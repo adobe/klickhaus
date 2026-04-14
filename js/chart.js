@@ -391,24 +391,28 @@ export function renderChart(data) {
     }
   }
 
-  // Fetch and render release ships asynchronously
-  const intendedStartDate = new Date(intendedStartTime);
-  const intendedEndDate = new Date(intendedEndTime);
-  getReleasesInRange(intendedStartDate, intendedEndDate).then((releases) => {
-    if (releases.length > 0) {
-      const dims = {
-        width, height, padding, chartWidth,
-      };
-      const timeRange = { start: intendedStartTime, end: intendedEndTime };
-      setShipPositions(renderReleaseShips(ctx, releases, data, dims, timeRange));
-    } else {
-      setShipPositions(null);
-    }
-  }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('Failed to render releases:', err);
+  // Fetch and render release ships asynchronously (skip for non-SQL data sources)
+  if (state.skipReleases) {
     setShipPositions(null);
-  });
+  } else {
+    const intendedStartDate = new Date(intendedStartTime);
+    const intendedEndDate = new Date(intendedEndTime);
+    getReleasesInRange(intendedStartDate, intendedEndDate).then((releases) => {
+      if (releases.length > 0) {
+        const dims = {
+          width, height, padding, chartWidth,
+        };
+        const timeRange = { start: intendedStartTime, end: intendedEndTime };
+        setShipPositions(renderReleaseShips(ctx, releases, data, dims, timeRange));
+      } else {
+        setShipPositions(null);
+      }
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to render releases:', err);
+      setShipPositions(null);
+    });
+  }
 }
 
 export function setupChartNavigation(callback) {

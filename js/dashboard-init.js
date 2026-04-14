@@ -121,6 +121,10 @@ function initAuthHandlers(config, elements, callbacks) {
  * @param {boolean} [config.skipLogs] - When true, skips SQL-based log loading
  *   entirely. Use for non-SQL data sources (e.g., RUM pages) that don't have
  *   a corresponding logs table.
+ * @param {boolean} [config.skipReleases] - When true, skips ClickHouse-based release
+ *   marker fetching in the chart. Use for non-SQL data sources.
+ * @param {boolean} [config.skipAutocomplete] - When true, skips ClickHouse-based host
+ *   autocomplete loading. Use for non-SQL data sources.
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -382,48 +386,54 @@ export function initDashboard(config = {}) {
     }
   }
 
-  // Initialize
-  async function init() {
-    loadStateFromURL();
-
-    // Apply dashboard-specific configuration
+  /**
+   * Apply dashboard-specific configuration to global state.
+   * Extracted from init() to keep cyclomatic complexity manageable.
+   */
+  function applyConfig() {
     if (config.title && !state.title) {
       state.title = config.title;
     }
-    if (config.additionalWhereClause !== undefined) {
-      state.additionalWhereClause = config.additionalWhereClause;
+
+    // Transfer config properties to state when explicitly set
+    const directTransfers = [
+      'additionalWhereClause', 'logsTableName', 'weightColumn', 'disableTableSampling',
+      'hostFilterColumn',
+    ];
+    for (const key of directTransfers) {
+      if (config[key] !== undefined) {
+        state[key] = config[key];
+      }
     }
-    if (config.tableName) {
-      state.tableName = config.tableName;
+
+    // Transfer truthy config properties to state
+    const truthyTransfers = [
+      'tableName', 'timeSeriesTemplate', 'aggregations', 'breakdowns', 'seriesLabels',
+    ];
+    for (const key of truthyTransfers) {
+      if (config[key]) {
+        state[key] = config[key];
+      }
     }
-    if (config.logsTableName !== undefined) {
-      state.logsTableName = config.logsTableName;
-    }
-    if (config.weightColumn !== undefined) {
-      state.weightColumn = config.weightColumn;
-    }
-    if (config.disableTableSampling !== undefined) {
-      state.disableTableSampling = config.disableTableSampling;
-    }
-    if (config.timeSeriesTemplate) {
-      state.timeSeriesTemplate = config.timeSeriesTemplate;
-    }
-    if (config.aggregations) {
-      state.aggregations = config.aggregations;
-    }
-    if (config.hostFilterColumn !== undefined) {
-      state.hostFilterColumn = config.hostFilterColumn;
-    }
-    if (config.breakdowns) {
-      state.breakdowns = config.breakdowns;
-    }
+
     if (typeof config.applyFilters === 'function') {
       state.applyFilters = config.applyFilters;
     }
-    if (config.seriesLabels) {
-      state.seriesLabels = config.seriesLabels;
+
+    // Boolean flags for suppressing ClickHouse-specific features
+    if (config.skipReleases) {
+      state.skipReleases = true;
+    }
+    if (config.skipAutocomplete) {
+      state.skipAutocomplete = true;
     }
     applyDefaultHiddenFacets();
+  }
+
+  // Initialize
+  async function init() {
+    loadStateFromURL();
+    applyConfig();
 
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
@@ -536,7 +546,9 @@ export function initDashboard(config = {}) {
   }
 
   window.addEventListener('dashboard-shown', () => {
-    setTimeout(loadHostAutocomplete, 100);
+    if (!state.skipAutocomplete) {
+      setTimeout(loadHostAutocomplete, 100);
+    }
   });
 
   init();

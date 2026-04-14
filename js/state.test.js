@@ -27,6 +27,8 @@ function resetState() {
   state.logsData = null;
   state.title = '';
   state.applyFilters = null;
+  state.skipReleases = false;
+  state.skipAutocomplete = false;
   setOnPinnedColumnsChange(null);
   setOnFacetOrderChange(null);
   localStorage.removeItem('pinnedColumns');
@@ -62,6 +64,14 @@ describe('state', () => {
     state.applyFilters = () => {};
     state.applyFilters = null;
     assert.isNull(state.applyFilters);
+  });
+
+  it('has skipReleases defaulting to false', () => {
+    assert.strictEqual(state.skipReleases, false);
+  });
+
+  it('has skipAutocomplete defaulting to false', () => {
+    assert.strictEqual(state.skipAutocomplete, false);
   });
 });
 

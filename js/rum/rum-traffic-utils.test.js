@@ -16,6 +16,8 @@ import {
   buildDataChunksFilters,
   renderKeyMetrics,
   populateRumTimeRangeSelect,
+  showDashboardError,
+  hideDashboardError,
 } from './rum-traffic-utils.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -288,6 +290,60 @@ describe('rum-traffic-utils', () => {
       assert.strictEqual(select.options[0].textContent, 'Last 7 days');
       assert.strictEqual(select.options[1].textContent, 'Last Month');
       assert.strictEqual(select.options[2].textContent, 'Last Year');
+    });
+  });
+
+  describe('showDashboardError', () => {
+    let banner;
+
+    beforeEach(() => {
+      banner = document.createElement('div');
+    });
+
+    it('sets text content and adds visible class', () => {
+      showDashboardError('Something went wrong', banner);
+      assert.strictEqual(banner.textContent, 'Something went wrong');
+      assert.isTrue(banner.classList.contains('visible'));
+    });
+
+    it('replaces previous error message', () => {
+      showDashboardError('First error', banner);
+      showDashboardError('Second error', banner);
+      assert.strictEqual(banner.textContent, 'Second error');
+    });
+
+    it('does nothing when banner is null', () => {
+      // Should not throw
+      showDashboardError('Error', null);
+    });
+  });
+
+  describe('hideDashboardError', () => {
+    let banner;
+
+    beforeEach(() => {
+      banner = document.createElement('div');
+      banner.textContent = 'Some error';
+      banner.classList.add('visible');
+    });
+
+    it('clears text content and removes visible class', () => {
+      hideDashboardError(banner);
+      assert.strictEqual(banner.textContent, '');
+      assert.isFalse(banner.classList.contains('visible'));
+    });
+
+    it('does nothing when banner is null', () => {
+      // Should not throw
+      hideDashboardError(null);
+    });
+
+    it('is safe to call when already hidden', () => {
+      banner.classList.remove('visible');
+      banner.textContent = '';
+      hideDashboardError(banner);
+      assert.strictEqual(banner.textContent, '');
+      assert.isFalse(banner.classList.contains('visible'));
     });
   });
 });

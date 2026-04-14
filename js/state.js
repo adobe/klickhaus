@@ -47,6 +47,8 @@ export const state = {
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
   applyFilters: null, // Optional filter callback; defaults to compileFilters() SQL compilation
   seriesLabels: { ok: '2xx', client: '4xx', server: '5xx' }, // Customizable series labels
+  skipReleases: false, // When true, skip ClickHouse-based release markers on chart
+  skipAutocomplete: false, // When true, skip ClickHouse-based host autocomplete
 };
 
 // Callback for re-rendering logs table when pinned columns change

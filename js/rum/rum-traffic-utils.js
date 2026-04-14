@@ -127,6 +127,31 @@ export function renderKeyMetrics(totals, overlay) {
 }
 
 /**
+ * Show an error banner in the dashboard area.
+ * @param {string} message - Error message to display
+ * @param {HTMLElement|null} [banner] - The error banner element (defaults to #dashboardError)
+ */
+export function showDashboardError(message, banner = null) {
+  const el = banner || document.getElementById('dashboardError');
+  if (el) {
+    el.textContent = message;
+    el.classList.add('visible');
+  }
+}
+
+/**
+ * Hide the dashboard error banner.
+ * @param {HTMLElement|null} [banner] - The error banner element (defaults to #dashboardError)
+ */
+export function hideDashboardError(banner = null) {
+  const el = banner || document.getElementById('dashboardError');
+  if (el) {
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+}
+
+/**
  * Replace the time range select options with RUM-specific ranges.
  * @param {HTMLSelectElement|null} select
  * @param {string} currentTimeRange - Current state.timeRange value
