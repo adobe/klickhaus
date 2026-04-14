@@ -599,6 +599,55 @@ describe('saveStateToURL', () => {
     const params = new URLSearchParams(window.location.search);
     assert.isFalse(params.has('hf'));
   });
+
+  describe('extraUrlParams', () => {
+    afterEach(() => {
+      state.extraUrlParams = {};
+    });
+
+    it('includes extraUrlParams in URL', () => {
+      state.extraUrlParams = { domain: 'www.example.com', domainkey: 'abc-123' };
+      saveStateToURL();
+      const params = new URLSearchParams(window.location.search);
+      assert.strictEqual(params.get('domain'), 'www.example.com');
+      assert.strictEqual(params.get('domainkey'), 'abc-123');
+    });
+
+    it('omits extraUrlParams with empty values', () => {
+      state.extraUrlParams = { domain: '', domainkey: '' };
+      saveStateToURL();
+      const params = new URLSearchParams(window.location.search);
+      assert.isFalse(params.has('domain'));
+      assert.isFalse(params.has('domainkey'));
+    });
+
+    it('combines extraUrlParams with other state params', () => {
+      state.extraUrlParams = { domain: 'www.example.com', domainkey: 'key-456' };
+      state.timeRange = '24h';
+      state.filters = [{ col: 'url', value: '/test', exclude: false }];
+      saveStateToURL();
+      const params = new URLSearchParams(window.location.search);
+      assert.strictEqual(params.get('domain'), 'www.example.com');
+      assert.strictEqual(params.get('domainkey'), 'key-456');
+      assert.strictEqual(params.get('t'), '24h');
+      assert.ok(params.has('filters'));
+    });
+
+    it('handles empty extraUrlParams object', () => {
+      state.extraUrlParams = {};
+      saveStateToURL();
+      const params = new URLSearchParams(window.location.search);
+      assert.isFalse(params.has('domain'));
+      assert.isFalse(params.has('domainkey'));
+    });
+
+    it('handles null extraUrlParams gracefully', () => {
+      state.extraUrlParams = null;
+      saveStateToURL();
+      // Should not throw
+      assert.ok(true);
+    });
+  });
 });
 
 describe('saveStateToURL and loadStateFromURL round-trip', () => {

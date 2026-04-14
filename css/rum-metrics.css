@@ -50,6 +50,16 @@
   text-shadow: 0 0 6px var(--chart-bg), 0 0 3px var(--chart-bg);
 }
 
+@media (prefers-color-scheme: dark) {
+  .key-metric-value {
+    text-shadow: 0 0 10px var(--chart-bg), 0 0 6px var(--chart-bg), 0 0 3px var(--chart-bg);
+  }
+
+  .key-metric-label {
+    text-shadow: 0 0 8px var(--chart-bg), 0 0 4px var(--chart-bg), 0 0 2px var(--chart-bg);
+  }
+}
+
 @media (max-width: 600px) {
   .key-metrics-overlay {
     left: 12px;

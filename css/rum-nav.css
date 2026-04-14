@@ -36,9 +36,23 @@
   font-weight: 600;
 }
 
+@media (prefers-color-scheme: dark) {
+  .rum-nav-link:hover {
+    color: var(--text);
+    border-bottom-color: var(--border);
+  }
+
+  .rum-nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+}
+
 @media (max-width: 600px) {
   .rum-nav {
     padding: 0 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .rum-nav-link {
