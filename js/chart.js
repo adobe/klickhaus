@@ -221,7 +221,7 @@ function drawStackedArea(ctx, data, getX, getY, topStack, bottomStack, colors) {
     ctx.lineTo(getX(i), getY(topStack[i]));
   }
   ctx.strokeStyle = colors.line;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.stroke();
 }
 
@@ -296,9 +296,9 @@ export function renderChart(data) {
   const clientColor = cssVar('--status-client-error');
   const serverColor = cssVar('--status-server-error');
   const colors = {
-    ok: { line: okColor, fill: hexToRgba(okColor, 0.3) },
-    client: { line: clientColor, fill: hexToRgba(clientColor, 0.3) },
-    server: { line: serverColor, fill: hexToRgba(serverColor, 0.3) },
+    ok: { line: okColor, fill: hexToRgba(okColor, 0.12) },
+    client: { line: clientColor, fill: hexToRgba(clientColor, 0.12) },
+    server: { line: serverColor, fill: hexToRgba(serverColor, 0.12) },
   };
 
   // Draw X axis line
