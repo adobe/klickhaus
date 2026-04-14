@@ -35,6 +35,17 @@ export const RUM_BREAKDOWNS = [
 ];
 
 /**
+ * Checkpoint-specific sub-facet definitions.
+ * These appear dynamically when a checkpoint filter is active.
+ */
+export const RUM_CHECKPOINT_SUBFACETS = [
+  { id: 'breakdown-clickSource', facetName: 'clickSource', col: 'clickSource' },
+  { id: 'breakdown-clickTarget', facetName: 'clickTarget', col: 'clickTarget' },
+  { id: 'breakdown-mediaSource', facetName: 'mediaSource', col: 'mediaSource' },
+  { id: 'breakdown-mediaTarget', facetName: 'mediaTarget', col: 'mediaTarget' },
+];
+
+/**
  * Compute start and end dates for RUM data fetching.
  * @param {string} timeRange - Current time range key (e.g., '7d', '30d', '365d')
  * @returns {{ startDate: Date, endDate: Date }}

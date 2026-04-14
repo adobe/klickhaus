@@ -1,0 +1,50 @@
+/*
+ * RUM Cross-Page Navigation
+ * Tab-style navigation bar for switching between Traffic, LCP, CLS, INP views.
+ * Preserves URL state across page transitions.
+ */
+
+.rum-nav {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.rum-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.rum-nav-link:hover {
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+
+.rum-nav-link.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .rum-nav {
+    padding: 0 12px;
+  }
+
+  .rum-nav-link {
+    padding: 8px 12px;
+    font-size: 13px;
+    flex: 1;
+    justify-content: center;
+  }
+}

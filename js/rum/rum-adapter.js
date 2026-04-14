@@ -311,7 +311,9 @@ export function addFacetDefinitions(dataChunks) {
   dataChunks.addFacet('acquisitionSource', facets.acquisitionSource);
 
   // Extended checkpoint-based facets for full facet set
+  dataChunks.addFacet('clickSource', checkpointFacet('click', 'source'));
   dataChunks.addFacet('clickTarget', checkpointFacet('click', 'target'));
+  dataChunks.addFacet('mediaSource', checkpointFacet('viewmedia', 'source'));
   dataChunks.addFacet('viewblock', checkpointFacet('viewblock', 'source'));
   dataChunks.addFacet('navigate', checkpointFacet('navigate', 'target'));
   dataChunks.addFacet('language', checkpointFacet('language', 'source'));

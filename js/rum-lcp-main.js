@@ -34,6 +34,7 @@ import {
   showDashboardError,
   hideDashboardError,
 } from './rum/rum-lcp-utils.js';
+import { renderRumNav } from './rum/rum-nav.js';
 
 /**
  * RUM credentials for the current session.
@@ -198,6 +199,16 @@ async function loadLcpBreakdowns(requestContext) {
 }
 
 /**
+ * Set extra URL params for domain/domainkey so saveStateToURL preserves them.
+ * Also renders the navigation bar with current credentials.
+ * @param {{ domain: string, domainkey: string }} creds
+ */
+function setRumUrlState(creds) {
+  state.extraUrlParams = { domain: creds.domain, domainkey: creds.domainkey };
+  renderRumNav(document.getElementById('rumNav'), 'lcp');
+}
+
+/**
  * Handle RUM login form submission.
  * Validates domain + domainkey by making a test API call,
  * then dispatches 'login-success' on success.
@@ -225,6 +236,7 @@ async function handleRumLogin(e) {
       // Store as a credential marker so dashboard-init treats user as authenticated
       state.credentials = { user: domain, password: domainkey };
       storeRumCredentials(rumCredentials, forgetMe);
+      setRumUrlState(rumCredentials);
       loginError.classList.remove('visible');
       window.dispatchEvent(new CustomEvent('login-success'));
     } else {
@@ -262,6 +274,7 @@ function initRumAuth() {
     rumCredentials = urlCreds;
     state.credentials = { user: urlCreds.domain, password: urlCreds.domainkey };
     storeRumCredentials(urlCreds);
+    setRumUrlState(urlCreds);
     // Auto-authenticate — dispatch login-success after init completes
     setTimeout(() => window.dispatchEvent(new CustomEvent('login-success')), 0);
     return;
@@ -272,12 +285,13 @@ function initRumAuth() {
   if (storedCreds) {
     rumCredentials = storedCreds;
     state.credentials = { user: storedCreds.domain, password: storedCreds.domainkey };
+    setRumUrlState(storedCreds);
     // Auto-authenticate — dispatch login-success after init completes
     setTimeout(() => window.dispatchEvent(new CustomEvent('login-success')), 0);
   }
 
-  // 3. No credentials found — show login form
-  // Login form is already visible by default (dashboard-init handles this)
+  // Render nav even without credentials (links still useful for structure)
+  renderRumNav(document.getElementById('rumNav'), 'lcp');
 }
 
 // Remove ClickHouse auth-error handler — RUM pages don't use ClickHouse,
