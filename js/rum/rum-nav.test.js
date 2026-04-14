@@ -152,6 +152,55 @@ describe('rum-nav', () => {
       assert.isNull(parsedParams.get('filters'));
       assert.isNull(parsedParams.get('n'));
     });
+
+    it('preserves hash fragment when provided', () => {
+      const currentParams = new URLSearchParams('domain=test.com&domainkey=key');
+      const url = buildNavUrl('rum-lcp.html', currentParams, '#f=url');
+      assert.include(url, '#f=url');
+      assert.isTrue(url.endsWith('#f=url'));
+    });
+
+    it('appends hash after query string', () => {
+      const currentParams = new URLSearchParams('domain=test.com&domainkey=key&t=30d');
+      const url = buildNavUrl('rum-cls.html', currentParams, '#f=url');
+      // Hash must come after query string
+      const qsIndex = url.indexOf('?');
+      const hashIndex = url.indexOf('#');
+      assert.isAbove(hashIndex, qsIndex, 'hash should appear after query string');
+    });
+
+    it('does not append hash when hash is empty string', () => {
+      const currentParams = new URLSearchParams('domain=test.com&domainkey=key');
+      const url = buildNavUrl('rum-lcp.html', currentParams, '');
+      assert.isFalse(url.includes('#'));
+    });
+
+    it('does not append hash when hash is omitted', () => {
+      const currentParams = new URLSearchParams('domain=test.com&domainkey=key');
+      const url = buildNavUrl('rum-lcp.html', currentParams);
+      assert.isFalse(url.includes('#'));
+    });
+
+    it('preserves hash with no query params', () => {
+      const currentParams = new URLSearchParams('');
+      const url = buildNavUrl('rum-traffic.html', currentParams, '#f=checkpoint');
+      assert.strictEqual(url, 'rum-traffic.html#f=checkpoint');
+    });
+
+    it('preserves complex hash fragments across round-trip', () => {
+      const currentParams = new URLSearchParams('domain=www.aem.live&domainkey=key&t=30d');
+      const hash = '#f=url';
+      const url = buildNavUrl('rum-lcp.html', currentParams, hash);
+      // Parse the generated URL
+      const parsed = new URL(url, 'http://localhost');
+      // Simulate navigating to LCP page and building nav back to traffic
+      const lcpParams = parsed.searchParams;
+      const roundTripUrl = buildNavUrl('rum-traffic.html', lcpParams, parsed.hash);
+      // Verify all state preserved
+      assert.include(roundTripUrl, 'domain=www.aem.live');
+      assert.include(roundTripUrl, 't=30d');
+      assert.isTrue(roundTripUrl.endsWith('#f=url'));
+    });
   });
 
   describe('renderRumNav', () => {

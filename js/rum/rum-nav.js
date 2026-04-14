@@ -87,9 +87,10 @@ const PRESERVED_PARAMS = [
  * Build a navigation URL for a target page, preserving relevant URL state.
  * @param {string} targetHref - The target page filename (e.g., 'rum-lcp.html')
  * @param {URLSearchParams} currentParams - Current page URL parameters
- * @returns {string} Full URL with preserved parameters
+ * @param {string} [hash=''] - URL hash fragment to preserve (e.g., '#f=url')
+ * @returns {string} Full URL with preserved parameters and hash
  */
-export function buildNavUrl(targetHref, currentParams) {
+export function buildNavUrl(targetHref, currentParams, hash = '') {
   const params = new URLSearchParams();
 
   for (const key of PRESERVED_PARAMS) {
@@ -100,7 +101,8 @@ export function buildNavUrl(targetHref, currentParams) {
   }
 
   const qs = params.toString();
-  return qs ? `${targetHref}?${qs}` : targetHref;
+  const base = qs ? `${targetHref}?${qs}` : targetHref;
+  return hash ? `${base}${hash}` : base;
 }
 
 /**
@@ -128,7 +130,7 @@ export function renderRumNav(container, currentView, params) {
     const link = document.createElement('a');
     link.className = 'rum-nav-link';
     link.textContent = view.label;
-    link.href = buildNavUrl(view.href, currentParams);
+    link.href = buildNavUrl(view.href, currentParams, window.location.hash);
 
     if (view.id === currentView) {
       link.classList.add('active');
@@ -146,7 +148,7 @@ export function renderRumNav(container, currentView, params) {
           }
         }
       }
-      link.href = buildNavUrl(view.href, liveParams);
+      link.href = buildNavUrl(view.href, liveParams, window.location.hash);
     });
 
     nav.appendChild(link);
