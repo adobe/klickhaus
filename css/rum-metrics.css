@@ -79,3 +79,22 @@
     display: none;
   }
 }
+
+/*
+ * Traffic-specific color overrides
+ * Applied via class="traffic-colors" on <html> in rum-traffic.html.
+ * Replaces green/yellow/red (HTTP status) with blue/purple/gray (engagement).
+ */
+.traffic-colors {
+  --status-ok: #3b82f6;
+  --status-client-error: #8b5cf6;
+  --status-server-error: #94a3b8;
+}
+
+@media (prefers-color-scheme: dark) {
+  .traffic-colors {
+    --status-ok: #60a5fa;
+    --status-client-error: #a78bfa;
+    --status-server-error: #64748b;
+  }
+}
