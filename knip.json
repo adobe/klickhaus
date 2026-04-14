@@ -3,6 +3,7 @@
   "entry": [
     "js/main.js",
     "js/rum-traffic-main.js",
+    "js/rum-lcp-main.js",
     "scripts/*.mjs",
     "eslint.config.js",
     "web-test-runner.config.mjs"

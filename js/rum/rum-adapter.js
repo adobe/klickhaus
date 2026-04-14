@@ -279,10 +279,27 @@ export function addSeriesDefinitions(dataChunks, viewType) {
 }
 
 /**
+ * Create a checkpoint-based facet function that extracts values
+ * from events matching the given checkpoint name.
+ * @param {string} checkpoint - The checkpoint name to filter by
+ * @param {string} field - The event field to extract ('source' or 'target')
+ * @returns {Function} Facet function for DataChunks
+ */
+export function checkpointFacet(checkpoint, field = 'target') {
+  return (bundle) => bundle.events
+    .filter((e) => e.checkpoint === checkpoint)
+    .map((e) => e[field])
+    .filter(Boolean);
+}
+
+/**
  * Add facet definitions for breakdown analysis.
+ * Includes core facets from rum-distiller plus custom checkpoint-based facets
+ * for the full optel-explorer facet set.
  * @param {DataChunks} dataChunks
  */
 export function addFacetDefinitions(dataChunks) {
+  // Core facets from rum-distiller
   dataChunks.addFacet('userAgent', facets.userAgent);
   dataChunks.addFacet('url', facets.url);
   dataChunks.addFacet('checkpoint', facets.checkpoint);
@@ -292,6 +309,18 @@ export function addFacetDefinitions(dataChunks) {
   dataChunks.addFacet('enterSource', facets.enterSource);
   dataChunks.addFacet('mediaTarget', facets.mediaTarget);
   dataChunks.addFacet('acquisitionSource', facets.acquisitionSource);
+
+  // Extended checkpoint-based facets for full facet set
+  dataChunks.addFacet('clickTarget', checkpointFacet('click', 'target'));
+  dataChunks.addFacet('viewblock', checkpointFacet('viewblock', 'source'));
+  dataChunks.addFacet('navigate', checkpointFacet('navigate', 'target'));
+  dataChunks.addFacet('language', checkpointFacet('language', 'source'));
+  dataChunks.addFacet('accessibility', checkpointFacet('accessibility', 'source'));
+  dataChunks.addFacet('consent', checkpointFacet('consent', 'source'));
+  dataChunks.addFacet('loadresource', checkpointFacet('loadresource', 'target'));
+  dataChunks.addFacet('error', checkpointFacet('error', 'source'));
+  dataChunks.addFacet('four04', checkpointFacet('404', 'source'));
+  dataChunks.addFacet('redirect', checkpointFacet('redirect', 'target'));
 }
 
 /**
