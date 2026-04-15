@@ -22,7 +22,7 @@ import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { state } from './state.js';
 import { detectSteps } from './step-detection.js';
 import {
-  getHostFilter, getTable, getTimeBucket, getTimeBucketStep, getTimeFilter, getSamplingConfig,
+  getHostFilter, getTable, getTimeBucket, getTimeBucketStep, getTimeFilter,
   setCustomTimeRange, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
 } from './time.js';
 import { loadSql } from './sql-loader.js';
@@ -949,7 +949,7 @@ export function setupChartNavigation(callback) {
   });
 }
 
-export async function loadTimeSeries(requestContext = getRequestContext('dashboard'), samplingOverride = null) {
+export async function loadTimeSeries(requestContext = getRequestContext('dashboard')) {
   const { requestId, signal, scope } = requestContext;
   const isCurrent = () => isRequestCurrent(requestId, scope);
   const timeFilter = getTimeFilter();
@@ -960,23 +960,15 @@ export async function loadTimeSeries(requestContext = getRequestContext('dashboa
   const rangeStart = getTimeRangeStart();
   const rangeEnd = getTimeRangeEnd();
 
-  const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
-  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
-  const base = state.additionalWhereClause || '';
-  const needsDedup = samplingOverride && !samplingOverride.sampleClause;
-  const additionalWhere = needsDedup ? `${base}\n  AND sample_hash >= 0`.trim() : base;
-
   const timeSeriesTemplate = state.timeSeriesTemplate || 'time-series';
   const sql = await loadSql(timeSeriesTemplate, {
     bucket,
     database: DATABASE,
     table: getTable(),
-    sampleClause,
-    mult,
     timeFilter,
     hostFilter,
     facetFilters,
-    additionalWhereClause: additionalWhere,
+    additionalWhereClause: state.additionalWhereClause || '',
     rangeStart,
     rangeEnd,
     step,

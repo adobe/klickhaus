@@ -251,35 +251,6 @@ export function getTimeRangeEnd() {
 // Re-export getPeriodMs for external use
 export { getPeriodMs };
 
-// Sampling: rate inversely proportional to time range so performance stays constant.
-// 1-hour queries are the baseline (no sampling). Longer ranges sample proportionally less.
-
-/**
- * Get sampling configuration based on time range.
- * Rate is inverse to selected range so query performance stays constant.
- * @returns {{ sampleClause: string, multiplier: number }}
- */
-export function getSamplingConfig() {
-  if (state.disableTableSampling) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  const periodMs = getPeriodMs();
-
-  // No sampling for time ranges <= 1 hour
-  if (periodMs <= HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-
-  // Sample rate = 1h / period, so scanned rows stay roughly constant
-  const ratio = HOUR_MS / periodMs;
-  // Round to 4 decimal places for clean SQL; floor at 0.0001 to avoid SAMPLE 0 / Infinity
-  const sampleRate = Math.max(Math.round(ratio * 10000) / 10000, 0.0001);
-  const multiplier = Math.round(1 / sampleRate);
-
-  return { sampleClause: `SAMPLE ${sampleRate}`, multiplier };
-}
-
 /**
  * Get time filter bounds formatted for the cdn_facet_minutes table.
  * @returns {{ startTime: string, endTime: string }}

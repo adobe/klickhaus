@@ -16,7 +16,7 @@ import {
   startRequestContext, getRequestContext, isRequestCurrent, mergeAbortSignals,
 } from '../request-context.js';
 import {
-  getTimeFilter, getHostFilter, getTable, getSamplingConfig, getFacetTimeFilter,
+  getTimeFilter, getHostFilter, getTable, getFacetTimeFilter,
 } from '../time.js';
 import { allBreakdowns as defaultBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
@@ -28,7 +28,6 @@ import {
   buildStatusAggregations,
   buildSummaryCountBreakdownFragment,
   buildSummaryCountBucketInnerFragment,
-  buildSummaryCountApproxTopFragment,
 } from '../query-aggregations.js';
 
 // Intentionally limits only breakdown queries: breakdowns fan out 20+ parallel
@@ -55,7 +54,7 @@ export function canUseFacetTable(b) {
     return false; // bucketed facets need raw table
   }
   if (b.highCardinality) {
-    return false; // sampled raw table is faster
+    return false; // high-cardinality queries raw table directly
   }
   if (state.tableName !== 'delivery') {
     return false; // facet table only covers delivery
@@ -161,7 +160,6 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
     agg5xx: aggs.agg5xx,
     database: DATABASE,
     table: getTable(),
-    sampleClause: queryParams.sampleClause,
     timeFilter: queryParams.timeFilter,
     hostFilter: queryParams.hostFilter,
     extra: queryParams.extra,
@@ -200,39 +198,21 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
 /**
  * Build SQL query parameters for breakdown
  */
-function buildBreakdownQueryParams(b, col, timeFilter, hostFilter, samplingOverride) {
+function buildBreakdownQueryParams(b, col, timeFilter, hostFilter) {
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
-    && state.filters.some((f) => f.col === originalCol);
-  const actualCol = hasActiveFilter ? b.filterCol : col;
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = samplingOverride || getSamplingConfig();
-  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
-    col: actualCol,
+    col,
     originalCol,
-    hasActiveFilter,
     isBytes,
-    sampleClause,
-    mult,
     extra: b.extraFilter || '',
     facetFilters: getFacetFiltersExcluding(originalCol),
     timeFilter,
     hostFilter,
   };
-}
-
-function buildDedupClause(samplingOverride) {
-  const base = state.additionalWhereClause || '';
-  if (!samplingOverride || samplingOverride.multiplier !== 1 || samplingOverride.sampleClause) {
-    return base;
-  }
-  return base
-    ? `${base}\n  AND sample_hash >= 0`
-    : 'AND sample_hash >= 0';
 }
 
 function createRequestStatus(requestContext) {
@@ -261,46 +241,7 @@ function prepareBreakdownCard(card, b) {
   return true;
 }
 
-/**
- * Check whether a refinement pass should use the approx_top_count template.
- * High-cardinality GROUP BY over the full dataset can OOM; approx_top_count
- * finds top-N candidates in bounded memory, then computes exact counts.
- */
-function isApproxTopRefinement(b, samplingOverride) {
-  if (!b.highCardinality) {
-    return false;
-  }
-  if (!samplingOverride) {
-    return false;
-  }
-  // Refinement pass: no SAMPLE clause, multiplier === 1
-  return samplingOverride.multiplier === 1 && !samplingOverride.sampleClause;
-}
-
-async function buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostFilter) {
-  const summaryCol = buildSummaryCountApproxTopFragment(b.summaryCountIf);
-
-  const sql = await loadSql('breakdown-approx-top', {
-    col: params.col,
-    ...aggs,
-    summaryCol,
-    database: DATABASE,
-    table: getTable(),
-    sampleClause: params.sampleClause || '',
-    timeFilter,
-    hostFilter,
-    facetFilters: params.facetFilters,
-    extra: params.extra,
-    additionalWhereClause: dedupClause,
-    topN: String(state.topN),
-  });
-
-  return {
-    sql, params, aggs, approxTop: true,
-  };
-}
-
-async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
+async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
 
   // Use pre-aggregated facet table when no filters are active
@@ -329,8 +270,6 @@ async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
       originalCol: baseCol,
       hasActiveFilter: false,
       isBytes: false,
-      sampleClause: '',
-      mult: '',
       extra: '',
       facetFilters: '',
       timeFilter,
@@ -339,15 +278,13 @@ async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
     return { sql, params, aggs: buildStatusAggregations(false, '') };
   }
 
-  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter, samplingOverride);
-  const aggs = buildStatusAggregations(params.isBytes, params.mult);
-
-  const dedupClause = buildDedupClause(samplingOverride);
+  const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
+  const aggs = buildStatusAggregations(params.isBytes, '');
 
   // Two-level query for bucket facets with rawCol (hits raw-value projection)
   if (b.rawCol && typeof b.col === 'function') {
     const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, params.mult);
+    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, '');
     const outerSummary = b.summaryCountIf
       ? ',\n  sum(summary_cnt) as summary_cnt'
       : '';
@@ -360,37 +297,30 @@ async function buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride) {
       outerSummaryCol: outerSummary,
       database: DATABASE,
       table: getTable(),
-      sampleClause: params.sampleClause,
       timeFilter,
       hostFilter,
       facetFilters: params.facetFilters,
       extra: params.extra,
-      additionalWhereClause: dedupClause,
+      additionalWhereClause: state.additionalWhereClause || '',
       topN: String(state.topN),
     });
 
     return { sql, params, aggs };
   }
 
-  // High-cardinality refinement: use approx_top_count to avoid OOM
-  if (isApproxTopRefinement(b, samplingOverride)) {
-    return buildApproxTopSql(b, params, aggs, dedupClause, timeFilter, hostFilter);
-  }
-
-  const summaryColWithMult = buildSummaryCountBreakdownFragment(b.summaryCountIf, params.mult);
+  const summaryCol = buildSummaryCountBreakdownFragment(b.summaryCountIf, '');
 
   const sql = await loadSql('breakdown', {
     col: params.col,
     ...aggs,
-    summaryCol: summaryColWithMult,
+    summaryCol,
     database: DATABASE,
     table: getTable(),
-    sampleClause: params.sampleClause,
     timeFilter,
     hostFilter,
     facetFilters: params.facetFilters,
     extra: params.extra,
-    additionalWhereClause: dedupClause,
+    additionalWhereClause: state.additionalWhereClause || '',
     orderBy: b.orderBy || 'cnt DESC',
     topN: String(state.topN),
   });
@@ -408,30 +338,10 @@ function getSummaryRatio(b, totals) {
   return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
 }
 
-/**
- * Extract the synthetic totals row from an approx_top_count UNION ALL result.
- * The last row has dim === '' and contains aggregate totals over the full dataset.
- */
-function extractApproxTopTotals(result) {
-  const { data } = result;
-  if (!data || data.length === 0) {
-    return { data: [], totals: {} };
-  }
-
-  const lastRow = data[data.length - 1];
-  if (lastRow.dim === '') {
-    return { data: data.slice(0, -1), totals: lastRow };
-  }
-  // Fallback: no totals row found (shouldn't happen with correct template)
-  return { data, totals: result.totals || {} };
-}
-
-async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samplingOverride) {
+async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const { isCurrent, signal } = requestStatus;
-  const built = await buildBreakdownSql(b, timeFilter, hostFilter, samplingOverride);
-  const {
-    sql, params, aggs, approxTop,
-  } = built;
+  const built = await buildBreakdownSql(b, timeFilter, hostFilter);
+  const { sql, params, aggs } = built;
   const startTime = performance.now();
   const result = await queryLimiter(() => query(sql, { signal }));
   if (!isCurrent()) {
@@ -441,19 +351,9 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samp
   const elapsed = result.networkTime ?? (performance.now() - startTime);
   facetTimings[b.id] = elapsed;
 
-  // For approx_top_count queries, extract totals from the UNION ALL result
-  let resultData;
-  let totals;
-  if (approxTop) {
-    ({ data: resultData, totals } = extractApproxTopTotals(result));
-  } else {
-    resultData = result.data;
-    totals = result.totals;
-  }
+  const summaryRatio = getSummaryRatio(b, result.totals);
 
-  const summaryRatio = getSummaryRatio(b, totals);
-
-  let data = fillExpectedLabels(resultData, b);
+  let data = fillExpectedLabels(result.data, b);
   data = await appendMissingFilteredValues(data, b, params.col, aggs, params, requestStatus);
   if (!isCurrent()) {
     return null;
@@ -461,7 +361,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus, samp
 
   return {
     data,
-    totals,
+    totals: result.totals,
     params,
     elapsed,
     summaryRatio,
@@ -477,7 +377,6 @@ export async function loadBreakdown(
   timeFilter,
   hostFilter,
   requestContext = null,
-  samplingOverride = null,
 ) {
   const requestStatus = createRequestStatus(requestContext);
   const card = document.getElementById(b.id);
@@ -487,13 +386,7 @@ export async function loadBreakdown(
   }
 
   try {
-    const result = await fetchBreakdownData(
-      b,
-      timeFilter,
-      hostFilter,
-      requestStatus,
-      samplingOverride,
-    );
+    const result = await fetchBreakdownData(b, timeFilter, hostFilter, requestStatus);
     if (!result) {
       return;
     }
@@ -514,9 +407,9 @@ export async function loadBreakdown(
       b.summaryColor,
       b.modeToggle,
       !!b.getExpectedLabels,
-      result.params.hasActiveFilter ? null : b.filterCol,
-      result.params.hasActiveFilter ? null : b.filterValueFn,
-      result.params.hasActiveFilter ? null : b.filterOp,
+      b.filterCol,
+      b.filterValueFn,
+      b.filterOp,
     );
   } catch (err) {
     if (shouldIgnoreBreakdownError(requestStatus, err)) {
@@ -533,29 +426,12 @@ export async function loadBreakdown(
   }
 }
 
-export async function loadAllBreakdowns(
-  requestContext = getRequestContext('facets'),
-  samplingOverride = null,
-) {
+export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const breakdowns = getBreakdowns();
   await Promise.all(
-    breakdowns.map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, requestContext, samplingOverride),
-    ),
-  );
-}
-
-export async function loadAllBreakdownsRefined(requestContext = getRequestContext('facets')) {
-  const timeFilter = getTimeFilter();
-  const hostFilter = getHostFilter();
-  const breakdowns = getBreakdowns();
-  const refinedSampling = { sampleClause: '', multiplier: 1 };
-  await Promise.all(
-    breakdowns
-      .filter((b) => !canUseFacetTable(b))
-      .map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext, refinedSampling)),
+    breakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
   );
 }
 
@@ -601,8 +477,6 @@ export function increaseTopN(topNSelectEl, saveStateToURL, loadAllBreakdownsFn) 
 
 // --- Preview breakdowns during time range selection ---
 
-const HOUR_MS = 60 * 60 * 1000;
-
 function formatPreviewDateTime(date) {
   return date.toISOString().replace('T', ' ').slice(0, 19);
 }
@@ -613,37 +487,16 @@ function getPreviewTimeFilter(start, end) {
   return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
 }
 
-function getPreviewSamplingConfig(durationMs) {
-  if (state.disableTableSampling) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-  if (durationMs <= HOUR_MS) {
-    return { sampleClause: '', multiplier: 1 };
-  }
-  const ratio = HOUR_MS / durationMs;
-  const sampleRate = Math.max(Math.round(ratio * 10000) / 10000, 0.0001);
-  const multiplier = Math.round(1 / sampleRate);
-  return { sampleClause: `SAMPLE ${sampleRate}`, multiplier };
-}
-
-function buildPreviewQueryParams(b, col, timeFilter, hostFilter, sampling) {
+function buildPreviewQueryParams(b, col, timeFilter, hostFilter) {
   const originalCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
-  const hasActiveFilter = b.filterOp === 'LIKE' && b.filterCol
-    && state.filters.some((f) => f.col === originalCol);
-  const actualCol = hasActiveFilter ? b.filterCol : col;
 
   const mode = b.modeToggle ? state[b.modeToggle] : 'count';
   const isBytes = mode === 'bytes';
-  const { sampleClause, multiplier } = sampling;
-  const mult = multiplier > 1 ? ` * ${multiplier}` : '';
 
   return {
-    col: actualCol,
+    col,
     originalCol,
-    hasActiveFilter,
     isBytes,
-    sampleClause,
-    mult,
     extra: b.extraFilter || '',
     facetFilters: getFacetFiltersExcluding(originalCol),
     timeFilter,
@@ -651,7 +504,7 @@ function buildPreviewQueryParams(b, col, timeFilter, hostFilter, sampling) {
   };
 }
 
-async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling) {
+async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
 
   if (canUseFacetTable(b)) {
@@ -679,8 +532,6 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, s
       originalCol: baseCol,
       hasActiveFilter: false,
       isBytes: false,
-      sampleClause: '',
-      mult: '',
       extra: '',
       facetFilters: '',
       timeFilter,
@@ -689,12 +540,12 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, s
     return { sql, params, aggs: buildStatusAggregations(false, '') };
   }
 
-  const params = buildPreviewQueryParams(b, baseCol, timeFilter, hostFilter, sampling);
-  const aggs = buildStatusAggregations(params.isBytes, params.mult);
+  const params = buildPreviewQueryParams(b, baseCol, timeFilter, hostFilter);
+  const aggs = buildStatusAggregations(params.isBytes, '');
 
   if (b.rawCol && typeof b.col === 'function') {
     const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, params.mult);
+    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, '');
     const outerSummary = b.summaryCountIf
       ? ',\n  sum(summary_cnt) as summary_cnt'
       : '';
@@ -707,32 +558,30 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, s
       outerSummaryCol: outerSummary,
       database: DATABASE,
       table: getTable(),
-      sampleClause: params.sampleClause,
       timeFilter,
       hostFilter,
       facetFilters: params.facetFilters,
       extra: params.extra,
-      additionalWhereClause: state.additionalWhereClause,
+      additionalWhereClause: state.additionalWhereClause || '',
       topN: String(state.topN),
     });
 
     return { sql, params, aggs };
   }
 
-  const summaryColWithMult = buildSummaryCountBreakdownFragment(b.summaryCountIf, params.mult);
+  const summaryCol = buildSummaryCountBreakdownFragment(b.summaryCountIf, '');
 
   const sql = await loadSql('breakdown', {
     col: params.col,
     ...aggs,
-    summaryCol: summaryColWithMult,
+    summaryCol,
     database: DATABASE,
     table: getTable(),
-    sampleClause: params.sampleClause,
     timeFilter,
     hostFilter,
     facetFilters: params.facetFilters,
     extra: params.extra,
-    additionalWhereClause: state.additionalWhereClause,
+    additionalWhereClause: state.additionalWhereClause || '',
     orderBy: b.orderBy || 'cnt DESC',
     topN: String(state.topN),
   });
@@ -747,14 +596,7 @@ export function isPreviewActive() {
   return previewActive;
 }
 
-async function loadPreviewBreakdown(
-  b,
-  timeFilter,
-  hostFilter,
-  facetTimes,
-  sampling,
-  requestStatus,
-) {
+async function loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, requestStatus) {
   const { isCurrent, signal } = requestStatus;
   const card = document.getElementById(b.id);
 
@@ -765,7 +607,7 @@ async function loadPreviewBreakdown(
   card.classList.add('updating');
 
   try {
-    const built = await buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes, sampling);
+    const built = await buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes);
     const { sql, params, aggs } = built;
     const startTime = performance.now();
     const result = await queryLimiter(() => query(sql, { signal }));
@@ -798,9 +640,9 @@ async function loadPreviewBreakdown(
       b.summaryColor,
       b.modeToggle,
       !!b.getExpectedLabels,
-      params.hasActiveFilter ? null : b.filterCol,
-      params.hasActiveFilter ? null : b.filterValueFn,
-      params.hasActiveFilter ? null : b.filterOp,
+      b.filterCol,
+      b.filterValueFn,
+      b.filterOp,
     );
 
     card.classList.add('preview');
@@ -826,7 +668,6 @@ export async function loadPreviewBreakdowns(selectionStart, selectionEnd) {
     signal: requestContext.signal,
   };
 
-  const durationMs = selectionEnd - selectionStart;
   const start = new Date(Math.floor(selectionStart.getTime() / 60000) * 60000);
   const end = new Date(Math.ceil(selectionEnd.getTime() / 60000) * 60000);
 
@@ -836,13 +677,12 @@ export async function loadPreviewBreakdowns(selectionStart, selectionEnd) {
     startTime: formatPreviewDateTime(start),
     endTime: formatPreviewDateTime(end),
   };
-  const sampling = getPreviewSamplingConfig(durationMs);
 
   previewActive = true;
   const breakdowns = getBreakdowns();
   await Promise.all(
     breakdowns.map(
-      (b) => loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, sampling, requestStatus),
+      (b) => loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, requestStatus),
     ),
   );
 }

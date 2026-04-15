@@ -65,7 +65,6 @@ const ALL_TEMPLATES = [
   'logs',
   'logs-more',
   'breakdown',
-  'breakdown-approx-top',
   'breakdown-facet',
   'breakdown-missing',
   'autocomplete-hosts',

@@ -22,7 +22,7 @@ import {
 } from './url-state.js';
 import {
   queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
-  getTimeFilter, getHostFilter, getSamplingConfig,
+  getTimeFilter, getHostFilter,
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
@@ -33,7 +33,6 @@ import {
 } from './chart.js';
 import {
   loadAllBreakdowns,
-  loadAllBreakdownsRefined,
   loadBreakdown,
   getBreakdowns,
   markSlowestFacet,
@@ -74,8 +73,6 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.additionalWhereClause] - Extra SQL WHERE clause for all queries
  * @param {string[]} [config.defaultHiddenFacets] - Facet IDs to hide by default
  * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
- * @param {boolean} [config.disableTableSampling] - Omit SAMPLE clause
- *   (use with pre-weighted tables)
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -162,16 +159,6 @@ export function initDashboard(config = {}) {
           markSlowestFacet();
         }
       });
-    }
-
-    // Schedule refinement pass if initial load used sampling
-    const { multiplier } = getSamplingConfig();
-    if (multiplier > 1) {
-      const refinedSampling = { sampleClause: '', multiplier: 1 };
-      const refinementDashCtx = startRequestContext('dashboard');
-      const refinementFacetsCtx = startRequestContext('facets');
-      loadTimeSeries(refinementDashCtx, refinedSampling);
-      loadAllBreakdownsRefined(refinementFacetsCtx);
     }
   }
 
@@ -348,9 +335,6 @@ export function initDashboard(config = {}) {
     }
     if (config.weightColumn !== undefined) {
       state.weightColumn = config.weightColumn;
-    }
-    if (config.disableTableSampling !== undefined) {
-      state.disableTableSampling = config.disableTableSampling;
     }
     if (config.timeSeriesTemplate) {
       state.timeSeriesTemplate = config.timeSeriesTemplate;

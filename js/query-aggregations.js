@@ -71,7 +71,9 @@ function summaryCountInner(summaryCountIf, mult) {
  * SQL fragment for breakdown.sql inner summary column (indented for nested SELECT).
  */
 export function buildSummaryCountBreakdownFragment(summaryCountIf, mult) {
-  if (!summaryCountIf) return '';
+  if (!summaryCountIf) {
+    return '';
+  }
   return `,\n      ${summaryCountInner(summaryCountIf, mult)} as summary_cnt`;
 }
 
@@ -79,16 +81,10 @@ export function buildSummaryCountBreakdownFragment(summaryCountIf, mult) {
  * SQL fragment for breakdown-bucketed inner query.
  */
 export function buildSummaryCountBucketInnerFragment(summaryCountIf, mult) {
-  if (!summaryCountIf) return '';
+  if (!summaryCountIf) {
+    return '';
+  }
   return `,\n    ${summaryCountInner(summaryCountIf, mult)} as summary_cnt`;
-}
-
-/**
- * SQL fragment for approx_top (2-space indent in UNION branch).
- */
-export function buildSummaryCountApproxTopFragment(summaryCountIf) {
-  if (!summaryCountIf) return '';
-  return `,\n  ${summaryCountInner(summaryCountIf, '')} as summary_cnt`;
 }
 
 /**

@@ -88,7 +88,9 @@ const paletteState = {
 
 // Extract just the title text from an h3, ignoring child elements like badges
 function extractTitleText(h3) {
-  if (!h3) return '';
+  if (!h3) {
+    return '';
+  }
   // Get only direct text nodes, not text from child elements
   let title = '';
   for (const node of h3.childNodes) {
@@ -173,7 +175,9 @@ function checkExactOrPrefixMatch(query, target) {
  */
 function checkSubstringMatch(query, target) {
   const substringIdx = target.indexOf(query);
-  if (substringIdx === -1) return null;
+  if (substringIdx === -1) {
+    return null;
+  }
 
   const positions = [...Array(query.length).keys()].map((i) => i + substringIdx);
   const atWordStart = substringIdx === 0 || /[\s\-_.]/.test(target[substringIdx - 1]);
@@ -187,9 +191,14 @@ function calculateFuzzyScore(matchPositions, query, target) {
   let score = 0;
   for (let i = 0; i < matchPositions.length; i += 1) {
     const pos = matchPositions[i];
-    if (pos === 0) score += 10;
-    else if (target[pos - 1] === ' ' || target[pos - 1] === '-') score += 8;
-    if (i > 0 && matchPositions[i] === matchPositions[i - 1] + 1) score += 5;
+    if (pos === 0) {
+      score += 10;
+    } else if (target[pos - 1] === ' ' || target[pos - 1] === '-') {
+      score += 8;
+    }
+    if (i > 0 && matchPositions[i] === matchPositions[i - 1] + 1) {
+      score += 5;
+    }
   }
   score += (query.length / target.length) * 50;
   score -= target.length * 0.1;
@@ -202,10 +211,14 @@ function fuzzyMatch(queryStr, targetStr) {
   const target = targetStr.toLowerCase();
 
   const exactOrPrefix = checkExactOrPrefixMatch(query, target);
-  if (exactOrPrefix) return exactOrPrefix;
+  if (exactOrPrefix) {
+    return exactOrPrefix;
+  }
 
   const substring = checkSubstringMatch(query, target);
-  if (substring) return substring;
+  if (substring) {
+    return substring;
+  }
 
   let queryIdx = 0;
   const matchPositions = [];
@@ -216,7 +229,9 @@ function fuzzyMatch(queryStr, targetStr) {
     }
   }
 
-  if (queryIdx !== query.length) return null;
+  if (queryIdx !== query.length) {
+    return null;
+  }
 
   return { score: calculateFuzzyScore(matchPositions, query, target), positions: matchPositions };
 }
@@ -226,19 +241,27 @@ function fuzzyMatch(queryStr, targetStr) {
  */
 function parseQueryItem(item, sectionTitle) {
   const link = item.querySelector('a');
-  if (!link) return null;
+  if (!link) {
+    return null;
+  }
 
   const href = link.getAttribute('href');
-  if (!href || !href.includes('dashboard.html')) return null;
+  if (!href || !href.includes('delivery.html')) {
+    return null;
+  }
 
   const titleEl = link.querySelector('.title');
   const descEl = link.querySelector('.description');
 
   let title = titleEl?.textContent || '';
   const badge = titleEl?.querySelector('.badge');
-  if (badge) title = title.replace(badge.textContent, '').trim();
+  if (badge) {
+    title = title.replace(badge.textContent, '').trim();
+  }
 
-  if (!title) return null;
+  if (!title) {
+    return null;
+  }
 
   const description = descEl?.textContent || '';
   return {
@@ -271,7 +294,9 @@ async function loadSavedQueries() {
       const sectionTitle = section.querySelector('h2')?.textContent || '';
       for (const item of section.querySelectorAll('li:not(.legacy-view)')) {
         const query = parseQueryItem(item, sectionTitle);
-        if (query) queries.push(query);
+        if (query) {
+          queries.push(query);
+        }
       }
     }
 
@@ -366,9 +391,13 @@ function filterFacets(query, savedQueries = []) {
   results.sort((a, b) => {
     if (a.match && b.match) {
       const scoreDiff = b.match.score - a.match.score;
-      if (scoreDiff !== 0) return scoreDiff;
+      if (scoreDiff !== 0) {
+        return scoreDiff;
+      }
     }
-    if (a.type !== b.type) return a.type === 'facet' ? -1 : 1;
+    if (a.type !== b.type) {
+      return a.type === 'facet' ? -1 : 1;
+    }
     if (a.type === 'facet' && a.facet.isHidden !== b.facet.isHidden) {
       return a.facet.isHidden ? 1 : -1;
     }
@@ -381,7 +410,9 @@ function filterFacets(query, savedQueries = []) {
 // Render the filtered list
 function renderList(results) {
   const list = document.getElementById('facetPaletteList');
-  if (!list) return;
+  if (!list) {
+    return;
+  }
 
   list.innerHTML = renderPaletteListHtml(results, paletteState.selectedIndex, FACET_COLUMNS);
   paletteState.filteredFacets = results;
@@ -396,7 +427,9 @@ function renderList(results) {
 // Open the palette
 export async function openFacetPalette() {
   const dialog = document.getElementById('facetPalette');
-  if (!dialog) return;
+  if (!dialog) {
+    return;
+  }
 
   paletteState.open = true;
   paletteState.selectedIndex = 0;
@@ -427,7 +460,9 @@ export function closeFacetPalette() {
 // Navigate to selected facet
 function navigateToFacet(facetId, matchedValue = null) {
   const facet = document.getElementById(facetId);
-  if (!facet) return;
+  if (!facet) {
+    return;
+  }
 
   closeFacetPalette();
 

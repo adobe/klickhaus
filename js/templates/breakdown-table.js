@@ -20,8 +20,12 @@ import { getColorIndicatorHtml } from '../colors/index.js';
  * @returns {string} HTML string
  */
 export function formatDimWithPrefix(dim, dimPrefixes, dimFormatFn) {
-  if (dimFormatFn) return dimFormatFn(dim);
-  if (!dimPrefixes || dimPrefixes.length === 0) return escapeHtml(dim);
+  if (dimFormatFn) {
+    return dimFormatFn(dim);
+  }
+  if (!dimPrefixes || dimPrefixes.length === 0) {
+    return escapeHtml(dim);
+  }
   for (const prefix of dimPrefixes) {
     if (dim.startsWith(prefix)) {
       return `<span class="dim-prefix">${escapeHtml(prefix)}</span>${escapeHtml(dim.slice(prefix.length))}`;
@@ -73,7 +77,9 @@ export function buildDimParts({
  * Build the exclude button for a breakdown row.
  */
 function buildExcludeBtn(isSynthetic, isExcluded, filterAttrs) {
-  if (isSynthetic) return '';
+  if (isSynthetic) {
+    return '';
+  }
   const action = isExcluded ? 'remove-filter-value' : 'add-filter';
   const title = isExcluded ? 'Clear exclude' : 'Exclude';
   const activeClass = isExcluded ? ' active' : '';
@@ -105,7 +111,9 @@ function buildExcludeBtn(isSynthetic, isExcluded, filterAttrs) {
  * Calculate bar percentages from count values
  */
 function calculateBarPercentages(cnt, cntOk, cnt4xx, cnt5xx) {
-  if (cnt <= 0) return { pct5xx: 0, pct4xx: 0, pctOk: 0 };
+  if (cnt <= 0) {
+    return { pct5xx: 0, pct4xx: 0, pctOk: 0 };
+  }
   return {
     pct5xx: (cnt5xx / cnt) * 100,
     pct4xx: (cnt4xx / cnt) * 100,
@@ -129,9 +137,14 @@ function getFilterState(columnFilters, rowDim) {
  */
 function buildRowClass(isSynthetic, isIncluded, isExcluded, isFilteredValue) {
   let filterClass = '';
-  if (isIncluded) filterClass = 'filter-included';
-  else if (isExcluded) filterClass = 'filter-excluded';
-  if (isFilteredValue) filterClass += ' filtered-value-row';
+  if (isIncluded) {
+    filterClass = 'filter-included';
+  } else if (isExcluded) {
+    filterClass = 'filter-excluded';
+  }
+  if (isFilteredValue) {
+    filterClass += ' filtered-value-row';
+  }
   return isSynthetic ? `synthetic-row ${filterClass}` : filterClass.trim();
 }
 
@@ -145,7 +158,9 @@ function buildRowClass(isSynthetic, isIncluded, isExcluded, isFilteredValue) {
  * @returns {string} HTML string
  */
 function buildLinkHtml(linkUrl, formattedDim) {
-  if (!linkUrl) return formattedDim;
+  if (!linkUrl) {
+    return formattedDim;
+  }
   const anchor = document.createElement('a');
   anchor.setAttribute('href', linkUrl);
   anchor.setAttribute('target', '_blank');
@@ -300,7 +315,9 @@ export function buildOtherRow({
     `;
   }
 
-  if (!otherRow || otherRow.cnt <= 0 || !nextN) return '';
+  if (!otherRow || otherRow.cnt <= 0 || !nextN) {
+    return '';
+  }
 
   const { cnt } = otherRow;
   const cntOk = otherRow.cnt_ok;

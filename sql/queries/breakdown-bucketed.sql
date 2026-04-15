@@ -12,7 +12,6 @@ FROM (
     {{agg4xx}} as agg_4xx,
     {{agg5xx}} as agg_5xx{{innerSummaryCol}}
   FROM {{database}}.{{table}}
-  {{sampleClause}}
   WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}
   GROUP BY val
 )
