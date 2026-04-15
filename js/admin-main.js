@@ -34,6 +34,5 @@ initDashboard({
   tableName: 'admin',
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-backend',
-  disableTableSampling: true,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

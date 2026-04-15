@@ -67,7 +67,7 @@ jobs:
             });
             core.setOutput('deployment_id', deployment.id);
 
-            const previewUrl = `https://klickhaus.aemstatus.net/preview/pr-${prNumber}/dashboard.html`;
+            const previewUrl = `https://klickhaus.aemstatus.net/preview/pr-${prNumber}/delivery.html`;
             await github.rest.repos.createDeploymentStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -83,7 +83,7 @@ jobs:
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
-            const previewUrl = `https://klickhaus.aemstatus.net/preview/pr-${prNumber}/dashboard.html`;
+            const previewUrl = `https://klickhaus.aemstatus.net/preview/pr-${prNumber}/delivery.html`;
             const marker = '<!-- preview-deploy -->';
             const body = [
               marker,

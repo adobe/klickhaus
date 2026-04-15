@@ -39,7 +39,6 @@ initDashboard({
   tableName: 'delivery',
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-delivery',
-  disableTableSampling: true,
   additionalWhereClause: `AND \`request.host\` NOT IN (${excludedList})`,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

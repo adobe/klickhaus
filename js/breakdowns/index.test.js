@@ -20,7 +20,6 @@ import {
   markSlowestFacet,
   increaseTopN,
   loadBreakdown,
-  loadAllBreakdownsRefined,
   canUseFacetTable,
   facetTimings,
   isPreviewActive,
@@ -34,14 +33,12 @@ import { startRequestContext } from '../request-context.js';
 import { setQueryTimestamp } from '../time.js';
 
 // SQL templates used by loadBreakdown
-const BREAKDOWN_SQL_TEMPLATE = 'SELECT\n  {{col}} as dim,\n  {{aggTotal}} as cnt,\n  {{aggOk}} as cnt_ok,\n  {{agg4xx}} as cnt_4xx,\n  {{agg5xx}} as cnt_5xx{{summaryCol}}\nFROM {{database}}.{{table}}\n{{sampleClause}}\nWHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
+const BREAKDOWN_SQL_TEMPLATE = 'SELECT\n  {{col}} as dim,\n  {{aggTotal}} as cnt,\n  {{aggOk}} as cnt_ok,\n  {{agg4xx}} as cnt_4xx,\n  {{agg5xx}} as cnt_5xx{{summaryCol}}\nFROM {{database}}.{{table}}\nWHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
 const FACET_SQL_TEMPLATE = 'SELECT\n  dim,\n  sum(cnt) as cnt,\n  sum(cnt_ok) as cnt_ok,\n  sum(cnt_4xx) as cnt_4xx,\n  sum(cnt_5xx) as cnt_5xx{{summaryCol}}\nFROM (\n  SELECT dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}\n  FROM {{database}}.cdn_facet_minutes\n  WHERE facet = \'{{facetName}}\'\n    AND minute >= toDateTime(\'{{startTime}}\')\n    AND minute <= toDateTime(\'{{endTime}}\')\n    {{dimFilter}}\n)\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
-const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total) as cnt,\n  sum(agg_ok) as cnt_ok,\n  sum(agg_4xx) as cnt_4xx,\n  sum(agg_5xx) as cnt_5xx{{outerSummaryCol}}\nFROM (\n  SELECT\n    {{rawCol}} as val,\n    {{aggTotal}} as agg_total,\n    {{aggOk}} as agg_ok,\n    {{agg4xx}} as agg_4xx,\n    {{agg5xx}} as agg_5xx{{innerSummaryCol}}\n  FROM {{database}}.{{table}}\n  {{sampleClause}}\n  WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\n  GROUP BY val\n)\nGROUP BY dim WITH TOTALS\nORDER BY min(val)\nLIMIT {{topN}}\n';
+const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total) as cnt,\n  sum(agg_ok) as cnt_ok,\n  sum(agg_4xx) as cnt_4xx,\n  sum(agg_5xx) as cnt_5xx{{outerSummaryCol}}\nFROM (\n  SELECT\n    {{rawCol}} as val,\n    {{aggTotal}} as agg_total,\n    {{aggOk}} as agg_ok,\n    {{agg4xx}} as agg_4xx,\n    {{agg5xx}} as agg_5xx{{innerSummaryCol}}\n  FROM {{database}}.{{table}}\n  WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\n  GROUP BY val\n)\nGROUP BY dim WITH TOTALS\nORDER BY min(val)\nLIMIT {{topN}}\n';
 
-// Approx-top template: like BREAKDOWN_SQL_TEMPLATE but without {{orderBy}} (hardcodes cnt DESC)
-const APPROX_TOP_SQL_TEMPLATE = BREAKDOWN_SQL_TEMPLATE.replace('{{orderBy}}', 'cnt DESC');
 // Create a mock fetch that returns SQL templates and ClickHouse query results.
 function createMockFetch(queryResponse = {
   data: [{
@@ -61,8 +58,6 @@ function createMockFetch(queryResponse = {
         template = FACET_SQL_TEMPLATE;
       } else if (url.includes('breakdown-bucketed.sql')) {
         template = BUCKETED_SQL_TEMPLATE;
-      } else if (url.includes('breakdown-approx-top.sql')) {
-        template = APPROX_TOP_SQL_TEMPLATE;
       }
       return { ok: true, text: async () => template };
     }
@@ -487,7 +482,7 @@ describe('loadBreakdown (raw table path)', () => {
     }
   });
 
-  it('uses raw table with sampling when host filter prevents facet table', async () => {
+  it('uses raw table when host filter prevents facet table', async () => {
     state.hostFilter = 'example.com';
     const { fetch: mockFetch, calls } = createMockFetch();
     window.fetch = mockFetch;
@@ -978,67 +973,5 @@ describe('loadPreviewBreakdowns', () => {
     // Calling revert should not throw even if there were in-flight requests
     await revertPreviewBreakdowns();
     assert.isFalse(isPreviewActive());
-  });
-});
-describe('gradual refinement', () => {
-  const refId = 'breakdown-refinement-test';
-  let card;
-  let originalFetch;
-  beforeEach(() => {
-    originalFetch = window.fetch;
-    card = createCard(refId, 'Refinement');
-  });
-  afterEach(() => {
-    window.fetch = originalFetch;
-    state.breakdowns = null;
-    if (card && card.parentNode) {
-      card.remove();
-    }
-  });
-
-  it('adds dedup clause when samplingOverride has multiplier=1', async () => {
-    const { fetch: mockFetch, calls } = createMockFetch();
-    window.fetch = mockFetch;
-    const ctx = startRequestContext('facets');
-    await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: '', multiplier: 1 });
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
-    assert.notInclude(body, 'SAMPLE');
-    assert.include(body, 'sample_hash >= 0');
-  });
-
-  it('skips dedup clause when override has multiplier > 1', async () => {
-    const { fetch: mockFetch, calls } = createMockFetch();
-    window.fetch = mockFetch;
-    const ctx = startRequestContext('facets');
-    await loadBreakdown({ id: refId, col: '`source`' }, '1=1', '', ctx, { sampleClause: 'SAMPLE 0.5', multiplier: 2 });
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
-    assert.include(body, 'SAMPLE 0.5');
-    assert.notInclude(body, 'sample_hash');
-  });
-
-  it('loadAllBreakdownsRefined uses dedup clause', async () => {
-    state.breakdowns = [{ id: refId, col: '`source`' }];
-    const { fetch: mockFetch, calls } = createMockFetch();
-    window.fetch = mockFetch;
-    await loadAllBreakdownsRefined(startRequestContext('facets'));
-    const { body } = calls.filter((c) => c.options?.method === 'POST')[0].options;
-    assert.include(body, 'sample_hash >= 0');
-  });
-
-  it('loadAllBreakdownsRefined skips facet-table-eligible breakdowns', async () => {
-    state.breakdowns = [{ id: refId, col: '`source`', facetName: 'source' }];
-    const { fetch: mockFetch, calls } = createMockFetch();
-    window.fetch = mockFetch;
-    await loadAllBreakdownsRefined(startRequestContext('facets'));
-    assert.strictEqual(calls.filter((c) => c.options?.method === 'POST').length, 0);
-  });
-
-  it('includes facet filters in approx-top SQL', async () => {
-    state.filters = [{ col: '`request.method`', value: 'GET', exclude: false }];
-    const { fetch: mockFetch, calls } = createMockFetch();
-    window.fetch = mockFetch;
-    await loadBreakdown({ id: refId, col: '`request.host`', highCardinality: true }, '1=1', '', startRequestContext('facets'), { sampleClause: '', multiplier: 1 });
-    assert.ok(calls.some((c) => c.url?.includes('breakdown-approx-top.sql')), 'should use approx-top template');
-    assert.include(calls.filter((c) => c.options?.method === 'POST')[0].options.body, "`request.method` = 'GET'", 'approx-top SQL should include facet filter');
   });
 });
