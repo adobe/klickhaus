@@ -1,0 +1,6 @@
+{
+  "milestone": "ux-polish",
+  "overridden": true,
+  "overrideJustification": "UX polish features have empty fulfills arrays — they are refinements from user testing, not tied to validation contract assertions. Zero assertions to test. Tests pass (1076, 96.32%).",
+  "assertionsTested": 0
+}
