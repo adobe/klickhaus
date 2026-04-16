@@ -1,0 +1,10 @@
+{
+  "milestone": "ux-polish",
+  "overridden": true,
+  "overrideJustification": "Same pre-existing lint baseline as foundation and cwv-views milestones. Tests: 1076 passed at 96.32% coverage. All 333 lint errors are pre-existing curly rule violations in unmodified files.",
+  "validatorResults": {
+    "test": { "status": "pass", "details": "1076 tests passed, 96.32% coverage" },
+    "typecheck": { "status": "not-applicable" },
+    "lint": { "status": "fail", "details": "333 pre-existing curly rule errors in unmodified files" }
+  }
+}
