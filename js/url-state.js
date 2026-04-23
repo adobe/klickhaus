@@ -47,12 +47,12 @@ export function setUrlStateElements(els) {
  * Add basic state parameters to URL params
  */
 function addBasicParams(params) {
-  if (state.timeRange !== DEFAULT_TIME_RANGE) params.set('t', state.timeRange);
-  if (state.hostFilter) params.set('host', state.hostFilter);
-  if (state.topN !== DEFAULT_TOP_N) params.set('n', state.topN);
-  if (state.showLogs) params.set('view', 'logs');
-  if (state.title) params.set('title', state.title);
-  if (state.contentTypeMode !== 'count') params.set('ctm', state.contentTypeMode);
+  if (state.timeRange !== DEFAULT_TIME_RANGE) { params.set('t', state.timeRange); }
+  if (state.hostFilter) { params.set('host', state.hostFilter); }
+  if (state.topN !== DEFAULT_TOP_N) { params.set('n', state.topN); }
+  if (state.showLogs) { params.set('view', 'logs'); }
+  if (state.title) { params.set('title', state.title); }
+  if (state.contentTypeMode !== 'count') { params.set('ctm', state.contentTypeMode); }
 }
 
 /**
@@ -74,10 +74,10 @@ function addTimeParams(params) {
  */
 function addAnomalyParam(params, newAnomalyId) {
   if (newAnomalyId !== undefined) {
-    if (newAnomalyId) params.set('anomaly', newAnomalyId);
+    if (newAnomalyId) { params.set('anomaly', newAnomalyId); }
   } else {
     const currentAnomaly = new URLSearchParams(window.location.search).get('anomaly');
-    if (currentAnomaly) params.set('anomaly', currentAnomaly);
+    if (currentAnomaly) { params.set('anomaly', currentAnomaly); }
   }
 }
 
@@ -93,8 +93,8 @@ export function saveStateToURL(newAnomalyId = undefined) {
 
   addAnomalyParam(params, newAnomalyId);
 
-  if (state.pinnedFacets.length > 0) params.set('pf', state.pinnedFacets.join(','));
-  if (state.hiddenFacets.length > 0) params.set('hf', state.hiddenFacets.join(','));
+  if (state.pinnedFacets.length > 0) { params.set('pf', state.pinnedFacets.join(',')); }
+  if (state.hiddenFacets.length > 0) { params.set('hf', state.hiddenFacets.join(',')); }
 
   const newURL = params.toString()
     ? `${window.location.pathname}?${params}`
@@ -117,13 +117,13 @@ function loadBasicState(params) {
   if (params.has('t') && TIME_RANGES[params.get('t')]) {
     state.timeRange = params.get('t');
   }
-  if (params.has('host')) state.hostFilter = params.get('host');
+  if (params.has('host')) { state.hostFilter = params.get('host'); }
   if (params.has('n')) {
     const n = parseInt(params.get('n'), 10);
-    if (TOP_N_OPTIONS.includes(n)) state.topN = n;
+    if (TOP_N_OPTIONS.includes(n)) { state.topN = n; }
   }
-  if (params.get('view') === 'logs') state.showLogs = true;
-  if (params.has('title')) state.title = params.get('title');
+  if (params.get('view') === 'logs') { state.showLogs = true; }
+  if (params.has('title')) { state.title = params.get('title'); }
   if (params.has('ctm') && ['count', 'bytes'].includes(params.get('ctm'))) {
     state.contentTypeMode = params.get('ctm');
   }
@@ -136,14 +136,14 @@ function loadBasicState(params) {
  * Load time state from URL params
  */
 function loadTimeState(params) {
-  if (!params.has('ts')) return;
+  if (!params.has('ts')) { return; }
 
   const ts = new Date(params.get('ts'));
-  if (Number.isNaN(ts.getTime())) return;
+  if (Number.isNaN(ts.getTime())) { return; }
 
   if (params.has('te')) {
     const te = new Date(params.get('te'));
-    if (!Number.isNaN(te.getTime())) setCustomTimeRange(ts, te);
+    if (!Number.isNaN(te.getTime())) { setCustomTimeRange(ts, te); }
   } else {
     setQueryTimestamp(ts);
   }
@@ -157,9 +157,9 @@ function parseFilter(f) {
     return null;
   }
   const filter = { col: f.col, value: f.value, exclude: f.exclude };
-  if (f.filterCol) filter.filterCol = f.filterCol;
-  if (f.filterValue !== undefined) filter.filterValue = f.filterValue;
-  if (f.filterOp) filter.filterOp = f.filterOp;
+  if (f.filterCol) { filter.filterCol = f.filterCol; }
+  if (f.filterValue !== undefined) { filter.filterValue = f.filterValue; }
+  if (f.filterOp) { filter.filterOp = f.filterOp; }
 
   const sqlCol = filter.filterCol || filter.col;
   const sqlOp = filter.filterOp || '=';
@@ -170,7 +170,7 @@ function parseFilter(f) {
  * Load filters from URL params
  */
 function loadFiltersState(params) {
-  if (!params.has('filters')) return;
+  if (!params.has('filters')) { return; }
 
   try {
     const filters = JSON.parse(params.get('filters'));
@@ -192,13 +192,13 @@ export function loadStateFromURL() {
 
   if (params.has('pinned')) {
     const pinned = params.get('pinned').split(',').filter((c) => c);
-    if (pinned.length > 0) state.pinnedColumns = pinned;
+    if (pinned.length > 0) { state.pinnedColumns = pinned; }
   }
 
   loadFacetPrefs();
 
-  if (params.has('pf')) state.pinnedFacets = params.get('pf').split(',').filter((f) => f);
-  if (params.has('hf')) state.hiddenFacets = params.get('hf').split(',').filter((f) => f);
+  if (params.has('pf')) { state.pinnedFacets = params.get('pf').split(',').filter((f) => f); }
+  if (params.has('hf')) { state.hiddenFacets = params.get('hf').split(',').filter((f) => f); }
 }
 
 export function syncUIFromState() {
@@ -267,7 +267,7 @@ window.addEventListener('popstate', () => {
   clearCustomTimeRange();
 
   // Clear caches before restoring state (e.g., investigation cache)
-  if (onBeforeRestore) onBeforeRestore();
+  if (onBeforeRestore) { onBeforeRestore(); }
 
   // Reload state from the new URL
   loadStateFromURL();

@@ -33,11 +33,11 @@ export function updateHeaderFixed() {
 function getFacetTitle(col) {
   const breakdowns = state.breakdowns?.length ? state.breakdowns : allBreakdowns;
   const breakdown = breakdowns.find((b) => b.col === col);
-  if (!breakdown) return null;
+  if (!breakdown) { return null; }
   const card = document.getElementById(breakdown.id);
-  if (!card) return null;
+  if (!card) { return null; }
   const h3 = card.querySelector('h3');
-  if (!h3) return null;
+  if (!h3) { return null; }
   // Get only direct text nodes (ignore badges/buttons)
   let title = '';
   for (const node of h3.childNodes) {
@@ -85,8 +85,8 @@ export function getFilterForValue(col, value) {
  * Get filter icon character based on state
  */
 function getFilterIcon(isIncluded, isExcluded) {
-  if (isIncluded) return '\u2713';
-  if (isExcluded) return '\u00D7';
+  if (isIncluded) { return '\u2713'; }
+  if (isExcluded) { return '\u00D7'; }
   return '';
 }
 
@@ -100,7 +100,7 @@ function updateFilterTagStyling(tagEl, isIncluded, isExcluded, bgColor) {
   el.style.background = (isIncluded || isExcluded) ? bgColor : '';
 
   const icon = el.querySelector('.filter-icon');
-  if (icon) icon.textContent = getFilterIcon(isIncluded, isExcluded);
+  if (icon) { icon.textContent = getFilterIcon(isIncluded, isExcluded); }
 }
 
 /**
@@ -108,7 +108,7 @@ function updateFilterTagStyling(tagEl, isIncluded, isExcluded, bgColor) {
  */
 function updateSingleRowFilterStyling(row, col, value) {
   const dimCell = row.querySelector('td.dim');
-  if (dimCell?.dataset.col !== col) return;
+  if (dimCell?.dataset.col !== col) { return; }
 
   const filter = state.filters.find((f) => f.col === col && f.value === value);
   const isIncluded = filter && !filter.exclude;
@@ -140,16 +140,16 @@ function updateRowFilterStyling(col, value) {
 export function clearFiltersForColumn(col) {
   state.filters = state.filters.filter((f) => f.col !== col);
   renderActiveFilters();
-  if (saveStateToURL) saveStateToURL();
-  if (loadDashboard) loadDashboard();
+  if (saveStateToURL) { saveStateToURL(); }
+  if (loadDashboard) { loadDashboard(); }
 }
 
 export function clearAllFilters() {
-  if (state.filters.length === 0) return;
+  if (state.filters.length === 0) { return; }
   state.filters = [];
   renderActiveFilters();
-  if (saveStateToURL) saveStateToURL();
-  if (loadDashboard) loadDashboard();
+  if (saveStateToURL) { saveStateToURL(); }
+  if (loadDashboard) { loadDashboard(); }
 }
 
 export function addFilter(col, value, exclude, filterCol, filterValue, filterOp, skipReload) {
@@ -182,16 +182,16 @@ export function addFilter(col, value, exclude, filterCol, filterValue, filterOp,
   renderActiveFilters();
   updateRowFilterStyling(col, value); // Update UI immediately before reload
   if (!skipReload) {
-    if (saveStateToURL) saveStateToURL();
-    if (loadDashboard) loadDashboard();
+    if (saveStateToURL) { saveStateToURL(); }
+    if (loadDashboard) { loadDashboard(); }
   }
 }
 
 export function removeFilter(index) {
   state.filters.splice(index, 1);
   renderActiveFilters();
-  if (saveStateToURL) saveStateToURL();
-  if (loadDashboard) loadDashboard();
+  if (saveStateToURL) { saveStateToURL(); }
+  if (loadDashboard) { loadDashboard(); }
 }
 
 export function removeFilterByValue(col, value, skipReload) {
@@ -199,7 +199,7 @@ export function removeFilterByValue(col, value, skipReload) {
   renderActiveFilters();
   updateRowFilterStyling(col, value);
   if (!skipReload) {
-    if (saveStateToURL) saveStateToURL();
-    if (loadDashboard) loadDashboard();
+    if (saveStateToURL) { saveStateToURL(); }
+    if (loadDashboard) { loadDashboard(); }
   }
 }

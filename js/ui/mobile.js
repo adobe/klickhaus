@@ -14,8 +14,8 @@
  * @param {HTMLInputElement} hostFilter
  */
 export function initHostFilterDoubleTap(hostFilter) {
-  if (!('ontouchstart' in window)) return;
-  if (!hostFilter) return;
+  if (!('ontouchstart' in window)) { return; }
+  if (!hostFilter) { return; }
 
   const inputEl = hostFilter;
   let lastTap = 0;
@@ -36,7 +36,7 @@ export function initHostFilterDoubleTap(hostFilter) {
  * Enable touch-active row behavior for breakdown tables.
  */
 export function initMobileTouchSupport() {
-  if (!('ontouchstart' in window)) return;
+  if (!('ontouchstart' in window)) { return; }
 
   document.addEventListener('click', (e) => {
     const isActionBtn = e.target.closest('.mobile-action-btn');
@@ -76,7 +76,7 @@ export function initMobileTouchSupport() {
  * @param {() => Promise<void>} refresh
  */
 export function initPullToRefresh(refresh) {
-  if (!('ontouchstart' in window)) return;
+  if (!('ontouchstart' in window)) { return; }
 
   const indicator = document.createElement('div');
   indicator.className = 'pull-to-refresh';
@@ -98,7 +98,7 @@ export function initPullToRefresh(refresh) {
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
-    if (!isPulling) return;
+    if (!isPulling) { return; }
     const touchY = e.touches[0].clientY;
     const pullDistance = touchY - touchStartY;
 
@@ -111,7 +111,7 @@ export function initPullToRefresh(refresh) {
   }, { passive: true });
 
   document.addEventListener('touchend', async (e) => {
-    if (!isPulling) return;
+    if (!isPulling) { return; }
     const touchEndY = e.changedTouches[0].clientY;
     const pullDistance = touchEndY - touchStartY;
 
@@ -137,7 +137,7 @@ export function initMobileFiltersPosition() {
   const chartSection = document.querySelector('.chart-section');
   const headerLeft = document.querySelector('.header-left');
 
-  if (!activeFilters || !chartSection || !headerLeft) return;
+  if (!activeFilters || !chartSection || !headerLeft) { return; }
 
   function updatePosition() {
     const isMobile = window.innerWidth < 600;

@@ -27,10 +27,10 @@ for (const [ruleName, rule] of Object.entries(colorRules)) {
  * @returns {string} CSS color variable or empty string
  */
 export function getColorForColumn(col, value) {
-  if (!value) return '';
+  if (!value) { return ''; }
 
   // Synthetic buckets like (same), (empty), (other) don't get colors
-  if (isSyntheticBucket(value)) return '';
+  if (isSyntheticBucket(value)) { return ''; }
 
   // Find matching rule by checking if col includes any pattern
   for (const [pattern, rule] of patternToRule.entries()) {
@@ -51,7 +51,7 @@ export function getColorForColumn(col, value) {
  */
 export function getColorIndicatorHtml(col, value, className = 'status-color') {
   const color = getColorForColumn(col, value);
-  if (!color) return '';
+  if (!color) { return ''; }
   return `<span class="${className}" style="background:${color};color:${color}"></span>`;
 }
 

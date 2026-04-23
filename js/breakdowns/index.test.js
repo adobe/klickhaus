@@ -20,6 +20,7 @@ import {
   markSlowestFacet,
   increaseTopN,
   loadBreakdown,
+  clearFacetLoadSignatureCache,
   canUseFacetTable,
   facetTimings,
   isPreviewActive,
@@ -104,6 +105,7 @@ beforeEach(() => {
   setQueryTimestamp(new Date('2025-06-01T12:00:00Z'));
   startRequestContext('facets');
   resetFacetTimings();
+  clearFacetLoadSignatureCache();
 });
 
 describe('getBreakdowns', () => {

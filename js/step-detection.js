@@ -13,7 +13,7 @@
  * Calculate median of an array
  */
 function median(arr) {
-  if (arr.length === 0) return 0;
+  if (arr.length === 0) { return 0; }
   const sorted = [...arr].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
@@ -23,7 +23,7 @@ function median(arr) {
  * Calculate standard deviation of an array
  */
 function stdDev(arr) {
-  if (arr.length <= 1) return 0;
+  if (arr.length <= 1) { return 0; }
   const mean = arr.reduce((sum, v) => sum + v, 0) / arr.length;
   const squareDiffs = arr.map((v) => (v - mean) ** 2);
   const avgSquareDiff = squareDiffs.reduce((sum, v) => sum + v, 0) / arr.length;
@@ -104,7 +104,7 @@ function findAnomalyRegions(deviations, threshold, direction, startMargin, endMa
  */
 export function detectStep(series, options = {}) {
   const len = series.ok.length;
-  if (len < 8) return null;
+  if (len < 8) { return null; }
 
   // Ignore first 2 data points (incomplete bucket artifacts)
   const startMargin = 2;
@@ -227,7 +227,7 @@ export function detectStep(series, options = {}) {
  */
 export function detectSteps(series, maxCount = 5, options = {}) {
   const len = series.ok.length;
-  if (len < 8) return [];
+  if (len < 8) { return []; }
 
   // Ignore first 2 data points (incomplete bucket artifacts)
   const startMargin = 2;
@@ -358,7 +358,7 @@ export function detectSteps(series, maxCount = 5, options = {}) {
   // so wider anomalies push neighbors further away while narrow spikes allow closer detections
   const selected = [];
   for (const candidate of candidates) {
-    if (selected.length >= maxCount) break;
+    if (selected.length >= maxCount) { break; }
 
     // Check if this candidate overlaps or is too close to any already selected region
     const overlaps = selected.some((s) => {

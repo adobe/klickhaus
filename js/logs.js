@@ -56,11 +56,11 @@ function getApproxPinnedOffsets(pinned, width) {
  * @param {string[]} pinned
  */
 function updatePinnedOffsets(container, pinned) {
-  if (pinned.length === 0) return;
+  if (pinned.length === 0) { return; }
 
   requestAnimationFrame(() => {
     const table = container.querySelector('.logs-table');
-    if (!table) return;
+    if (!table) { return; }
     const headerCells = table.querySelectorAll('thead th');
     const pinnedWidths = [];
     let cumLeft = 0;
@@ -163,9 +163,13 @@ function formatDetailValue(col, value) {
   } else if (col === 'response.status') {
     const status = parseInt(value, 10);
     displayValue = String(status);
-    if (status >= 500) className = 'status-5xx';
-    else if (status >= 400) className = 'status-4xx';
-    else className = 'status-ok';
+    if (status >= 500) {
+      className = 'status-5xx';
+    } else if (status >= 400) {
+      className = 'status-4xx';
+    } else {
+      className = 'status-ok';
+    }
   } else if (col === 'response.body_size') {
     displayValue = formatBytes(parseInt(value, 10));
   } else if (typeof value === 'object') {
@@ -203,7 +207,7 @@ function getGroupDisplayName(prefix) {
  */
 function renderLogDetailContent(row) {
   const table = document.getElementById('logDetailTable');
-  if (!table) return;
+  if (!table) { return; }
 
   const columns = Object.keys(row);
   const groups = groupColumnsByPrefix(columns);
@@ -247,11 +251,11 @@ export function closeLogDetailModal() {
  */
 export function openLogDetailModal(rowIdx) {
   const row = state.logsData[rowIdx];
-  if (!row) return;
+  if (!row) { return; }
 
   if (!logDetailModal) {
     logDetailModal = document.getElementById('logDetailModal');
-    if (!logDetailModal) return;
+    if (!logDetailModal) { return; }
 
     // Close on backdrop click
     logDetailModal.addEventListener('click', (e) => {
@@ -281,7 +285,7 @@ export function openLogDetailModal(rowIdx) {
 // Copy row data as JSON when clicking on row background
 export function copyLogRow(rowIdx) {
   const row = state.logsData[rowIdx];
-  if (!row) return;
+  if (!row) { return; }
 
   // Convert flat dot notation to nested object
   const nested = {};
@@ -313,19 +317,19 @@ export function copyLogRow(rowIdx) {
 // Set up click handler for row background clicks
 export function setupLogRowClickHandler() {
   const container = logsView?.querySelector('.logs-table-container');
-  if (!container) return;
+  if (!container) { return; }
 
   container.addEventListener('click', (e) => {
     // Only handle clicks directly on td or tr (not on links, buttons, or spans)
     const { target } = e;
-    if (target.tagName !== 'TD' && target.tagName !== 'TR') return;
+    if (target.tagName !== 'TD' && target.tagName !== 'TR') { return; }
 
     // Don't open modal if clicking on a clickable cell (filter action)
-    if (target.classList.contains('clickable')) return;
+    if (target.classList.contains('clickable')) { return; }
 
     // Find the row
     const row = target.closest('tr');
-    if (!row || !row.dataset.rowIdx) return;
+    if (!row || !row.dataset.rowIdx) { return; }
 
     const rowIdx = parseInt(row.dataset.rowIdx, 10);
     openLogDetailModal(rowIdx);
@@ -341,7 +345,7 @@ function renderLogsError(message) {
 function appendLogsRows(data) {
   const container = logsView.querySelector('.logs-table-container');
   const tbody = container.querySelector('.logs-table tbody');
-  if (!tbody || data.length === 0) return;
+  if (!tbody || data.length === 0) { return; }
 
   // Get columns from existing table header
   const headerCells = container.querySelectorAll('.logs-table thead th');
@@ -413,7 +417,7 @@ export function renderLogsTable(data) {
 }
 
 async function loadMoreLogs() {
-  if (!pagination.canLoadMore()) return;
+  if (!pagination.canLoadMore()) { return; }
   pagination.loading = true;
   const requestContext = getRequestContext('dashboard');
   const { requestId, signal, scope } = requestContext;
@@ -436,14 +440,14 @@ async function loadMoreLogs() {
 
   try {
     const result = await query(sql, { signal });
-    if (!isCurrent()) return;
+    if (!isCurrent()) { return; }
     if (result.data.length > 0) {
       state.logsData = [...state.logsData, ...result.data];
       appendLogsRows(result.data);
     }
     pagination.recordPage(result.data.length);
   } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
+    if (!isCurrent() || isAbortError(err)) { return; }
     // eslint-disable-next-line no-console
     console.error('Load more logs error:', err);
   } finally {
@@ -453,7 +457,7 @@ async function loadMoreLogs() {
 
 function handleLogsScroll() {
   // Only handle scroll when logs view is visible
-  if (!state.showLogs) return;
+  if (!state.showLogs) { return; }
 
   const { scrollHeight } = document.documentElement;
   const scrollTop = window.scrollY;
@@ -545,13 +549,13 @@ export async function loadLogs(requestContext = getRequestContext('dashboard')) 
 
   try {
     const result = await query(sql, { signal });
-    if (!isCurrent()) return;
+    if (!isCurrent()) { return; }
     state.logsData = result.data;
     renderLogsTable(result.data);
     state.logsReady = true;
     pagination.recordPage(result.data.length);
   } catch (err) {
-    if (!isCurrent() || isAbortError(err)) return;
+    if (!isCurrent() || isAbortError(err)) { return; }
     // eslint-disable-next-line no-console
     console.error('Logs error:', err, '\nSQL:', sql);
     renderLogsError(err.message);

@@ -16,7 +16,7 @@ import { TIME_RANGES, TIME_RANGE_ORDER, TOP_N_OPTIONS } from '../constants.js';
  * @param {HTMLSelectElement} select
  */
 export function populateTimeRangeSelect(selectEl) {
-  if (!selectEl) return;
+  if (!selectEl) { return; }
   const select = selectEl;
   select.innerHTML = '';
 
@@ -40,7 +40,7 @@ export function populateTimeRangeSelect(selectEl) {
  * @param {HTMLSelectElement} select
  */
 export function populateTopNSelect(selectEl) {
-  if (!selectEl) return;
+  if (!selectEl) { return; }
   const select = selectEl;
   select.innerHTML = '';
 
@@ -57,12 +57,12 @@ export function populateTopNSelect(selectEl) {
  * @param {HTMLSelectElement} select
  */
 export function updateTimeRangeLabels(select) {
-  if (!select) return;
+  if (!select) { return; }
 
   const isMobile = window.innerWidth < 600;
   TIME_RANGE_ORDER.forEach((key) => {
     const option = select.querySelector(`option[value="${key}"]`);
-    if (!option) return;
+    if (!option) { return; }
     option.textContent = isMobile ? TIME_RANGES[key].shortLabel : TIME_RANGES[key].label;
   });
 }

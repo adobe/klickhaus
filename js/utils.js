@@ -19,24 +19,24 @@ const ALLOWED_URL_PROTOCOLS = new Set(['http:', 'https:']);
 
 function hasExplicitPath(urlString) {
   const schemeIndex = urlString.indexOf('://');
-  if (schemeIndex === -1) return false;
+  if (schemeIndex === -1) { return false; }
   const afterScheme = urlString.slice(schemeIndex + 3);
   const delimiterIndex = afterScheme.search(/[/?#]/);
-  if (delimiterIndex === -1) return false;
+  if (delimiterIndex === -1) { return false; }
   return afterScheme[delimiterIndex] === '/';
 }
 
 export function sanitizeUrl(rawUrl) {
-  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  if (!rawUrl || typeof rawUrl !== 'string') { return null; }
   const trimmed = rawUrl.trim();
-  if (!trimmed) return null;
+  if (!trimmed) { return null; }
   let parsed;
   try {
     parsed = new URL(trimmed);
   } catch (err) {
     return null;
   }
-  if (!ALLOWED_URL_PROTOCOLS.has(parsed.protocol)) return null;
+  if (!ALLOWED_URL_PROTOCOLS.has(parsed.protocol)) { return null; }
 
   const base = parsed.origin;
   const path = parsed.pathname;
@@ -55,11 +55,11 @@ export function sanitizeUrl(rawUrl) {
  */
 export function isSyntheticBucket(value) {
   // Empty/null values are synthetic - they display as "(empty)"
-  if (!value) return true;
-  if (typeof value !== 'string') return false;
+  if (!value) { return true; }
+  if (typeof value !== 'string') { return false; }
   // Exact match: (same), (empty), (other), etc.
-  if (value.startsWith('(') && value.endsWith(')')) return true;
+  if (value.startsWith('(') && value.endsWith(')')) { return true; }
   // Contains synthetic pattern: "0 (empty)", etc.
-  if (value.includes('(empty)') || value.includes('(other)') || value.includes('(same)')) return true;
+  if (value.includes('(empty)') || value.includes('(other)') || value.includes('(same)')) { return true; }
   return false;
 }

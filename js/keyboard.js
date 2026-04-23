@@ -37,7 +37,7 @@ function getFacets() {
 
 // Get value rows in a facet
 function getValues(facet) {
-  if (!facet) return [];
+  if (!facet) { return []; }
   return [...facet.querySelectorAll('.breakdown-table tr[tabindex]')];
 }
 
@@ -58,7 +58,7 @@ function updateFragment() {
   if (kbd.facetIndex >= 0 && kbd.facetIndex < facets.length) {
     const facet = facets[kbd.facetIndex];
     const facetId = facet?.id?.replace('breakdown-', '') || '';
-    if (facetId) params.set('f', facetId);
+    if (facetId) { params.set('f', facetId); }
 
     // Also save value index if not 0 (to keep URLs cleaner)
     if (kbd.valueIndex > 0) {
@@ -67,7 +67,7 @@ function updateFragment() {
   }
   // If facetIndex is -1 (chart), don't set 'f' parameter
 
-  if (kbd.active) params.set('kbd', '1');
+  if (kbd.active) { params.set('kbd', '1'); }
 
   const fragment = params.toString();
   const newUrl = fragment ? `#${fragment}` : window.location.pathname + window.location.search;
@@ -81,7 +81,7 @@ function updateFocus() {
   clearFocusClasses();
 
   const facets = getFacets();
-  if (facets.length === 0) return;
+  if (facets.length === 0) { return; }
 
   // Clamp indices
   kbd.facetIndex = Math.max(0, Math.min(facets.length - 1, kbd.facetIndex));
@@ -97,7 +97,7 @@ function updateFocus() {
   }
 
   const values = getValues(facet);
-  if (values.length === 0) return;
+  if (values.length === 0) { return; }
 
   kbd.valueIndex = Math.max(0, Math.min(values.length - 1, kbd.valueIndex));
   const row = values[kbd.valueIndex];
@@ -130,7 +130,7 @@ function updateFocus() {
 
 // Activate keyboard mode
 function activateKeyboardMode() {
-  if (kbd.active) return;
+  if (kbd.active) { return; }
   kbd.active = true;
   document.body.classList.add('keyboard-mode');
   updateHeaderFixed();
@@ -186,7 +186,7 @@ function moveValue(delta) {
 // Toggle filter on current value
 function toggleFilterCurrent() {
   const row = document.querySelector('.breakdown-table tr.kbd-focused');
-  if (!row) return;
+  if (!row) { return; }
 
   // Find and click the filter button (in the count cell)
   const filterBtn = row.querySelector('.count .action-btn');
@@ -198,7 +198,7 @@ function toggleFilterCurrent() {
 // Toggle exclude on current value
 function toggleExcludeCurrent() {
   const row = document.querySelector('.breakdown-table tr.kbd-focused');
-  if (!row) return;
+  if (!row) { return; }
 
   // Find and click the exclude button (in the bar cell)
   const excludeBtn = row.querySelector('.bar .action-btn');
@@ -232,7 +232,7 @@ function handleDot() {
 // Open link in current value (if exists)
 function openCurrentLink() {
   const row = document.querySelector('.breakdown-table tr.kbd-focused');
-  if (!row) return;
+  if (!row) { return; }
 
   // Find the link in the dim cell
   const link = row.querySelector('td.dim a[href]');
@@ -260,7 +260,7 @@ function toggleHideCurrentFacet() {
 // Open facet search for current facet
 function openFacetSearchForCurrentFacet() {
   const facet = document.querySelector('.breakdown-card.kbd-focused');
-  if (!facet) return;
+  if (!facet) { return; }
 
   // Find the search link which contains all the needed data attributes
   const searchLink = facet.querySelector('.facet-search-link[data-action="open-facet-search"]');
@@ -317,10 +317,10 @@ export function setFocusedFacet(facetId, targetValue = null) {
 
 // Check if keydown event should be ignored
 function shouldIgnoreKeydown(e) {
-  if (e.metaKey || e.ctrlKey || e.altKey) return true;
-  if (e.target.matches('input, textarea, select')) return true;
-  if (document.querySelector('dialog[open]:not(#keyboardHelp):not(#facetPalette)')) return true;
-  if (isPaletteOpen()) return true;
+  if (e.metaKey || e.ctrlKey || e.altKey) { return true; }
+  if (e.target.matches('input, textarea, select')) { return true; }
+  if (document.querySelector('dialog[open]:not(#keyboardHelp):not(#facetPalette)')) { return true; }
+  if (isPaletteOpen()) { return true; }
   return false;
 }
 
@@ -328,12 +328,15 @@ function shouldIgnoreKeydown(e) {
 function handleHelpDialog(key) {
   if (key === '?' || key === '/') {
     const helpDialog = document.getElementById('keyboardHelp');
-    if (helpDialog.open) helpDialog.close();
-    else helpDialog.showModal();
+    if (helpDialog.open) {
+      helpDialog.close();
+    } else {
+      helpDialog.showModal();
+    }
     return true;
   }
   if (document.getElementById('keyboardHelp').open) {
-    if (key === 'Escape') document.getElementById('keyboardHelp').close();
+    if (key === 'Escape') { document.getElementById('keyboardHelp').close(); }
     return true;
   }
   return false;
@@ -372,7 +375,7 @@ const ACTION_HANDLERS = {
   '-': () => {
     if (zoomOut()) {
       saveStateToURL();
-      if (onReloadDashboard) onReloadDashboard();
+      if (onReloadDashboard) { onReloadDashboard(); }
     }
   },
 };
@@ -405,7 +408,7 @@ function handleKeyboardShortcut(e) {
     document.getElementById('hostFilter').focus();
   } else if (key === 'b' || key === '#') {
     e.preventDefault();
-    if (onToggleFacetMode) onToggleFacetMode('contentTypeMode');
+    if (onToggleFacetMode) { onToggleFacetMode('contentTypeMode'); }
   } else if (key >= '1' && key <= '5') {
     e.preventDefault();
     zoomToAnomalyNumber(key);
@@ -423,7 +426,7 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
   const actionKeys = ['i', 'c', 'e', 'x', ' ', 'Enter', '.', 'r', 'f', 't', 'b', '#', 'g', 'o', 'p', 'd', '1', '2', '3', '4', '5', '+', '-', '='];
 
   document.addEventListener('keydown', (e) => {
-    if (shouldIgnoreKeydown(e)) return;
+    if (shouldIgnoreKeydown(e)) { return; }
     if (handleHelpDialog(e.key)) {
       e.preventDefault();
       return;
@@ -455,7 +458,7 @@ export function initKeyboardNavigation({ toggleFacetMode, reloadDashboard } = {}
   // Sync state when Tab focuses a row (not click)
   document.addEventListener('focusin', (e) => {
     const row = e.target.closest('.breakdown-table tr[tabindex]');
-    if (!row) return;
+    if (!row) { return; }
 
     // Only activate keyboard mode for Tab navigation, not mouse clicks
     if (!recentMouseDown && !kbd.active) {
@@ -490,7 +493,7 @@ export function restoreKeyboardFocus() {
 
 // Get the currently focused facet ID (for targeted restore)
 export function getFocusedFacetId() {
-  if (!kbd.active) return null;
+  if (!kbd.active) { return null; }
   const facets = getFacets();
   if (kbd.facetIndex >= 0 && kbd.facetIndex < facets.length) {
     return facets[kbd.facetIndex].id;
@@ -507,7 +510,7 @@ let chartObserver = null;
 // Update fragment based on intersection state
 function updateFromIntersection() {
   // Skip if in keyboard mode (keyboard nav controls the focus)
-  if (kbd.active) return;
+  if (kbd.active) { return; }
 
   // If chart is visible, set facet index to -1
   if (chartVisible) {
@@ -539,7 +542,7 @@ function updateFromIntersection() {
 // Restore state from URL fragment
 function restoreFromFragment() {
   const hash = window.location.hash.slice(1);
-  if (!hash) return false;
+  if (!hash) { return false; }
 
   const params = new URLSearchParams(hash);
   const facetId = params.get('f');
@@ -618,7 +621,7 @@ export function initScrollTracking() {
 
 // Re-observe facets after data reload (in case DOM changed)
 export function refreshFacetObservers() {
-  if (!facetObserver) return;
+  if (!facetObserver) { return; }
 
   // Clear and re-observe
   visibleFacets.clear();
