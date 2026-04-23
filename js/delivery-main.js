@@ -11,12 +11,6 @@
  */
 import { initDashboard } from './dashboard-init.js';
 
-// Hosts excluded from delivery dashboard (backend/admin/RUM/docs services)
-const EXCLUDED_DELIVERY_HOSTS = [
-  'rum.aem.page',
-  'rum.hlx.page',
-];
-
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-accept-encoding',
   'breakdown-cdn-version',
@@ -32,13 +26,10 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-time-elapsed',
 ];
 
-const excludedList = EXCLUDED_DELIVERY_HOSTS.map((host) => `'${host}'`).join(', ');
-
 initDashboard({
   title: 'Delivery',
   tableName: 'delivery',
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-delivery',
-  additionalWhereClause: `AND \`request.host\` NOT IN (${excludedList})`,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });
