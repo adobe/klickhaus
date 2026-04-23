@@ -761,6 +761,7 @@ export function setupChartNavigation(callback) {
   function teardownTwoFingerDocListeners() {
     twoFingerDocsAbort?.abort();
     twoFingerDocsAbort = null;
+    canvas.classList.remove('chart-two-finger-range');
   }
 
   function twoFingerCanvasXs(touchList) {
@@ -771,7 +772,12 @@ export function setupChartNavigation(callback) {
   }
 
   const onTwoFingerTouchMove = (e) => {
-    if (!twoFingerRangeActive || e.touches.length < 2) {
+    if (!twoFingerRangeActive) {
+      return;
+    }
+    // Keep default suppressed for the whole capture (including when one finger lifts first).
+    if (e.touches.length < 2) {
+      e.preventDefault();
       return;
     }
     const xs = twoFingerCanvasXs(e.touches);
@@ -848,6 +854,7 @@ export function setupChartNavigation(callback) {
     }
     dragStartX = null;
     twoFingerRangeActive = true;
+    canvas.classList.add('chart-two-finger-range');
     twoFingerMinX = minX;
     twoFingerMaxX = maxX;
     isDragging = Math.abs(maxX - minX) >= minDragDistance;
@@ -872,6 +879,19 @@ export function setupChartNavigation(callback) {
     document.addEventListener('touchcancel', onTwoFingerTouchEnd, { signal });
     e.preventDefault();
   }, { passive: false });
+
+  // WebKit (iOS Safari): pinch-zoom may use gesture* in addition to touch defaults.
+  ['gesturestart', 'gesturechange'].forEach((type) => {
+    canvas.addEventListener(
+      type,
+      (e) => {
+        if (canvas.classList.contains('chart-two-finger-range')) {
+          e.preventDefault();
+        }
+      },
+      { passive: false },
+    );
+  });
 
   // Start drag tracking from a mouse event (works for canvas and nav zones)
   function startDragTracking(e) {
