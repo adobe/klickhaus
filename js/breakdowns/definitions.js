@@ -22,7 +22,9 @@ import { COLUMN_DEFS } from '../columns.js';
 // Format ASN as "15169 google llc" with number dimmed
 export function formatAsn(dim) {
   const spaceIdx = dim.indexOf(' ');
-  if (spaceIdx === -1) return escapeHtml(dim);
+  if (spaceIdx === -1) {
+    return escapeHtml(dim);
+  }
   const num = dim.slice(0, spaceIdx + 1); // include space
   const name = dim.slice(spaceIdx + 1);
   return `<span class="dim-prefix">${escapeHtml(num)}</span>${escapeHtml(name)}`;
@@ -31,7 +33,9 @@ export function formatAsn(dim) {
 // Format forwarded host as "customer.com, aem-host" with ", aem-host" dimmed
 export function formatForwardedHost(dim) {
   const commaIdx = dim.indexOf(', ');
-  if (commaIdx === -1) return escapeHtml(dim);
+  if (commaIdx === -1) {
+    return escapeHtml(dim);
+  }
   const customerHost = dim.slice(0, commaIdx);
   const aemHost = dim.slice(commaIdx); // includes ", "
   return `${escapeHtml(customerHost)}<span class="dim-prefix">${escapeHtml(aemHost)}</span>`;
@@ -124,6 +128,7 @@ export const allBreakdowns = [
   },
   { id: 'breakdown-cdn-version', col: '`cdn.version`', extraFilter: "AND `cdn.version` != ''" },
   { id: 'breakdown-helix-route', col: '`helix.route`', extraFilter: "AND `helix.route` != ''" },
+  { id: 'breakdown-severity', col: COLUMN_DEFS.severity.facetCol, extraFilter: "AND `response.headers.x_severity` != ''" },
   { id: 'breakdown-helix-topic', col: '`helix.topic`', extraFilter: "AND `helix.topic` != ''" },
   { id: 'breakdown-helix-org', col: '`helix.org`', extraFilter: "AND `helix.org` != ''" },
   {
