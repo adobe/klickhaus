@@ -512,6 +512,4 @@ export function initDashboard(config = {}) {
       }
     }, 100);
   });
-
-  window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
 }

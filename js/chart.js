@@ -489,44 +489,6 @@ export function setupChartNavigation(callback) {
     }
   });
 
-  // Touch swipe support
-  let touchStartX = null;
-  const minSwipeDistance = 50;
-
-  container.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].clientX;
-  }, { passive: true });
-
-  container.addEventListener('touchend', (e) => {
-    if (touchStartX === null) {
-      return;
-    }
-    const touchEndX = e.changedTouches[0].clientX;
-    const deltaX = touchEndX - touchStartX;
-    touchStartX = null;
-
-    if (Math.abs(deltaX) >= minSwipeDistance) {
-      // Swipe right = go back in time, swipe left = go forward
-      navigateTime(deltaX > 0 ? -2 / 3 : 2 / 3);
-    }
-  }, { passive: true });
-
-  // Double-tap to toggle logs
-  let lastTap = 0;
-  container.addEventListener('touchend', (_) => {
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTap;
-    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-      // Double tap detected
-      if (typeof window.toggleLogsViewMobile === 'function') {
-        window.toggleLogsViewMobile();
-      }
-      lastTap = 0;
-    } else {
-      lastTap = now;
-    }
-  }, { passive: true });
-
   /** Build value badges HTML for scrubber (2xx/4xx/5xx counts) */
   function buildValueBadges(time) {
     const dataPoint = getDataAtTime(time);
@@ -748,6 +710,169 @@ export function setupChartNavigation(callback) {
   // Drag selection for time range zoom
   const minDragDistance = 20; // Minimum pixels to count as a drag (not a click)
 
+  function clampChartContentX(x, chartLayout, rectWidth) {
+    const left = chartLayout?.padding?.left || 0;
+    const right = (chartLayout?.width || rectWidth) - (chartLayout?.padding?.right || 0);
+    return Math.max(left, Math.min(x, right));
+  }
+
+  /**
+   * Commit blue band + preview for a horizontal span in canvas coordinates (mouse or touch).
+   */
+  function applyPendingRangeFromCanvasSpan(rawA, rawB) {
+    const chartLayout = getChartLayout();
+    const rect = canvas.getBoundingClientRect();
+    const s0 = clampChartContentX(Math.min(rawA, rawB), chartLayout, rect.width);
+    const s1 = clampChartContentX(Math.max(rawA, rawB), chartLayout, rect.width);
+    const startTime = getTimeAtX(s0);
+    const endTime = getTimeAtX(s1);
+    if (startTime && endTime && startTime < endTime) {
+      setPendingSelection({ startTime, endTime });
+      selectionOverlay.classList.add('confirmed');
+      updateSelectionStatusBar(startTime, endTime);
+      justCompletedDrag = true;
+      requestAnimationFrame(() => {
+        justCompletedDrag = false;
+      });
+      const lastData = getLastChartData();
+      if (lastData) {
+        requestAnimationFrame(() => {
+          renderChart(lastData);
+        });
+      }
+      const chartData = getLastChartData();
+      if (chartData && chartData.length >= 2) {
+        const fullStart = parseUTC(chartData[0].t);
+        const fullEnd = parseUTC(chartData[chartData.length - 1].t);
+        investigateTimeRange(startTime, endTime, fullStart, fullEnd);
+      }
+      loadPreviewBreakdowns(startTime, endTime);
+    } else {
+      hideSelectionOverlay();
+    }
+  }
+
+  // Two-finger horizontal drag on canvas (Stocks-style) — only touch gesture on the chart.
+  let twoFingerRangeActive = false;
+  let twoFingerMinX = 0;
+  let twoFingerMaxX = 0;
+  let twoFingerDocsAbort = null;
+
+  function teardownTwoFingerDocListeners() {
+    twoFingerDocsAbort?.abort();
+    twoFingerDocsAbort = null;
+  }
+
+  function twoFingerCanvasXs(touchList) {
+    const rect = canvas.getBoundingClientRect();
+    const t0 = touchList[0];
+    const t1 = touchList[1];
+    return [t0.clientX - rect.left, t1.clientX - rect.left];
+  }
+
+  const onTwoFingerTouchMove = (e) => {
+    if (!twoFingerRangeActive || e.touches.length < 2) {
+      return;
+    }
+    const xs = twoFingerCanvasXs(e.touches);
+    const minX = Math.min(xs[0], xs[1]);
+    const maxX = Math.max(xs[0], xs[1]);
+    twoFingerMinX = minX;
+    twoFingerMaxX = maxX;
+    const chartLayout = getChartLayout();
+    const rect = canvas.getBoundingClientRect();
+    const c0 = clampChartContentX(minX, chartLayout, rect.width);
+    const c1 = clampChartContentX(maxX, chartLayout, rect.width);
+    if (Math.abs(c1 - c0) >= minDragDistance) {
+      isDragging = true;
+      container.classList.add('dragging');
+      updateSelectionOverlay(c0, c1);
+      scrubberLine.classList.remove('visible');
+      const selStartTime = getTimeAtX(Math.min(c0, c1));
+      const selEndTime = getTimeAtX(Math.max(c0, c1));
+      if (selStartTime && selEndTime) {
+        updateSelectionStatusBar(selStartTime, selEndTime);
+      }
+    }
+    e.preventDefault();
+  };
+
+  const onTwoFingerTouchEnd = (e) => {
+    if (!twoFingerRangeActive) {
+      return;
+    }
+    if (e.touches.length >= 2) {
+      return;
+    }
+    teardownTwoFingerDocListeners();
+    twoFingerRangeActive = false;
+    const wasDragging = isDragging;
+    const chartLayout = getChartLayout();
+    const rect = canvas.getBoundingClientRect();
+    const c0 = clampChartContentX(
+      Math.min(twoFingerMinX, twoFingerMaxX),
+      chartLayout,
+      rect.width,
+    );
+    const c1 = clampChartContentX(
+      Math.max(twoFingerMinX, twoFingerMaxX),
+      chartLayout,
+      rect.width,
+    );
+    isDragging = false;
+    container.classList.remove('dragging');
+
+    if (!wasDragging && Math.abs(c1 - c0) < minDragDistance) {
+      hideSelectionOverlay();
+      return;
+    }
+    applyPendingRangeFromCanvasSpan(c0, c1);
+  };
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2) {
+      return;
+    }
+    if (twoFingerRangeActive) {
+      teardownTwoFingerDocListeners();
+      twoFingerRangeActive = false;
+    }
+    const xs = twoFingerCanvasXs(e.touches);
+    const minX = Math.min(xs[0], xs[1]);
+    const maxX = Math.max(xs[0], xs[1]);
+    if (getAnomalyAtX(minX)) {
+      return;
+    }
+    if (getPendingSelection()) {
+      hideSelectionOverlay();
+    }
+    dragStartX = null;
+    twoFingerRangeActive = true;
+    twoFingerMinX = minX;
+    twoFingerMaxX = maxX;
+    isDragging = Math.abs(maxX - minX) >= minDragDistance;
+    if (isDragging) {
+      container.classList.add('dragging');
+      const chartLayout = getChartLayout();
+      const rect = canvas.getBoundingClientRect();
+      const c0 = clampChartContentX(minX, chartLayout, rect.width);
+      const c1 = clampChartContentX(maxX, chartLayout, rect.width);
+      updateSelectionOverlay(c0, c1);
+      scrubberLine.classList.remove('visible');
+      const selStartTime = getTimeAtX(Math.min(c0, c1));
+      const selEndTime = getTimeAtX(Math.max(c0, c1));
+      if (selStartTime && selEndTime) {
+        updateSelectionStatusBar(selStartTime, selEndTime);
+      }
+    }
+    twoFingerDocsAbort = new AbortController();
+    const { signal } = twoFingerDocsAbort;
+    document.addEventListener('touchmove', onTwoFingerTouchMove, { passive: false, signal });
+    document.addEventListener('touchend', onTwoFingerTouchEnd, { signal });
+    document.addEventListener('touchcancel', onTwoFingerTouchEnd, { signal });
+    e.preventDefault();
+  }, { passive: false });
+
   // Start drag tracking from a mouse event (works for canvas and nav zones)
   function startDragTracking(e) {
     // Only handle left mouse button
@@ -848,42 +973,7 @@ export function setupChartNavigation(callback) {
     // It was a drag - store pending selection but don't navigate yet
     const rect = canvas.getBoundingClientRect();
     const endX = e.clientX - rect.left;
-
-    const startTime = getTimeAtX(Math.min(startX, endX));
-    const endTime = getTimeAtX(Math.max(startX, endX));
-
-    if (startTime && endTime && startTime < endTime) {
-      setPendingSelection({ startTime, endTime });
-      selectionOverlay.classList.add('confirmed');
-      // Show final selection times in status bar
-      updateSelectionStatusBar(startTime, endTime);
-      // Set flag to prevent click handlers from firing
-      justCompletedDrag = true;
-      requestAnimationFrame(() => {
-        justCompletedDrag = false;
-      });
-
-      // Redraw chart to show blue selection band
-      const lastData = getLastChartData();
-      if (lastData) {
-        requestAnimationFrame(() => {
-          renderChart(lastData);
-        });
-      }
-
-      // Trigger investigation for the selected time range
-      const chartData = getLastChartData();
-      if (chartData && chartData.length >= 2) {
-        const fullStart = parseUTC(chartData[0].t);
-        const fullEnd = parseUTC(chartData[chartData.length - 1].t);
-        investigateTimeRange(startTime, endTime, fullStart, fullEnd);
-      }
-
-      // Load preview breakdowns for the selected time range
-      loadPreviewBreakdowns(startTime, endTime);
-    } else {
-      hideSelectionOverlay();
-    }
+    applyPendingRangeFromCanvasSpan(startX, endX);
   });
 
   // Cancel drag if mouse leaves container
