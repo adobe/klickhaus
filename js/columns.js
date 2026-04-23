@@ -92,6 +92,12 @@ export const COLUMN_DEFS = {
     facetCol: "REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...')",
     label: 'Error (grouped)',
   },
+  severity: {
+    logKey: 'response.headers.x_severity',
+    facetCol: '`response.headers.x_severity`',
+    label: 'Severity',
+    shortLabel: 'severity',
+  },
   clientIp: {
     logKey: 'client.ip',
     facetCol: "if(`request.headers.x_forwarded_for` != '', `request.headers.x_forwarded_for`, `client.ip`)",
@@ -174,6 +180,7 @@ export const LOG_COLUMN_ORDER = [
   COLUMN_DEFS.clientIp.logKey,
   COLUMN_DEFS.forwardedFor.logKey,
   COLUMN_DEFS.error.logKey,
+  COLUMN_DEFS.severity.logKey,
   COLUMN_DEFS.accept.logKey,
   COLUMN_DEFS.acceptEncoding.logKey,
   COLUMN_DEFS.cacheControl.logKey,
