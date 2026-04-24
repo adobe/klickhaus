@@ -25,7 +25,7 @@
     "knip": "^6.0.0",
     "lint-staged": "^16.2.7",
     "live-server": "^1.2.2",
-    "puppeteer-core": "24.41.0"
+    "puppeteer-core": "24.42.0"
   },
   "keywords": [
     "clickhouse",
