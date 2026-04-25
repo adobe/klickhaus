@@ -82,6 +82,8 @@ describe('setupTwoFingerTouchSelection', () => {
   });
 
   afterEach(() => {
+    // Ensure document-level listeners from active gestures are torn down.
+    fireTouchEvent(document, 'touchend', []);
     container.remove();
   });
 
@@ -96,10 +98,103 @@ describe('setupTwoFingerTouchSelection', () => {
     assert.isFalse(scrubberLine.classList.contains('visible'));
   });
 
+  it('ignores touchstart when not exactly two touches', () => {
+    const startEvt = fireTouchEvent(canvas, 'touchstart', [touch(80)]);
+    assert.isFalse(startEvt.defaultPrevented);
+    assert.isFalse(canvas.classList.contains('chart-two-finger-range'));
+    assert.deepEqual(setDragStartCalls, []);
+  });
+
+  it('ignores touchstart when touching an anomaly', () => {
+    container.remove();
+    canvas = document.createElement('canvas');
+    container = document.createElement('div');
+    scrubberLine = document.createElement('div');
+    container.appendChild(canvas);
+    document.body.appendChild(container);
+    canvas.getBoundingClientRect = () => ({
+      left: 10, width: 300, top: 0, right: 310, bottom: 150, height: 150,
+    });
+    setupTwoFingerTouchSelection({
+      canvas,
+      container,
+      minDragDistance: 20,
+      getPendingSelection: () => null,
+      hideSelectionOverlay: () => {
+        hideSelectionCalls += 1;
+      },
+      getAnomalyAtX: () => ({ rank: 1 }),
+      getChartLayout: () => ({ padding: { left: 0, right: 0 }, width: 300 }),
+      getTimeAtX: (x) => new Date(1000 + Math.round(x)),
+      updateSelectionOverlay: () => {},
+      updateSelectionStatusBar: () => {
+        statusBarCalls += 1;
+      },
+      clampChartContentX: (x) => x,
+      applyPendingRangeFromCanvasSpan: (x0, x1) => {
+        applyCalls.push([x0, x1]);
+      },
+      setDragStartX: (x) => {
+        setDragStartCalls.push(x);
+      },
+      getIsDragging: () => isDragging,
+      setIsDragging: (next) => {
+        isDragging = next;
+      },
+      scrubberLine,
+    });
+    const startEvt = fireTouchEvent(canvas, 'touchstart', [touch(80), touch(180)]);
+    assert.isFalse(startEvt.defaultPrevented);
+    assert.isFalse(canvas.classList.contains('chart-two-finger-range'));
+  });
+
   it('suppresses default touch behavior while active when one finger remains', () => {
     fireTouchEvent(canvas, 'touchstart', [touch(100), touch(115)]);
     const moveEvt = fireTouchEvent(document, 'touchmove', [touch(120)]);
     assert.isTrue(moveEvt.defaultPrevented);
+  });
+
+  it('updates selection overlay when touchmove crosses drag threshold', () => {
+    const overlays = [];
+    container.remove();
+    canvas = document.createElement('canvas');
+    container = document.createElement('div');
+    scrubberLine = document.createElement('div');
+    scrubberLine.classList.add('visible');
+    container.appendChild(canvas);
+    document.body.appendChild(container);
+    canvas.getBoundingClientRect = () => ({
+      left: 10, width: 300, top: 0, right: 310, bottom: 150, height: 150,
+    });
+    setupTwoFingerTouchSelection({
+      canvas,
+      container,
+      minDragDistance: 20,
+      getPendingSelection: () => null,
+      hideSelectionOverlay: () => {},
+      getAnomalyAtX: () => null,
+      getChartLayout: () => ({ padding: { left: 0, right: 0 }, width: 300 }),
+      getTimeAtX: (x) => new Date(1000 + Math.round(x)),
+      updateSelectionOverlay: (x0, x1) => {
+        overlays.push([x0, x1]);
+      },
+      updateSelectionStatusBar: () => {
+        statusBarCalls += 1;
+      },
+      clampChartContentX: (x) => x,
+      applyPendingRangeFromCanvasSpan: () => {},
+      setDragStartX: () => {},
+      getIsDragging: () => isDragging,
+      setIsDragging: (next) => {
+        isDragging = next;
+      },
+      scrubberLine,
+    });
+    fireTouchEvent(canvas, 'touchstart', [touch(100), touch(110)]);
+    fireTouchEvent(document, 'touchmove', [touch(110), touch(210)]);
+    assert.isTrue(isDragging);
+    assert.deepEqual(overlays, [[100, 200]]);
+    assert.isAtLeast(statusBarCalls, 1);
   });
 
   it('applies selected span on drag end when dragging occurred', () => {
@@ -117,6 +212,13 @@ describe('setupTwoFingerTouchSelection', () => {
     fireTouchEvent(document, 'touchend', [touch(105)]);
     assert.strictEqual(applyCalls.length, 0);
     assert.isAtLeast(hideSelectionCalls, 2);
+  });
+
+  it('ignores touchend while two touches are still active', () => {
+    fireTouchEvent(canvas, 'touchstart', [touch(100), touch(170)]);
+    fireTouchEvent(document, 'touchend', [touch(170), touch(190)]);
+    assert.strictEqual(applyCalls.length, 0);
+    assert.isTrue(canvas.classList.contains('chart-two-finger-range'));
   });
 
   it('prevents webkit gesture defaults only when range class is active', () => {
