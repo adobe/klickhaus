@@ -89,8 +89,11 @@ function drawWrench(ctx, x, y, color, size = 8) {
     const angle = (Math.PI / 3) * i - Math.PI / 6;
     const hx = Math.cos(angle) * hexRadius;
     const hy = hexCenterY + Math.sin(angle) * hexRadius;
-    if (i === 0) ctx.moveTo(hx, hy);
-    else ctx.lineTo(hx, hy);
+    if (i === 0) {
+      ctx.moveTo(hx, hy);
+    } else {
+      ctx.lineTo(hx, hy);
+    }
   }
   ctx.closePath();
   ctx.fill();
@@ -101,17 +104,17 @@ function drawWrench(ctx, x, y, color, size = 8) {
 // Get ship color based on semver version
 function getShipColor(release, cssVar) {
   const versionMatch = release.tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
-  if (!versionMatch) return cssVar('--status-ok') || '#12b76a';
+  if (!versionMatch) { return cssVar('--status-ok') || '#12b76a'; }
 
   const [, , minor, patch] = versionMatch;
-  if (minor === '0' && patch === '0') return cssVar('--status-server-error') || '#f04438';
-  if (patch === '0') return cssVar('--status-client-error') || '#f79009';
+  if (minor === '0' && patch === '0') { return cssVar('--status-server-error') || '#f04438'; }
+  if (patch === '0') { return cssVar('--status-client-error') || '#f79009'; }
   return cssVar('--status-ok') || '#12b76a';
 }
 
 // Render ship symbols on the chart canvas
 export function renderReleaseShips(ctx, releases, data, chartDimensions, timeRange = null) {
-  if (!releases || releases.length === 0) return [];
+  if (!releases || releases.length === 0) { return []; }
 
   const { padding, chartWidth } = chartDimensions;
   let startTime;
@@ -167,7 +170,7 @@ function ensureTooltip() {
 
 // Format release notes as HTML (basic markdown conversion)
 function formatReleaseNotes(body) {
-  if (!body) return '<em>No release notes</em>';
+  if (!body) { return '<em>No release notes</em>'; }
 
   // Process line by line for better control
   const lines = body.split('\n');
@@ -240,7 +243,7 @@ export function showReleaseTooltip(release, x, y) {
   let top = y - tooltipRect.height - 20;
 
   // Keep within viewport bounds
-  if (left < 10) left = 10;
+  if (left < 10) { left = 10; }
   if (left + tooltipRect.width > viewportWidth - 10) {
     left = viewportWidth - tooltipRect.width - 10;
   }
@@ -262,7 +265,7 @@ export function hideReleaseTooltip() {
 
 // Check if a point is near any ship
 export function getShipAtPoint(shipPositions, x, y) {
-  if (!shipPositions) return null;
+  if (!shipPositions) { return null; }
   for (const ship of shipPositions) {
     const dx = x - ship.x;
     const dy = y - ship.y;

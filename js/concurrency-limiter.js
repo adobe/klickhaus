@@ -20,7 +20,7 @@ export function createLimiter(maxConcurrent = 4) {
   const queue = [];
 
   function next() {
-    if (queue.length === 0 || active >= maxConcurrent) return;
+    if (queue.length === 0 || active >= maxConcurrent) { return; }
     active += 1;
     const { resolve } = queue.shift();
     resolve();

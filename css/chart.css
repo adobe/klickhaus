@@ -27,6 +27,11 @@
   cursor: crosshair;
 }
 
+/* While two-finger range selection is active, disable default gestures (pinch-zoom, pan) on the chart only. */
+#chart.chart-two-finger-range {
+  touch-action: none;
+}
+
 /* When dragging, use col-resize cursor */
 .chart-container.dragging #chart {
   cursor: col-resize;

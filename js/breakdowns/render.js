@@ -25,7 +25,7 @@ export function getFiltersForColumn(col) {
 // Get next topN value for "show more" functionality
 export function getNextTopN() {
   const currentIdx = TOP_N_OPTIONS.indexOf(state.topN);
-  if (currentIdx === -1 || currentIdx >= TOP_N_OPTIONS.length - 1) return null;
+  if (currentIdx === -1 || currentIdx >= TOP_N_OPTIONS.length - 1) { return null; }
   return TOP_N_OPTIONS[currentIdx + 1];
 }
 
@@ -33,8 +33,8 @@ export function getNextTopN() {
  * Get speed class based on elapsed time (aligned with Google LCP thresholds)
  */
 function getSpeedClass(elapsed) {
-  if (elapsed < 2500) return 'fast';
-  if (elapsed < 4000) return 'medium';
+  if (elapsed < 2500) { return 'fast'; }
+  if (elapsed < 4000) { return 'medium'; }
   return 'slow';
 }
 
@@ -101,7 +101,7 @@ function storeFacetData(card, title, data, totals, isBytes) {
  * Calculate "Other" row from totals minus top-K sum
  */
 function calculateOtherRow(data, totals) {
-  if (!totals) return null;
+  if (!totals) { return null; }
   const topKSum = {
     cnt: data.reduce((sum, d) => sum + parseInt(d.cnt, 10), 0),
     cnt_ok: data.reduce((sum, d) => sum + (parseInt(d.cnt_ok, 10) || 0), 0),
@@ -137,7 +137,7 @@ export function renderBreakdownTable(
   filterOp,
 ) {
   const card = document.getElementById(id);
-  if (!card.dataset.title) card.dataset.title = card.querySelector('h3').textContent;
+  if (!card.dataset.title) { card.dataset.title = card.querySelector('h3').textContent; }
   const { title } = card.dataset;
 
   const columnFilters = getFiltersForColumn(col);
@@ -241,9 +241,9 @@ export function renderBreakdownError(id, details = {}) {
   const detail = details.detail && details.detail !== message ? details.detail : '';
   const metaParts = [];
 
-  if (details.code) metaParts.push(`Code ${details.code}`);
-  if (details.type) metaParts.push(details.type);
-  if (details.status) metaParts.push(`HTTP ${details.status}`);
+  if (details.code) { metaParts.push(`Code ${details.code}`); }
+  if (details.type) { metaParts.push(details.type); }
+  if (details.status) { metaParts.push(`HTTP ${details.status}`); }
 
   const detailHtml = detail
     ? `<div class="facet-error-detail">${escapeHtml(detail)}</div>`

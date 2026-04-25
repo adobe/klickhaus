@@ -125,7 +125,7 @@ function applyHighlightsFromContributors(contributors) {
       'investigation-blue',
     );
     const statusColor = el.querySelector('.status-color');
-    if (statusColor) statusColor.removeAttribute('title');
+    if (statusColor) { statusColor.removeAttribute('title'); }
   });
 
   const focusedId = getFocusedAnomalyId();
@@ -179,7 +179,7 @@ function clearAllHighlightClasses() {
       'investigation-blue',
     );
     const statusColor = el.querySelector('.status-color');
-    if (statusColor) statusColor.removeAttribute('title');
+    if (statusColor) { statusColor.removeAttribute('title'); }
   });
 }
 
@@ -191,7 +191,7 @@ function addResultToHighlightMap(highlightMap, result, checkExisting) {
   const { anomalyId } = result;
   const rank = result.anomaly?.rank || 1;
   for (const [facetId, facetResults] of Object.entries(result.facets)) {
-    if (!highlightMap.has(facetId)) highlightMap.set(facetId, new Map());
+    if (!highlightMap.has(facetId)) { highlightMap.set(facetId, new Map()); }
     for (const item of facetResults) {
       const existing = highlightMap.get(facetId).get(item.dim);
       if (!checkExisting || !existing || item.shareChange > existing.shareChange) {
@@ -238,7 +238,7 @@ function applyHighlights() {
 
   if (focusedId) {
     const persistedResult = investigationsByAnomalyId.get(focusedId);
-    if (persistedResult) addResultToHighlightMap(highlightMap, persistedResult, false);
+    if (persistedResult) { addResultToHighlightMap(highlightMap, persistedResult, false); }
   } else {
     for (const result of lastInvestigationResults) {
       addResultToHighlightMap(highlightMap, result, true);
@@ -283,7 +283,7 @@ function tryMemoryCache(cacheKey) {
   const hasValidCache = cacheKey === currentCacheKey
     && lastInvestigationResults.length > 0
     && currentCacheContext;
-  if (!hasValidCache) return null;
+  if (!hasValidCache) { return null; }
   if (!isCacheEligible(currentCacheContext)) {
     // eslint-disable-next-line no-console
     console.log('Memory cache key matches but context changed, checking localStorage');
@@ -318,7 +318,7 @@ function tryMemoryCache(cacheKey) {
  */
 function tryLocalStorageCache(cacheKey) {
   const cached = loadCachedInvestigation(cacheKey);
-  if (!cached || !cached.results) return null;
+  if (!cached || !cached.results) { return null; }
 
   currentCacheKey = cacheKey;
   currentCacheContext = cached.context || getQueryContext();
@@ -328,7 +328,7 @@ function tryLocalStorageCache(cacheKey) {
   for (const result of lastInvestigationResults) {
     if (result.anomalyId) {
       investigationsByAnomalyId.set(result.anomalyId, result);
-      if (result.anomaly?.rank) storeAnomalyIdOnStep(result.anomaly.rank, result.anomalyId);
+      if (result.anomaly?.rank) { storeAnomalyIdOnStep(result.anomaly.rank, result.anomalyId); }
     }
   }
 
@@ -370,11 +370,11 @@ export async function investigateAnomalies(anomalies, chartData) {
 
   // Try memory cache first
   const memCached = tryMemoryCache(cacheKey);
-  if (memCached) return memCached;
+  if (memCached) { return memCached; }
 
   // Try localStorage cache
   const storageCached = tryLocalStorageCache(cacheKey);
-  if (storageCached) return storageCached;
+  if (storageCached) { return storageCached; }
 
   // Get base context for stable IDs
   const baseTimeFilter = getTimeFilter();
@@ -572,7 +572,7 @@ export function clearSelectionHighlights() {
   document.querySelectorAll('.investigation-highlight.investigation-blue').forEach((el) => {
     el.classList.remove('investigation-highlight', 'investigation-blue');
     const statusColor = el.querySelector('.status-color');
-    if (statusColor) statusColor.removeAttribute('title');
+    if (statusColor) { statusColor.removeAttribute('title'); }
   });
   selectionContributors = [];
 }

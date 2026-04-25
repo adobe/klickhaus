@@ -62,12 +62,12 @@ function selectBoundaries(allBoundaries, n) {
  * @returns {string}
  */
 function formatMs(ms) {
-  if (ms < 1000) return `${ms}ms`;
+  if (ms < 1000) { return `${ms}ms`; }
   // Show as seconds, drop ".0" for whole numbers
   const s = ms / 1000;
-  if (Number.isInteger(s)) return `${s}s`;
+  if (Number.isInteger(s)) { return `${s}s`; }
   // For half-seconds like 1.5s, show cleanly
-  if (s * 2 === Math.floor(s * 2)) return `${s}s`;
+  if (s * 2 === Math.floor(s * 2)) { return `${s}s`; }
   // Otherwise round to 1 decimal
   return `${s.toFixed(1)}s`;
 }

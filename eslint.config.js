@@ -91,6 +91,8 @@ export default [
         ignoreTemplateLiterals: true,
         ignorePattern: '^(async\\s+)?function\\s+\\w+\\(',
       }],
+      // Allow `if (x) { stmt; }` on one line (curly rule) without splitting every guard.
+      'max-statements-per-line': ['error', { max: 2 }],
       'complexity': ['error', { max: 15 }],
       // Tech debt tracking: warn on TODO/FIXME comments
       // Use TODO(ISSUE-123) format to link to tracking issues
@@ -129,6 +131,13 @@ export default [
     rules: {
       'no-console': 'off',
       'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+    },
+  },
+  {
+    // Optional local Cloudflare config (not committed in all clones)
+    files: ['scripts/set-custom-fields.mjs'],
+    rules: {
+      'import/no-unresolved': 'off',
     },
   },
 ];

@@ -10,17 +10,17 @@
  * governing permissions and limitations under the License.
  */
 export function formatNumber(n) {
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
+  if (n >= 1e9) { return `${(n / 1e9).toFixed(2)}B`; }
+  if (n >= 1e6) { return `${(n / 1e6).toFixed(2)}M`; }
+  if (n >= 1e3) { return `${(n / 1e3).toFixed(2)}K`; }
   return n.toString();
 }
 
 export function formatBytes(bytes) {
-  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(2)} TB`;
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(2)} MB`;
-  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(2)} KB`;
+  if (bytes >= 1e12) { return `${(bytes / 1e12).toFixed(2)} TB`; }
+  if (bytes >= 1e9) { return `${(bytes / 1e9).toFixed(2)} GB`; }
+  if (bytes >= 1e6) { return `${(bytes / 1e6).toFixed(2)} MB`; }
+  if (bytes >= 1e3) { return `${(bytes / 1e3).toFixed(2)} KB`; }
   return `${bytes} B`;
 }
 
@@ -30,8 +30,8 @@ export function formatBytes(bytes) {
  * @returns {string}
  */
 export function formatBytesCompact(bytes) {
-  if (bytes === 0) return '0';
-  if (bytes < 1000) return `${bytes} B`;
+  if (bytes === 0) { return '0'; }
+  if (bytes < 1000) { return `${bytes} B`; }
   if (bytes < 1000000) {
     const kb = bytes / 1000;
     return Number.isInteger(kb) ? `${kb} KB` : `${kb} KB`;
@@ -41,7 +41,7 @@ export function formatBytesCompact(bytes) {
 }
 
 export function formatPercent(current, previous) {
-  if (!previous || previous === 0) return { text: '', className: '' };
+  if (!previous || previous === 0) { return { text: '', className: '' }; }
   const change = ((current - previous) / previous) * 100;
   const sign = change >= 0 ? '+' : '';
   return {
@@ -51,7 +51,7 @@ export function formatPercent(current, previous) {
 }
 
 export function formatQueryTime(ms) {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 1000) { return `${Math.round(ms)}ms`; }
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
@@ -64,12 +64,12 @@ const FACET_HEADER_PERCENT_MAX_DECIMALS = 5;
  * @returns {number}
  */
 export function roundToSignificantDigits(value, sig) {
-  if (value === 0 || !Number.isFinite(value)) return value;
+  if (value === 0 || !Number.isFinite(value)) { return value; }
   const sign = value < 0 ? -1 : 1;
   const v = Math.abs(value);
   const p = Math.floor(Math.log10(v));
   const n = 10 ** (sig - 1 - p);
-  return sign * Math.round(v * n) / n;
+  return sign * (Math.round(v * n) / n);
 }
 
 /**

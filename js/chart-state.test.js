@@ -44,9 +44,13 @@ import {
   getNavigationCallback,
   navigateTime,
   zoomToAnomaly,
+  zoomToAnomalyByRank,
+  STATUS_RANGE_COL,
 } from './chart-state.js';
 import { state } from './state.js';
-import { setQueryTimestamp, clearCustomTimeRange, setCustomTimeRange } from './time.js';
+import {
+  setQueryTimestamp, clearCustomTimeRange, setCustomTimeRange, queryTimestamp, getCustomTimeRange,
+} from './time.js';
 
 describe('getDataAtTime', () => {
   afterEach(() => {
@@ -179,6 +183,25 @@ describe('getDataAtTime', () => {
     // Target 07:30:00 = index 450
     const result = getDataAtTime(new Date('2025-01-01T07:30:00Z'));
     assert.strictEqual(result.cnt_ok, '450');
+  });
+
+  it('falls back to linear scan when timestamp cache is stale', () => {
+    const data = [
+      {
+        t: '2025-01-01 00:00:00', cnt_ok: '10', cnt_4xx: '0', cnt_5xx: '0',
+      },
+      {
+        t: '2025-01-01 00:05:00', cnt_ok: '20', cnt_4xx: '0', cnt_5xx: '0',
+      },
+    ];
+    setLastChartData(data);
+    // Mutate after caching to force length mismatch and linear-scan fallback branch.
+    data.push({
+      t: '2025-01-01 00:10:00', cnt_ok: '30', cnt_4xx: '0', cnt_5xx: '0',
+    });
+
+    const result = getDataAtTime(new Date('2025-01-01T00:09:00Z'));
+    assert.strictEqual(result.cnt_ok, '30');
   });
 
   it('returns first element when target is before all timestamps', () => {
@@ -706,9 +729,8 @@ describe('navigateTime', () => {
 
   it('shifts time backward by fraction of period', () => {
     navigateTime(-0.5);
-    // 1h period * -0.5 = -30 min => 11:30:00
-    // queryTimestamp is set via setQueryTimestamp inside navigateTime
-    // We verify indirectly via navigation callback
+    // 1h period * -0.5 = -30 min => 11:30:00.
+    assert.strictEqual(queryTimestamp().toISOString(), '2025-06-15T11:30:00.000Z');
   });
 
   it('invokes navigation callback after shift', () => {
@@ -721,16 +743,20 @@ describe('navigateTime', () => {
   });
 
   it('does not navigate into the future', () => {
-    // Set timestamp far in the past, then navigate forward past now
+    // Set timestamp near now, then navigate forward past now.
     setQueryTimestamp(new Date(Date.now() - 1000));
-    navigateTime(100); // shift by 100x 1h = 100 hours into future
-    // Should be clamped to ~now, callback should still be called
+    // shift by 100x 1h = 100 hours into future
+    const before = Date.now();
     let called = false;
     setNavigationCallback(() => {
       called = true;
     });
     navigateTime(100);
     assert.isTrue(called);
+    const after = Date.now();
+    const finalTs = queryTimestamp().getTime();
+    assert.isAtLeast(finalTs, before - 1000);
+    assert.isAtMost(finalTs, after + 1000);
   });
 
   it('navigates with custom time range', () => {
@@ -808,5 +834,25 @@ describe('zoomToAnomaly', () => {
     const result = zoomToAnomaly();
     assert.isTrue(result);
     assert.isTrue(navigated);
+  });
+
+  it('zoomToAnomalyByRank returns false when rank is missing', () => {
+    assert.isFalse(zoomToAnomalyByRank(99));
+  });
+
+  it('zoomToAnomalyByRank applies status filter and sets custom range', () => {
+    const start = new Date('2025-06-15T10:00:00Z');
+    const end = new Date('2025-06-15T10:05:00Z');
+    addAnomalyBounds({
+      left: 20, right: 40, startTime: start, endTime: end, rank: 2,
+    });
+    setDetectedSteps([{
+      rank: 2, type: 'spike', category: 'yellow', magnitude: 1.8,
+    }]);
+
+    const result = zoomToAnomalyByRank(2);
+    assert.isTrue(result);
+    assert.deepEqual(getCustomTimeRange(), { start, end });
+    assert.isTrue(state.filters.some((f) => f.col === STATUS_RANGE_COL && f.value === '4xx'));
   });
 });

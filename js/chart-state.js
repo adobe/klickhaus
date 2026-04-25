@@ -80,7 +80,7 @@ export function navigateTime(fraction) {
     setQueryTimestamp(newTs);
   }
 
-  if (onNavigate) onNavigate();
+  if (onNavigate) { onNavigate(); }
 }
 
 /**
@@ -227,7 +227,7 @@ export function getAnomalyCount() {
  */
 export function getAnomalyTimeRange(rank = 1) {
   const bounds = lastAnomalyBoundsList.find((b) => b.rank === rank);
-  if (!bounds) return null;
+  if (!bounds) { return null; }
   return {
     start: bounds.startTime,
     end: bounds.endTime,
@@ -253,7 +253,7 @@ export function getDetectedAnomalies() {
  * @returns {Object|null} Time range { start, end } or null
  */
 export function getMostRecentTimeRange() {
-  if (!lastChartData || lastChartData.length < 2) return null;
+  if (!lastChartData || lastChartData.length < 2) { return null; }
   const len = lastChartData.length;
   // Last 20% of the timeline
   const startIdx = Math.floor(len * 0.8);
@@ -269,7 +269,7 @@ export function getMostRecentTimeRange() {
  * @returns {Object|null} Nearest data point or null
  */
 export function getDataAtTime(time) {
-  if (!lastChartData || lastChartData.length === 0) return null;
+  if (!lastChartData || lastChartData.length === 0) { return null; }
   const targetMs = time instanceof Date ? time.getTime() : time;
 
   // Binary search on pre-parsed timestamps for O(log n) lookups
@@ -326,12 +326,12 @@ export function getAnomalyAtX(x) {
  * @returns {Date|null} Time at position or null
  */
 export function getTimeAtX(x) {
-  if (!chartLayout) return null;
+  if (!chartLayout) { return null; }
   const {
     padding, chartWidth, intendedStartTime, intendedEndTime,
   } = chartLayout;
   const xRatio = (x - padding.left) / chartWidth;
-  if (xRatio < 0 || xRatio > 1) return null;
+  if (xRatio < 0 || xRatio > 1) { return null; }
 
   if (Number.isFinite(intendedStartTime)
     && Number.isFinite(intendedEndTime)
@@ -339,7 +339,7 @@ export function getTimeAtX(x) {
     return new Date(intendedStartTime + xRatio * (intendedEndTime - intendedStartTime));
   }
 
-  if (!lastChartData || lastChartData.length < 2) return null;
+  if (!lastChartData || lastChartData.length < 2) { return null; }
   const startTime = parseUTC(lastChartData[0].t).getTime();
   const endTime = parseUTC(lastChartData[lastChartData.length - 1].t).getTime();
   const time = new Date(startTime + xRatio * (endTime - startTime));
@@ -352,7 +352,7 @@ export function getTimeAtX(x) {
  * @returns {number} X coordinate
  */
 export function getXAtTime(time) {
-  if (!chartLayout) return 0;
+  if (!chartLayout) { return 0; }
   const {
     padding, chartWidth, intendedStartTime, intendedEndTime,
   } = chartLayout;
@@ -437,8 +437,8 @@ export function formatDuration(startTime, endTime) {
   const durationMs = endTime - startTime;
   const minutes = Math.floor(durationMs / 60000);
   const seconds = Math.floor((durationMs % 60000) / 1000);
-  if (minutes === 0) return `${seconds}s`;
-  if (seconds === 0) return `${minutes}m`;
+  if (minutes === 0) { return `${seconds}s`; }
+  if (seconds === 0) { return `${minutes}m`; }
   return `${minutes}m ${seconds}s`;
 }
 
@@ -449,7 +449,7 @@ export function formatDuration(startTime, endTime) {
  */
 export function zoomToAnomalyByRank(rank) {
   const range = getAnomalyTimeRange(rank);
-  if (!range) return false;
+  if (!range) { return false; }
 
   // Get the anomaly ID for this rank (set during investigation)
   const anomalyId = window.anomalyIdsByRank?.[rank] || null;
@@ -477,7 +477,7 @@ export function zoomToAnomalyByRank(rank) {
   // Save all state atomically in one history entry (time + filters + anomaly ID)
   saveStateToURL(anomalyId);
 
-  if (onNavigate) onNavigate();
+  if (onNavigate) { onNavigate(); }
   return true;
 }
 
@@ -493,12 +493,12 @@ export function zoomToAnomaly() {
 
   // Fall back to most recent section
   const range = getMostRecentTimeRange();
-  if (!range) return false;
+  if (!range) { return false; }
 
   setCustomTimeRange(range.start, range.end);
   saveStateToURL();
 
-  if (onNavigate) onNavigate();
+  if (onNavigate) { onNavigate(); }
   return true;
 }
 
@@ -509,7 +509,7 @@ export function zoomToAnomaly() {
  * @returns {Object|null} Ship at position or null
  */
 export function getShipNearX(x, padding = 20) {
-  if (!lastShipPositions) return null;
+  if (!lastShipPositions) { return null; }
   for (const ship of lastShipPositions) {
     if (Math.abs(x - ship.x) <= padding) {
       return ship;
@@ -537,17 +537,23 @@ export function hexToRgba(hex, alpha) {
  * @returns {number} Rounded nice number (always an integer)
  */
 export function roundToNice(val) {
-  if (val === 0) return 0;
-  if (val < 1) return Math.ceil(val);
+  if (val === 0) { return 0; }
+  if (val < 1) { return Math.ceil(val); }
 
   const magnitude = 10 ** Math.floor(Math.log10(val));
   const normalized = val / magnitude;
   let nice;
-  if (normalized <= 1.5) nice = 1;
-  else if (normalized <= 2.25) nice = 2;
-  else if (normalized <= 3.5) nice = 2.5;
-  else if (normalized <= 7.5) nice = 5;
-  else nice = 10;
+  if (normalized <= 1.5) {
+    nice = 1;
+  } else if (normalized <= 2.25) {
+    nice = 2;
+  } else if (normalized <= 3.5) {
+    nice = 2.5;
+  } else if (normalized <= 7.5) {
+    nice = 5;
+  } else {
+    nice = 10;
+  }
 
   const result = nice * magnitude;
 

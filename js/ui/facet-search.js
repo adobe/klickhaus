@@ -153,7 +153,7 @@ export function closeFacetSearch() {
  * @param {number} direction - 1 for down, -1 for up
  */
 function navigateResults(direction) {
-  if (searchResults.length === 0) return;
+  if (searchResults.length === 0) { return; }
 
   selectedIndex += direction;
 
@@ -180,7 +180,7 @@ function navigateResults(direction) {
  * @param {boolean} exclude - Whether to exclude instead of include
  */
 function applyFilter(index, exclude) {
-  if (index < 0 || index >= searchResults.length) return;
+  if (index < 0 || index >= searchResults.length) { return; }
 
   const selected = searchResults[index];
   const value = selected.dim || '';

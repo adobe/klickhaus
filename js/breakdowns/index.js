@@ -17,7 +17,9 @@ import {
 } from '../request-context.js';
 import {
   getTimeFilter, getHostFilter, getTable, getFacetTimeFilter,
+  queryTimestamp, customTimeRange,
 } from '../time.js';
+import { waitUntilFacetNearViewport } from '../timer.js';
 import { allBreakdowns as defaultBreakdowns } from './definitions.js';
 import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
 import { compileFilters } from '../filter-sql.js';
@@ -34,6 +36,32 @@ import {
 // queries (one per facet), the only code path with bulk parallelism. Chart, logs,
 // and autocomplete each fire 1-2 queries and don't need limiting.
 const queryLimiter = createLimiter(4);
+
+/** Per-facet signature of last successful load (skips redundant fetches when scrolling). */
+const facetLoadedForSignature = new Map();
+
+/** Clears per-facet load signatures (e.g. test isolation). */
+export function clearFacetLoadSignatureCache() {
+  facetLoadedForSignature.clear();
+}
+
+function computeFacetLoadSignature(timeFilter, hostFilter) {
+  const ctr = customTimeRange();
+  const qts = queryTimestamp();
+  return JSON.stringify({
+    timeFilter,
+    hostFilter,
+    filters: state.filters,
+    topN: state.topN,
+    contentTypeMode: state.contentTypeMode,
+    additionalWhereClause: state.additionalWhereClause || '',
+    tableName: state.tableName || '',
+    weightColumn: state.weightColumn || '',
+    aggregations: state.aggregations || null,
+    qts: qts ? qts.toISOString() : '',
+    ctr: ctr ? `${ctr.start.toISOString()}-${ctr.end.toISOString()}` : '',
+  });
+}
 
 export function getBreakdowns() {
   return state.breakdowns?.length ? state.breakdowns : defaultBreakdowns;
@@ -372,14 +400,39 @@ function shouldIgnoreBreakdownError(requestStatus, err) {
   return !requestStatus.isCurrent() || isAbortError(err);
 }
 
+/* eslint-disable complexity -- viewport wait + cache + render branches */
 export async function loadBreakdown(
   b,
   timeFilter,
   hostFilter,
   requestContext = null,
+  options = {},
 ) {
+  const { force = false, lazyWait = false } = options;
   const requestStatus = createRequestStatus(requestContext);
-  const card = document.getElementById(b.id);
+
+  let card = document.getElementById(b.id);
+  if (lazyWait && !force && card && !state.hiddenFacets.includes(b.id)) {
+    try {
+      await waitUntilFacetNearViewport(b.id, requestStatus.signal);
+    } catch (e) {
+      if (isAbortError(e)) {
+        return;
+      }
+      throw e;
+    }
+  }
+
+  if (!requestStatus.isCurrent()) {
+    return;
+  }
+
+  card = document.getElementById(b.id);
+
+  const sig = computeFacetLoadSignature(timeFilter, hostFilter);
+  if (!force && facetLoadedForSignature.get(b.id) === sig) {
+    return;
+  }
 
   if (!prepareBreakdownCard(card, b)) {
     return;
@@ -411,6 +464,9 @@ export async function loadBreakdown(
       b.filterValueFn,
       b.filterOp,
     );
+    if (requestStatus.isCurrent()) {
+      facetLoadedForSignature.set(b.id, sig);
+    }
   } catch (err) {
     if (shouldIgnoreBreakdownError(requestStatus, err)) {
       return;
@@ -420,18 +476,20 @@ export async function loadBreakdown(
     console.error(`Breakdown error (${b.id}):`, err);
     renderBreakdownError(b.id, details);
   } finally {
-    if (requestStatus.isCurrent()) {
+    if (card && requestStatus.isCurrent()) {
       card.classList.remove('updating');
     }
   }
 }
+/* eslint-enable complexity */
 
 export async function loadAllBreakdowns(requestContext = getRequestContext('facets')) {
   const timeFilter = getTimeFilter();
   const hostFilter = getHostFilter();
   const breakdowns = getBreakdowns();
+  const lazyOpts = { lazyWait: true };
   await Promise.all(
-    breakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext)),
+    breakdowns.map((b) => loadBreakdown(b, timeFilter, hostFilter, requestContext, lazyOpts)),
   );
 }
 

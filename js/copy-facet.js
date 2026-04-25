@@ -17,7 +17,7 @@
  */
 function showCopyFeedback(card, success) {
   const btn = card.querySelector('[data-action="copy-facet-tsv"]');
-  if (!btn) return;
+  if (!btn) { return; }
 
   const originalText = btn.textContent;
   btn.textContent = success ? '\u2713' : '\u2717';

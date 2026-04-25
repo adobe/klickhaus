@@ -60,7 +60,7 @@ function run(cmd, options = {}) {
   console.log(`$ ${cmd}`);
   try {
     const result = execSync(cmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], ...options });
-    if (result.trim()) console.log(result.trim());
+    if (result.trim()) { console.log(result.trim()); }
     return result;
   } catch (err) {
     console.error(`Error: ${err.stderr || err.message}`);

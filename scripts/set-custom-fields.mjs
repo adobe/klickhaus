@@ -35,7 +35,7 @@ async function getCustomFieldsRuleset(token, zoneId) {
 }
 
 async function getCurrentCustomFields(token, zoneId, rulesetId) {
-  if (!rulesetId) return null;
+  if (!rulesetId) { return null; }
   const data = await cfApi(`/zones/${zoneId}/rulesets/${rulesetId}`, token);
   return data.result;
 }
@@ -71,7 +71,7 @@ async function setCustomFields(token, zoneId, rulesetId) {
 }
 
 function compareHeaders(current, target) {
-  if (!current) return { missing: target, extra: [] };
+  if (!current) { return { missing: target, extra: [] }; }
 
   const currentSet = new Set(current.map((f) => f.name.toLowerCase().trim()));
   const targetSet = new Set(target.map((h) => h.toLowerCase()));
@@ -96,7 +96,7 @@ function isUpToDate(reqDiff, respDiff) {
  * Log a diff category if non-empty
  */
 function logDiffCategory(items, label) {
-  if (items.length > 0) console.log(`  ${label}: ${items.join(', ')}`);
+  if (items.length > 0) { console.log(`  ${label}: ${items.join(', ')}`); }
 }
 
 /**

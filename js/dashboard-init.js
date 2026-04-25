@@ -26,6 +26,7 @@ import {
 } from './time.js';
 import {
   startQueryTimer, stopQueryTimer, hasVisibleUpdatingFacets, initFacetObservers,
+  initFacetViewportGate, refreshFacetViewportGateObservers,
 } from './timer.js';
 import {
   loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
@@ -98,7 +99,13 @@ export function initDashboard(config = {}) {
   setLogsElements(elements.logsView, elements.viewToggleBtn, elements.filtersView);
 
   // Load dashboard queries (chart and facets)
-  async function loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext) {
+  async function loadDashboardQueries(
+    timeFilter,
+    hostFilter,
+    dashboardContext,
+    facetsContext,
+    refresh = false,
+  ) {
     const timeSeriesPromise = loadTimeSeries(dashboardContext);
     const focusedFacetId = getFocusedFacetId();
     const isDashboardCurrent = () => isRequestCurrent(
@@ -107,8 +114,14 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
+    // Defer off-screen facet SQL until scroll; load all if anomaly investigation needs full data.
+    const lazyFacets = !refresh && !(getDetectedAnomalies().length > 0 && getLastChartData());
+
     const facetPromises = getBreakdowns().map(
-      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext).then(() => {
+      (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext, {
+        lazyWait: lazyFacets,
+        force: refresh,
+      }).then(() => {
         if (!isFacetsCurrent()) {
           return;
         }
@@ -203,9 +216,9 @@ export function initDashboard(config = {}) {
 
     if (state.showLogs) {
       await loadLogs(dashboardContext);
-      loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+      loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext, refresh);
     } else {
-      await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext);
+      await loadDashboardQueries(timeFilter, hostFilter, dashboardContext, facetsContext, refresh);
       loadLogs(dashboardContext);
     }
 
@@ -278,9 +291,14 @@ export function initDashboard(config = {}) {
         const timeFilter = getTimeFilter();
         const hostFilter = getHostFilter();
         const facetsContext = startRequestContext(`facet:${breakdown.id}`);
-        loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+        loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext, {
+          force: true,
+          lazyWait: false,
+        });
       }
     }
+
+    refreshFacetViewportGateObservers();
   }
 
   setOnFacetOrderChange(reorderFacets);
@@ -305,7 +323,7 @@ export function initDashboard(config = {}) {
     const breakdowns = getBreakdowns().filter((b) => b.modeToggle === stateKey);
     for (const breakdown of breakdowns) {
       const facetsContext = startRequestContext(`facet:${breakdown.id}`);
-      loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext);
+      loadBreakdown(breakdown, timeFilter, hostFilter, facetsContext, { lazyWait: true });
     }
   }
 
@@ -354,6 +372,7 @@ export function initDashboard(config = {}) {
     populateTopNSelect(elements.topNSelect);
 
     initFacetObservers();
+    initFacetViewportGate();
     initModal();
 
     initKeyboardNavigation({ toggleFacetMode, reloadDashboard: loadDashboard });
@@ -493,6 +512,4 @@ export function initDashboard(config = {}) {
       }
     }, 100);
   });
-
-  window.toggleLogsViewMobile = () => toggleLogsView(saveStateToURL);
 }

@@ -28,8 +28,11 @@ function formatTimestamp(value) {
 function formatStatusCell(value) {
   const status = parseInt(value, 10);
   let cellClass = 'status-ok';
-  if (status >= 500) cellClass = 'status-5xx';
-  else if (status >= 400) cellClass = 'status-4xx';
+  if (status >= 500) {
+    cellClass = 'status-5xx';
+  } else if (status >= 400) {
+    cellClass = 'status-4xx';
+  }
   return { displayValue: String(status), cellClass };
 }
 
@@ -37,8 +40,8 @@ function formatStatusCell(value) {
  * Format generic value
  */
 function formatGenericValue(value) {
-  if (value === null || value === undefined || value === '') return '';
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (value === null || value === undefined || value === '') { return ''; }
+  if (typeof value === 'object') { return JSON.stringify(value); }
   return String(value);
 }
 
@@ -90,7 +93,7 @@ export function buildLogCellHtml({
     : '';
 
   let className = cellClass;
-  if (isPinned) className = `${className} pinned`.trim();
+  if (isPinned) { className = `${className} pinned`.trim(); }
 
   const escaped = escapeHtml(displayValue);
 

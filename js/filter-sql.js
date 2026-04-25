@@ -33,19 +33,20 @@ let allowedColumnsCache = null;
  * @returns {Set<string>}
  */
 export function getAllowedColumns() {
-  if (allowedColumnsCache) return allowedColumnsCache;
+  if (allowedColumnsCache) { return allowedColumnsCache; }
   const cols = new Set();
   const breakdowns = state.breakdowns?.length ? state.breakdowns : allBreakdowns;
   for (const b of breakdowns) {
-    if (typeof b.col === 'string') cols.add(b.col);
-    else if (typeof b.col === 'function') {
+    if (typeof b.col === 'string') {
+      cols.add(b.col);
+    } else if (typeof b.col === 'function') {
       // Bucketed facets have a function col — pre-generate all topN variants
       TOP_N_OPTIONS.forEach((n) => cols.add(b.col(n)));
     }
-    if (b.filterCol) cols.add(b.filterCol);
+    if (b.filterCol) { cols.add(b.filterCol); }
   }
   for (const def of Object.values(COLUMN_DEFS)) {
-    if (def.facetCol) cols.add(def.facetCol);
+    if (def.facetCol) { cols.add(def.facetCol); }
   }
   allowedColumnsCache = cols;
   return cols;
@@ -195,7 +196,7 @@ export function compileFilters(filters) {
 export function isFilterSuperset(current, cached) {
   for (const [sqlCol, cachedGroup] of Object.entries(cached || {})) {
     const currentGroup = current[sqlCol];
-    if (!currentGroup) return false;
+    if (!currentGroup) { return false; }
 
     // Create string keys for comparison (value + op)
     const entryKey = (e) => `${e.value}|${e.op}`;
@@ -203,10 +204,10 @@ export function isFilterSuperset(current, cached) {
     const currentExcludes = new Set(currentGroup.excludes.map(entryKey));
 
     for (const entry of cachedGroup.includes || []) {
-      if (!currentIncludes.has(entryKey(entry))) return false;
+      if (!currentIncludes.has(entryKey(entry))) { return false; }
     }
     for (const entry of cachedGroup.excludes || []) {
-      if (!currentExcludes.has(entryKey(entry))) return false;
+      if (!currentExcludes.has(entryKey(entry))) { return false; }
     }
   }
   return true;

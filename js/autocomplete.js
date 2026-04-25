@@ -70,7 +70,7 @@ export async function loadHostAutocomplete() {
 
     const hostSet = new Set();
     for (const row of hostsResult.data) {
-      if (row.host) hostSet.add(row.host);
+      if (row.host) { hostSet.add(row.host); }
     }
     for (const row of forwardedHostsResult.data) {
       if (row.host) {

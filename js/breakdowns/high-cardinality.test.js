@@ -11,7 +11,9 @@
  */
 import { assert } from 'chai';
 import { state } from '../state.js';
-import { loadBreakdown, loadAllBreakdowns, resetFacetTimings } from './index.js';
+import {
+  loadBreakdown, loadAllBreakdowns, resetFacetTimings, clearFacetLoadSignatureCache,
+} from './index.js';
 import { DEFAULT_TOP_N } from '../constants.js';
 import { startRequestContext } from '../request-context.js';
 import { setQueryTimestamp } from '../time.js';
@@ -74,6 +76,7 @@ beforeEach(() => {
   setQueryTimestamp(new Date('2025-06-01T12:00:00Z'));
   startRequestContext('facets');
   resetFacetTimings();
+  clearFacetLoadSignatureCache();
 });
 
 describe('high-cardinality breakdowns use regular GROUP BY', () => {

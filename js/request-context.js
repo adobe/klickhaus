@@ -50,8 +50,8 @@ export function isRequestCurrent(requestId, scope) {
 
 export function mergeAbortSignals(signals) {
   const activeSignals = (signals || []).filter(Boolean);
-  if (activeSignals.length === 0) return undefined;
-  if (activeSignals.length === 1) return activeSignals[0];
+  if (activeSignals.length === 0) { return undefined; }
+  if (activeSignals.length === 1) { return activeSignals[0]; }
 
   if (typeof AbortSignal.any === 'function') {
     return AbortSignal.any(activeSignals);

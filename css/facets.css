@@ -53,15 +53,6 @@
     margin-bottom: 8px;
   }
 
-  /* Smaller text on mobile */
-  .breakdown-table {
-    font-size: 12px;
-  }
-
-  .breakdown-table .count {
-    font-size: 11px;
-  }
-
   /* Restore selection tint on mobile (base cards are borderless) */
   .breakdown-card.preview {
     background: rgba(59, 130, 246, 0.2);
@@ -400,6 +391,9 @@
   width: 100%;
   font-size: 14px;
   margin-left: -5px;
+  /* iOS Safari otherwise boosts font size unevenly in narrow cells / flex rows */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Minimum height based on topN to prevent layout shift during loading */
@@ -573,6 +567,7 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
 .breakdown-table .dim a {
   color: var(--text);
   text-decoration: none;
+  font-size: inherit;
 }
 
 .breakdown-table .dim a:hover {
@@ -582,6 +577,7 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
 
 .breakdown-table .dim .dim-prefix {
   opacity: 0.4;
+  font-size: inherit;
 }
 
 .breakdown-table .count {
@@ -592,6 +588,8 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   position: relative;
   font-family: 'Source Sans', 'Source Sans Pro', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 11px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .breakdown-table .count .value {
@@ -713,10 +711,22 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
 .breakdown-table .facet-search-link {
   color: inherit;
   text-decoration: none;
+  font-size: inherit;
 }
 
 .breakdown-table .other-link:hover,
 .breakdown-table .facet-search-link:hover {
   color: var(--primary);
   text-decoration: underline;
+}
+
+/* Smaller facet text on narrow viewports — must appear after base .breakdown-table or font-size is overridden */
+@media (max-width: 600px) {
+  .breakdown-table {
+    font-size: 12px;
+  }
+
+  .breakdown-table .count {
+    font-size: 11px;
+  }
 }

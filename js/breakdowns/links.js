@@ -12,19 +12,19 @@
 import { state } from '../state.js';
 
 export function hostLink(val) {
-  if (!val) return null;
+  if (!val) { return null; }
   return `https://${val}`;
 }
 
 export function forwardedHostLink(val) {
-  if (!val) return null;
+  if (!val) { return null; }
   // Take first host if comma-separated
   const firstHost = val.split(',')[0].trim();
   return `https://${firstHost}`;
 }
 
 export function refererLink(val) {
-  if (!val) return null;
+  if (!val) { return null; }
   // Referer is already a full URL
   if (val.startsWith('http://') || val.startsWith('https://')) {
     return val;
@@ -33,7 +33,7 @@ export function refererLink(val) {
 }
 
 export function pathLink(val) {
-  if (!val) return null;
+  if (!val) { return null; }
   // Only link if we have a single active host or forwarded host filter
   const hostFilter = state.filters.find((f) => f.col === '`request.host`' && !f.exclude);
   if (hostFilter) {

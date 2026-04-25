@@ -53,7 +53,7 @@ const els = {
  * @returns {Promise<string|null>}
  */
 async function getOptelToken() {
-  if (optelTokenState.value !== null) return optelTokenState.value;
+  if (optelTokenState.value !== null) { return optelTokenState.value; }
   try {
     const sql = await loadSql('optel-token', { database: DATABASE });
     const result = await query(sql, { cacheTtl: 300 });
@@ -100,7 +100,7 @@ async function fetchDomainKeyFromBundler(domain, token) {
       const probeResp = await fetch(
         `${BUNDLER_OPTEL_DOMAIN}/bundles/${encodeURIComponent(domain)}/${y}/${m}/${d}?domainkey=open`,
       );
-      if (probeResp.status === 200) return 'open';
+      if (probeResp.status === 200) { return 'open'; }
     }
     return domainkey || 'incognito';
   } catch {
@@ -116,7 +116,7 @@ async function fetchDomainKeyFromBundler(domain, token) {
  */
 async function resolveDomainKey(domain) {
   const cached = domainKeyCache.get(domain);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) { return cached; }
   const token = await getOptelToken();
   const domainkey = token
     ? await fetchDomainKeyFromBundler(domain, token)
@@ -145,11 +145,11 @@ function renderTable() {
       va = va.toLowerCase();
       vb = vb.toLowerCase();
     }
-    if (va < vb) return sortAsc ? -1 : 1;
-    if (va > vb) return sortAsc ? 1 : -1;
+    if (va < vb) { return sortAsc ? -1 : 1; }
+    if (va > vb) { return sortAsc ? 1 : -1; }
     // Secondary sort: total descending
-    if (a.total > b.total) return -1;
-    if (a.total < b.total) return 1;
+    if (a.total > b.total) { return -1; }
+    if (a.total < b.total) { return 1; }
     return 0;
   });
 
@@ -162,7 +162,7 @@ function renderTable() {
       || row.owner.toLowerCase().includes(filterText)
       || row.repo.toLowerCase().includes(filterText);
 
-    if (matchesFilter) visibleCount += 1;
+    if (matchesFilter) { visibleCount += 1; }
 
     const statusBadge = row.age_days <= 1
       ? `<span class="badge badge-new">New (${row.age_days}d)</span>`
@@ -246,10 +246,10 @@ els.searchInput.addEventListener('input', () => {
 // OPTEL link: resolve domain key on click and open with correct domainkey
 els.domainsBody.addEventListener('click', async (e) => {
   const link = e.target.closest('a.optel-link');
-  if (!link) return;
+  if (!link) { return; }
   e.preventDefault();
   const { domain } = link.dataset;
-  if (!domain) return;
+  if (!domain) { return; }
   const domainkey = await resolveDomainKey(domain);
   const url = new URL(link.href);
   url.searchParams.set('domainkey', domainkey);

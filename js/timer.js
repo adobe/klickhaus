@@ -51,16 +51,109 @@ export function initFacetObservers() {
   });
 }
 
+// --- Viewport gate: defer facet SQL until card is near the viewport (mobile scroll) ---
+
+const viewportGateResolvers = new Map();
+let viewportGateObserver = null;
+
+/**
+ * True if the breakdown card is on-screen or within `marginPx` of the viewport edge.
+ * Missing element is treated as "near" so tests and edge cases do not hang.
+ */
+export function isBreakdownNearViewport(card, marginPx = 200) {
+  if (!card) { return true; }
+  const rect = card.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  return (rect.top < vh + marginPx) && (rect.bottom > -marginPx);
+}
+
+function releaseViewportGate(id) {
+  const set = viewportGateResolvers.get(id);
+  if (!set) { return; }
+  set.forEach((fn) => fn());
+  viewportGateResolvers.delete(id);
+}
+
+/**
+ * Resolves when `cardId` intersects the gate band (or is already near the viewport).
+ * Rejects with AbortError if `signal` aborts.
+ */
+export function waitUntilFacetNearViewport(cardId, signal) {
+  const card = document.getElementById(cardId);
+  if (!card || isBreakdownNearViewport(card)) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    /** @type {(() => void) | null} */
+    let finishRef = null;
+    function onAbort() {
+      signal?.removeEventListener('abort', onAbort);
+      const set = viewportGateResolvers.get(cardId);
+      if (set && finishRef) {
+        set.delete(finishRef);
+        if (set.size === 0) {
+          viewportGateResolvers.delete(cardId);
+        }
+      }
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+    function finish() {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }
+    finishRef = finish;
+    signal?.addEventListener('abort', onAbort);
+    let set = viewportGateResolvers.get(cardId);
+    if (!set) {
+      set = new Set();
+      viewportGateResolvers.set(cardId, set);
+    }
+    set.add(finish);
+    if (isBreakdownNearViewport(document.getElementById(cardId))) {
+      set.delete(finish);
+      if (set.size === 0) {
+        viewportGateResolvers.delete(cardId);
+      }
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }
+  });
+}
+
+/** Call after facet cards move in the DOM (pin/hide/reorder). */
+export function refreshFacetViewportGateObservers() {
+  if (!viewportGateObserver) {
+    return;
+  }
+  document.querySelectorAll('.breakdown-card').forEach((c) => {
+    viewportGateObserver.observe(c);
+  });
+}
+
+/** Observe facet cards so waitUntilFacetNearViewport can resolve on scroll. */
+export function initFacetViewportGate() {
+  if (!viewportGateObserver) {
+    viewportGateObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          releaseViewportGate(entry.target.id);
+        }
+      });
+    }, { root: null, rootMargin: '200px 0px 200px 0px', threshold: 0 });
+  }
+  refreshFacetViewportGateObservers();
+}
+
 export function getTimerClass(ms) {
   // Aligned with Google's LCP thresholds
-  if (ms < 2500) return 'query-timer fast'; // Good: < 2.5s
-  if (ms < 4000) return 'query-timer medium'; // Needs Improvement: 2.5-4s
+  if (ms < 2500) { return 'query-timer fast'; } // Good: < 2.5s
+  if (ms < 4000) { return 'query-timer medium'; } // Needs Improvement: 2.5-4s
   return 'query-timer slow'; // Poor: > 4s
 }
 
 export function startQueryTimer() {
   queryStartTime = performance.now();
-  if (queryTimerInterval) clearInterval(queryTimerInterval);
+  if (queryTimerInterval) { clearInterval(queryTimerInterval); }
   queryTimerInterval = setInterval(() => {
     const elapsed = performance.now() - queryStartTime;
     queryTimerEl.textContent = formatQueryTime(elapsed);
@@ -69,7 +162,7 @@ export function startQueryTimer() {
 }
 
 export function stopQueryTimer() {
-  if (!queryTimerInterval) return; // Already stopped
+  if (!queryTimerInterval) { return; } // Already stopped
   clearInterval(queryTimerInterval);
   queryTimerInterval = null;
   const elapsed = performance.now() - queryStartTime;

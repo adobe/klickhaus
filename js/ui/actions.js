@@ -80,16 +80,16 @@ function handleOpenFacetSearch(handlers, target, event) {
  */
 export function initActionHandlers(handlers) {
   document.addEventListener('click', (event) => {
-    if (event.target.closest('.filter-tag-indicator:not(.active):not(.exclude) a')) return;
+    if (event.target.closest('.filter-tag-indicator:not(.active):not(.exclude) a')) { return; }
     if (event.target.closest('.filter-tag-indicator.active a, .filter-tag-indicator.exclude a')) {
       event.preventDefault();
     }
 
     const target = event.target.closest('[data-action]');
-    if (!target) return;
+    if (!target) { return; }
 
     const { action } = target.dataset;
-    if (!action) return;
+    if (!action) { return; }
 
     event.stopPropagation();
 
