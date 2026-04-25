@@ -114,12 +114,6 @@ export default [
     },
   },
   {
-    files: ['js/chart.js'],
-    rules: {
-      'max-lines': ['error', { max: 1200 }],
-    },
-  },
-  {
     // Test files
     files: ['js/**/*.test.js'],
     languageOptions: {

@@ -38,6 +38,7 @@ import {
   getPendingSelection, getAnomalyAtX, getTimeAtX, getXAtTime, formatScrubberTime, formatDuration,
   zoomToAnomalyByRank, getShipNearX, hexToRgba, parseUTC,
 } from './chart-state.js';
+import { setupTwoFingerTouchSelection } from './chart-touch-selection.js';
 
 // Re-export state functions for external use
 export {
@@ -752,145 +753,27 @@ export function setupChartNavigation(callback) {
     }
   }
 
-  // Two-finger horizontal drag on canvas (Stocks-style) — only touch gesture on the chart.
-  let twoFingerRangeActive = false;
-  let twoFingerMinX = 0;
-  let twoFingerMaxX = 0;
-  let twoFingerDocsAbort = null;
-
-  function teardownTwoFingerDocListeners() {
-    twoFingerDocsAbort?.abort();
-    twoFingerDocsAbort = null;
-    canvas.classList.remove('chart-two-finger-range');
-  }
-
-  function twoFingerCanvasXs(touchList) {
-    const rect = canvas.getBoundingClientRect();
-    const t0 = touchList[0];
-    const t1 = touchList[1];
-    return [t0.clientX - rect.left, t1.clientX - rect.left];
-  }
-
-  const onTwoFingerTouchMove = (e) => {
-    if (!twoFingerRangeActive) {
-      return;
-    }
-    // Keep default suppressed for the whole capture (including when one finger lifts first).
-    if (e.touches.length < 2) {
-      e.preventDefault();
-      return;
-    }
-    const xs = twoFingerCanvasXs(e.touches);
-    const minX = Math.min(xs[0], xs[1]);
-    const maxX = Math.max(xs[0], xs[1]);
-    twoFingerMinX = minX;
-    twoFingerMaxX = maxX;
-    const chartLayout = getChartLayout();
-    const rect = canvas.getBoundingClientRect();
-    const c0 = clampChartContentX(minX, chartLayout, rect.width);
-    const c1 = clampChartContentX(maxX, chartLayout, rect.width);
-    if (Math.abs(c1 - c0) >= minDragDistance) {
-      isDragging = true;
-      container.classList.add('dragging');
-      updateSelectionOverlay(c0, c1);
-      scrubberLine.classList.remove('visible');
-      const selStartTime = getTimeAtX(Math.min(c0, c1));
-      const selEndTime = getTimeAtX(Math.max(c0, c1));
-      if (selStartTime && selEndTime) {
-        updateSelectionStatusBar(selStartTime, selEndTime);
-      }
-    }
-    e.preventDefault();
-  };
-
-  const onTwoFingerTouchEnd = (e) => {
-    if (!twoFingerRangeActive) {
-      return;
-    }
-    if (e.touches.length >= 2) {
-      return;
-    }
-    teardownTwoFingerDocListeners();
-    twoFingerRangeActive = false;
-    const wasDragging = isDragging;
-    const chartLayout = getChartLayout();
-    const rect = canvas.getBoundingClientRect();
-    const c0 = clampChartContentX(
-      Math.min(twoFingerMinX, twoFingerMaxX),
-      chartLayout,
-      rect.width,
-    );
-    const c1 = clampChartContentX(
-      Math.max(twoFingerMinX, twoFingerMaxX),
-      chartLayout,
-      rect.width,
-    );
-    isDragging = false;
-    container.classList.remove('dragging');
-
-    if (!wasDragging && Math.abs(c1 - c0) < minDragDistance) {
-      hideSelectionOverlay();
-      return;
-    }
-    applyPendingRangeFromCanvasSpan(c0, c1);
-  };
-
-  canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 2) {
-      return;
-    }
-    if (twoFingerRangeActive) {
-      teardownTwoFingerDocListeners();
-      twoFingerRangeActive = false;
-    }
-    const xs = twoFingerCanvasXs(e.touches);
-    const minX = Math.min(xs[0], xs[1]);
-    const maxX = Math.max(xs[0], xs[1]);
-    if (getAnomalyAtX(minX)) {
-      return;
-    }
-    if (getPendingSelection()) {
-      hideSelectionOverlay();
-    }
-    dragStartX = null;
-    twoFingerRangeActive = true;
-    canvas.classList.add('chart-two-finger-range');
-    twoFingerMinX = minX;
-    twoFingerMaxX = maxX;
-    isDragging = Math.abs(maxX - minX) >= minDragDistance;
-    if (isDragging) {
-      container.classList.add('dragging');
-      const chartLayout = getChartLayout();
-      const rect = canvas.getBoundingClientRect();
-      const c0 = clampChartContentX(minX, chartLayout, rect.width);
-      const c1 = clampChartContentX(maxX, chartLayout, rect.width);
-      updateSelectionOverlay(c0, c1);
-      scrubberLine.classList.remove('visible');
-      const selStartTime = getTimeAtX(Math.min(c0, c1));
-      const selEndTime = getTimeAtX(Math.max(c0, c1));
-      if (selStartTime && selEndTime) {
-        updateSelectionStatusBar(selStartTime, selEndTime);
-      }
-    }
-    twoFingerDocsAbort = new AbortController();
-    const { signal } = twoFingerDocsAbort;
-    document.addEventListener('touchmove', onTwoFingerTouchMove, { passive: false, signal });
-    document.addEventListener('touchend', onTwoFingerTouchEnd, { signal });
-    document.addEventListener('touchcancel', onTwoFingerTouchEnd, { signal });
-    e.preventDefault();
-  }, { passive: false });
-
-  // WebKit (iOS Safari): pinch-zoom may use gesture* in addition to touch defaults.
-  ['gesturestart', 'gesturechange'].forEach((type) => {
-    canvas.addEventListener(
-      type,
-      (e) => {
-        if (canvas.classList.contains('chart-two-finger-range')) {
-          e.preventDefault();
-        }
-      },
-      { passive: false },
-    );
+  setupTwoFingerTouchSelection({
+    canvas,
+    container,
+    minDragDistance,
+    getPendingSelection,
+    hideSelectionOverlay,
+    getAnomalyAtX,
+    getChartLayout,
+    getTimeAtX,
+    updateSelectionOverlay,
+    updateSelectionStatusBar,
+    clampChartContentX,
+    applyPendingRangeFromCanvasSpan,
+    setDragStartX: (x) => {
+      dragStartX = x;
+    },
+    getIsDragging: () => isDragging,
+    setIsDragging: (dragging) => {
+      isDragging = dragging;
+    },
+    scrubberLine,
   });
 
   // Start drag tracking from a mouse event (works for canvas and nav zones)
