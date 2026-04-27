@@ -27,6 +27,8 @@ export function setupTwoFingerTouchSelection({
   updateSelectionStatusBar,
   clampChartContentX,
   applyPendingRangeFromCanvasSpan,
+  updateSnappedLiveSelection,
+  showSelectionDragStartHint,
   setDragStartX,
   getIsDragging,
   setIsDragging,
@@ -71,12 +73,16 @@ export function setupTwoFingerTouchSelection({
     if (Math.abs(c1 - c0) >= minDragDistance) {
       setIsDragging(true);
       container.classList.add('dragging');
-      updateSelectionOverlay(c0, c1);
       scrubberLine.classList.remove('visible');
-      const selStartTime = getTimeAtX(Math.min(c0, c1));
-      const selEndTime = getTimeAtX(Math.max(c0, c1));
-      if (selStartTime && selEndTime) {
-        updateSelectionStatusBar(selStartTime, selEndTime);
+      if (updateSnappedLiveSelection) {
+        updateSnappedLiveSelection(c0, c1);
+      } else {
+        updateSelectionOverlay(c0, c1);
+        const selStartTime = getTimeAtX(Math.min(c0, c1));
+        const selEndTime = getTimeAtX(Math.max(c0, c1));
+        if (selStartTime && selEndTime) {
+          updateSelectionStatusBar(selStartTime, selEndTime);
+        }
       }
     }
     e.preventDefault();
@@ -137,19 +143,26 @@ export function setupTwoFingerTouchSelection({
     twoFingerMinX = minX;
     twoFingerMaxX = maxX;
     setIsDragging(Math.abs(maxX - minX) >= minDragDistance);
+    const chartLayout = getChartLayout();
+    const rect = canvas.getBoundingClientRect();
+    const c0 = clampChartContentX(minX, chartLayout, rect.width);
+    const c1 = clampChartContentX(maxX, chartLayout, rect.width);
     if (getIsDragging()) {
       container.classList.add('dragging');
-      const chartLayout = getChartLayout();
-      const rect = canvas.getBoundingClientRect();
-      const c0 = clampChartContentX(minX, chartLayout, rect.width);
-      const c1 = clampChartContentX(maxX, chartLayout, rect.width);
-      updateSelectionOverlay(c0, c1);
       scrubberLine.classList.remove('visible');
-      const selStartTime = getTimeAtX(Math.min(c0, c1));
-      const selEndTime = getTimeAtX(Math.max(c0, c1));
-      if (selStartTime && selEndTime) {
-        updateSelectionStatusBar(selStartTime, selEndTime);
+      if (updateSnappedLiveSelection) {
+        updateSnappedLiveSelection(c0, c1);
+      } else {
+        updateSelectionOverlay(c0, c1);
+        const selStartTime = getTimeAtX(Math.min(c0, c1));
+        const selEndTime = getTimeAtX(Math.max(c0, c1));
+        if (selStartTime && selEndTime) {
+          updateSelectionStatusBar(selStartTime, selEndTime);
+        }
       }
+    } else if (showSelectionDragStartHint) {
+      scrubberLine.classList.remove('visible');
+      showSelectionDragStartHint((c0 + c1) / 2);
     }
     twoFingerDocsAbort = new AbortController();
     const { signal } = twoFingerDocsAbort;

@@ -10,6 +10,10 @@
  * governing permissions and limitations under the License.
  */
 import { TIME_RANGES, TIME_RANGE_ORDER, TOP_N_OPTIONS } from '../constants.js';
+import { state } from '../state.js';
+import { customTimeRange, formatHumanReadableDurationMs } from '../time.js';
+
+const CUSTOM_TIME_RANGE_VALUE = 'custom';
 
 /**
  * Populate time range select options from constants.
@@ -65,4 +69,25 @@ export function updateTimeRangeLabels(select) {
     if (!option) { return; }
     option.textContent = isMobile ? TIME_RANGES[key].shortLabel : TIME_RANGES[key].label;
   });
+}
+
+/**
+ * Sync the time range select value and the custom option label (duration vs "Custom").
+ * @param {HTMLSelectElement} selectEl
+ */
+export function syncTimeRangeSelectDisplay(selectEl) {
+  if (!selectEl) { return; }
+  const select = selectEl;
+  const customOpt = select.querySelector(`option[value="${CUSTOM_TIME_RANGE_VALUE}"]`);
+  if (!customOpt) { return; }
+
+  const ctr = customTimeRange();
+  if (ctr) {
+    select.value = CUSTOM_TIME_RANGE_VALUE;
+    const ms = ctr.end.getTime() - ctr.start.getTime();
+    customOpt.textContent = formatHumanReadableDurationMs(ms);
+  } else {
+    customOpt.textContent = 'Custom';
+    select.value = state.timeRange;
+  }
 }

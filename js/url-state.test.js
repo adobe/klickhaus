@@ -753,6 +753,8 @@ describe('syncUIFromState', () => {
     state.timeRange = '24h';
     syncUIFromState();
     assert.strictEqual(mockElements.timeRangeSelect.value, '24h');
+    const customOpt = mockElements.timeRangeSelect.querySelector('option[value="custom"]');
+    assert.strictEqual(customOpt.textContent, 'Custom');
   });
 
   it('syncs time range dropdown to custom when custom range is active', () => {
@@ -762,6 +764,8 @@ describe('syncUIFromState', () => {
     );
     syncUIFromState();
     assert.strictEqual(mockElements.timeRangeSelect.value, 'custom');
+    const customOpt = mockElements.timeRangeSelect.querySelector('option[value="custom"]');
+    assert.strictEqual(customOpt.textContent, '1h');
   });
 
   it('syncs topN dropdown', () => {

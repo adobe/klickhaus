@@ -391,9 +391,11 @@ export function calcStatusBarLeft(x, statusWidth, innerWidth, chartWidth, pad = 
 /**
  * Format time for scrubber display
  * @param {Date} time - Time to format
+ * @param {{ omitSeconds?: boolean }} [options] - omitSeconds: short-range times without :ss
  * @returns {Object} Formatted time { timeStr, relativeStr }
  */
-export function formatScrubberTime(time) {
+export function formatScrubberTime(time, options = {}) {
+  const omitSeconds = options.omitSeconds === true;
   const now = new Date();
   const diffMs = now - time;
   const diffMinutes = Math.floor(diffMs / 60000);
@@ -404,13 +406,18 @@ export function formatScrubberTime(time) {
   const longRange = layout
     ? (layout.intendedEndTime - layout.intendedStartTime) > 24 * 60 * 60 * 1000
     : diffHours > 24;
+  const shortTimeOpts = omitSeconds
+    ? {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
+    }
+    : {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'UTC',
+    };
   const timeStr = longRange
     ? `${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${time.toLocaleTimeString('en-US', {
       hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
     })}`
-    : time.toLocaleTimeString('en-US', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'UTC',
-    });
+    : time.toLocaleTimeString('en-US', shortTimeOpts);
 
   // Add relative time if < 120 minutes ago
   let relativeStr = '';
@@ -427,16 +434,46 @@ export function formatScrubberTime(time) {
   return { timeStr, relativeStr };
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+
 /**
- * Format anomaly duration
+ * Format a span as whole days, hours, and minutes (omits zero middle/end units where natural).
+ * @param {number} durationMs
+ * @returns {string}
+ */
+function formatDurationDayHourMinute(durationMs) {
+  let remMin = Math.max(0, Math.floor(durationMs / MINUTE_MS));
+  const days = Math.floor(remMin / (24 * 60));
+  remMin %= 24 * 60;
+  const hours = Math.floor(remMin / 60);
+  const minutes = remMin % 60;
+  const parts = [];
+  if (days > 0) {
+    parts.push(`${days}d`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0 || parts.length === 0) {
+    parts.push(`${minutes}m`);
+  }
+  return parts.join(' ');
+}
+
+/**
+ * Format a time span for scrubber / selection (compact under 1h; day+hour+minute when ≥ 1h).
  * @param {Date} startTime - Start time
  * @param {Date} endTime - End time
  * @returns {string} Formatted duration
  */
 export function formatDuration(startTime, endTime) {
   const durationMs = endTime - startTime;
-  const minutes = Math.floor(durationMs / 60000);
-  const seconds = Math.floor((durationMs % 60000) / 1000);
+  if (durationMs >= HOUR_MS) {
+    return formatDurationDayHourMinute(durationMs);
+  }
+  const minutes = Math.floor(durationMs / MINUTE_MS);
+  const seconds = Math.floor((durationMs % MINUTE_MS) / 1000);
   if (minutes === 0) { return `${seconds}s`; }
   if (seconds === 0) { return `${minutes}m`; }
   return `${minutes}m ${seconds}s`;

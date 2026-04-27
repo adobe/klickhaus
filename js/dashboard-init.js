@@ -21,7 +21,7 @@ import {
   setOnStateRestored, setOnBeforeRestore,
 } from './url-state.js';
 import {
-  queryTimestamp, setQueryTimestamp, clearCustomTimeRange, isCustomTimeRange,
+  queryTimestamp, setQueryTimestamp, clearCustomTimeRange,
   getTimeFilter, getHostFilter,
 } from './time.js';
 import {
@@ -59,7 +59,9 @@ import {
   investigateAnomalies, reapplyHighlightsIfCached,
   hasCachedInvestigation, invalidateInvestigationCache,
 } from './anomaly-investigation.js';
-import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
+import {
+  populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels, syncTimeRangeSelectDisplay,
+} from './ui/selects.js';
 import {
   initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
 } from './ui/mobile.js';
@@ -200,12 +202,7 @@ export function initDashboard(config = {}) {
     }
     saveStateToURL();
 
-    // Sync time range dropdown with current state (custom zoom vs preset)
-    if (isCustomTimeRange()) {
-      elements.timeRangeSelect.value = 'custom';
-    } else {
-      elements.timeRangeSelect.value = state.timeRange;
-    }
+    syncTimeRangeSelectDisplay(elements.timeRangeSelect);
     updateTimeRangeHint();
 
     startQueryTimer();
