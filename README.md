@@ -38,7 +38,7 @@ Fastly ──────► gs://helix-logs/fastly/ ──────┘      
                                                   + delivery_errors
 ```
 
-The ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inserts into four ClickHouse tables. Source: [helix-gcs2clickhouse-ingestor](https://github.com/adobe/helix-gcs2clickhouse-ingestor).
+The ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inserts into four ClickHouse tables. Source: [helix-gcs2clickhouse-ingestor](https://github.com/adobe/helix-gcs2clickhouse-ingestor). A separate `da` table captures Document Authoring traffic and powers the DA dashboard.
 
 ## Usage
 
@@ -61,6 +61,10 @@ Open [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/) (fallback: [mai
 `backend.html` — queries the `backend` table, which contains logs from:
 - **Fastly**: `config.aem.page`, `config.aem-fastly.page`, `pipeline.aem.page`, `pipeline.aem-fastly.page`, `static.aem.page`, `static.aem-fastly.page`, `media.aem.page`, `media.aem-fastly.page`
 - **Cloudflare**: `config.aem.page`, `config.aem-cloudflare.page`
+
+### DA Dashboard
+
+`da.html` — queries the `da` table, which contains Cloudflare-delivered Document Authoring traffic (`*.da.live`, `docs.da.live`, etc.). Tailored facet set: adds `cdn.script_name` (Worker script) and omits the Fastly-only / Helix routing facets that don't apply.
 
 ### Copy Facet Data
 
@@ -125,7 +129,7 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users receive read-only `SELECT` access to the analytics tables (`delivery`, `delivery_errors`, `admin`, `backend`).
+New users receive read-only `SELECT` access to the analytics tables (`delivery`, `delivery_errors`, `admin`, `backend`, `da`).
 
 ## Local Development
 
