@@ -10,6 +10,8 @@
  * governing permissions and limitations under the License.
  */
 
+/* eslint-disable max-lines -- canvas rendering and chart interaction share one module */
+
 /** UI plane for chart - rendering and event handling. State management in chart-state.js. */
 
 import { query, isAbortError } from './api.js';
@@ -24,6 +26,7 @@ import { detectSteps } from './step-detection.js';
 import {
   getHostFilter, getTable, getTimeBucket, getTimeBucketStep, getTimeFilter,
   setCustomTimeRange, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
+  snapSelectionToMinuteBounds,
 } from './time.js';
 import { loadSql } from './sql-loader.js';
 import { saveStateToURL } from './url-state.js';
@@ -588,8 +591,8 @@ export function setupChartNavigation(callback) {
 
   // Show selection time range in status bar, centered between selection edges
   function updateSelectionStatusBar(startTime, endTime) {
-    const startFmt = formatScrubberTime(startTime);
-    const endFmt = formatScrubberTime(endTime);
+    const startFmt = formatScrubberTime(startTime, { omitSeconds: true });
+    const endFmt = formatScrubberTime(endTime, { omitSeconds: true });
     const dur = formatDuration(startTime, endTime);
     const row = `<span class="scrubber-time">${startFmt.timeStr}</span>`
       + '<span class="scrubber-selection-arrow">\u2192</span>'
@@ -606,6 +609,45 @@ export function setupChartNavigation(callback) {
     scrubberStatusBar.classList.add('visible');
   }
 
+  /** Mousedown / narrow two-finger span: prompt before the band qualifies */
+  function showSelectionDragStartHint(anchorX) {
+    const promptRow = '<div class="chart-scrubber-status-row scrubber-selection-prompt">Drag to select a time range</div>';
+    scrubberStatusBar.innerHTML = `<div class="chart-scrubber-status-inner">${promptRow}</div>`;
+    const inner = scrubberStatusBar.querySelector('.chart-scrubber-status-inner');
+    if (inner) {
+      positionScrubberInner(inner, anchorX, scrubberStatusBar.offsetWidth);
+    }
+    scrubberStatusBar.classList.add('visible');
+  }
+
+  /**
+   * Pending selection, pre-drag hint, or active drag: update status (and line for pending only).
+   * @returns {boolean} true if normal hover scrubber should not run
+   */
+  function updateScrubberForSelectionOrDrag(x, chartLayout, padding, height) {
+    const pendingSel = getPendingSelection();
+    if (pendingSel) {
+      scrubberLine.style.left = `${x}px`;
+      scrubberLine.style.top = `${padding.top}px`;
+      scrubberLine.style.height = `${height - padding.top - padding.bottom}px`;
+      updateSelectionStatusBar(pendingSel.startTime, pendingSel.endTime);
+      return true;
+    }
+    if (dragStartX !== null && !isDragging) {
+      const rectWidth = canvas.getBoundingClientRect().width;
+      const padL = chartLayout?.padding?.left || 0;
+      const padR = chartLayout?.padding?.right || 0;
+      const contentW = chartLayout?.width || rectWidth;
+      const anchor = Math.max(padL, Math.min(dragStartX, contentW - padR));
+      showSelectionDragStartHint(anchor);
+      return true;
+    }
+    if (dragStartX !== null && isDragging) {
+      return true;
+    }
+    return false;
+  }
+
   // Update scrubber position and content
   function updateScrubber(x, _) {
     const chartLayout = getChartLayout();
@@ -615,17 +657,14 @@ export function setupChartNavigation(callback) {
 
     const { padding, height } = chartLayout;
 
-    // Position the scrubber line
+    if (updateScrubberForSelectionOrDrag(x, chartLayout, padding, height)) {
+      return;
+    }
+
+    // Position the scrubber line (normal hover only)
     scrubberLine.style.left = `${x}px`;
     scrubberLine.style.top = `${padding.top}px`;
     scrubberLine.style.height = `${height - padding.top - padding.bottom}px`;
-
-    // If there's a confirmed selection, show selection times instead
-    const pendingSel = getPendingSelection();
-    if (pendingSel) {
-      updateSelectionStatusBar(pendingSel.startTime, pendingSel.endTime);
-      return;
-    }
 
     // Get time at position
     const time = getTimeAtX(x);
@@ -715,33 +754,69 @@ export function setupChartNavigation(callback) {
   }
 
   /**
-   * Commit blue band + preview for a horizontal span in canvas coordinates (mouse or touch).
+   * Raw canvas X span → minute-snapped times and overlay X positions.
+   * @returns {null | { start: Date, end: Date, xLeft: number, xRight: number }}
    */
-  function applyPendingRangeFromCanvasSpan(rawA, rawB) {
+  function snappedSelectionFromCanvasSpan(rawA, rawB) {
     const chartLayout = getChartLayout();
     const rect = canvas.getBoundingClientRect();
     const s0 = clampChartContentX(Math.min(rawA, rawB), chartLayout, rect.width);
     const s1 = clampChartContentX(Math.max(rawA, rawB), chartLayout, rect.width);
-    const startTime = getTimeAtX(s0);
-    const endTime = getTimeAtX(s1);
-    if (startTime && endTime && startTime < endTime) {
-      setPendingSelection({ startTime, endTime });
-      selectionOverlay.classList.add('confirmed');
-      updateSelectionStatusBar(startTime, endTime);
-      justCompletedDrag = true;
-      requestAnimationFrame(() => {
-        justCompletedDrag = false;
-      });
-      const lastData = getLastChartData();
-      if (lastData) {
-        requestAnimationFrame(() => {
-          renderChart(lastData);
-        });
-      }
-      loadPreviewBreakdowns(startTime, endTime);
-    } else {
-      hideSelectionOverlay();
+    const rawStart = getTimeAtX(s0);
+    const rawEnd = getTimeAtX(s1);
+    if (!rawStart || !rawEnd || rawStart >= rawEnd) {
+      return null;
     }
+    const { start, end } = snapSelectionToMinuteBounds(rawStart, rawEnd);
+    let xLeft = clampChartContentX(getXAtTime(start), chartLayout, rect.width);
+    let xRight = clampChartContentX(getXAtTime(end), chartLayout, rect.width);
+    if (xLeft > xRight) {
+      const tmp = xLeft;
+      xLeft = xRight;
+      xRight = tmp;
+    }
+    return {
+      start, end, xLeft, xRight,
+    };
+  }
+
+  function updateSnappedLiveSelection(rawA, rawB) {
+    const sn = snappedSelectionFromCanvasSpan(rawA, rawB);
+    if (!sn) {
+      return false;
+    }
+    updateSelectionOverlay(sn.xLeft, sn.xRight);
+    updateSelectionStatusBar(sn.start, sn.end);
+    return true;
+  }
+
+  /**
+   * Commit blue band + preview for a horizontal span in canvas coordinates (mouse or touch).
+   */
+  function applyPendingRangeFromCanvasSpan(rawA, rawB) {
+    const sn = snappedSelectionFromCanvasSpan(rawA, rawB);
+    if (!sn) {
+      hideSelectionOverlay();
+      return;
+    }
+    const {
+      start, end, xLeft, xRight,
+    } = sn;
+    setPendingSelection({ startTime: start, endTime: end });
+    selectionOverlay.classList.add('confirmed');
+    updateSelectionOverlay(xLeft, xRight);
+    updateSelectionStatusBar(start, end);
+    justCompletedDrag = true;
+    requestAnimationFrame(() => {
+      justCompletedDrag = false;
+    });
+    const lastData = getLastChartData();
+    if (lastData) {
+      requestAnimationFrame(() => {
+        renderChart(lastData);
+      });
+    }
+    loadPreviewBreakdowns(start, end);
   }
 
   setupTwoFingerTouchSelection({
@@ -757,6 +832,8 @@ export function setupChartNavigation(callback) {
     updateSelectionStatusBar,
     clampChartContentX,
     applyPendingRangeFromCanvasSpan,
+    updateSnappedLiveSelection,
+    showSelectionDragStartHint,
     setDragStartX: (x) => {
       dragStartX = x;
     },
@@ -793,6 +870,11 @@ export function setupChartNavigation(callback) {
     isDragging = false;
     dragStartX = x;
 
+    const chartLayout = getChartLayout();
+    const anchorX = clampChartContentX(x, chartLayout, rect.width);
+    scrubberLine.classList.remove('visible');
+    showSelectionDragStartHint(anchorX);
+
     // Hide scrubber during potential drag
     e.preventDefault();
   }
@@ -822,15 +904,9 @@ export function setupChartNavigation(callback) {
         chartLayout?.padding?.left || 0,
         Math.min(x, (chartLayout?.width || rect.width) - (chartLayout?.padding?.right || 0)),
       );
-      updateSelectionOverlay(dragStartX, clampedX);
-
-      // Hide scrubber line but show selection times in status bar
+      // Hide scrubber line; overlay + status use minute-snapped range
       scrubberLine.classList.remove('visible');
-      const selStartTime = getTimeAtX(Math.min(dragStartX, clampedX));
-      const selEndTime = getTimeAtX(Math.max(dragStartX, clampedX));
-      if (selStartTime && selEndTime) {
-        updateSelectionStatusBar(selStartTime, selEndTime);
-      }
+      updateSnappedLiveSelection(dragStartX, clampedX);
     }
   });
 

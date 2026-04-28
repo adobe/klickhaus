@@ -189,6 +189,12 @@
   color: rgba(59, 130, 246, 0.9);
 }
 
+.scrubber-selection-prompt {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
 @media (prefers-color-scheme: dark) {
   .scrubber-value-ok {
     background: rgba(63, 185, 80, 0.15);
