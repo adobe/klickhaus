@@ -33,7 +33,6 @@ import { saveStateToURL } from './url-state.js';
 import {
   getReleasesInRange, renderReleaseShips, getShipAtPoint, showReleaseTooltip, hideReleaseTooltip,
 } from './releases.js';
-import { investigateTimeRange, clearSelectionHighlights } from './anomaly-investigation.js';
 import {
   setNavigationCallback, getNavigationCallback, navigateTime, setChartLayout, getChartLayout,
   setLastChartData, getLastChartData, getDataAtTime, addAnomalyBounds, resetAnomalyBounds,
@@ -463,8 +462,6 @@ export function setupChartNavigation(callback) {
     selectionOverlay.classList.remove('visible');
     selectionOverlay.classList.remove('confirmed');
     setPendingSelection(null);
-    // Clear blue highlights when selection is cleared
-    clearSelectionHighlights();
     // Revert facets to full time range
     if (isPreviewActive()) {
       revertPreviewBreakdowns();
@@ -818,12 +815,6 @@ export function setupChartNavigation(callback) {
       requestAnimationFrame(() => {
         renderChart(lastData);
       });
-    }
-    const chartData = getLastChartData();
-    if (chartData && chartData.length >= 2) {
-      const fullStart = parseUTC(chartData[0].t);
-      const fullEnd = parseUTC(chartData[chartData.length - 1].t);
-      investigateTimeRange(start, end, fullStart, fullEnd);
     }
     loadPreviewBreakdowns(start, end);
   }
