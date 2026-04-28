@@ -17,7 +17,7 @@ import {
   getTimeFilter, getTimeBucket, getTimeBucketStep, getPeriodMs,
   getInterval, getTimeRangeBounds, getTimeRangeStart, getTimeRangeEnd,
   getTable, getLogsTable, getHostFilter,
-  getFacetTimeFilter, zoomOut,
+  getFacetTimeFilter, zoomOut, formatHumanReadableDurationMs, snapSelectionToMinuteBounds,
 } from './time.js';
 
 beforeEach(() => {
@@ -27,6 +27,45 @@ beforeEach(() => {
   state.hostFilterColumn = null;
   state.tableName = null;
   setQueryTimestamp(new Date('2026-01-20T12:34:56Z'));
+});
+
+describe('snapSelectionToMinuteBounds', () => {
+  it('floors start and ceils end to whole minutes', () => {
+    const a = new Date('2026-01-20T14:34:15Z');
+    const b = new Date('2026-01-20T15:26:37Z');
+    const { start, end } = snapSelectionToMinuteBounds(a, b);
+    assert.strictEqual(start.toISOString(), '2026-01-20T14:34:00.000Z');
+    assert.strictEqual(end.toISOString(), '2026-01-20T15:27:00.000Z');
+  });
+
+  it('expands to at least three minutes on minute grid when span is short', () => {
+    const a = new Date('2026-01-20T12:00:10Z');
+    const b = new Date('2026-01-20T12:01:20Z');
+    const { start, end } = snapSelectionToMinuteBounds(a, b);
+    assert.strictEqual(start.toISOString(), '2026-01-20T11:59:00.000Z');
+    assert.strictEqual(end.toISOString(), '2026-01-20T12:03:00.000Z');
+    assert.strictEqual(end.getTime() - start.getTime(), 4 * 60 * 1000);
+  });
+});
+
+describe('formatHumanReadableDurationMs', () => {
+  it('uses days and hours when at least one day', () => {
+    assert.strictEqual(formatHumanReadableDurationMs(28 * 60 * 60 * 1000), '1d 4h');
+    assert.strictEqual(formatHumanReadableDurationMs(24 * 60 * 60 * 1000), '1d');
+    assert.strictEqual(formatHumanReadableDurationMs(25 * 60 * 60 * 1000), '1d 1h');
+  });
+
+  it('uses hours and minutes when under one day and at least one hour', () => {
+    assert.strictEqual(formatHumanReadableDurationMs((10 * 60 + 5) * 60 * 1000), '10h 5m');
+    assert.strictEqual(formatHumanReadableDurationMs(10 * 60 * 60 * 1000), '10h');
+  });
+
+  it('uses minutes and seconds when under one hour', () => {
+    assert.strictEqual(formatHumanReadableDurationMs((12 * 60 + 3) * 1000), '12m 3s');
+    assert.strictEqual(formatHumanReadableDurationMs(12 * 60 * 1000), '12m');
+    assert.strictEqual(formatHumanReadableDurationMs(45 * 1000), '45s');
+    assert.strictEqual(formatHumanReadableDurationMs(0), '0s');
+  });
 });
 
 describe('time helpers', () => {
@@ -43,7 +82,7 @@ describe('time helpers', () => {
 
     const filter = getTimeFilter();
     assert.ok(filter.includes('2026-01-20 11:59:00'));
-    assert.ok(filter.includes('2026-01-20 12:02:00'));
+    assert.ok(filter.includes('2026-01-20 12:03:00'));
   });
 
   it('uses expected bucket for short custom range', () => {
@@ -68,7 +107,7 @@ describe('time helpers', () => {
     setCustomTimeRange(start, end);
     const bounds = getTimeRangeBounds();
     assert.strictEqual(bounds.start.toISOString(), '2026-01-20T11:59:00.000Z');
-    assert.strictEqual(bounds.end.toISOString(), '2026-01-20T12:02:55.000Z');
+    assert.strictEqual(bounds.end.toISOString(), '2026-01-20T12:03:55.000Z');
   });
 
   it('returns correct period in ms for current range', () => {

@@ -323,6 +323,24 @@ describe('formatDuration', () => {
     const end = new Date('2025-01-01T00:02:30Z');
     assert.strictEqual(formatDuration(start, end), '2m 30s');
   });
+
+  it('formats one hour or more as hours and minutes', () => {
+    const start = new Date('2025-01-01T00:00:00Z');
+    const end = new Date('2025-01-01T01:30:00Z');
+    assert.strictEqual(formatDuration(start, end), '1h 30m');
+  });
+
+  it('formats one hour with no extra minutes', () => {
+    const start = new Date('2025-01-01T12:00:00Z');
+    const end = new Date('2025-01-01T13:00:00Z');
+    assert.strictEqual(formatDuration(start, end), '1h');
+  });
+
+  it('formats multi-day spans as days hours minutes', () => {
+    const start = new Date('2025-04-22T06:58:00Z');
+    const end = new Date('2025-04-25T02:20:00Z');
+    assert.strictEqual(formatDuration(start, end), '2d 19h 22m');
+  });
 });
 
 describe('formatScrubberTime', () => {
@@ -343,6 +361,20 @@ describe('formatScrubberTime', () => {
     const old = new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 hours ago
     const result = formatScrubberTime(old);
     assert.strictEqual(result.relativeStr, '');
+  });
+
+  it('omitSeconds hides seconds in short-range UTC time string', () => {
+    setChartLayout({
+      padding: { left: 0, right: 0 },
+      width: 800,
+      intendedStartTime: new Date('2025-06-15T00:00:00Z').getTime(),
+      intendedEndTime: new Date('2025-06-15T12:00:00Z').getTime(),
+    });
+    const t = new Date('2025-06-15T14:05:07Z');
+    const result = formatScrubberTime(t, { omitSeconds: true });
+    assert.notInclude(result.timeStr, ':07');
+    assert.include(result.timeStr, '14:05');
+    setChartLayout(null);
   });
 });
 

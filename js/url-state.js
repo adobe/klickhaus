@@ -18,6 +18,7 @@ import {
   DEFAULT_TIME_RANGE, DEFAULT_TOP_N, TIME_RANGES, TOP_N_OPTIONS,
 } from './constants.js';
 import { isValidFilterColumn, isValidFilterOp } from './filter-sql.js';
+import { syncTimeRangeSelectDisplay } from './ui/selects.js';
 
 // DOM elements (set by main.js)
 let elements = {};
@@ -202,12 +203,7 @@ export function loadStateFromURL() {
 }
 
 export function syncUIFromState() {
-  // Show "Custom" in dropdown when in custom time range, otherwise show predefined
-  if (customTimeRange()) {
-    elements.timeRangeSelect.value = 'custom';
-  } else {
-    elements.timeRangeSelect.value = state.timeRange;
-  }
+  syncTimeRangeSelectDisplay(elements.timeRangeSelect);
   elements.topNSelect.value = state.topN;
   document.body.dataset.topn = state.topN;
   elements.hostFilterInput.value = state.hostFilter;

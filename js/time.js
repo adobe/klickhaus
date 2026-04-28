@@ -125,24 +125,36 @@ export function setQueryTimestamp(ts) {
   timeState.queryTimestamp = ts;
 }
 
-export function setCustomTimeRange(start, end) {
-  // Round to full minutes for projection compatibility
-  const roundedStart = new Date(Math.floor(start.getTime() / 60000) * 60000);
-  const roundedEnd = new Date(Math.ceil(end.getTime() / 60000) * 60000);
-
-  // Enforce minimum 3-minute window
-  const minDuration = 3 * 60 * 1000;
-  const duration = roundedEnd - roundedStart;
-  if (duration < minDuration) {
-    const midpoint = (roundedStart.getTime() + roundedEnd.getTime()) / 2;
-    timeState.customTimeRange = {
-      start: new Date(midpoint - minDuration / 2),
-      end: new Date(midpoint + minDuration / 2),
-    };
-  } else {
-    timeState.customTimeRange = { start: roundedStart, end: roundedEnd };
+/**
+ * Snap a drag span to UTC minute boundaries with at least a 3-minute window.
+ * Used by the chart selection band and by setCustomTimeRange.
+ * @param {Date} start
+ * @param {Date} end
+ * @returns {{ start: Date, end: Date }}
+ */
+export function snapSelectionToMinuteBounds(start, end) {
+  const minSelectionMs = 3 * MINUTE_MS;
+  const tLo = Math.min(start.getTime(), end.getTime());
+  const tHi = Math.max(start.getTime(), end.getTime());
+  let s = Math.floor(tLo / MINUTE_MS) * MINUTE_MS;
+  let e = Math.ceil(tHi / MINUTE_MS) * MINUTE_MS;
+  if (e <= s) {
+    e = s + MINUTE_MS;
   }
-  // Set query timestamp to end of range
+  if (e - s < minSelectionMs) {
+    const mid = (s + e) / 2;
+    s = Math.floor((mid - minSelectionMs / 2) / MINUTE_MS) * MINUTE_MS;
+    e = Math.ceil((mid + minSelectionMs / 2) / MINUTE_MS) * MINUTE_MS;
+    if (e - s < minSelectionMs) {
+      e = s + minSelectionMs;
+    }
+  }
+  return { start: new Date(s), end: new Date(e) };
+}
+
+export function setCustomTimeRange(start, end) {
+  const snapped = snapSelectionToMinuteBounds(start, end);
+  timeState.customTimeRange = { start: snapped.start, end: snapped.end };
   timeState.queryTimestamp = timeState.customTimeRange.end;
 }
 
@@ -156,6 +168,41 @@ export function isCustomTimeRange() {
 
 export function getCustomTimeRange() {
   return timeState.customTimeRange;
+}
+
+const DURATION_DAY_SEC = 86400;
+const DURATION_HOUR_SEC = 3600;
+const DURATION_MIN_SEC = 60;
+
+/**
+ * Format a span as two adjacent units: d+h, h+m, or m+s (omit a part when it is zero).
+ * @param {number} durationMs
+ * @returns {string}
+ */
+export function formatHumanReadableDurationMs(durationMs) {
+  const totalSec = Math.max(0, Math.floor(durationMs / 1000));
+
+  if (totalSec >= DURATION_DAY_SEC) {
+    const d = Math.floor(totalSec / DURATION_DAY_SEC);
+    const h = Math.floor((totalSec % DURATION_DAY_SEC) / DURATION_HOUR_SEC);
+    return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  }
+
+  if (totalSec >= DURATION_HOUR_SEC) {
+    const h = Math.floor(totalSec / DURATION_HOUR_SEC);
+    const m = Math.floor((totalSec % DURATION_HOUR_SEC) / DURATION_MIN_SEC);
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  const m = Math.floor(totalSec / DURATION_MIN_SEC);
+  const s = totalSec % DURATION_MIN_SEC;
+  if (m > 0 && s > 0) {
+    return `${m}m ${s}s`;
+  }
+  if (m > 0) {
+    return `${m}m`;
+  }
+  return `${s}s`;
 }
 
 export function getTable() {
