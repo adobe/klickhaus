@@ -29,8 +29,7 @@ import {
   initFacetViewportGate, refreshFacetViewportGateObservers,
 } from './timer.js';
 import {
-  loadTimeSeries, setupChartNavigation, getDetectedAnomalies, getLastChartData,
-  renderChart,
+  loadTimeSeries, setupChartNavigation, getLastChartData, renderChart,
 } from './chart.js';
 import {
   loadAllBreakdowns,
@@ -55,10 +54,7 @@ import {
 import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
 import { copyFacetAsTsv } from './copy-facet.js';
-import {
-  investigateAnomalies, reapplyHighlightsIfCached,
-  hasCachedInvestigation, invalidateInvestigationCache,
-} from './anomaly-investigation.js';
+import { invalidateInvestigationCache } from './anomaly-investigation.js';
 import { populateTimeRangeSelect, populateTopNSelect, updateTimeRangeLabels } from './ui/selects.js';
 import {
   initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
@@ -114,8 +110,7 @@ export function initDashboard(config = {}) {
     );
     const isFacetsCurrent = () => isRequestCurrent(facetsContext.requestId, facetsContext.scope);
 
-    // Defer off-screen facet SQL until scroll; load all if anomaly investigation needs full data.
-    const lazyFacets = !refresh && !(getDetectedAnomalies().length > 0 && getLastChartData());
+    const lazyFacets = !refresh;
 
     const facetPromises = getBreakdowns().map(
       (b) => loadBreakdown(b, timeFilter, hostFilter, facetsContext, {
@@ -131,7 +126,6 @@ export function initDashboard(config = {}) {
         if (focusedFacetId === b.id) {
           restoreKeyboardFocus();
         }
-        reapplyHighlightsIfCached();
       }),
     );
 
@@ -145,34 +139,11 @@ export function initDashboard(config = {}) {
       stopQueryTimer();
     }
 
-    const anomalies = getDetectedAnomalies();
-    const chartData = getLastChartData();
-
-    if (anomalies.length > 0 && chartData) {
-      const hasCache = hasCachedInvestigation();
-
-      if (hasCache) {
-        investigateAnomalies(anomalies, chartData);
-        Promise.all(facetPromises).then(() => {
-          if (isFacetsCurrent()) {
-            markSlowestFacet();
-          }
-        });
-      } else {
-        await Promise.all(facetPromises);
-        if (!isFacetsCurrent()) {
-          return;
-        }
+    Promise.all(facetPromises).then(() => {
+      if (isFacetsCurrent()) {
         markSlowestFacet();
-        await investigateAnomalies(anomalies, chartData);
       }
-    } else {
-      Promise.all(facetPromises).then(() => {
-        if (isFacetsCurrent()) {
-          markSlowestFacet();
-        }
-      });
-    }
+    });
   }
 
   // Update keyboard hint for time range to show next option number

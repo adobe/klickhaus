@@ -34,7 +34,7 @@ let onNavigate = null;
 let lastAnomalyBoundsList = []; // Array of { left, right, startTime, endTime, rank }
 let lastChartData = null; // Store data for timestamp lookups
 let lastChartTimestamps = null; // Pre-parsed timestamps for binary search in getDataAtTime
-let lastDetectedSteps = []; // Store detected steps for investigation
+let lastDetectedSteps = []; // Store detected steps for chart bands / zoom-to-anomaly
 
 // Ship positions for tooltip hit-testing
 let lastShipPositions = null;
@@ -235,7 +235,7 @@ export function getAnomalyTimeRange(rank = 1) {
 }
 
 /**
- * Get all detected anomalies with time bounds (for investigation)
+ * Get all detected anomalies with time bounds
  * @returns {Array} Anomalies with time bounds
  */
 export function getDetectedAnomalies() {
