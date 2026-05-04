@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { assert } from 'chai';
-import { emailToUsername, isValidUsername } from './username.js';
+import { emailToUsername, isValidUsername, normalizeLoginIdentifier } from './username.js';
 
 describe('emailToUsername', () => {
   it('normalizes a basic email', () => {
@@ -62,5 +62,49 @@ describe('isValidUsername', () => {
     assert.isFalse(isValidUsername('user@host'));
     assert.isFalse(isValidUsername('with space'));
     assert.isFalse(isValidUsername(null));
+  });
+});
+
+describe('normalizeLoginIdentifier', () => {
+  it('normalizes an email to a ClickHouse username', () => {
+    assert.strictEqual(
+      normalizeLoginIdentifier('trieloff@adobe.com'),
+      'trieloff_adobe_com',
+    );
+  });
+
+  it('lowercases mixed-case emails', () => {
+    assert.strictEqual(
+      normalizeLoginIdentifier('Trieloff@Adobe.COM'),
+      'trieloff_adobe_com',
+    );
+  });
+
+  it('leaves plain usernames unchanged (idempotent)', () => {
+    assert.strictEqual(normalizeLoginIdentifier('lars'), 'lars');
+    assert.strictEqual(normalizeLoginIdentifier('david_query'), 'david_query');
+  });
+
+  it('lowercases plain usernames', () => {
+    assert.strictEqual(normalizeLoginIdentifier('Lars'), 'lars');
+  });
+
+  it('trims surrounding whitespace', () => {
+    assert.strictEqual(normalizeLoginIdentifier('  lars  '), 'lars');
+    assert.strictEqual(
+      normalizeLoginIdentifier('  trieloff@adobe.com  '),
+      'trieloff_adobe_com',
+    );
+  });
+
+  it('returns empty string for blank input', () => {
+    assert.strictEqual(normalizeLoginIdentifier(''), '');
+    assert.strictEqual(normalizeLoginIdentifier('   '), '');
+    assert.strictEqual(normalizeLoginIdentifier(null), '');
+    assert.strictEqual(normalizeLoginIdentifier(undefined), '');
+  });
+
+  it('falls back to the trimmed input when normalization throws', () => {
+    assert.strictEqual(normalizeLoginIdentifier('---'), '---');
   });
 });

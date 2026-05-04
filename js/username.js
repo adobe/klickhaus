@@ -34,3 +34,19 @@ export function emailToUsername(input) {
 export function isValidUsername(name) {
   return typeof name === 'string' && USERNAME_RE.test(name);
 }
+
+/**
+ * Treat user-typed login input forgivingly: trim whitespace, then normalize
+ * email-style values (with @, +, dots, etc.) to a ClickHouse username. Plain
+ * usernames pass through (lower-cased). Blank input becomes empty string.
+ * Falls back to the trimmed input if normalization is impossible.
+ */
+export function normalizeLoginIdentifier(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) { return ''; }
+  try {
+    return emailToUsername(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
