@@ -20,7 +20,13 @@ export function parseFragment(hash) {
     user: params.get('u') || '',
     resetUser: params.get('r') || '',
     token: params.get('t') || '',
+    displayName: params.get('e') || '',
   };
+}
+
+export function pickDisplayName(params) {
+  if (params && params.displayName) { return params.displayName; }
+  return params && params.user ? params.user : '';
 }
 
 export function evaluatePassword(password) {

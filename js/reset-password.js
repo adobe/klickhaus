@@ -12,6 +12,7 @@
 import { CLICKHOUSE_URL } from './config.js';
 import {
   parseFragment,
+  pickDisplayName,
   evaluatePassword,
   describeError,
   buildAlterUserSql,
@@ -105,13 +106,14 @@ function init() {
     return;
   }
 
-  document.getElementById('usernameDisplay').textContent = params.user;
+  const displayName = pickDisplayName(params);
+  document.getElementById('usernameDisplay').textContent = displayName;
   // Some password managers want a username field for autofill; expose one.
   const hidden = document.createElement('input');
   hidden.type = 'text';
   hidden.name = 'username';
   hidden.autocomplete = 'username';
-  hidden.value = params.user;
+  hidden.value = displayName;
   hidden.style.display = 'none';
   document.getElementById('passwordForm').prepend(hidden);
 

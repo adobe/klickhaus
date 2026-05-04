@@ -12,6 +12,7 @@
 import { assert } from 'chai';
 import {
   parseFragment,
+  pickDisplayName,
   evaluatePassword,
   escapeSqlString,
   escapeIdentifier,
@@ -27,6 +28,12 @@ describe('parseFragment', () => {
     assert.strictEqual(r.user, 'trieloff_adobe_com');
     assert.strictEqual(r.resetUser, 'reset_abc');
     assert.strictEqual(r.token, 'secret-token_123');
+    assert.strictEqual(r.displayName, '');
+  });
+
+  it('parses the optional display-name (e) param', () => {
+    const r = parseFragment('#u=trieloff_adobe_com&r=reset_abc&t=tok&e=trieloff%40adobe.com');
+    assert.strictEqual(r.displayName, 'trieloff@adobe.com');
   });
 
   it('parses params from a hash without leading #', () => {
@@ -41,12 +48,16 @@ describe('parseFragment', () => {
     assert.strictEqual(r.user, '');
     assert.strictEqual(r.resetUser, '');
     assert.strictEqual(r.token, '');
+    assert.strictEqual(r.displayName, '');
   });
 
   it('handles empty / nullish input', () => {
-    assert.deepEqual(parseFragment(''), { user: '', resetUser: '', token: '' });
-    assert.deepEqual(parseFragment(null), { user: '', resetUser: '', token: '' });
-    assert.deepEqual(parseFragment(undefined), { user: '', resetUser: '', token: '' });
+    const empty = {
+      user: '', resetUser: '', token: '', displayName: '',
+    };
+    assert.deepEqual(parseFragment(''), empty);
+    assert.deepEqual(parseFragment(null), empty);
+    assert.deepEqual(parseFragment(undefined), empty);
   });
 
   it('decodes percent-encoded values', () => {
@@ -166,6 +177,28 @@ describe('buildDropUserSql', () => {
   });
   it('rejects invalid usernames', () => {
     assert.throws(() => buildDropUserSql('reset; DROP'));
+  });
+});
+
+describe('pickDisplayName', () => {
+  it('prefers the displayName when present', () => {
+    assert.strictEqual(
+      pickDisplayName({ user: 'trieloff_adobe_com', displayName: 'trieloff@adobe.com' }),
+      'trieloff@adobe.com',
+    );
+  });
+
+  it('falls back to user when displayName is empty', () => {
+    assert.strictEqual(
+      pickDisplayName({ user: 'lars', displayName: '' }),
+      'lars',
+    );
+  });
+
+  it('returns empty string for nullish input', () => {
+    assert.strictEqual(pickDisplayName(null), '');
+    assert.strictEqual(pickDisplayName(undefined), '');
+    assert.strictEqual(pickDisplayName({}), '');
   });
 });
 

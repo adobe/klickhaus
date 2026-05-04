@@ -112,11 +112,14 @@ async function createTempUser({
   await query(`GRANT DROP USER ON *.* TO ${tempUser}`, adminUser, adminPassword);
 }
 
-function buildResetUrl(baseUrl, targetUser, tempUser, tempPassword) {
+function buildResetUrl(baseUrl, targetUser, tempUser, tempPassword, displayName) {
   const params = new URLSearchParams();
   params.set('u', targetUser);
   params.set('r', tempUser);
   params.set('t', tempPassword);
+  if (displayName && displayName !== targetUser) {
+    params.set('e', displayName);
+  }
   return `${baseUrl}#${params.toString()}`;
 }
 
@@ -193,7 +196,7 @@ async function main() {
       tempUser, tempPassword, expiresAt, adminUser, adminPassword,
     });
 
-    const resetUrl = buildResetUrl(baseUrl, targetUser, tempUser, tempPassword);
+    const resetUrl = buildResetUrl(baseUrl, targetUser, tempUser, tempPassword, identifier);
     printResult({
       targetUser, expiresAt, ttlMinutes, resetUrl,
     });
