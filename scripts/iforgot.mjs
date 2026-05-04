@@ -28,6 +28,7 @@
 
 import { randomBytes } from 'crypto';
 import { emailToUsername, isValidUsername } from '../js/username.js';
+import { validateBaseUrl } from '../js/iforgot-url.js';
 
 const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 8443;
@@ -86,11 +87,7 @@ function parseBaseUrlArg(args) {
   if (!flag) {
     return DEFAULT_BASE_URL;
   }
-  const value = flag.slice('--base-url='.length);
-  if (!/^https?:\/\//.test(value)) {
-    throw new Error(`Invalid --base-url value (must start with http:// or https://): ${flag}`);
-  }
-  return value;
+  return validateBaseUrl(flag.slice('--base-url='.length));
 }
 
 async function userExists(username, adminUser, adminPassword) {

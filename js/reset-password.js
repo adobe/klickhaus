@@ -98,8 +98,31 @@ function bindStrengthMeter(input, meterEl, hintEl, onChange) {
   update();
 }
 
+function scrubFragment() {
+  if (typeof window === 'undefined' || !window.history) { return; }
+  try {
+    const { pathname, search } = window.location;
+    window.history.replaceState(null, '', `${pathname}${search}`);
+  } catch {
+    // Some browsers throw on file:// or sandboxed contexts; the fragment will
+    // remain visible but the credentials are still single-use server-side.
+  }
+}
+
+function persistCredentials(user, password) {
+  // Mirror auth.js: clear both storages first so stale entries from a prior
+  // session don't shadow the new credentials on the next load.
+  try { localStorage.removeItem(CREDENTIALS_KEY); } catch { /* ignore */ }
+  try { sessionStorage.removeItem(CREDENTIALS_KEY); } catch { /* ignore */ }
+  localStorage.setItem(CREDENTIALS_KEY, JSON.stringify({ user, password }));
+}
+
 function init() {
   const params = parseFragment(window.location.hash);
+  // Pull credentials out of the address bar / browser history immediately so
+  // they aren't accidentally shared via copy/paste, screenshots, or session
+  // restore. The values stay in memory inside `params` for the rest of init.
+  scrubFragment();
   if (!isResetLinkValid(params)) {
     showError('Invalid reset link. Ask an admin to issue a fresh one.');
     document.getElementById('resetForm').hidden = true;
@@ -156,10 +179,7 @@ function init() {
         token: params.token,
         newPassword: newPassword.value,
       });
-      localStorage.setItem(
-        CREDENTIALS_KEY,
-        JSON.stringify({ user: params.user, password: newPassword.value }),
-      );
+      persistCredentials(params.user, newPassword.value);
       showSuccessAndRedirect();
     } catch (err) {
       submitBtn.disabled = false;
