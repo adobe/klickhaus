@@ -11,6 +11,7 @@
  */
 import { state } from './state.js';
 import { query } from './api.js';
+import { normalizeLoginIdentifier } from './username.js';
 
 const CREDENTIALS_KEY = 'clickhouse_credentials';
 
@@ -62,7 +63,7 @@ export function loadStoredCredentials() {
 
 export async function handleLogin(e) {
   e.preventDefault();
-  const username = document.getElementById('username').value;
+  const username = normalizeLoginIdentifier(document.getElementById('username').value);
   const password = document.getElementById('password').value;
   const forgetMe = document.getElementById('forgetMe')?.checked;
 
