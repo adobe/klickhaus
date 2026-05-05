@@ -11,12 +11,12 @@ A real-time analytics dashboard for CDN log analysis, built with ClickHouse and 
   - Status codes and ranges
   - Hosts and forwarded hosts
   - Content types
-  - Cache status (HIT, MISS, etc.)
   - Paths and referers
   - User agents and IP addresses
   - Request types and backend types
   - HTTP methods and datacenters
   - ASN (Autonomous System Numbers)
+  - ...
 - **Interactive filtering** - Click to filter or exclude any dimension value
 - **Copy to spreadsheet** - Copy any facet's data as TSV with one click (copy button) for analysis in Excel/Sheets
 - **Flexible time ranges** - Last hour, 12 hours, 24 hours, or 7 days
@@ -30,15 +30,14 @@ CDN logs from Cloudflare and Fastly are shipped to a GCS bucket and ingested int
 
 ```
 Cloudflare ──► gs://helix-logs/cloudflare/ ─┐
-                                             ├─► Pub/Sub ──► Cloud Run (helix-gcs2clickhouse-ingestor)
-Fastly ──────► gs://helix-logs/fastly/ ──────┘                    │
-                                                        ┌──────────┼───────────┐
-                                                        ▼          ▼           ▼
-                                                    delivery    admin       backend
-                                                  + delivery_errors
+                                             ├─► Pub/Sub ──► Cloud Run ──► delivery / admin / backend / da
+Fastly ──────► gs://helix-logs/fastly/ ──────┘          (helix-gcs2clickhouse-ingestor)  + delivery_errors
+
+AWS Lambda ──► helix-clickhouse-feeder ──────────────────────────────────────────────► lambda_logs
+              (direct insert, no GCS)
 ```
 
-The ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inserts into four ClickHouse tables. Source: [helix-gcs2clickhouse-ingestor](https://github.com/adobe/helix-gcs2clickhouse-ingestor). A separate `da` table captures Document Authoring traffic and powers the DA dashboard.
+The GCS ingestor reads gzipped JSON-lines files from GCS, applies sampling, and inserts into ClickHouse. Source: [helix-gcs2clickhouse-ingestor](https://github.com/adobe/helix-gcs2clickhouse-ingestor). Lambda function logs are ingested separately and directly into ClickHouse by [helix-clickhouse-feeder](https://github.com/adobe/helix-clickhouse-feeder).
 
 ## Usage
 
@@ -65,6 +64,10 @@ Open [klickhaus.aemstatus.net](https://klickhaus.aemstatus.net/) (fallback: [mai
 ### DA Dashboard
 
 `da.html` — queries the `da` table, which contains Cloudflare-delivered Document Authoring traffic (`*.da.live`, `docs.da.live`, etc.). Tailored facet set: adds `cdn.script_name` (Worker script) and omits the Fastly-only / Helix routing facets that don't apply.
+
+### Lambda Logs Dashboard
+
+`lambda.html` — queries the `lambda_logs` table, which contains logs emitted by AWS Lambda functions and ingested directly into ClickHouse by [helix-clickhouse-feeder](https://github.com/adobe/helix-clickhouse-feeder). Facets include log level, function name, app name, subsystem, log group, and structured fields parsed from JSON message payloads.
 
 ### Copy Facet Data
 
@@ -157,6 +160,8 @@ Four ClickHouse tables in `helix_logs_production`, all `SharedMergeTree`, partit
 | `delivery_errors` | Subset of `delivery` — only `response.status >= 500`, never sampled | No |
 | `admin` | Fastly admin service logs (`admin.hlx.page`, `api.aem.live`) | No |
 | `backend` | Fastly and Cloudflare backend/subrequest logs | Yes (`weight` column) |
+| `da` | Cloudflare-delivered Document Authoring traffic (`*.da.live`, `docs.da.live`) | Yes (`weight` column) |
+| `lambda_logs` | AWS Lambda function logs, ingested directly by helix-clickhouse-feeder | No |
 
 Common columns across all tables:
 
