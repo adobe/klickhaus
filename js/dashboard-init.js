@@ -44,7 +44,8 @@ import {
   getFilterForValue,
 } from './filters.js';
 import {
-  loadLogs, cycleViewMode, setViewMode, setLogsElements, setOnShowFiltersView, setOnShowLogsView,
+  loadLogs, cycleViewMode, setViewMode, applyViewMode,
+  setLogsElements, setOnShowFiltersView, setOnShowLogsView,
 } from './logs.js';
 import { loadHostAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
@@ -373,6 +374,7 @@ export function initDashboard(config = {}) {
       state.credentials = storedCredentials;
       preloadAllTemplates();
       syncUIFromState();
+      applyViewMode();
       reorderFacets();
       showDashboard();
       updateTimeRangeHint();
@@ -452,6 +454,7 @@ export function initDashboard(config = {}) {
       try {
         preloadAllTemplates();
         syncUIFromState();
+        applyViewMode();
         reorderFacets();
         showDashboard();
         updateTimeRangeHint();

@@ -514,7 +514,7 @@ export function setOnShowLogsView(callback) {
   onShowLogsView = callback;
 }
 
-function applyViewMode() {
+export function applyViewMode() {
   const { viewMode } = state;
   const isSplit = viewMode === 'split';
   const isLogs = viewMode === 'logs';
