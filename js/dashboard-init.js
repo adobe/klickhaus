@@ -95,11 +95,7 @@ export function initDashboard(config = {}) {
   // Pass elements to modules that need them
   setElements(elements);
   setUrlStateElements(elements);
-  setLogsElements(
-    elements.logsView,
-    elements.filtersView,
-    elements.contentArea,
-  );
+  setLogsElements(elements.logsView, elements.filtersView, elements.contentArea);
 
   // Load dashboard queries (chart and facets)
   async function loadDashboardQueries(
