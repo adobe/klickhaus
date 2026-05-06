@@ -280,7 +280,7 @@ main {
 }
 
 /* Below split threshold: stack vertically */
-@media (max-width: 1400px) {
+@media (max-width: 1500px) {
   #contentArea.split {
     display: block;
   }

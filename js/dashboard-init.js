@@ -444,7 +444,7 @@ export function initDashboard(config = {}) {
 
     elements.viewCycleBtn.addEventListener('click', () => cycleViewMode(saveStateToURL));
 
-    window.matchMedia('(max-width: 1400px)').addEventListener('change', (e) => {
+    window.matchMedia('(max-width: 1500px)').addEventListener('change', (e) => {
       if (e.matches && state.viewMode === 'split') {
         setViewMode('filters', saveStateToURL);
       }
