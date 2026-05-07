@@ -374,7 +374,7 @@ export function initDashboard(config = {}) {
       state.credentials = storedCredentials;
       preloadAllTemplates();
       syncUIFromState();
-      applyViewMode();
+      applyViewMode(true);
       reorderFacets();
       showDashboard();
       updateTimeRangeHint();
@@ -454,7 +454,7 @@ export function initDashboard(config = {}) {
       try {
         preloadAllTemplates();
         syncUIFromState();
-        applyViewMode();
+        applyViewMode(true);
         reorderFacets();
         showDashboard();
         updateTimeRangeHint();

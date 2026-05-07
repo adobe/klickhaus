@@ -96,7 +96,7 @@ let filtersView = null;
 let contentArea = null;
 
 const CYCLE_MODES = ['filters', 'logs', 'split'];
-const SPLIT_BREAKPOINT = window.matchMedia('(max-width: 1400px)');
+const SPLIT_BREAKPOINT = window.matchMedia('(max-width: 1500px)');
 const VIEW_META = {
   filters: {
     title: 'Switch to Filters view',
@@ -514,7 +514,7 @@ export function setOnShowLogsView(callback) {
   onShowLogsView = callback;
 }
 
-export function applyViewMode() {
+export function applyViewMode(suppressDataLoad = false) {
   const { viewMode } = state;
   const isSplit = viewMode === 'split';
   const isLogs = viewMode === 'logs';
@@ -538,11 +538,13 @@ export function applyViewMode() {
   const moreLabel = document.querySelector('#moreViewToggleItem .menu-item-label');
   if (moreLabel) { moreLabel.textContent = meta.title; }
 
-  if (showLogs && onShowLogsView && !state.logsReady) {
-    requestAnimationFrame(() => onShowLogsView());
-  }
-  if (viewMode !== 'logs' && onShowFiltersView) {
-    requestAnimationFrame(() => onShowFiltersView());
+  if (!suppressDataLoad) {
+    if (showLogs && onShowLogsView && !state.logsReady) {
+      requestAnimationFrame(() => onShowLogsView());
+    }
+    if (viewMode !== 'logs' && onShowFiltersView) {
+      requestAnimationFrame(() => onShowFiltersView());
+    }
   }
 }
 
