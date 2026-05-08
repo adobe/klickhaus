@@ -136,7 +136,7 @@ New users get SELECT access to `delivery`, `delivery_errors`, `admin`, `backend`
 - `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
 - `max_memory_usage = 4000000000` — 4 GB per-query memory limit to protect small replicas
 
-Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`) get only the memory limit (no parallel replicas for inserts).
+Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`) are managed manually, outside `add-user.mjs`. Their canonical grants live in [`sql/writer_users.sql`](sql/writer_users.sql) — diff with `SHOW GRANTS FOR <user>` before applying. They get only the memory limit (no parallel replicas for inserts). Note: chained materialized views run in the inserter's security context, so a writer needs `SELECT` on every table any downstream MV reads, not just `INSERT` on the staging table.
 
 ## Data Pipeline Architecture
 

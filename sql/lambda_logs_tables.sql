@@ -86,6 +86,60 @@ AS SELECT
     extractAll(message, '[a-zA-Z0-9_-]+--[a-zA-Z0-9_-]+--[a-zA-Z0-9_-]+')     AS refs
 FROM helix_logs_production.lambda_logs_incoming;
 
+-- Per-minute facet rollup: SummingMergeTree fed by the MV below.
+-- Mirrors cdn_facet_minutes (delivery dashboard); used by the Lambda Logs dashboard
+-- to serve low-cardinality breakdowns without scanning lambda_logs directly.
+CREATE TABLE IF NOT EXISTS helix_logs_production.lambda_facet_minutes
+(
+    `minute` DateTime,
+    `facet`  LowCardinality(String),
+    `dim`    String,
+    `cnt`    UInt64,
+    `cnt_ok`  UInt64,
+    `cnt_4xx` UInt64,
+    `cnt_5xx` UInt64
+)
+ENGINE = SummingMergeTree
+PARTITION BY toDate(minute)
+ORDER BY (facet, minute, dim)
+TTL minute + toIntervalDay(14);
+
+-- Materialized view: ARRAY JOINs each lambda_logs row into 7 facet entries
+-- (level, function_name, function_version, app_name, subsystem, log_group, admin_method)
+-- and pre-aggregates per minute.
+--
+-- IMPORTANT: This MV is chained off lambda_logs, which is itself written by the
+-- lambda_logs_ingestion MV from lambda_logs_incoming. Chained MVs run in the
+-- inserter's security context, so lambda_logs_writer must have SELECT on
+-- lambda_logs (see GRANT block below) — without it, every insert into
+-- lambda_logs_incoming fails with ACCESS_DENIED.
+CREATE MATERIALIZED VIEW IF NOT EXISTS helix_logs_production.lambda_facet_minutes_mv
+TO helix_logs_production.lambda_facet_minutes
+AS SELECT
+    toStartOfMinute(timestamp) AS minute,
+    facet,
+    dim,
+    count()                                                  AS cnt,
+    countIf(lower(level) NOT IN ('error', 'warn', 'warning')) AS cnt_ok,
+    countIf(lower(level) IN ('warn', 'warning'))             AS cnt_4xx,
+    countIf(lower(level) = 'error')                          AS cnt_5xx
+FROM helix_logs_production.lambda_logs
+ARRAY JOIN
+    ['level', 'function_name', 'function_version', 'app_name', 'subsystem', 'log_group', 'admin_method'] AS facet,
+    [
+        toString(level),
+        replaceRegexpOne(function_name, '/[^/]+$', ''),
+        arrayElement(splitByChar('/', function_name), -1),
+        toString(app_name),
+        toString(subsystem),
+        toString(log_group),
+        CAST(message_json.admin.method, 'String')
+    ] AS dim
+GROUP BY minute, facet, dim;
+
 -- Writer user (set password before running)
 -- CREATE USER lambda_logs_writer IDENTIFIED BY '<password>';
--- GRANT INSERT ON helix_logs_production.lambda_logs_incoming TO lambda_logs_writer;
+-- GRANT SELECT, INSERT ON helix_logs_production.lambda_logs_incoming TO lambda_logs_writer;
+-- GRANT INSERT ON helix_logs_production.lambda_logs TO lambda_logs_writer;
+-- -- Required because lambda_facet_minutes_mv reads lambda_logs in the inserter's context:
+-- GRANT SELECT ON helix_logs_production.lambda_logs TO lambda_logs_writer;
