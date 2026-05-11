@@ -72,10 +72,11 @@ describe('lambdaBreakdowns', () => {
     assert.include(adminMethod.col, 'method');
   });
 
-  it('message facet has col for message and is high cardinality', () => {
+  it('message facet truncates to 300 chars and is high cardinality', () => {
     const messageFacet = lambdaBreakdowns.find((b) => b.id === 'breakdown-message');
     assert.ok(messageFacet);
-    assert.strictEqual(messageFacet.col, '`message`');
+    assert.include(messageFacet.col, 'left(');
+    assert.include(messageFacet.col, '300');
     assert.strictEqual(messageFacet.highCardinality, true);
   });
 
@@ -109,5 +110,31 @@ describe('lambdaBreakdowns', () => {
     assert.strictEqual(typeof adminDuration.col, 'function');
     assert.include(adminDuration.rawCol, 'message_json.admin.duration');
     assert.strictEqual(typeof adminDuration.getExpectedLabels, 'function');
+  });
+
+  it('facet table facets have facetName set', () => {
+    const expected = {
+      'breakdown-level': 'level',
+      'breakdown-function-name': 'function_name',
+      'breakdown-function-version': 'function_version',
+      'breakdown-app-name': 'app_name',
+      'breakdown-subsystem': 'subsystem',
+      'breakdown-log-group': 'log_group',
+      'breakdown-admin-method': 'admin_method',
+    };
+    for (const [id, facetName] of Object.entries(expected)) {
+      const b = lambdaBreakdowns.find((bd) => bd.id === id);
+      assert.ok(b, id);
+      assert.strictEqual(b.facetName, facetName, `${id} should have facetName '${facetName}'`);
+    }
+  });
+
+  it('high-cardinality and bucketed facets do not have facetName', () => {
+    const noFacetName = ['breakdown-message', 'breakdown-request-id', 'breakdown-url', 'breakdown-path', 'breakdown-ip', 'breakdown-email', 'breakdown-admin-duration'];
+    for (const id of noFacetName) {
+      const b = lambdaBreakdowns.find((bd) => bd.id === id);
+      assert.ok(b, id);
+      assert.isUndefined(b.facetName, `${id} should not have facetName`);
+    }
   });
 });

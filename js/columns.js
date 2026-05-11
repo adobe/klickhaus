@@ -208,8 +208,16 @@ export const LOG_COLUMN_TO_FACET = Object.fromEntries(
  * Short label mapping for log columns.
  * @type {Record<string, string>}
  */
-export const LOG_COLUMN_SHORT_LABELS = Object.fromEntries(
-  Object.values(COLUMN_DEFS)
-    .filter((def) => def.shortLabel)
-    .map((def) => [def.logKey, def.shortLabel]),
-);
+export const LOG_COLUMN_SHORT_LABELS = {
+  ...Object.fromEntries(
+    Object.values(COLUMN_DEFS)
+      .filter((def) => def.shortLabel)
+      .map((def) => [def.logKey, def.shortLabel]),
+  ),
+  // Lambda log column labels
+  request_id: 'Invocation ID',
+  function_name: 'Function',
+  app_name: 'App',
+  log_group: 'Log Group',
+  log_stream: 'Log Stream',
+};

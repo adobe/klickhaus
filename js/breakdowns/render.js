@@ -235,7 +235,7 @@ export function renderBreakdownTable(
 
 export function renderBreakdownError(id, details = {}) {
   const card = document.getElementById(id);
-  const title = card.querySelector('h3')?.textContent || card.dataset.title || id;
+  const title = card.dataset.title || card.querySelector('h3')?.textContent?.trim() || id;
   const label = details.label || 'Query failed';
   const message = details.message || 'Error loading data';
   const detail = details.detail && details.detail !== message ? details.detail : '';
@@ -261,4 +261,18 @@ export function renderBreakdownError(id, details = {}) {
     </div>
     <button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${escapeHtml(id)}" title="Hide facet"></button>
   `;
+}
+
+export function renderBreakdownUnavailable(id, reason = 'Not available with active filters') {
+  const card = document.getElementById(id);
+  if (!card) { return; }
+  const title = card.dataset.title || card.querySelector('h3')?.textContent?.trim() || id;
+  card.innerHTML = `
+    <h3>${escapeHtml(title)}</h3>
+    <div class="facet-error">
+      <div class="facet-error-message">${escapeHtml(reason)}</div>
+    </div>
+    <button class="facet-hide-btn" data-action="toggle-facet-hide" data-facet="${escapeHtml(id)}" title="Hide facet"></button>
+  `;
+  card.classList.remove('updating');
 }

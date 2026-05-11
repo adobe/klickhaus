@@ -22,6 +22,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-level',
     col: '`level`',
+    facetName: 'level',
     summaryCountIf: "lower(`level`) = 'error'",
     summaryLabel: 'error rate',
     summaryColor: 'error',
@@ -29,34 +30,42 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-function-name',
     col: "replaceRegexpOne(`function_name`, '/[^/]+$', '')",
+    facetName: 'function_name',
     highCardinality: true,
   },
   {
     id: 'breakdown-function-version',
     col: "arrayElement(splitByChar('/', `function_name`), -1)",
+    facetName: 'function_version',
     highCardinality: true,
   },
   {
     id: 'breakdown-app-name',
     col: '`app_name`',
+    facetName: 'app_name',
   },
   {
     id: 'breakdown-subsystem',
     col: '`subsystem`',
+    facetName: 'subsystem',
   },
   {
     id: 'breakdown-log-group',
     col: '`log_group`',
+    facetName: 'log_group',
     highCardinality: true,
   },
   {
     id: 'breakdown-admin-method',
     col: 'CAST(message_json.admin.method, \'String\')',
+    facetName: 'admin_method',
   },
   {
     id: 'breakdown-message',
-    col: '`message`',
+    col: 'left(`message`, 300)',
     highCardinality: true,
+    noRawFallback: true,
+    maxTimeRangeHours: 24,
   },
   {
     id: 'breakdown-request-id',

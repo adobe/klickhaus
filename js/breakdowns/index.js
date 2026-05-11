@@ -17,11 +17,13 @@ import {
 } from '../request-context.js';
 import {
   getTimeFilter, getHostFilter, getTable, getFacetTimeFilter,
-  queryTimestamp, customTimeRange,
+  queryTimestamp, customTimeRange, getPeriodMs,
 } from '../time.js';
 import { waitUntilFacetNearViewport } from '../timer.js';
 import { allBreakdowns as defaultBreakdowns } from './definitions.js';
-import { renderBreakdownTable, renderBreakdownError, getNextTopN } from './render.js';
+import {
+  renderBreakdownTable, renderBreakdownError, renderBreakdownUnavailable, getNextTopN,
+} from './render.js';
 import { compileFilters } from '../filter-sql.js';
 import { getFiltersForColumn } from '../filters.js';
 import { loadSql } from '../sql-loader.js';
@@ -71,8 +73,9 @@ export function getBreakdowns() {
 export const facetTimings = {};
 
 /**
- * Check whether a breakdown can use the pre-aggregated cdn_facet_minutes table.
- * Requires: facetName set, no active filters, no bytes mode, not bucketed.
+ * Check whether a breakdown can use a pre-aggregated facet table
+ * (cdn_facet_minutes for delivery, lambda_facet_minutes for lambda_logs).
+ * Requires: facetName set, no active filters, not bucketed.
  */
 export function canUseFacetTable(b) {
   if (!b.facetName) {
@@ -80,12 +83,6 @@ export function canUseFacetTable(b) {
   }
   if (b.rawCol) {
     return false; // bucketed facets need raw table
-  }
-  if (b.highCardinality) {
-    return false; // high-cardinality queries raw table directly
-  }
-  if (state.tableName !== 'delivery') {
-    return false; // facet table only covers delivery
   }
   if (state.hostFilter) {
     return false;
@@ -96,15 +93,29 @@ export function canUseFacetTable(b) {
   if (state.additionalWhereClause) {
     return false;
   }
-  const mode = b.modeToggle ? state[b.modeToggle] : 'count';
-  if (mode === 'bytes') {
-    return false;
+
+  if (state.tableName === 'delivery') {
+    if (b.highCardinality) {
+      return false; // delivery facet table only covers low-cardinality facets
+    }
+    const mode = b.modeToggle ? state[b.modeToggle] : 'count';
+    if (mode === 'bytes') {
+      return false;
+    }
+    // ASN uses dictGet which produces different dim values than the facet table
+    if (b.id === 'breakdown-asn') {
+      return false;
+    }
+    return true;
   }
-  // ASN uses dictGet which produces different dim values than the facet table
-  if (b.id === 'breakdown-asn') {
-    return false;
+
+  if (state.tableName === 'lambda_logs') {
+    // lambda_facet_minutes covers all facets tagged with facetName,
+    // including those marked highCardinality (which only affects delivery routing)
+    return true;
   }
-  return true;
+
+  return false; // no facet table for other tables
 }
 
 export function resetFacetTimings() {
@@ -277,7 +288,8 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     const { startTime, endTime } = getFacetTimeFilter();
     const dimFilter = b.extraFilter ? "AND dim != ''" : '';
     const hasSummary = !!b.summaryDimCondition;
-    const sql = await loadSql('breakdown-facet', {
+    const facetSqlName = state.tableName === 'lambda_logs' ? 'breakdown-facet-lambda' : 'breakdown-facet';
+    const sql = await loadSql(facetSqlName, {
       database: DATABASE,
       facetName: b.facetName,
       startTime,
@@ -438,6 +450,19 @@ export async function loadBreakdown(
     return;
   }
 
+  if (b.maxTimeRangeHours) {
+    const periodHours = getPeriodMs() / (60 * 60 * 1000);
+    if (periodHours > b.maxTimeRangeHours) {
+      renderBreakdownUnavailable(b.id, `Not available for time ranges longer than ${b.maxTimeRangeHours}h`);
+      return;
+    }
+  }
+
+  if (b.noRawFallback && (state.filters?.length > 0 || state.hostFilter)) {
+    renderBreakdownUnavailable(b.id);
+    return;
+  }
+
   try {
     const result = await fetchBreakdownData(b, timeFilter, hostFilter, requestStatus);
     if (!result) {
@@ -569,7 +594,8 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes) {
     const { startTime, endTime } = facetTimes;
     const dimFilter = b.extraFilter ? "AND dim != ''" : '';
     const hasSummary = !!b.summaryDimCondition;
-    const sql = await loadSql('breakdown-facet', {
+    const facetSqlName = state.tableName === 'lambda_logs' ? 'breakdown-facet-lambda' : 'breakdown-facet';
+    const sql = await loadSql(facetSqlName, {
       database: DATABASE,
       facetName: b.facetName,
       startTime,

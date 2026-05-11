@@ -92,6 +92,7 @@ GRANT SELECT(query, query_id, user) ON system.processes TO releases_writer;
 
 GRANT SELECT, INSERT ON helix_logs_production.lambda_logs_incoming TO lambda_logs_writer;
 GRANT INSERT         ON helix_logs_production.lambda_logs          TO lambda_logs_writer;
--- Required because lambda_facet_minutes_mv reads lambda_logs in the inserter's context:
+-- lambda_facet_minutes_mv reads lambda_logs and writes lambda_facet_minutes in the inserter's context:
 GRANT SELECT         ON helix_logs_production.lambda_logs          TO lambda_logs_writer;
+GRANT INSERT         ON helix_logs_production.lambda_facet_minutes TO lambda_logs_writer;
 GRANT SELECT(query, query_id, user) ON system.processes TO lambda_logs_writer;

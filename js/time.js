@@ -48,7 +48,7 @@ function formatSqlDateTime(date) {
 }
 
 // Get period duration in milliseconds (moved up to avoid use-before-define)
-function getPeriodMs() {
+export function getPeriodMs() {
   if (timeState.customTimeRange) {
     return timeState.customTimeRange.end - timeState.customTimeRange.start;
   }
@@ -294,9 +294,6 @@ export function getTimeRangeEnd() {
   const { end } = getFillBounds();
   return `toDateTime('${formatSqlDateTime(end)}')`;
 }
-
-// Re-export getPeriodMs for external use
-export { getPeriodMs };
 
 /**
  * Get time filter bounds formatted for the cdn_facet_minutes table.

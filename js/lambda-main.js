@@ -12,6 +12,33 @@
 import { initDashboard } from './dashboard-init.js';
 import { lambdaBreakdowns } from './breakdowns/definitions-lambda.js';
 
+const LOG_COLUMN_ORDER = [
+  'timestamp',
+  'level',
+  'function_name',
+  'request_id',
+  'message',
+  'app_name',
+  'subsystem',
+  'log_group',
+  'log_stream',
+];
+
+const DEFAULT_HIDDEN_FACETS = [
+  'breakdown-function-version',
+  'breakdown-app-name',
+  'breakdown-subsystem',
+  'breakdown-log-group',
+  'breakdown-admin-method',
+  'breakdown-admin-duration',
+  'breakdown-message',
+  'breakdown-request-id',
+  'breakdown-url',
+  'breakdown-email',
+  'breakdown-ip',
+  'breakdown-path',
+];
+
 const LAMBDA_AGGREGATIONS = {
   aggTotal: 'count()',
   aggOk: "countIf(lower(level) NOT IN ('error', 'warn', 'warning'))",
@@ -25,5 +52,8 @@ initDashboard({
   timeSeriesTemplate: 'time-series-lambda',
   aggregations: LAMBDA_AGGREGATIONS,
   hostFilterColumn: 'function_name',
+  defaultTimeRange: '24h',
+  logColumnOrder: LOG_COLUMN_ORDER,
+  defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
   breakdowns: lambdaBreakdowns,
 });

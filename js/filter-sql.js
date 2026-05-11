@@ -27,6 +27,10 @@ import { TOP_N_OPTIONS } from './constants.js';
 /** @type {Set<string>|null} */
 let allowedColumnsCache = null;
 
+export function clearAllowedColumnsCache() {
+  allowedColumnsCache = null;
+}
+
 /**
  * Build the set of valid SQL column expressions from breakdowns and column definitions.
  * Lazy-initialized and cached.

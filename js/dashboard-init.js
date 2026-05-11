@@ -43,6 +43,7 @@ import {
   addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks,
   getFilterForValue,
 } from './filters.js';
+import { clearAllowedColumnsCache } from './filter-sql.js';
 import {
   loadLogs, cycleViewMode, setViewMode, applyViewMode,
   setLogsElements, setOnShowFiltersView, setOnShowLogsView,
@@ -297,6 +298,27 @@ export function initDashboard(config = {}) {
     }
   }
 
+  function applyConfig(initialParams) {
+    if (config.title && !state.title) { state.title = config.title; }
+    if (config.additionalWhereClause !== undefined) {
+      state.additionalWhereClause = config.additionalWhereClause;
+    }
+    if (config.tableName) { state.tableName = config.tableName; }
+    if (config.logsTableName !== undefined) { state.logsTableName = config.logsTableName; }
+    if (config.weightColumn !== undefined) { state.weightColumn = config.weightColumn; }
+    if (config.timeSeriesTemplate) { state.timeSeriesTemplate = config.timeSeriesTemplate; }
+    if (config.aggregations) { state.aggregations = config.aggregations; }
+    if (config.defaultTimeRange && !initialParams.has('t')) {
+      state.timeRange = config.defaultTimeRange;
+    }
+    if (config.hostFilterColumn !== undefined) { state.hostFilterColumn = config.hostFilterColumn; }
+    if (config.breakdowns) {
+      state.breakdowns = config.breakdowns;
+      clearAllowedColumnsCache();
+    }
+    if (config.logColumnOrder) { state.logColumnOrder = config.logColumnOrder; }
+  }
+
   // Initialize
   async function init() {
     // Set title before loadStateFromURL → loadFacetPrefs() so the storage key matches
@@ -307,35 +329,7 @@ export function initDashboard(config = {}) {
     }
 
     loadStateFromURL();
-
-    // Apply dashboard-specific configuration
-    if (config.title && !state.title) {
-      state.title = config.title;
-    }
-    if (config.additionalWhereClause !== undefined) {
-      state.additionalWhereClause = config.additionalWhereClause;
-    }
-    if (config.tableName) {
-      state.tableName = config.tableName;
-    }
-    if (config.logsTableName !== undefined) {
-      state.logsTableName = config.logsTableName;
-    }
-    if (config.weightColumn !== undefined) {
-      state.weightColumn = config.weightColumn;
-    }
-    if (config.timeSeriesTemplate) {
-      state.timeSeriesTemplate = config.timeSeriesTemplate;
-    }
-    if (config.aggregations) {
-      state.aggregations = config.aggregations;
-    }
-    if (config.hostFilterColumn !== undefined) {
-      state.hostFilterColumn = config.hostFilterColumn;
-    }
-    if (config.breakdowns) {
-      state.breakdowns = config.breakdowns;
-    }
+    applyConfig(initialParams);
     applyDefaultHiddenFacets();
 
     populateTimeRangeSelect(elements.timeRangeSelect);

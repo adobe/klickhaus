@@ -44,6 +44,7 @@ export const state = {
   aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
+  logColumnOrder: null, // Optional preferred column ordering for the logs table
 };
 
 export function saveViewMode(mode) {

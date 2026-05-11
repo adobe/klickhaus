@@ -317,14 +317,14 @@ describe('canUseFacetTable', () => {
     assert.isFalse(canUseFacetTable(b));
   });
 
-  it('returns false when tableName is not delivery', () => {
+  it('returns false when tableName is not delivery or lambda_logs', () => {
     state.tableName = 'backend';
     const b = { id: 'breakdown-status-range', col: 'x', facetName: 'status_range' };
     assert.isFalse(canUseFacetTable(b));
     state.tableName = 'delivery';
   });
 
-  it('returns false for highCardinality facets', () => {
+  it('returns false for highCardinality facets on delivery', () => {
     const b = {
       id: 'breakdown-hosts', col: '`request.host`', facetName: 'host', highCardinality: true,
     };
@@ -337,6 +337,31 @@ describe('canUseFacetTable', () => {
       id: 'breakdown-content-types', col: 'x', facetName: 'content_type', modeToggle: 'contentTypeMode',
     };
     assert.isTrue(canUseFacetTable(b));
+  });
+
+  it('returns true for lambda_logs with facetName, even if highCardinality', () => {
+    state.tableName = 'lambda_logs';
+    const b = {
+      id: 'breakdown-function-name', col: 'x', facetName: 'function_name', highCardinality: true,
+    };
+    assert.isTrue(canUseFacetTable(b));
+    state.tableName = 'delivery';
+  });
+
+  it('returns false for lambda_logs with facetName when host filter is active', () => {
+    state.tableName = 'lambda_logs';
+    state.hostFilter = '/helix3/admin';
+    const b = { id: 'breakdown-level', col: 'x', facetName: 'level' };
+    assert.isFalse(canUseFacetTable(b));
+    state.tableName = 'delivery';
+    state.hostFilter = '';
+  });
+
+  it('returns false for lambda_logs without facetName', () => {
+    state.tableName = 'lambda_logs';
+    const b = { id: 'breakdown-message', col: '`message`' };
+    assert.isFalse(canUseFacetTable(b));
+    state.tableName = 'delivery';
   });
 });
 
@@ -467,6 +492,135 @@ describe('loadBreakdown (facet table path)', () => {
   });
 });
 
+describe('loadBreakdown (lambda facet table path)', () => {
+  const facetId = 'breakdown-lambda-facet-table-test';
+  let card;
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = window.fetch;
+    card = createCard(facetId, 'Lambda Facet Table Test');
+    state.tableName = 'lambda_logs';
+    state.hostFilter = '';
+    state.filters = [];
+    state.additionalWhereClause = '';
+    state.aggregations = {
+      aggTotal: 'count()',
+      aggOk: "countIf(lower(level) NOT IN ('error', 'warn', 'warning'))",
+      agg4xx: "countIf(lower(level) IN ('warn', 'warning'))",
+      agg5xx: "countIf(lower(level) = 'error')",
+    };
+  });
+
+  afterEach(() => {
+    window.fetch = originalFetch;
+    state.tableName = 'delivery';
+    state.aggregations = null;
+    if (card && card.parentNode) {
+      card.remove();
+    }
+  });
+
+  it('uses breakdown-facet-lambda.sql for lambda facets with facetName', async () => {
+    const LAMBDA_FACET_SQL_TEMPLATE = 'SELECT\n  dim,\n  sum(cnt) as cnt,\n  sum(cnt_ok) as cnt_ok,\n  sum(cnt_4xx) as cnt_4xx,\n  sum(cnt_5xx) as cnt_5xx{{summaryCol}}\nFROM (\n  SELECT dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}\n  FROM {{database}}.lambda_facet_minutes\n  WHERE facet = \'{{facetName}}\'\n    AND minute >= toDateTime(\'{{startTime}}\')\n    AND minute <= toDateTime(\'{{endTime}}\')\n    {{dimFilter}}\n)\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
+
+    const calls = [];
+    window.fetch = async (url, options) => {
+      calls.push({ url, options });
+      if (typeof url === 'string' && url.endsWith('.sql')) {
+        const template = url.includes('breakdown-facet-lambda.sql') ? LAMBDA_FACET_SQL_TEMPLATE : BREAKDOWN_SQL_TEMPLATE;
+        return { ok: true, text: async () => template };
+      }
+      if (options && options.method === 'POST') {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [{
+              dim: 'info', cnt: '100', cnt_ok: '100', cnt_4xx: '0', cnt_5xx: '0',
+            }],
+            totals: {
+              cnt: '100', cnt_ok: '100', cnt_4xx: '0', cnt_5xx: '0',
+            },
+            networkTime: 5,
+          }),
+        };
+      }
+      return { ok: false, status: 404 };
+    };
+
+    const b = { id: facetId, col: '`level`', facetName: 'level' };
+    const ctx = startRequestContext('facets');
+    await loadBreakdown(b, '1=1', '', ctx);
+
+    const sqlCalls = calls.filter((c) => c.url.endsWith('.sql'));
+    assert.ok(sqlCalls.some((c) => c.url.includes('breakdown-facet-lambda.sql')), 'should use lambda facet template');
+    assert.notOk(sqlCalls.some((c) => c.url.includes('breakdown-facet.sql') && !c.url.includes('lambda')), 'should not use delivery facet template');
+
+    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    assert.isAbove(queryCalls.length, 0, 'should execute query');
+    assert.ok(queryCalls.some((c) => c.options.body.includes('lambda_facet_minutes')), 'query should target lambda_facet_minutes');
+
+    assert.isFalse(card.classList.contains('updating'));
+  });
+
+  it('uses raw table for lambda facets without facetName', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+
+    const b = { id: facetId, col: '`message`', highCardinality: true };
+    const ctx = startRequestContext('facets');
+    await loadBreakdown(b, '1=1', '', ctx);
+
+    const sqlCalls = calls.filter((c) => c.url.endsWith('.sql'));
+    assert.notOk(sqlCalls.some((c) => c.url.includes('breakdown-facet')), 'should not use facet template');
+    // Check query body rather than SQL URL (template may be cached from earlier tests)
+    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    assert.isAbove(queryCalls.length, 0, 'should execute query');
+    assert.notOk(queryCalls.some((c) => c.options.body.includes('lambda_facet_minutes')), 'should not query lambda facet table');
+    assert.ok(queryCalls.some((c) => c.options.body.includes('lambda_logs')), 'should query raw lambda_logs table');
+  });
+
+  it('renders unavailable when time range exceeds maxTimeRangeHours', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    state.timeRange = '3d'; // 3d > maxTimeRangeHours: 24
+    const b = {
+      id: facetId,
+      col: 'left(`message`, 300)',
+      highCardinality: true,
+      noRawFallback: true,
+      maxTimeRangeHours: 24,
+    };
+    const ctx = startRequestContext('facets');
+    await loadBreakdown(b, '1=1', '', ctx);
+
+    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    assert.strictEqual(queryCalls.length, 0, 'should not execute any query');
+    assert.include(card.innerHTML, 'Not available for time ranges longer than 24h');
+  });
+
+  it('renders unavailable when noRawFallback and filters are active within time limit', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    // state.timeRange is already '1h' (set by global beforeEach), within the 24h limit
+    state.filters = [{ col: '`level`', value: 'error', exclude: false }];
+    const b = {
+      id: facetId,
+      col: 'left(`message`, 300)',
+      highCardinality: true,
+      noRawFallback: true,
+      maxTimeRangeHours: 24,
+    };
+    const ctx = startRequestContext('facets');
+    await loadBreakdown(b, '1=1', '', ctx);
+
+    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    assert.strictEqual(queryCalls.length, 0, 'should not execute any query');
+    assert.include(card.innerHTML, 'Not available with active filters');
+    state.filters = [];
+  });
+});
+
 describe('loadBreakdown (raw table path)', () => {
   const rawId = 'breakdown-raw-table-test';
   let card;
@@ -495,11 +649,13 @@ describe('loadBreakdown (raw table path)', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', "AND (`request.host` LIKE '%example.com%')", ctx);
 
-    // Should use regular breakdown template, not facet template
-    const sqlCalls = calls.filter((c) => c.url.endsWith('.sql'));
+    // Verify via query body: should query raw delivery table, not facet table
+    // (SQL templates are cached across tests so URL checks are unreliable after first fetch)
+    const queryCalls = calls.filter((c) => c.options?.method === 'POST');
+    assert.isAbove(queryCalls.length, 0, 'should execute query');
     assert.ok(
-      sqlCalls.some((c) => c.url.includes('breakdown.sql') && !c.url.includes('breakdown-facet')),
-      'should use raw table breakdown template',
+      queryCalls.some((c) => c.options.body.includes('delivery') && !c.options.body.includes('cdn_facet_minutes')),
+      'should use raw delivery table, not facet table',
     );
 
     assert.isFalse(card.classList.contains('updating'));

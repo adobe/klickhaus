@@ -29,10 +29,11 @@ import { PAGE_SIZE, PaginationState } from './pagination.js';
  * @returns {string[]}
  */
 function getLogColumns(allColumns) {
+  const columnOrder = state.logColumnOrder ?? LOG_COLUMN_ORDER;
   const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
-  const preferred = LOG_COLUMN_ORDER
+  const preferred = columnOrder
     .filter((col) => allColumns.includes(col) && !pinned.includes(col));
-  const rest = allColumns.filter((col) => !pinned.includes(col) && !LOG_COLUMN_ORDER.includes(col));
+  const rest = allColumns.filter((col) => !pinned.includes(col) && !columnOrder.includes(col));
   return [...pinned, ...preferred, ...rest];
 }
 
