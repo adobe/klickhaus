@@ -64,7 +64,6 @@ export const lambdaBreakdowns = [
     id: 'breakdown-message',
     col: 'left(`message`, 300)',
     highCardinality: true,
-    noRawFallback: true,
     maxTimeRangeHours: 24,
   },
   {
