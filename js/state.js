@@ -46,6 +46,8 @@ export const state = {
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
   logColumnOrder: null, // Optional preferred column ordering for the logs table
+  userLogColumnOrder: null, // User-customised column order (per-dashboard, localStorage)
+  hiddenLogColumns: [], // User-hidden columns (per-dashboard, localStorage)
 };
 
 export function saveViewMode(mode) {
@@ -138,6 +140,42 @@ export function togglePinnedFacet(facetId) {
   saveFacetPrefs();
   if (onFacetOrderChange) {
     onFacetOrderChange();
+  }
+}
+
+// Get localStorage key for log column preferences (keyed by title if present)
+function getLogColumnPrefsKey() {
+  return state.title ? `logColumnPrefs_${state.title}` : 'logColumnPrefs';
+}
+
+let onLogColumnPrefsChange = null;
+
+export function setOnLogColumnPrefsChange(callback) {
+  onLogColumnPrefsChange = callback;
+}
+
+export function loadLogColumnPrefs() {
+  const key = getLogColumnPrefsKey();
+  try {
+    const prefs = JSON.parse(storage.getItem(key) || '{}');
+    state.userLogColumnOrder = Array.isArray(prefs.order) ? prefs.order : null;
+    state.hiddenLogColumns = Array.isArray(prefs.hidden) ? prefs.hidden : [];
+  } catch (e) {
+    state.userLogColumnOrder = null;
+    state.hiddenLogColumns = [];
+  }
+}
+
+export function saveLogColumnPrefs(order, hidden) {
+  state.userLogColumnOrder = Array.isArray(order) && order.length > 0 ? order : null;
+  state.hiddenLogColumns = Array.isArray(hidden) ? hidden : [];
+  const key = getLogColumnPrefsKey();
+  storage.setItem(key, JSON.stringify({
+    order: state.userLogColumnOrder,
+    hidden: state.hiddenLogColumns,
+  }));
+  if (onLogColumnPrefsChange && state.logsData) {
+    onLogColumnPrefsChange(state.logsData);
   }
 }
 

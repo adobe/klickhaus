@@ -10,7 +10,9 @@
  * governing permissions and limitations under the License.
  */
 import { DATABASE } from './config.js';
-import { state, setOnPinnedColumnsChange, saveViewMode } from './state.js';
+import {
+  state, setOnPinnedColumnsChange, setOnLogColumnPrefsChange, saveViewMode,
+} from './state.js';
 import { query, isAbortError } from './api.js';
 import { getTimeFilter, getHostFilter, getLogsTable } from './time.js';
 import { getFacetFilters } from './breakdowns/index.js';
@@ -30,11 +32,13 @@ import { PAGE_SIZE, PaginationState } from './pagination.js';
  * @returns {string[]}
  */
 function getLogColumns(allColumns) {
-  const columnOrder = state.logColumnOrder ?? LOG_COLUMN_ORDER;
-  const pinned = state.pinnedColumns.filter((col) => allColumns.includes(col));
+  const hidden = new Set(state.hiddenLogColumns || []);
+  const visible = allColumns.filter((col) => !hidden.has(col));
+  const columnOrder = state.userLogColumnOrder ?? state.logColumnOrder ?? LOG_COLUMN_ORDER;
+  const pinned = state.pinnedColumns.filter((col) => visible.includes(col));
   const preferred = columnOrder
-    .filter((col) => allColumns.includes(col) && !pinned.includes(col));
-  const rest = allColumns.filter((col) => !pinned.includes(col) && !columnOrder.includes(col));
+    .filter((col) => visible.includes(col) && !pinned.includes(col));
+  const rest = visible.filter((col) => !pinned.includes(col) && !columnOrder.includes(col));
   return [...pinned, ...preferred, ...rest];
 }
 
@@ -507,6 +511,7 @@ export function setLogsElements(view, filtersViewEl, contentAreaEl) {
 
 // Register callback for pinned column changes
 setOnPinnedColumnsChange(renderLogsTable);
+setOnLogColumnPrefsChange(renderLogsTable);
 
 // Callback for redrawing chart when switching views
 let onShowFiltersView = null;

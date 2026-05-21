@@ -9,7 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { state, loadFacetPrefs } from './state.js';
+import { state, loadFacetPrefs, loadLogColumnPrefs } from './state.js';
 import {
   queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange,
 } from './time.js';
@@ -198,6 +198,7 @@ export function loadStateFromURL() {
   }
 
   loadFacetPrefs();
+  loadLogColumnPrefs();
 
   if (params.has('pf')) { state.pinnedFacets = params.get('pf').split(',').filter((f) => f); }
   if (params.has('hf')) { state.hiddenFacets = params.get('hf').split(',').filter((f) => f); }

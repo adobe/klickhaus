@@ -64,6 +64,7 @@ import {
   initHostFilterDoubleTap, initMobileTouchSupport, initPullToRefresh, initMobileFiltersPosition,
 } from './ui/mobile.js';
 import { initActionHandlers } from './ui/actions.js';
+import { openManageColumns } from './manage-columns.js';
 import { preloadAllTemplates } from './sql-loader.js';
 import { startRequestContext, isRequestCurrent } from './request-context.js';
 
@@ -88,6 +89,7 @@ export function initDashboard(config = {}) {
     refreshBtn: document.getElementById('refreshBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
     viewCycleBtn: document.getElementById('viewCycleBtn'),
+    manageColumnsBtn: document.getElementById('manageColumnsBtn'),
     logsView: document.getElementById('logsView'),
     filtersView: document.getElementById('filtersView'),
     contentArea: document.getElementById('contentArea'),
@@ -437,6 +439,10 @@ export function initDashboard(config = {}) {
     });
 
     elements.viewCycleBtn.addEventListener('click', () => cycleViewMode(saveStateToURL));
+
+    if (elements.manageColumnsBtn) {
+      elements.manageColumnsBtn.addEventListener('click', () => openManageColumns());
+    }
 
     window.matchMedia('(max-width: 1500px)').addEventListener('change', (e) => {
       if (e.matches && state.viewMode === 'split') {
