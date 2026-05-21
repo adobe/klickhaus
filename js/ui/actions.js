@@ -31,6 +31,8 @@
  * Handle add-filter action
  */
 function handleAddFilter(handlers, target, event) {
+  const selection = window.getSelection?.();
+  if (selection && selection.toString().length > 0) { return; }
   const exclude = event.shiftKey || target.dataset.exclude === 'true';
   handlers.addFilter?.(
     target.dataset.col || '',
