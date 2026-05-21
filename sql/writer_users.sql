@@ -96,3 +96,20 @@ GRANT INSERT         ON helix_logs_production.lambda_logs          TO lambda_log
 GRANT SELECT         ON helix_logs_production.lambda_logs          TO lambda_logs_writer;
 GRANT INSERT         ON helix_logs_production.lambda_facet_minutes TO lambda_logs_writer;
 GRANT SELECT(query, query_id, user) ON system.processes TO lambda_logs_writer;
+
+-- ============================================================================
+-- config_writer
+-- ----------------------------------------------------------------------------
+-- Used by:
+--   - scripts/import-helix-configs.mjs  (bulk import from helix-ctl dump)
+--   - Future: S3 change listener progressive updates
+--
+-- ReplacingMergeTree tables — only INSERT needed (deduplication is engine-side).
+-- ============================================================================
+
+-- CREATE USER config_writer IDENTIFIED BY '<password>';
+
+GRANT SELECT, INSERT ON helix_logs_production.helix_org_configs     TO config_writer;
+GRANT SELECT, INSERT ON helix_logs_production.helix_site_configs    TO config_writer;
+GRANT SELECT, INSERT ON helix_logs_production.helix_profile_configs TO config_writer;
+GRANT SELECT(query, query_id, user) ON system.processes TO config_writer;

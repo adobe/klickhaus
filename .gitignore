@@ -5,4 +5,4 @@ coverage/
 .playwright-cli/
 .playwright-mcp/
 .env
-
+.claude
