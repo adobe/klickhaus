@@ -106,7 +106,7 @@ function siteRow(org, site, data) {
     last_modified: ts(data.lastModified),
     code_owner: str(code.owner),
     code_repo: str(code.repo),
-    code_source_type: str(codeSource.type),
+    code_source_type: str(codeSource.url) === 'https://cm-repo.adobe.io/api' ? 'byogit' : str(codeSource.type),
     code_source_url: str(codeSource.url),
     content_bus_id: str(content.contentBusId),
     content_source_type: resolveContentType(contentSourceUrl, str(contentSource.type)),
@@ -115,6 +115,7 @@ function siteRow(org, site, data) {
     content_source_overlay_url: contentOverlayUrl,
     cdn_prod_host: str(cdnProd.host),
     cdn_prod_type: str(cdnProd.type),
+    folders: data.folders != null && Object.keys(data.folders).length > 0,
     features: jsonField(data.features),
     limits: jsonField(data.limits),
   };

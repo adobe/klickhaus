@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.helix_site_configs
     -- cdn (prod only)
     cdn_prod_host String,
     cdn_prod_type LowCardinality(String),
+    -- folders mapping is present and non-empty
+    folders  Bool,
     -- special JSON fields (handled separately during import)
     features String,
     limits   String,
