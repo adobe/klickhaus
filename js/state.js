@@ -30,6 +30,7 @@ export const state = {
   logsReady: false,
   viewMode: storage.getItem('viewMode') || 'filters', // 'filters' | 'logs' | 'split'
   pinnedColumns: JSON.parse(storage.getItem('pinnedColumns') || '[]'),
+  logColumnWidths: JSON.parse(storage.getItem('logColumnWidths') || '{}'),
   hiddenControls: [], // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
   title: '', // Custom title from URL
   chartData: null, // Store chart data for redrawing when view changes
@@ -69,6 +70,21 @@ export function togglePinnedColumn(col) {
   storage.setItem('pinnedColumns', JSON.stringify(state.pinnedColumns));
   if (onPinnedColumnsChange && state.logsData) {
     onPinnedColumnsChange(state.logsData);
+  }
+}
+
+export function setLogColumnWidth(col, width) {
+  state.logColumnWidths[col] = width;
+  storage.setItem('logColumnWidths', JSON.stringify(state.logColumnWidths));
+}
+
+export function resetLogColumnWidth(col) {
+  if (col in state.logColumnWidths) {
+    delete state.logColumnWidths[col];
+    storage.setItem('logColumnWidths', JSON.stringify(state.logColumnWidths));
+    if (onPinnedColumnsChange && state.logsData) {
+      onPinnedColumnsChange(state.logsData);
+    }
   }
 }
 

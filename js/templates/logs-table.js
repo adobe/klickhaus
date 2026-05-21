@@ -84,13 +84,15 @@ export function formatLogCell(col, value) {
  * @returns {string}
  */
 export function buildLogCellHtml({
-  col, value, pinned, pinnedOffsets,
+  col, value, pinned, pinnedOffsets, widths,
 }) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col, value);
   const isPinned = pinned.includes(col);
   const leftOffset = isPinned && pinnedOffsets && pinnedOffsets[col] !== undefined
     ? `left: ${pinnedOffsets[col]}px;`
     : '';
+  const w = widths && widths[col];
+  const widthStyle = w ? `width: ${w}px; min-width: ${w}px; max-width: ${w}px;` : '';
 
   let className = cellClass;
   if (isPinned) { className = `${className} pinned`.trim(); }
@@ -105,7 +107,7 @@ export function buildLogCellHtml({
     actionAttrs = ` data-action="add-filter" data-col="${escapeHtml(facetMapping.col)}" data-value="${escapeHtml(filterValue)}" data-exclude="false"`;
   }
 
-  return `<td class="${className}" style="${leftOffset}" title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</td>`;
+  return `<td class="${className}" style="${leftOffset}${widthStyle}" title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</td>`;
 }
 
 /**
@@ -119,12 +121,12 @@ export function buildLogCellHtml({
  * @returns {string}
  */
 export function buildLogRowHtml({
-  row, columns, rowIdx, pinned, pinnedOffsets,
+  row, columns, rowIdx, pinned, pinnedOffsets, widths,
 }) {
   let html = `<tr data-row-idx="${rowIdx}">`;
   for (const col of columns) {
     html += buildLogCellHtml({
-      col, value: row[col], pinned, pinnedOffsets,
+      col, value: row[col], pinned, pinnedOffsets, widths,
     });
   }
   html += '</tr>';
@@ -136,16 +138,21 @@ export function buildLogRowHtml({
  * @param {string[]} columns
  * @param {string[]} pinned
  * @param {Record<string, number>} pinnedOffsets
+ * @param {Record<string, number>} [widths] column -> px width override
  * @returns {string}
  */
-export function buildLogTableHeaderHtml(columns, pinned, pinnedOffsets) {
+export function buildLogTableHeaderHtml(columns, pinned, pinnedOffsets, widths = {}) {
   return columns.map((col) => {
     const isPinned = pinned.includes(col);
     const pinnedClass = isPinned ? 'pinned' : '';
     const leftOffset = isPinned ? `left: ${pinnedOffsets[col]}px;` : '';
+    const w = widths[col];
+    const widthStyle = w ? `width: ${w}px; min-width: ${w}px; max-width: ${w}px;` : '';
+    const style = `${leftOffset}${widthStyle}`;
     const displayName = LOG_COLUMN_SHORT_LABELS[col] || col;
     const titleAttr = LOG_COLUMN_SHORT_LABELS[col] ? ` title="${escapeHtml(col)}"` : '';
     const actionAttrs = ` data-action="toggle-pinned-column" data-col="${escapeHtml(col)}"`;
-    return `<th class="${pinnedClass}" style="${leftOffset}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}</th>`;
+    const handle = `<span class="col-resize-handle" data-action="resize-column" data-col="${escapeHtml(col)}"></span>`;
+    return `<th class="${pinnedClass}" style="${style}"${titleAttr}${actionAttrs}>${escapeHtml(displayName)}${handle}</th>`;
   }).join('');
 }

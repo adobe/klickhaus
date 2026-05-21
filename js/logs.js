@@ -21,6 +21,7 @@ import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
+import { attachColumnResize } from './column-resize.js';
 import { PAGE_SIZE, PaginationState } from './pagination.js';
 
 /**
@@ -380,11 +381,12 @@ function appendLogsRows(data) {
   // Get starting index from existing rows
   const existingRows = tbody.querySelectorAll('tr').length;
 
+  const widths = state.logColumnWidths || {};
   let html = '';
   for (let i = 0; i < data.length; i += 1) {
     const rowIdx = existingRows + i;
     html += buildLogRowHtml({
-      row: data[i], columns: fullColumns, rowIdx, pinned,
+      row: data[i], columns: fullColumns, rowIdx, pinned, widths,
     });
   }
 
@@ -412,11 +414,13 @@ export function renderLogsTable(data) {
   const COL_WIDTH = 120;
   const pinnedOffsets = getApproxPinnedOffsets(pinned, COL_WIDTH);
 
+  const widths = state.logColumnWidths || {};
+
   let html = `
     <table class="logs-table">
       <thead>
         <tr>
-          ${buildLogTableHeaderHtml(columns, pinned, pinnedOffsets)}
+          ${buildLogTableHeaderHtml(columns, pinned, pinnedOffsets, widths)}
         </tr>
       </thead>
       <tbody>
@@ -424,7 +428,7 @@ export function renderLogsTable(data) {
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx += 1) {
     html += buildLogRowHtml({
-      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets,
+      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets, widths,
     });
   }
 
@@ -432,6 +436,7 @@ export function renderLogsTable(data) {
   container.innerHTML = html;
 
   updatePinnedOffsets(container, pinned);
+  attachColumnResize(container, () => updatePinnedOffsets(container, state.pinnedColumns));
 }
 
 async function loadMoreLogs() {

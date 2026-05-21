@@ -174,6 +174,56 @@ describe('buildLogTableHeaderHtml', () => {
       {},
     );
     assert.include(html, 'title="response.status"');
-    assert.include(html, '>status</th>');
+    assert.include(html, '>status<');
+  });
+
+  it('emits a column resize handle on every header cell', () => {
+    const html = buildLogTableHeaderHtml(
+      ['timestamp', 'request.url'],
+      [],
+      {},
+    );
+    const matches = html.match(/class="col-resize-handle"/g) || [];
+    assert.lengthOf(matches, 2);
+    assert.include(html, 'data-action="resize-column"');
+    assert.include(html, 'data-col="timestamp"');
+    assert.include(html, 'data-col="request.url"');
+  });
+
+  it('applies width override when provided', () => {
+    const html = buildLogTableHeaderHtml(
+      ['request.url'],
+      [],
+      {},
+      { 'request.url': 250 },
+    );
+    assert.include(html, 'width: 250px');
+    assert.include(html, 'min-width: 250px');
+    assert.include(html, 'max-width: 250px');
+  });
+
+  it('does not apply width when no override exists', () => {
+    const html = buildLogTableHeaderHtml(
+      ['request.url'],
+      [],
+      {},
+      {},
+    );
+    assert.notInclude(html, 'width:');
+  });
+});
+
+describe('buildLogCellHtml widths', () => {
+  it('applies width to td when provided', () => {
+    const html = buildLogCellHtml({
+      col: 'request.url',
+      value: '/page',
+      pinned: [],
+      pinnedOffsets: {},
+      widths: { 'request.url': 180 },
+    });
+    assert.include(html, 'width: 180px');
+    assert.include(html, 'min-width: 180px');
+    assert.include(html, 'max-width: 180px');
   });
 });
