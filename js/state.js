@@ -44,6 +44,9 @@ export const state = {
   weightColumn: null, // When set (e.g. 'weight'), counts use sum(weight) / sumIf(weight, ...)
   aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
+  searchFilter: '', // Free-text search routed to requestIdColumn (UUID input) or messageColumn
+  requestIdColumn: null, // Column to exact-match when input is a UUID (e.g. request_id)
+  messageColumn: null, // Column to substring-match otherwise (e.g. message)
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
   logColumnOrder: null, // Optional preferred column ordering for the logs table
 };

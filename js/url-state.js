@@ -50,6 +50,7 @@ export function setUrlStateElements(els) {
 function addBasicParams(params) {
   if (state.timeRange !== DEFAULT_TIME_RANGE) { params.set('t', state.timeRange); }
   if (state.hostFilter) { params.set('host', state.hostFilter); }
+  if (state.searchFilter) { params.set('q', state.searchFilter); }
   if (state.topN !== DEFAULT_TOP_N) { params.set('n', state.topN); }
   if (state.viewMode !== 'filters') { params.set('view', state.viewMode); }
   if (state.title) { params.set('title', state.title); }
@@ -119,6 +120,7 @@ function loadBasicState(params) {
     state.timeRange = params.get('t');
   }
   if (params.has('host')) { state.hostFilter = params.get('host'); }
+  if (params.has('q')) { state.searchFilter = params.get('q'); }
   if (params.has('n')) {
     const n = parseInt(params.get('n'), 10);
     if (TOP_N_OPTIONS.includes(n)) { state.topN = n; }
@@ -208,6 +210,9 @@ export function syncUIFromState() {
   elements.topNSelect.value = state.topN;
   document.body.dataset.topn = state.topN;
   elements.hostFilterInput.value = state.hostFilter;
+  if (elements.searchFilterInput) {
+    elements.searchFilterInput.value = state.searchFilter;
+  }
   renderActiveFilters();
 
   // Update title if custom title is set

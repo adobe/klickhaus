@@ -85,6 +85,7 @@ export function initDashboard(config = {}) {
     timeRangeSelect: document.getElementById('timeRange'),
     topNSelect: document.getElementById('topN'),
     hostFilterInput: document.getElementById('hostFilter'),
+    searchFilterInput: document.getElementById('searchFilter'),
     refreshBtn: document.getElementById('refreshBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
     viewCycleBtn: document.getElementById('viewCycleBtn'),
@@ -298,6 +299,15 @@ export function initDashboard(config = {}) {
     }
   }
 
+  function applySearchConfig() {
+    if (config.requestIdColumn !== undefined) {
+      state.requestIdColumn = config.requestIdColumn;
+    }
+    if (config.messageColumn !== undefined) {
+      state.messageColumn = config.messageColumn;
+    }
+  }
+
   function applyConfig(initialParams) {
     if (config.title && !state.title) { state.title = config.title; }
     if (config.additionalWhereClause !== undefined) {
@@ -317,6 +327,7 @@ export function initDashboard(config = {}) {
       clearAllowedColumnsCache();
     }
     if (config.logColumnOrder) { state.logColumnOrder = config.logColumnOrder; }
+    applySearchConfig();
   }
 
   // Initialize
@@ -435,6 +446,34 @@ export function initDashboard(config = {}) {
         e.target.blur();
       }
     });
+
+    const commitSearchFilterIfChanged = () => {
+      const { value } = elements.searchFilterInput;
+      if (value === state.searchFilter) { return; }
+      state.searchFilter = value;
+      saveStateToURL();
+      loadDashboard();
+    };
+    let searchFilterOriginalValue = '';
+    if (elements.searchFilterInput) {
+      elements.searchFilterInput.addEventListener('focus', () => {
+        searchFilterOriginalValue = elements.searchFilterInput.value;
+      });
+      elements.searchFilterInput.addEventListener('change', commitSearchFilterIfChanged);
+      elements.searchFilterInput.addEventListener('blur', commitSearchFilterIfChanged);
+      elements.searchFilterInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitSearchFilterIfChanged();
+          e.target.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.target.value = searchFilterOriginalValue;
+          state.searchFilter = searchFilterOriginalValue;
+          e.target.blur();
+        }
+      });
+    }
 
     elements.viewCycleBtn.addEventListener('click', () => cycleViewMode(saveStateToURL));
 

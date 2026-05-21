@@ -266,15 +266,32 @@ export function getTimeFilter() {
   return `toStartOfMinute(timestamp) BETWEEN toStartOfMinute(toDateTime('${startIso}')) AND toStartOfMinute(toDateTime('${endIso}'))`;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function getSearchClause() {
+  if (!state.searchFilter) { return ''; }
+  const escaped = state.searchFilter.replace(/'/g, "\\'");
+  if (UUID_RE.test(state.searchFilter) && state.requestIdColumn) {
+    return `AND \`${state.requestIdColumn}\` = '${escaped}'`;
+  }
+  if (state.messageColumn) {
+    return `AND \`${state.messageColumn}\` LIKE '%${escaped}%'`;
+  }
+  return '';
+}
+
 export function getHostFilter() {
-  if (!state.hostFilter) {
-    return '';
+  let hostClause = '';
+  if (state.hostFilter) {
+    const escaped = state.hostFilter.replace(/'/g, "\\'");
+    if (state.hostFilterColumn) {
+      hostClause = `AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`;
+    } else {
+      hostClause = `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
+    }
   }
-  const escaped = state.hostFilter.replace(/'/g, "\\'");
-  if (state.hostFilterColumn) {
-    return `AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`;
-  }
-  return `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
+  const searchClause = getSearchClause();
+  return [hostClause, searchClause].filter(Boolean).join(' ');
 }
 
 // Get aligned time range for chart rendering and WITH FILL bounds

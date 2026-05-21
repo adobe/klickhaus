@@ -52,6 +52,8 @@ initDashboard({
   timeSeriesTemplate: 'time-series-lambda',
   aggregations: LAMBDA_AGGREGATIONS,
   hostFilterColumn: 'function_name',
+  requestIdColumn: 'request_id',
+  messageColumn: 'message',
   defaultTimeRange: '24h',
   logColumnOrder: LOG_COLUMN_ORDER,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
