@@ -82,6 +82,13 @@ function jsonField(v) {
   return JSON.stringify(v);
 }
 
+function resolveContentType(url, fallback) {
+  if (url.startsWith('https://content.da.live/')) { return 'da'; }
+  if (url.includes('.adobeaemcloud.com')) { return 'xwalk'; }
+  if (url.startsWith('https://api.aem.live/')) { return 'source'; }
+  return fallback;
+}
+
 function siteRow(org, site, data) {
   const code = data.code || {};
   const codeSource = code.source || {};
@@ -89,6 +96,8 @@ function siteRow(org, site, data) {
   const contentSource = content.source || {};
   const contentOverlay = contentSource.overlay || {};
   const cdnProd = (data.cdn && data.cdn.prod) || {};
+  const contentSourceUrl = str(contentSource.url);
+  const contentOverlayUrl = str(contentOverlay.url);
   return {
     org,
     site,
@@ -100,10 +109,10 @@ function siteRow(org, site, data) {
     code_source_type: str(codeSource.type),
     code_source_url: str(codeSource.url),
     content_bus_id: str(content.contentBusId),
-    content_source_type: str(contentSource.type),
-    content_source_url: str(contentSource.url),
-    content_source_overlay_type: str(contentOverlay.type),
-    content_source_overlay_url: str(contentOverlay.url),
+    content_source_type: resolveContentType(contentSourceUrl, str(contentSource.type)),
+    content_source_url: contentSourceUrl,
+    content_source_overlay_type: resolveContentType(contentOverlayUrl, str(contentOverlay.type)),
+    content_source_overlay_url: contentOverlayUrl,
     cdn_prod_host: str(cdnProd.host),
     cdn_prod_type: str(cdnProd.type),
     features: jsonField(data.features),
@@ -194,11 +203,21 @@ async function main() {
   }
 
   try {
+    const db = process.env.CLICKHOUSE_DATABASE;
+    const CONFIG_TABLES = ['helix_org_configs', 'helix_site_configs', 'helix_profile_configs'];
+
     console.log(`Inserting into ClickHouse (batch size ${BATCH_SIZE})...`);
     await flushBatched('helix_org_configs', orgRows);
     await flushBatched('helix_site_configs', siteRows);
     await flushBatched('helix_profile_configs', profileRows);
     console.log(`Imported ${orgRows.length} orgs, ${siteRows.length} sites, ${profileRows.length} profiles.`);
+
+    console.log('Deduplicating...');
+    for (const table of CONFIG_TABLES) {
+      // eslint-disable-next-line no-await-in-loop -- Sequential to avoid overloading the cluster
+      await post(`/?query=${encodeURIComponent(`OPTIMIZE TABLE ${db}.${table} FINAL`)}`);
+      console.log(`  ${table}: done`);
+    }
   } catch (err) {
     console.error('Error:', err.message);
     process.exit(1);

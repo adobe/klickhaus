@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.helix_org_configs
     version       UInt32,
     created       DateTime64(3, 'UTC'),
     last_modified DateTime64(3, 'UTC'),
-    _version UInt64 DEFAULT toUnixTimestamp64Milli(now64(3))  -- Deduplication key
+    _version UInt64 DEFAULT toUnixTimestamp64Milli(now64(3))
 )
 ENGINE = ReplacingMergeTree(_version)
 ORDER BY (org)

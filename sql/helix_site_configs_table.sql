@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.helix_site_configs
     -- special JSON fields (handled separately during import)
     features String,
     limits   String,
-    _version UInt64 DEFAULT toUnixTimestamp64Milli(now64(3))  -- Deduplication key
+    _version UInt64 DEFAULT toUnixTimestamp64Milli(now64(3))
 )
 ENGINE = ReplacingMergeTree(_version)
 ORDER BY (org, site)
