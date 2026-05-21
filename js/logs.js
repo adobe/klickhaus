@@ -346,6 +346,10 @@ export function setupLogRowClickHandler() {
     // Don't open modal if clicking on a clickable cell (filter action)
     if (target.classList.contains('clickable')) { return; }
 
+    // Don't open modal if the user is selecting text
+    const selection = window.getSelection?.();
+    if (selection && selection.toString().length > 0) { return; }
+
     // Find the row
     const row = target.closest('tr');
     if (!row || !row.dataset.rowIdx) { return; }
