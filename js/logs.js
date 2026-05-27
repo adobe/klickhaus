@@ -201,7 +201,7 @@ function formatDetailValue(col, value) {
     displayValue = String(value);
   }
 
-  const color = getColorForColumn(col, value);
+  const color = getColorForColumn(`\`${col}\``, value);
   const colorIndicator = color ? `<span class="log-color" style="background:${color}"></span>` : '';
 
   return { html: colorIndicator + escapeHtml(displayValue), className };
