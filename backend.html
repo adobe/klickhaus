@@ -61,7 +61,7 @@
       <div class="header-right">
         <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange"></select></span>
         <select id="topN"></select>
-        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off"></span>
+        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by path..." list="hostSuggestions" autocomplete="off"></span>
         <datalist id="hostSuggestions"></datalist>
         <span class="kbd-control">
           <kbd class="kbd-hint">t</kbd>
@@ -207,6 +207,18 @@
         </div>
         <div class="breakdown-card" id="breakdown-time-elapsed">
           <h3>Response Time</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-helix-owner">
+          <h3>Owner</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-helix-repo">
+          <h3>Repo</h3>
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+        <div class="breakdown-card" id="breakdown-helix-path">
+          <h3>Resource path</h3>
           <div class="loading"><div class="spinner"></div>Loading...</div>
         </div>
       </section>

@@ -22,6 +22,9 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-methods',
   'breakdown-content-encoding',
   'breakdown-ips',
+  'breakdown-helix-owner',
+  'breakdown-helix-repo',
+  'breakdown-helix-path',
 ];
 
 initDashboard({
@@ -30,4 +33,5 @@ initDashboard({
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-backend',
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
+  hostFilterColumn: 'request.url',
 });
