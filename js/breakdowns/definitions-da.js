@@ -68,6 +68,13 @@ export const daBreakdowns = [
   {
     id: 'breakdown-script-name', col: '`cdn.script_name`', extraFilter: "AND `cdn.script_name` != ''",
   },
+  { id: 'breakdown-helix-route', col: '`helix.route`', extraFilter: "AND `helix.route` != ''" },
+  {
+    id: 'breakdown-helix-owner', col: '`helix.owner`', extraFilter: "AND `helix.owner` != ''", highCardinality: true,
+  },
+  {
+    id: 'breakdown-helix-repo', col: '`helix.repo`', extraFilter: "AND `helix.repo` != ''", highCardinality: true,
+  },
   {
     id: 'breakdown-accept-encoding', col: COLUMN_DEFS.acceptEncoding.facetCol, extraFilter: "AND `request.headers.accept_encoding` != ''", modeToggle: 'contentTypeMode',
   },
