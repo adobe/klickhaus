@@ -28,22 +28,10 @@
 
 -- CREATE USER logpush_writer IDENTIFIED BY '<password>';
 
--- Raw staging tables (one per source):
-GRANT SELECT, INSERT ON helix_logs_production.cloudflare_http_requests TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming2   TO logpush_writer;
--- Per-Fastly-service backend staging tables:
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_00QRLuuAsVNvsKgNWYVCbb TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_6a6O21m8WoIIVg5cliw7BW TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_ItVEMJu5q2pJE3ejseo0W6 TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_SIDuP3HxleUgBDR3Gi8T24 TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_UDBDj4zfyNdZEpZApUqhL3 TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_atG7Eq66bH88LhbNq7Fqq2 TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_cHpjIl1WNRu9SFyL1eBSj3 TO logpush_writer;
-GRANT SELECT, INSERT ON helix_logs_production.fastly_logs_incoming_s2dVksBUsvEKaaYF13wIh6 TO logpush_writer;
-
 -- Final tables (INSERT for the ingestion MVs, ALTER DELETE for retention jobs):
 GRANT INSERT, ALTER DELETE ON helix_logs_production.admin           TO logpush_writer;
 GRANT INSERT, ALTER DELETE ON helix_logs_production.backend         TO logpush_writer;
+GRANT INSERT, ALTER DELETE ON helix_logs_production.delivery        TO logpush_writer;
 GRANT INSERT             ON helix_logs_production.delivery_errors TO logpush_writer;
 GRANT SELECT, INSERT     ON helix_logs_production.da              TO logpush_writer;
 GRANT INSERT             ON helix_logs_production.asn_mapping     TO logpush_writer;
