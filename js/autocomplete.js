@@ -27,6 +27,11 @@ function populateHostDatalist(values) {
 
 export async function loadHostAutocomplete() {
   const isFunctionFilter = state.hostFilterColumn === 'function_name';
+  // No suggestions for arbitrary column filters (e.g. request.url paths).
+  if (state.hostFilterColumn && !isFunctionFilter) {
+    populateHostDatalist([]);
+    return;
+  }
   const cacheKey = isFunctionFilter ? FUNCTION_CACHE_KEY : HOST_CACHE_KEY;
 
   const cached = localStorage.getItem(cacheKey);

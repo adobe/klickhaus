@@ -143,6 +143,9 @@ export const allBreakdowns = [
   {
     id: 'breakdown-helix-owner', col: '`helix.owner`', extraFilter: "AND `helix.owner` != ''", highCardinality: true,
   },
+  {
+    id: 'breakdown-helix-path', col: '`helix.path`', extraFilter: "AND `helix.path` != ''", highCardinality: true,
+  },
   { id: 'breakdown-helix-ref', col: '`helix.ref`', extraFilter: "AND `helix.ref` != ''" },
   { id: 'breakdown-ratelimit-limit', col: '`response.headers.x_ratelimit_limit`', extraFilter: "AND `response.headers.x_ratelimit_limit` != ''" },
   {
