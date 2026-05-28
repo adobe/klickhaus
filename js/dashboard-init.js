@@ -341,6 +341,15 @@ export function initDashboard(config = {}) {
       state.title = config.title;
     }
 
+    // Breakdowns drive the filter-column allowlist used by loadStateFromURL,
+    // so the dashboard's breakdowns must be installed before URL filters are parsed.
+    // Otherwise dashboard-specific columns (e.g. `level` on Lambda) get rejected
+    // by the default allowlist and silently dropped from the restored filter set.
+    if (config.breakdowns) {
+      state.breakdowns = config.breakdowns;
+      clearAllowedColumnsCache();
+    }
+
     loadStateFromURL();
     applyConfig(initialParams);
     applyDefaultHiddenFacets();
