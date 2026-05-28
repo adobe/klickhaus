@@ -23,6 +23,8 @@ export const state = {
   credentials: null,
   timeRange: DEFAULT_TIME_RANGE,
   hostFilter: '',
+  ownerRepoFilter: '',
+  ownerRepoFilterExact: false, // true = exact match (=), false = LIKE search
   topN: DEFAULT_TOP_N,
   filters: [], // [{col: '`request.url`', value: '/foo', exclude: false}]
   logsData: null,

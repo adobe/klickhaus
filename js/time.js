@@ -281,17 +281,32 @@ function getSearchClause() {
 }
 
 export function getHostFilter() {
-  let hostClause = '';
+  const clauses = [];
   if (state.hostFilter) {
     const escaped = state.hostFilter.replace(/'/g, "\\'");
     if (state.hostFilterColumn) {
-      hostClause = `AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`;
+      clauses.push(`AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`);
     } else {
-      hostClause = `AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`;
+      clauses.push(`AND (\`request.host\` LIKE '%${escaped}%' OR \`request.headers.x_forwarded_host\` LIKE '%${escaped}%')`);
+    }
+  }
+  if (state.ownerRepoFilter) {
+    const slashIdx = state.ownerRepoFilter.indexOf('/');
+    if (slashIdx !== -1) {
+      const owner = state.ownerRepoFilter.substring(0, slashIdx).replace(/'/g, "\\'");
+      const repo = state.ownerRepoFilter.substring(slashIdx + 1).replace(/'/g, "\\'");
+      if (state.ownerRepoFilterExact) {
+        clauses.push(`AND \`helix.owner\` = '${owner}' AND \`helix.repo\` = '${repo}'`);
+      } else {
+        clauses.push(`AND \`helix.owner\` LIKE '%${owner}%' AND \`helix.repo\` LIKE '%${repo}%'`);
+      }
+    } else {
+      const escaped = state.ownerRepoFilter.replace(/'/g, "\\'");
+      clauses.push(`AND (\`helix.owner\` LIKE '%${escaped}%' OR \`helix.repo\` LIKE '%${escaped}%')`);
     }
   }
   const searchClause = getSearchClause();
-  return [hostClause, searchClause].filter(Boolean).join(' ');
+  return [...clauses, searchClause].filter(Boolean).join(' ');
 }
 
 // Get aligned time range for chart rendering and WITH FILL bounds

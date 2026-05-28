@@ -17,9 +17,24 @@ import { state } from '../state.js';
 import { TOP_N_OPTIONS } from '../constants.js';
 import { buildBreakdownRow, buildOtherRow } from '../templates/breakdown-table.js';
 
-// Get filters for a specific column
+const OWNER_COL = '`helix.owner`';
+const REPO_COL = '`helix.repo`';
+
+// Get filters for a specific column, including a synthetic entry from ownerRepoFilter
 export function getFiltersForColumn(col) {
-  return state.filters.filter((f) => f.col === col);
+  const fromState = state.filters.filter((f) => f.col === col);
+  if (!state.ownerRepoFilter || (col !== OWNER_COL && col !== REPO_COL)) { return fromState; }
+  const slashIdx = state.ownerRepoFilter.indexOf('/');
+  let value;
+  if (col === OWNER_COL) {
+    value = slashIdx !== -1 ? state.ownerRepoFilter.substring(0, slashIdx) : state.ownerRepoFilter;
+  } else {
+    value = slashIdx !== -1 ? state.ownerRepoFilter.substring(slashIdx + 1) : null;
+  }
+  if (!value || fromState.some((f) => f.value === value)) { return fromState; }
+  return [...fromState, {
+    col, value, exclude: false, matchAny: true,
+  }];
 }
 
 // Get next topN value for "show more" functionality
@@ -141,7 +156,8 @@ export function renderBreakdownTable(
   const { title } = card.dataset;
 
   const columnFilters = getFiltersForColumn(col);
-  const hasFilters = columnFilters.length > 0;
+  // Only real column filters (not synthetic ownerRepoFilter entries) show the Clear button
+  const hasFilters = state.filters.some((f) => f.col === col);
   const mode = modeToggle ? state[modeToggle] : 'count';
   const isBytes = mode === 'bytes';
   const valueFormatter = isBytes ? formatBytes : formatNumber;

@@ -61,8 +61,8 @@
       <div class="header-right">
         <span class="kbd-control"><kbd class="kbd-hint" id="timeRangeHint">2</kbd><select id="timeRange"></select></span>
         <select id="topN"></select>
-        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="hostFilter" placeholder="Filter by host..." list="hostSuggestions" autocomplete="off"></span>
-        <datalist id="hostSuggestions"></datalist>
+        <span class="kbd-control"><kbd class="kbd-hint">f</kbd><input type="text" id="ownerRepoFilter" placeholder="Owner or owner/repo..." list="ownerRepoSuggestions" autocomplete="off"></span>
+        <datalist id="ownerRepoSuggestions"></datalist>
         <span class="kbd-control">
           <kbd class="kbd-hint">t</kbd>
           <button id="viewCycleBtn" class="menu-btn" title="Switch to Logs view">
@@ -287,7 +287,7 @@
         <div class="key-desc">Refresh data</div>
 
         <div class="key-group"><kbd>f</kbd></div>
-        <div class="key-desc">Focus host filter</div>
+        <div class="key-desc">Focus owner filter</div>
 
         <div class="key-group"><kbd>t</kbd></div>
         <div class="key-desc">Cycle view</div>

@@ -41,14 +41,14 @@ import {
 import { getNextTopN } from './breakdowns/render.js';
 import {
   addFilter, removeFilter, removeFilterByValue, clearFiltersForColumn, setFilterCallbacks,
-  getFilterForValue,
+  getFilterForValue, setOnOwnerRepoFilterChange, renderActiveFilters, clearOwnerRepoFilter,
 } from './filters.js';
 import { clearAllowedColumnsCache } from './filter-sql.js';
 import {
   loadLogs, cycleViewMode, setViewMode, applyViewMode,
   setLogsElements, setOnShowFiltersView, setOnShowLogsView,
 } from './logs.js';
-import { loadHostAutocomplete } from './autocomplete.js';
+import { loadHostAutocomplete, loadOwnerRepoAutocomplete } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import {
   initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId,
@@ -86,6 +86,7 @@ export function initDashboard(config = {}) {
     timeRangeSelect: document.getElementById('timeRange'),
     topNSelect: document.getElementById('topN'),
     hostFilterInput: document.getElementById('hostFilter'),
+    ownerRepoFilterInput: document.getElementById('ownerRepoFilter'),
     searchFilterInput: document.getElementById('searchFilter'),
     refreshBtn: document.getElementById('refreshBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
@@ -332,6 +333,22 @@ export function initDashboard(config = {}) {
     applySearchConfig();
   }
 
+  // Migrate helix.owner/helix.repo column filters loaded from URL into ownerRepoFilter input
+  function migrateOwnerRepoColumnFilters(input) {
+    const ownerF = state.filters.find((f) => f.col === '`helix.owner`' && !f.exclude);
+    const repoF = state.filters.find((f) => f.col === '`helix.repo`' && !f.exclude);
+    if (!ownerF && !repoF) { return; }
+    const owner = ownerF ? ownerF.value : '';
+    const repo = repoF ? repoF.value : '';
+    const migrated = (owner && repo) ? `${owner}/${repo}` : owner || repo;
+    state.ownerRepoFilter = migrated;
+    state.filters = state.filters.filter(
+      (f) => f.col !== '`helix.owner`' && f.col !== '`helix.repo`',
+    );
+    // eslint-disable-next-line no-param-reassign
+    input.value = migrated;
+  }
+
   // Initialize
   async function init() {
     // Set title before loadStateFromURL → loadFacetPrefs() so the storage key matches
@@ -353,6 +370,14 @@ export function initDashboard(config = {}) {
     loadStateFromURL();
     applyConfig(initialParams);
     applyDefaultHiddenFacets();
+
+    // When this dashboard uses the ownerRepoFilter input, sync breakdown clicks to it
+    if (elements.ownerRepoFilterInput) {
+      setOnOwnerRepoFilterChange((value) => {
+        elements.ownerRepoFilterInput.value = value;
+      });
+      migrateOwnerRepoColumnFilters(elements.ownerRepoFilterInput);
+    }
 
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
@@ -383,6 +408,7 @@ export function initDashboard(config = {}) {
       closeDialog: (el) => el.closest('dialog')?.close(),
       openFacetSearch,
       copyFacetTsv: copyFacetAsTsv,
+      clearOwnerRepoFilter,
     });
 
     const storedCredentials = loadStoredCredentials();
@@ -433,30 +459,76 @@ export function initDashboard(config = {}) {
     }
 
     let hostFilterOriginalValue = '';
-    elements.hostFilterInput.addEventListener('focus', () => {
-      hostFilterOriginalValue = elements.hostFilterInput.value;
-    });
-
-    elements.hostFilterInput.addEventListener('change', () => {
-      commitHostFilterIfChanged();
-    });
-
-    elements.hostFilterInput.addEventListener('blur', () => {
-      commitHostFilterIfChanged();
-    });
-
-    elements.hostFilterInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
+    if (elements.hostFilterInput) {
+      elements.hostFilterInput.addEventListener('focus', () => {
+        hostFilterOriginalValue = elements.hostFilterInput.value;
+      });
+      elements.hostFilterInput.addEventListener('change', () => {
         commitHostFilterIfChanged();
-        e.target.blur();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        e.target.value = hostFilterOriginalValue;
-        state.hostFilter = hostFilterOriginalValue;
-        e.target.blur();
-      }
-    });
+      });
+      elements.hostFilterInput.addEventListener('blur', () => {
+        commitHostFilterIfChanged();
+      });
+      elements.hostFilterInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitHostFilterIfChanged();
+          e.target.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.target.value = hostFilterOriginalValue;
+          state.hostFilter = hostFilterOriginalValue;
+          e.target.blur();
+        }
+      });
+    }
+
+    let ownerRepoSelectedFromDatalist = false;
+
+    function commitOwnerRepoFilterIfChanged() {
+      const { value } = elements.ownerRepoFilterInput;
+      const exact = ownerRepoSelectedFromDatalist && value.includes('/');
+      if (value === state.ownerRepoFilter && exact === state.ownerRepoFilterExact) { return; }
+      state.ownerRepoFilter = value;
+      state.ownerRepoFilterExact = exact;
+      state.filters = state.filters.filter(
+        (f) => f.col !== '`helix.owner`' && f.col !== '`helix.repo`',
+      );
+      renderActiveFilters();
+      saveStateToURL();
+      loadDashboard();
+    }
+
+    let ownerRepoFilterOriginalValue = '';
+    if (elements.ownerRepoFilterInput) {
+      elements.ownerRepoFilterInput.addEventListener('focus', () => {
+        ownerRepoFilterOriginalValue = elements.ownerRepoFilterInput.value;
+        ownerRepoSelectedFromDatalist = false;
+      });
+      elements.ownerRepoFilterInput.addEventListener('input', () => {
+        ownerRepoSelectedFromDatalist = false;
+      });
+      elements.ownerRepoFilterInput.addEventListener('change', () => {
+        ownerRepoSelectedFromDatalist = true;
+        commitOwnerRepoFilterIfChanged();
+      });
+      elements.ownerRepoFilterInput.addEventListener('blur', () => {
+        commitOwnerRepoFilterIfChanged();
+      });
+      elements.ownerRepoFilterInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitOwnerRepoFilterIfChanged();
+          e.target.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.target.value = ownerRepoFilterOriginalValue;
+          state.ownerRepoFilter = ownerRepoFilterOriginalValue;
+          state.ownerRepoFilterExact = false;
+          e.target.blur();
+        }
+      });
+    }
 
     const commitSearchFilterIfChanged = () => {
       const { value } = elements.searchFilterInput;
@@ -516,11 +588,16 @@ export function initDashboard(config = {}) {
   }
 
   window.addEventListener('dashboard-shown', () => {
-    setTimeout(loadHostAutocomplete, 100);
+    if (elements.ownerRepoFilterInput) {
+      setTimeout(loadOwnerRepoAutocomplete, 100);
+    } else {
+      setTimeout(loadHostAutocomplete, 100);
+    }
   });
 
   init();
   initHostFilterDoubleTap(elements.hostFilterInput);
+  if (elements.ownerRepoFilterInput) { initHostFilterDoubleTap(elements.ownerRepoFilterInput); }
   initMobileTouchSupport();
   initPullToRefresh(() => loadDashboard(true));
   initMobileFiltersPosition();

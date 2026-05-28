@@ -50,6 +50,7 @@ export function setUrlStateElements(els) {
 function addBasicParams(params) {
   if (state.timeRange !== DEFAULT_TIME_RANGE) { params.set('t', state.timeRange); }
   if (state.hostFilter) { params.set('host', state.hostFilter); }
+  if (state.ownerRepoFilter) { params.set('owner', state.ownerRepoFilter); }
   if (state.searchFilter) { params.set('q', state.searchFilter); }
   if (state.topN !== DEFAULT_TOP_N) { params.set('n', state.topN); }
   if (state.viewMode !== 'filters') { params.set('view', state.viewMode); }
@@ -120,6 +121,7 @@ function loadBasicState(params) {
     state.timeRange = params.get('t');
   }
   if (params.has('host')) { state.hostFilter = params.get('host'); }
+  if (params.has('owner')) { state.ownerRepoFilter = params.get('owner'); }
   if (params.has('q')) { state.searchFilter = params.get('q'); }
   if (params.has('n')) {
     const n = parseInt(params.get('n'), 10);
@@ -206,17 +208,36 @@ export function loadStateFromURL() {
   if (params.has('hf')) { state.hiddenFacets = params.get('hf').split(',').filter((f) => f); }
 }
 
+function hideControl(name, el) {
+  if (state.hiddenControls.includes(name) && el) {
+    // eslint-disable-next-line no-param-reassign
+    el.style.display = 'none';
+  }
+}
+
+function applyHiddenControls() {
+  hideControl('timeRange', elements.timeRangeSelect);
+  hideControl('topN', elements.topNSelect);
+  hideControl('host', elements.hostFilterInput);
+  hideControl('owner', elements.ownerRepoFilterInput);
+  hideControl('refresh', elements.refreshBtn);
+  hideControl('logout', elements.logoutBtn);
+  hideControl('logs', elements.viewCycleBtn);
+}
+
 export function syncUIFromState() {
   syncTimeRangeSelectDisplay(elements.timeRangeSelect);
   elements.topNSelect.value = state.topN;
   document.body.dataset.topn = state.topN;
-  elements.hostFilterInput.value = state.hostFilter;
+  if (elements.hostFilterInput) { elements.hostFilterInput.value = state.hostFilter; }
+  if (elements.ownerRepoFilterInput) {
+    elements.ownerRepoFilterInput.value = state.ownerRepoFilter;
+  }
   if (elements.searchFilterInput) {
     elements.searchFilterInput.value = state.searchFilter;
   }
   renderActiveFilters();
 
-  // Update title if custom title is set
   const titleEl = document.getElementById('dashboardTitle');
   if (state.title) {
     titleEl.textContent = state.title;
@@ -226,7 +247,6 @@ export function syncUIFromState() {
     document.title = 'CDN Analytics';
   }
 
-  // Apply view mode to DOM
   const { viewMode } = state;
   const isSplit = viewMode === 'split';
   const isLogs = viewMode === 'logs';
@@ -234,25 +254,7 @@ export function syncUIFromState() {
   elements.filtersView.classList.toggle('visible', !isLogs);
   elements.filtersView.classList.toggle('in-split', isSplit);
   if (elements.contentArea) { elements.contentArea.classList.toggle('split', isSplit); }
-  // Apply hidden controls from URL
-  if (state.hiddenControls.includes('timeRange')) {
-    elements.timeRangeSelect.style.display = 'none';
-  }
-  if (state.hiddenControls.includes('topN')) {
-    elements.topNSelect.style.display = 'none';
-  }
-  if (state.hiddenControls.includes('host')) {
-    elements.hostFilterInput.style.display = 'none';
-  }
-  if (state.hiddenControls.includes('refresh')) {
-    elements.refreshBtn.style.display = 'none';
-  }
-  if (state.hiddenControls.includes('logout')) {
-    elements.logoutBtn.style.display = 'none';
-  }
-  if (state.hiddenControls.includes('logs')) {
-    if (elements.viewCycleBtn) { elements.viewCycleBtn.style.display = 'none'; }
-  }
+  applyHiddenControls();
 }
 
 // Handle browser back/forward navigation

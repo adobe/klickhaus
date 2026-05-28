@@ -405,7 +405,8 @@ function handleKeyboardShortcut(e) {
   } else if (key === 'f') {
     e.preventDefault();
     deactivateKeyboardMode();
-    document.getElementById('hostFilter').focus();
+    const filterEl = document.getElementById('ownerRepoFilter') || document.getElementById('hostFilter');
+    if (filterEl) { filterEl.focus(); }
   } else if (key === 'b' || key === '#') {
     e.preventDefault();
     if (onToggleFacetMode) { onToggleFacetMode('contentTypeMode'); }

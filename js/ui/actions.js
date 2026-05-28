@@ -105,6 +105,7 @@ export function initActionHandlers(handlers) {
       'close-quick-links': () => handlers.closeQuickLinksModal?.(),
       'close-dialog': () => handlers.closeDialog?.(target),
       'copy-facet-tsv': () => handlers.copyFacetTsv?.(target.dataset.facet || ''),
+      'clear-owner-repo-filter': () => handlers.clearOwnerRepoFilter?.(),
     };
 
     if (simpleActions[action]) {

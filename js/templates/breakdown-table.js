@@ -125,7 +125,7 @@ function calculateBarPercentages(cnt, cntOk, cnt4xx, cnt5xx) {
  * Determine filter state for a row
  */
 function getFilterState(columnFilters, rowDim) {
-  const activeFilter = columnFilters.find((f) => f.value === (rowDim || ''));
+  const activeFilter = columnFilters.find((f) => f.matchAny || f.value === (rowDim || ''));
   return {
     isIncluded: activeFilter && !activeFilter.exclude,
     isExcluded: activeFilter && activeFilter.exclude,

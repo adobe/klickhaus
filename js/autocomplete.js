@@ -18,11 +18,17 @@ import { loadSql } from './sql-loader.js';
 
 const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
 const FUNCTION_CACHE_KEY = 'functionAutocompleteSuggestions';
+const OWNER_REPO_CACHE_KEY = 'ownerRepoAutocompleteSuggestions';
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 
-function populateHostDatalist(values) {
-  const datalist = document.getElementById('hostSuggestions');
+function populateDatalist(datalistId, values) {
+  const datalist = document.getElementById(datalistId);
+  if (!datalist) { return; }
   datalist.innerHTML = values.map((v) => `<option value="${escapeHtml(v)}">`).join('');
+}
+
+function populateHostDatalist(values) {
+  populateDatalist('hostSuggestions', values);
 }
 
 export async function loadHostAutocomplete() {
@@ -89,5 +95,35 @@ export async function loadHostAutocomplete() {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Failed to load host autocomplete:', err);
+  }
+}
+
+export async function loadOwnerRepoAutocomplete() {
+  const table = getTable();
+  const cacheKey = `${OWNER_REPO_CACHE_KEY}_${table}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const { values, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        populateDatalist('ownerRepoSuggestions', values);
+        return;
+      }
+    } catch (e) {
+      // Cache invalid, continue to fetch
+    }
+  }
+
+  try {
+    const sqlParams = { database: DATABASE, table };
+    const sql = await loadSql('autocomplete-owner-repo', sqlParams);
+    const result = await query(sql);
+    const values = (result.data || []).map((row) => row.owner_repo).filter(Boolean)
+      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    localStorage.setItem(cacheKey, JSON.stringify({ values, timestamp: Date.now() }));
+    populateDatalist('ownerRepoSuggestions', values);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to load owner/repo autocomplete:', err);
   }
 }
