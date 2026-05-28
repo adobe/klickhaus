@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.helix_site_configs
     cdn_prod_type LowCardinality(String),
     -- folders mapping is present and non-empty
     folders  Bool,
+    -- profile this site extends (data.extends.profile)
+    profile LowCardinality(String),
     -- special JSON fields (handled separately during import)
     features String,
     limits   String,

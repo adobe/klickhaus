@@ -98,6 +98,7 @@ function siteRow(org, site, data) {
   const cdnProd = (data.cdn && data.cdn.prod) || {};
   const contentSourceUrl = str(contentSource.url);
   const contentOverlayUrl = str(contentOverlay.url);
+  const profile = str((data.extends || {}).profile);
   return {
     org,
     site,
@@ -115,6 +116,7 @@ function siteRow(org, site, data) {
     content_source_overlay_url: contentOverlayUrl,
     cdn_prod_host: str(cdnProd.host),
     cdn_prod_type: str(cdnProd.type),
+    profile,
     folders: data.folders != null && Object.keys(data.folders).length > 0,
     features: jsonField(data.features),
     limits: jsonField(data.limits),

@@ -109,7 +109,7 @@ GRANT SELECT(query, query_id, user) ON system.processes TO lambda_logs_writer;
 
 -- CREATE USER config_writer IDENTIFIED BY '<password>';
 
-GRANT OPTIMIZE, SELECT, INSERT ON helix_logs_production.helix_org_configs     TO config_writer;
-GRANT OPTIMIZE, SELECT, INSERT ON helix_logs_production.helix_site_configs    TO config_writer;
-GRANT OPTIMIZE, SELECT, INSERT ON helix_logs_production.helix_profile_configs TO config_writer;
+GRANT ALTER UPDATE, ALTER DELETE, OPTIMIZE, SELECT, INSERT ON helix_logs_production.helix_org_configs     TO config_writer;
+GRANT ALTER UPDATE, ALTER DELETE, OPTIMIZE, SELECT, INSERT ON helix_logs_production.helix_site_configs    TO config_writer;
+GRANT ALTER UPDATE, ALTER DELETE, OPTIMIZE, SELECT, INSERT ON helix_logs_production.helix_profile_configs TO config_writer;
 GRANT SELECT(query, query_id, user) ON system.processes TO config_writer;
