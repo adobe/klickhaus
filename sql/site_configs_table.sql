@@ -3,7 +3,7 @@
 -- Future: progressive updates from the S3 change listener
 -- Created: 2026-05-21
 
-CREATE TABLE IF NOT EXISTS helix_logs_production.helix_site_configs
+CREATE TABLE IF NOT EXISTS helix_logs_production.site_configs
 (
     org           LowCardinality(String),
     site          String,

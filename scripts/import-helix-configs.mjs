@@ -14,7 +14,7 @@
 /**
  * Import a helix-ctl config-bus dump into ClickHouse.
  *
- * Populates the helix_site_configs, helix_profile_configs, and helix_org_configs
+ * Populates the site_configs, profile_configs, and org_configs
  * tables in helix_logs_production from a JSON dump produced by helix-ctl.
  *
  * Usage: node import-helix-configs.mjs <dump-file> [--dry-run]
@@ -207,12 +207,12 @@ async function main() {
 
   try {
     const db = process.env.CLICKHOUSE_DATABASE;
-    const CONFIG_TABLES = ['helix_org_configs', 'helix_site_configs', 'helix_profile_configs'];
+    const CONFIG_TABLES = ['org_configs', 'site_configs', 'profile_configs'];
 
     console.log(`Inserting into ClickHouse (batch size ${BATCH_SIZE})...`);
-    await flushBatched('helix_org_configs', orgRows);
-    await flushBatched('helix_site_configs', siteRows);
-    await flushBatched('helix_profile_configs', profileRows);
+    await flushBatched('org_configs', orgRows);
+    await flushBatched('site_configs', siteRows);
+    await flushBatched('profile_configs', profileRows);
     console.log(`Imported ${orgRows.length} orgs, ${siteRows.length} sites, ${profileRows.length} profiles.`);
 
     console.log('Deduplicating...');
