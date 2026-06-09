@@ -4,4 +4,4 @@ SELECT
   countIf(cdn_prod_type != '')   AS with_cdn_type,
   countIf(folders)               AS with_folders,
   countIf(profile != '')         AS with_profile
-FROM {{database}}.site_configs FINAL
+FROM {{database}}.{{source}}
