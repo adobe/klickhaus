@@ -10,6 +10,24 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.profile_configs
     version       UInt32,
     created       DateTime64(3, 'UTC'),
     last_modified DateTime64(3, 'UTC'),
+    -- code source
+    code_owner       LowCardinality(String),
+    code_repo        String,
+    code_source_type LowCardinality(String),
+    code_source_url  String,
+    -- content source
+    content_bus_id              String,
+    content_source_type         LowCardinality(String),
+    content_source_url          String,
+    content_source_overlay_type LowCardinality(String),
+    content_source_overlay_url  String,
+    -- cdn
+    cdn_prod_host String,
+    cdn_prod_type LowCardinality(String),
+    -- folders / features / limits
+    folders  Bool,
+    features String,
+    limits   String,
     _version UInt64 DEFAULT toUnixTimestamp64Milli(now64(3))
 )
 ENGINE = ReplacingMergeTree(_version)

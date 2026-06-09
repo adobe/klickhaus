@@ -17,6 +17,37 @@ html {
   white-space: nowrap;
 }
 
+/* ── Raw / Resolved toggle ──────────────────────────────────── */
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.view-opt {
+  all: unset;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.view-opt:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.view-opt[aria-pressed="true"] {
+  background: var(--host-delivery);
+  color: #fff;
+}
+
 /* ── Main layout ────────────────────────────────────────────── */
 
 .configs-main {
@@ -446,6 +477,19 @@ html {
 .detail-value.empty {
   color: var(--text-secondary);
   font-style: italic;
+}
+
+.profile-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--host-authoring) 12%, transparent);
+  color: var(--host-authoring);
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .detail-json {

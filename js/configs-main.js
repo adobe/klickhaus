@@ -24,6 +24,8 @@ const PAGE_SIZE = 200;
 // All mutable state in one const object to avoid formatter const/let conflicts
 const s = {
   rows: [],
+  resolvedMap: new Map(),
+  rawMap: new Map(),
   typeRowsData: [],
   contentTypeRowsData: [],
   statsData: {},
@@ -36,6 +38,7 @@ const s = {
   currentPage: 1,
   cdnTypeFilter: null,
   contentTypeFilter: null,
+  resolvedView: false,
 };
 
 // DOM refs
@@ -231,6 +234,31 @@ function renderTable() {
   updateAriaSort();
 }
 
+function buildResolvedMap(data) {
+  const map = new Map();
+  data.forEach((r) => { map.set(`${r.org}/${r.site}`, r); });
+  return map;
+}
+
+function normVal(v) {
+  if (v === true || v === 1) { return 'true'; }
+  if (v === false || v === 0) { return 'false'; }
+  return String(v == null ? '' : v);
+}
+
+function profileBadge(rawVal, resolvedVal, profileSrc) {
+  if (resolvedVal === null || resolvedVal === undefined || resolvedVal === '') { return ''; }
+  if (normVal(rawVal) === normVal(resolvedVal)) { return ''; }
+  return ` <span class="profile-badge" title="inherited from profile">&#8593;&nbsp;${escapeHtml(profileSrc)}</span>`;
+}
+
+function detailRowResolved(label, rawVal, resolvedVal, profileSrc) {
+  const isEmpty = resolvedVal === null || resolvedVal === undefined || resolvedVal === '';
+  const display = isEmpty ? '—' : escapeHtml(String(resolvedVal));
+  return `<div class="detail-label">${escapeHtml(label)}</div>
+          <div class="detail-value${isEmpty ? ' empty' : ''}">${display}${profileBadge(rawVal, resolvedVal, profileSrc)}</div>`;
+}
+
 function formatJson(raw) {
   if (!raw || raw === '{}' || raw === '[]' || raw === 'null' || raw === '') {
     return null;
@@ -249,47 +277,67 @@ function detailRow(label, value) {
           <div class="detail-value${isEmpty ? ' empty' : ''}">${display}</div>`;
 }
 
-function showDetail(row) {
-  els.detailTitle.textContent = `${row.org} / ${row.site}`;
-  els.detailSubtitle.innerHTML = row.cdn_prod_host
-    ? `${escapeHtml(row.cdn_prod_host)} &mdash; <a href="https://admin.hlx.page/config/${encodeURIComponent(row.org)}/sites/${encodeURIComponent(row.site)}.json" target="_blank" rel="noopener" class="detail-config-link">config JSON</a>`
-    : `<a href="https://admin.hlx.page/config/${encodeURIComponent(row.org)}/sites/${encodeURIComponent(row.site)}.json" target="_blank" rel="noopener" class="detail-config-link">config JSON</a>`;
+function foldersLabel(v) {
+  return (v === 1 || v === true || v === '1') ? 'Yes' : 'No';
+}
 
-  const featuresJson = formatJson(row.features);
-  const limitsJson = formatJson(row.limits);
+function showDetail(row) {
+  const key = `${row.org}/${row.site}`;
+  // res = the resolved (effective) row; rawRow = the raw site-only row
+  const res = s.resolvedView ? row : (s.resolvedMap.get(key) || row);
+  const rawRow = s.resolvedView ? (s.rawMap.get(key) || row) : row;
+  const profileSrc = row.profile || 'default';
+  const dr = (label, field) => detailRowResolved(label, rawRow[field], res[field], profileSrc);
+
+  const configLink = `<a href="https://admin.hlx.page/config/${encodeURIComponent(row.org)}/sites/${encodeURIComponent(row.site)}.json" target="_blank" rel="noopener" class="detail-config-link">config JSON</a>`;
+  els.detailTitle.textContent = `${row.org} / ${row.site}`;
+  els.detailSubtitle.innerHTML = res.cdn_prod_host
+    ? `${escapeHtml(res.cdn_prod_host)} &mdash; ${configLink}`
+    : configLink;
+
+  const featuresJson = formatJson(res.features);
+  const rawFeaturesJson = formatJson(rawRow.features);
+  const limitsJson = formatJson(res.limits);
+  const rawLimitsJson = formatJson(rawRow.limits);
+  const featuresBadge = featuresJson && featuresJson !== rawFeaturesJson
+    ? ` <span class="profile-badge" title="merged with profile">&#8593;&nbsp;${escapeHtml(profileSrc)}</span>`
+    : '';
+  const limitsBadge = limitsJson && limitsJson !== rawLimitsJson
+    ? ` <span class="profile-badge" title="merged with profile">&#8593;&nbsp;${escapeHtml(profileSrc)}</span>`
+    : '';
 
   els.detailBody.innerHTML = `
     <div class="detail-group">
       <div class="detail-group-title">CDN</div>
       <div class="detail-rows">
-        ${detailRow('Prod host', row.cdn_prod_host)}
-        ${detailRow('Prod type', row.cdn_prod_type)}
+        ${dr('Prod host', 'cdn_prod_host')}
+        ${dr('Prod type', 'cdn_prod_type')}
       </div>
     </div>
     <div class="detail-group">
       <div class="detail-group-title">Code Source</div>
       <div class="detail-rows">
-        ${detailRow('Owner', row.code_owner)}
-        ${detailRow('Repo', row.code_repo)}
-        ${detailRow('Source type', row.code_source_type)}
-        ${detailRow('Source URL', row.code_source_url)}
+        ${dr('Owner', 'code_owner')}
+        ${dr('Repo', 'code_repo')}
+        ${dr('Source type', 'code_source_type')}
+        ${dr('Source URL', 'code_source_url')}
       </div>
     </div>
     <div class="detail-group">
       <div class="detail-group-title">Content Source</div>
       <div class="detail-rows">
-        ${detailRow('Content bus ID', row.content_bus_id || '')}
-        ${detailRow('Source type', row.content_source_type)}
-        ${detailRow('Source URL', row.content_source_url)}
-        ${detailRow('Overlay type', row.content_source_overlay_type)}
-        ${detailRow('Overlay URL', row.content_source_overlay_url)}
+        ${detailRowResolved('Content bus ID', rawRow.content_bus_id, res.content_bus_id, profileSrc)}
+        ${dr('Source type', 'content_source_type')}
+        ${dr('Source URL', 'content_source_url')}
+        ${dr('Overlay type', 'content_source_overlay_type')}
+        ${dr('Overlay URL', 'content_source_overlay_url')}
       </div>
     </div>
     <div class="detail-group">
       <div class="detail-group-title">Config</div>
       <div class="detail-rows">
         ${detailRow('Profile', row.profile)}
-        ${detailRow('Folders', row.folders === '1' || row.folders === true ? 'Yes' : 'No')}
+        ${detailRowResolved('Folders', foldersLabel(rawRow.folders), foldersLabel(res.folders), profileSrc)}
         ${detailRow('Version', row.version)}
         ${detailRow('Created', row.created_date)}
         ${detailRow('Last modified', row.last_modified_date)}
@@ -297,12 +345,12 @@ function showDetail(row) {
     </div>
     ${featuresJson ? `
     <div class="detail-group">
-      <div class="detail-group-title">Features</div>
+      <div class="detail-group-title">Features${featuresBadge}</div>
       <pre class="detail-json">${escapeHtml(featuresJson)}</pre>
     </div>` : ''}
     ${limitsJson ? `
     <div class="detail-group">
-      <div class="detail-group-title">Limits</div>
+      <div class="detail-group-title">Limits${limitsBadge}</div>
       <pre class="detail-json">${escapeHtml(limitsJson)}</pre>
     </div>` : ''}
   `;
@@ -318,24 +366,34 @@ async function loadData(refresh = false) {
 
   try {
     setForceRefresh(refresh);
-    const [sqlStats, sqlByType, sqlByContentType, sqlList] = await Promise.all([
-      loadSql('configs-stats', { database: DATABASE }),
-      loadSql('configs-by-type', { database: DATABASE }),
-      loadSql('configs-by-content-type', { database: DATABASE }),
-      loadSql('configs-list', { database: DATABASE }),
+    const source = s.resolvedView ? 'site_configs_resolved' : 'site_configs FINAL';
+    const compareSource = s.resolvedView ? 'site_configs FINAL' : 'site_configs_resolved';
+    const params = { database: DATABASE, source };
+    const compareParams = { database: DATABASE, source: compareSource };
+    const [sqlStats, sqlByType, sqlByContentType, sqlList, sqlCompare] = await Promise.all([
+      loadSql('configs-stats', params),
+      loadSql('configs-by-type', params),
+      loadSql('configs-by-content-type', params),
+      loadSql('configs-list', params),
+      loadSql('configs-resolved-list', compareParams),
     ]);
 
     const start = performance.now();
-    const [statsResult, typeResult, contentTypeResult, listResult] = await Promise.all([
+    // eslint-disable-next-line max-len
+    const [statsResult, typeResult, contentTypeResult, listResult, compareResult] = await Promise.all([
       query(sqlStats, { cacheTtl: 300 }),
       query(sqlByType, { cacheTtl: 300 }),
       query(sqlByContentType, { cacheTtl: 300 }),
       query(sqlList, { cacheTtl: 300 }),
+      query(sqlCompare, { cacheTtl: 300 }),
     ]);
     const elapsed = performance.now() - start;
     setForceRefresh(false);
 
     s.rows = listResult.data;
+    const compareMap = buildResolvedMap(compareResult.data || []);
+    s.resolvedMap = s.resolvedView ? new Map() : compareMap;
+    s.rawMap = s.resolvedView ? compareMap : new Map();
     s.currentPage = 1;
 
     els.queryTimer.textContent = `(${formatQueryTime(elapsed)})`;
@@ -355,6 +413,28 @@ async function loadData(refresh = false) {
     els.errorState.classList.add('visible');
   }
 }
+
+// Raw / Resolved toggle
+function updateViewToggle() {
+  document.querySelectorAll('#viewToggle .view-opt').forEach((btn) => {
+    const active = (btn.dataset.view === 'resolved') === s.resolvedView;
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+document.getElementById('viewToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('.view-opt');
+  if (!btn) { return; }
+  const wantResolved = btn.dataset.view === 'resolved';
+  if (wantResolved === s.resolvedView) { return; }
+  s.resolvedView = wantResolved;
+  s.cdnTypeFilter = null;
+  s.contentTypeFilter = null;
+  Object.keys(s.chipFilters).forEach((k) => { s.chipFilters[k] = false; });
+  s.currentPage = 1;
+  updateViewToggle();
+  loadData();
+});
 
 // Sort on column header click
 document.querySelectorAll('.configs-table th.sortable').forEach((th) => {
