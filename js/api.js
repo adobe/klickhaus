@@ -44,6 +44,18 @@ export function summarizeErrorText(text) {
     return 'Unknown error';
   }
   const trimmed = String(text).trim();
+  // ClickHouse Cloud sometimes returns errors as JSON: { "exception": "Code: X..." }
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const inner = parsed.exception || parsed.error || parsed.message;
+      if (inner) {
+        return summarizeErrorText(inner);
+      }
+    } catch {
+      // not JSON, fall through to first-line logic
+    }
+  }
   const firstLine = trimmed.split('\n').map((line) => line.trim()).find(Boolean) || trimmed;
   const normalized = firstLine.replace(/\s+/g, ' ').trim();
   if (normalized.length > 200) {

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Configs - CDN Analytics</title>
+  <script>
+    window.SAMPLE_PAGEVIEWS_AT_RATE = 'high';
+  </script>
+  <script defer type="text/javascript" src="https://ot.aem.live/.rum/@adobe/helix-rum-js@^2/dist/rum-standalone.js"></script>
+  <link rel="canonical" href="https://klickhaus.aemstatus.net/configs.html">
+
+  <!-- Favicon Icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/configs.css">
+</head>
+<body>
+  <!-- Login Form -->
+  <div id="login">
+    <div class="login-card">
+      <h1>Site Configs</h1>
+      <p>Sign in to browse Helix site configurations</p>
+      <div id="loginError" class="error-message"></div>
+      <form id="loginForm" method="post" action="">
+        <div class="form-group">
+          <label for="username">Email or username</label>
+          <input type="text" id="username" name="username" required autocomplete="username email" inputmode="email">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <div class="form-group form-option">
+          <label class="checkbox-label">
+            <input type="checkbox" id="forgetMe" name="forgetMe">
+            Forget me on this device
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <header>
+      <div class="header-left">
+        <a href="index.html" class="menu-btn" title="Quick Links">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <rect y="3" width="20" height="2" rx="1"/>
+            <rect y="9" width="20" height="2" rx="1"/>
+            <rect y="15" width="20" height="2" rx="1"/>
+          </svg>
+        </a>
+        <h1>Site Configs <span id="queryTimer" class="query-timer"></span></h1>
+        <span id="rowCount" class="row-count"></span>
+      </div>
+      <div class="header-right">
+        <input type="text" id="searchInput" placeholder="Filter by org or site...">
+        <button id="moreBtn" class="menu-btn" title="More actions">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.5"/>
+            <circle cx="10" cy="10" r="1.5"/>
+            <circle cx="10" cy="16" r="1.5"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- More Actions Menu -->
+      <dialog id="moreMenu">
+        <button id="refreshBtn" class="menu-item">Refresh</button>
+        <div class="menu-divider"></div>
+        <button id="logoutBtn" class="menu-item">Logout</button>
+      </dialog>
+    </header>
+
+    <main class="configs-main">
+      <!-- Stats + type breakdown -->
+      <section class="stats-section" id="statsSection" style="display:none">
+        <div class="stats-chips" id="statsChips"></div>
+        <div class="type-breakdown">
+          <h3>CDN Type</h3>
+          <table class="type-table" id="typeTable">
+            <tbody id="typeBody"></tbody>
+          </table>
+        </div>
+        <div class="type-breakdown">
+          <h3>Content Source</h3>
+          <table class="type-table" id="contentTypeTable">
+            <tbody id="contentTypeBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Site configs table -->
+      <section class="table-section">
+        <div id="loadingState" class="loading">
+          <div class="spinner"></div>
+          Loading site configurations...
+        </div>
+        <div id="errorState" class="error-message"></div>
+        <div id="tableContainer" class="table-container" style="display:none">
+          <table id="configsTable" class="configs-table">
+            <thead>
+              <tr>
+                <th data-col="org" class="sortable" aria-sort="ascending"><button type="button">Org</button></th>
+                <th data-col="site" class="sortable" aria-sort="none"><button type="button">Site</button></th>
+                <th data-col="cdn_prod_host" class="sortable" aria-sort="none"><button type="button">CDN Host</button></th>
+                <th data-col="cdn_prod_type" class="sortable" aria-sort="none"><button type="button">CDN Type</button></th>
+                <th data-col="code_source_type" class="sortable" aria-sort="none"><button type="button">Code Source</button></th>
+                <th data-col="content_source_type" class="sortable" aria-sort="none"><button type="button">Content Source</button></th>
+                <th data-col="profile" class="sortable" aria-sort="none"><button type="button">Profile</button></th>
+                <th data-col="last_modified_date" class="sortable" aria-sort="none"><button type="button">Modified</button></th>
+              </tr>
+            </thead>
+            <tbody id="configsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination" style="display:none">
+          <button id="prevBtn" class="page-btn" disabled>&#8592; Prev</button>
+          <span id="pageInfo" class="page-info"></span>
+          <button id="nextBtn" class="page-btn">Next &#8594;</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Config detail dialog -->
+  <dialog id="configDetail" class="config-detail-dialog">
+    <div class="detail-header">
+      <div>
+        <h2 id="detailTitle"></h2>
+        <div class="detail-subtitle" id="detailSubtitle"></div>
+      </div>
+      <button id="detailClose" class="detail-close" title="Close">&#x2715;</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </dialog>
+
+  <script type="module" src="js/configs-main.js"></script>
+</body>
+</html>
