@@ -48,7 +48,9 @@ import {
   loadLogs, cycleViewMode, setViewMode, applyViewMode,
   setLogsElements, setOnShowFiltersView, setOnShowLogsView,
 } from './logs.js';
-import { loadHostAutocomplete, loadOwnerRepoAutocomplete } from './autocomplete.js';
+import {
+  loadHostAutocomplete, loadOwnerRepoAutocomplete, filterOwnerRepoDatalist,
+} from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import {
   initKeyboardNavigation, restoreKeyboardFocus, initScrollTracking, getFocusedFacetId,
@@ -505,8 +507,9 @@ export function initDashboard(config = {}) {
         ownerRepoFilterOriginalValue = elements.ownerRepoFilterInput.value;
         ownerRepoSelectedFromDatalist = false;
       });
-      elements.ownerRepoFilterInput.addEventListener('input', () => {
+      elements.ownerRepoFilterInput.addEventListener('input', (e) => {
         ownerRepoSelectedFromDatalist = false;
+        filterOwnerRepoDatalist(e.target.value);
       });
       elements.ownerRepoFilterInput.addEventListener('change', () => {
         ownerRepoSelectedFromDatalist = true;

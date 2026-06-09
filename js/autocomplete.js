@@ -98,6 +98,36 @@ export async function loadHostAutocomplete() {
   }
 }
 
+// All owner/repo values held in memory for client-side filtering
+let ownerRepoAllValues = [];
+
+/**
+ * Filter the ownerRepoSuggestions datalist to entries matching `text`,
+ * with prefix matches ranked before contains matches.
+ * Called on every input event so Chrome always sees the right top N options.
+ */
+export function filterOwnerRepoDatalist(text) {
+  const datalist = document.getElementById('ownerRepoSuggestions');
+  if (!datalist) { return; }
+  if (!text) {
+    datalist.innerHTML = '';
+    return;
+  }
+  const lower = text.toLowerCase();
+  const prefix = [];
+  const contains = [];
+  for (const v of ownerRepoAllValues) {
+    const vl = v.toLowerCase();
+    if (vl.startsWith(lower)) {
+      prefix.push(v);
+    } else if (vl.includes(lower)) {
+      contains.push(v);
+    }
+  }
+  const top = [...prefix, ...contains].slice(0, 20);
+  datalist.innerHTML = top.map((v) => `<option value="${escapeHtml(v)}">`).join('');
+}
+
 export async function loadOwnerRepoAutocomplete() {
   const table = getTable();
   const cacheKey = `${OWNER_REPO_CACHE_KEY}_${table}`;
@@ -106,7 +136,7 @@ export async function loadOwnerRepoAutocomplete() {
     try {
       const { values, timestamp } = JSON.parse(cached);
       if (Date.now() - timestamp < CACHE_TTL) {
-        populateDatalist('ownerRepoSuggestions', values);
+        ownerRepoAllValues = values;
         return;
       }
     } catch (e) {
@@ -121,7 +151,7 @@ export async function loadOwnerRepoAutocomplete() {
     const values = (result.data || []).map((row) => row.owner_repo).filter(Boolean)
       .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     localStorage.setItem(cacheKey, JSON.stringify({ values, timestamp: Date.now() }));
-    populateDatalist('ownerRepoSuggestions', values);
+    ownerRepoAllValues = values;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Failed to load owner/repo autocomplete:', err);
