@@ -18,7 +18,6 @@ import { loadSql } from './sql-loader.js';
 
 const HOST_CACHE_KEY = 'hostAutocompleteSuggestions';
 const FUNCTION_CACHE_KEY = 'functionAutocompleteSuggestions';
-const OWNER_REPO_CACHE_KEY = 'ownerRepoAutocompleteSuggestions';
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 
 function populateDatalist(datalistId, values) {
@@ -114,44 +113,53 @@ export function filterOwnerRepoDatalist(text) {
     return;
   }
   const lower = text.toLowerCase();
-  const prefix = [];
+  const ownerPrefix = [];
+  const repoPrefix = [];
   const contains = [];
   for (const v of ownerRepoAllValues) {
     const vl = v.toLowerCase();
+    const isOwnerOnly = !v.includes('/');
     if (vl.startsWith(lower)) {
-      prefix.push(v);
+      (isOwnerOnly ? ownerPrefix : repoPrefix).push(v);
     } else if (vl.includes(lower)) {
       contains.push(v);
     }
   }
-  const top = [...prefix, ...contains].slice(0, 20);
+  const top = [...ownerPrefix, ...repoPrefix, ...contains].slice(0, 20);
   datalist.innerHTML = top.map((v) => `<option value="${escapeHtml(v)}">`).join('');
+}
+
+// Track which table's owner/repo values are currently loaded
+let ownerRepoLoadedTable = null;
+
+/**
+ * Returns true if `value` is a known owner or owner/repo entry.
+ * Empty string is always valid (clears the filter).
+ * Returns true unconditionally when values haven't loaded yet.
+ */
+export function isValidOwnerRepoValue(value) {
+  if (!value) { return true; }
+  if (ownerRepoAllValues.length === 0) { return true; }
+  return ownerRepoAllValues.includes(value);
+}
+
+export function resetOwnerRepoState() {
+  ownerRepoAllValues = [];
+  ownerRepoLoadedTable = null;
 }
 
 export async function loadOwnerRepoAutocomplete() {
   const table = getTable();
-  const cacheKey = `${OWNER_REPO_CACHE_KEY}_${table}`;
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    try {
-      const { values, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < CACHE_TTL) {
-        ownerRepoAllValues = values;
-        return;
-      }
-    } catch (e) {
-      // Cache invalid, continue to fetch
-    }
-  }
+  // Already loaded for this table in this session — skip refetch
+  if (ownerRepoLoadedTable === table && ownerRepoAllValues.length > 0) { return; }
 
   try {
     const sqlParams = { database: DATABASE, table };
     const sql = await loadSql('autocomplete-owner-repo', sqlParams);
     const result = await query(sql);
-    const values = (result.data || []).map((row) => row.owner_repo).filter(Boolean)
+    ownerRepoAllValues = (result.data || []).map((row) => row.owner_repo).filter(Boolean)
       .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    localStorage.setItem(cacheKey, JSON.stringify({ values, timestamp: Date.now() }));
-    ownerRepoAllValues = values;
+    ownerRepoLoadedTable = table;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Failed to load owner/repo autocomplete:', err);

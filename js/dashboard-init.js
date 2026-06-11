@@ -50,6 +50,7 @@ import {
 } from './logs.js';
 import {
   loadHostAutocomplete, loadOwnerRepoAutocomplete, filterOwnerRepoDatalist,
+  isValidOwnerRepoValue,
 } from './autocomplete.js';
 import { initModal, closeQuickLinksModal } from './modal.js';
 import {
@@ -516,11 +517,16 @@ export function initDashboard(config = {}) {
         commitOwnerRepoFilterIfChanged();
       });
       elements.ownerRepoFilterInput.addEventListener('blur', () => {
+        if (!isValidOwnerRepoValue(elements.ownerRepoFilterInput.value)) {
+          elements.ownerRepoFilterInput.value = state.ownerRepoFilter;
+          return;
+        }
         commitOwnerRepoFilterIfChanged();
       });
       elements.ownerRepoFilterInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
+          if (!isValidOwnerRepoValue(e.target.value)) { return; }
           commitOwnerRepoFilterIfChanged();
           e.target.blur();
         } else if (e.key === 'Escape') {
