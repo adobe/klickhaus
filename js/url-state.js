@@ -121,7 +121,10 @@ function loadBasicState(params) {
     state.timeRange = params.get('t');
   }
   if (params.has('host')) { state.hostFilter = params.get('host'); }
-  if (params.has('owner')) { state.ownerRepoFilter = params.get('owner'); }
+  if (params.has('owner')) {
+    state.ownerRepoFilter = params.get('owner');
+    state.ownerRepoFilterExact = state.ownerRepoFilter.includes('/');
+  }
   if (params.has('q')) { state.searchFilter = params.get('q'); }
   if (params.has('n')) {
     const n = parseInt(params.get('n'), 10);

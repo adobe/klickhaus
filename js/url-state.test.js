@@ -25,6 +25,8 @@ const ORIGINAL_PATH = window.location.pathname;
 function resetState() {
   state.timeRange = DEFAULT_TIME_RANGE;
   state.hostFilter = '';
+  state.ownerRepoFilter = '';
+  state.ownerRepoFilterExact = false;
   state.topN = DEFAULT_TOP_N;
   state.filters = [];
   state.viewMode = 'filters';
@@ -104,6 +106,29 @@ describe('loadStateFromURL', () => {
       setURL({});
       loadStateFromURL();
       assert.strictEqual(state.hostFilter, '');
+    });
+  });
+
+  describe('owner/repo filter', () => {
+    it('loads owner-only value with exact=false', () => {
+      setURL({ owner: 'adobe' });
+      loadStateFromURL();
+      assert.strictEqual(state.ownerRepoFilter, 'adobe');
+      assert.isFalse(state.ownerRepoFilterExact);
+    });
+
+    it('loads owner/repo value with exact=true', () => {
+      setURL({ owner: 'adobe-experience-league/exlm' });
+      loadStateFromURL();
+      assert.strictEqual(state.ownerRepoFilter, 'adobe-experience-league/exlm');
+      assert.isTrue(state.ownerRepoFilterExact);
+    });
+
+    it('keeps empty when owner is absent', () => {
+      setURL({});
+      loadStateFromURL();
+      assert.strictEqual(state.ownerRepoFilter, '');
+      assert.isFalse(state.ownerRepoFilterExact);
     });
   });
 
