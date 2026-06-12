@@ -213,6 +213,7 @@ function renderTable() {
       <td class="source-type-cell">${escapeHtml(row.content_source_type || '—')}</td>
       <td class="profile-cell">${escapeHtml(row.profile || '—')}</td>
       <td class="date-cell">${escapeHtml(row.last_modified_date || '—')}</td>
+      <td class="date-cell">${escapeHtml(row.created_date || '—')}</td>
     </tr>`;
   }).join('');
 
@@ -270,6 +271,14 @@ function formatJson(raw) {
   }
 }
 
+function detailRowResolvedWithCopy(label, rawVal, resolvedVal, profileSrc) {
+  const isEmpty = resolvedVal === null || resolvedVal === undefined || resolvedVal === '';
+  const display = isEmpty ? '—' : escapeHtml(String(resolvedVal));
+  const btn = isEmpty ? '' : ` <button type="button" class="copy-btn" data-copy="${escapeHtml(String(resolvedVal))}" title="Copy to clipboard">copy</button>`;
+  return `<div class="detail-label">${escapeHtml(label)}</div>
+          <div class="detail-value${isEmpty ? ' empty' : ''}" style="white-space: nowrap">${display}${profileBadge(rawVal, resolvedVal, profileSrc)}${btn}</div>`;
+}
+
 function detailRow(label, value) {
   const isEmpty = value === null || value === undefined || value === '';
   const display = isEmpty ? '—' : escapeHtml(String(value));
@@ -281,6 +290,12 @@ function foldersLabel(v) {
   return (v === 1 || v === true || v === '1') ? 'Yes' : 'No';
 }
 
+function jsonBadge(json, rawJson, profileSrc) {
+  return (json && json !== rawJson)
+    ? ` <span class="profile-badge" title="merged with profile">&#8593;&nbsp;${escapeHtml(profileSrc)}</span>`
+    : '';
+}
+
 function showDetail(row) {
   const key = `${row.org}/${row.site}`;
   // res = the resolved (effective) row; rawRow = the raw site-only row
@@ -289,22 +304,25 @@ function showDetail(row) {
   const profileSrc = row.profile || 'default';
   const dr = (label, field) => detailRowResolved(label, rawRow[field], res[field], profileSrc);
 
-  const configLink = `<a href="https://admin.hlx.page/config/${encodeURIComponent(row.org)}/sites/${encodeURIComponent(row.site)}.json" target="_blank" rel="noopener" class="detail-config-link">config JSON</a>`;
+  const configLink = `<a href="https://admin.hlx.page/config/${encodeURIComponent(row.org)}/sites/${encodeURIComponent(row.site)}.json" target="_blank" rel="noopener" class="detail-config-link">config</a>`;
+  const previewLink = `<a href="https://main--${encodeURIComponent(row.site)}--${encodeURIComponent(row.org)}.aem.page/" target="_blank" rel="noopener" class="detail-config-link">preview</a>`;
+  const s3Link = res.content_bus_id
+    ? ` &mdash; <a href="https://us-east-1.console.aws.amazon.com/s3/buckets/helix-content-bus?prefix=${encodeURIComponent(res.content_bus_id)}/" target="_blank" rel="noopener" class="detail-config-link">content bus</a>`
+    : '';
+  const codeBusLink = (res.code_owner && res.code_repo)
+    ? ` &mdash; <a href="https://us-east-1.console.aws.amazon.com/s3/buckets/helix-code-bus?prefix=${encodeURIComponent(res.code_owner)}/${encodeURIComponent(res.code_repo)}" target="_blank" rel="noopener" class="detail-config-link">code bus</a>`
+    : '';
   els.detailTitle.textContent = `${row.org} / ${row.site}`;
   els.detailSubtitle.innerHTML = res.cdn_prod_host
-    ? `${escapeHtml(res.cdn_prod_host)} &mdash; ${configLink}`
-    : configLink;
+    ? `${escapeHtml(res.cdn_prod_host)} &mdash; ${configLink} &mdash; ${previewLink}${s3Link}${codeBusLink}`
+    : `${configLink} &mdash; ${previewLink}${s3Link}${codeBusLink}`;
 
   const featuresJson = formatJson(res.features);
   const rawFeaturesJson = formatJson(rawRow.features);
   const limitsJson = formatJson(res.limits);
   const rawLimitsJson = formatJson(rawRow.limits);
-  const featuresBadge = featuresJson && featuresJson !== rawFeaturesJson
-    ? ` <span class="profile-badge" title="merged with profile">&#8593;&nbsp;${escapeHtml(profileSrc)}</span>`
-    : '';
-  const limitsBadge = limitsJson && limitsJson !== rawLimitsJson
-    ? ` <span class="profile-badge" title="merged with profile">&#8593;&nbsp;${escapeHtml(profileSrc)}</span>`
-    : '';
+  const featuresBadge = jsonBadge(featuresJson, rawFeaturesJson, profileSrc);
+  const limitsBadge = jsonBadge(limitsJson, rawLimitsJson, profileSrc);
 
   els.detailBody.innerHTML = `
     <div class="detail-group">
@@ -326,7 +344,7 @@ function showDetail(row) {
     <div class="detail-group">
       <div class="detail-group-title">Content Source</div>
       <div class="detail-rows">
-        ${detailRowResolved('Content bus ID', rawRow.content_bus_id, res.content_bus_id, profileSrc)}
+        ${detailRowResolvedWithCopy('Content bus ID', rawRow.content_bus_id, res.content_bus_id, profileSrc)}
         ${dr('Source type', 'content_source_type')}
         ${dr('Source URL', 'content_source_url')}
         ${dr('Overlay type', 'content_source_overlay_type')}
@@ -513,6 +531,20 @@ els.configsBody.addEventListener('click', (e) => {
   const { org, site } = tr.dataset;
   const row = s.rows.find((r) => r.org === org && r.site === site);
   if (row) { showDetail(row); }
+});
+
+// Copy-to-clipboard buttons inside detail dialog
+els.detailBody.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy-btn');
+  if (!btn) { return; }
+  navigator.clipboard.writeText(btn.dataset.copy).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'copy';
+      btn.classList.remove('copied');
+    }, 1500);
+  });
 });
 
 // Close detail dialog

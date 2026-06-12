@@ -246,9 +246,12 @@ function renderLogDetailContent(row) {
         const value = row[col];
         const { html: valueHtml, className } = formatDetailValue(col, value);
         const displayCol = col.includes('.') ? col.split('.').slice(1).join('.') : col;
+        const filterBtn = (col === 'request_id' && value)
+          ? ` <button type="button" class="detail-filter-btn" data-action="search-by-request-id" data-value="${escapeHtml(String(value))}" title="Search by this request ID">search</button>`
+          : '';
         html += `<tr>
         <th title="${escapeHtml(col)}">${escapeHtml(displayCol)}</th>
-        <td class="${className}">${valueHtml}</td>
+        <td class="${className}">${valueHtml}${filterBtn}</td>
       </tr>`;
       }
 
@@ -299,6 +302,18 @@ export function openLogDetailModal(rowIdx) {
     if (closeBtn) {
       closeBtn.addEventListener('click', closeLogDetailModal);
     }
+
+    // Search-by-request-id button handler
+    logDetailModal.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="search-by-request-id"]');
+      if (!btn) { return; }
+      const searchInput = document.getElementById('searchFilter');
+      if (searchInput) {
+        searchInput.value = btn.dataset.value;
+        searchInput.dispatchEvent(new Event('change'));
+      }
+      closeLogDetailModal();
+    });
   }
 
   renderLogDetailContent(row);
