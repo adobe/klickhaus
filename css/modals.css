@@ -365,6 +365,31 @@
   margin-bottom: 12px;
 }
 
+.detail-filter-btn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  vertical-align: middle;
+  line-height: 1.6;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.detail-filter-btn:hover {
+  color: var(--text);
+  border-color: var(--text-secondary);
+  background: var(--bg);
+}
+
 /* More Actions Dropdown Menu */
 #moreMenu {
   padding: 4px;

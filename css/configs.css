@@ -368,10 +368,12 @@ html {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0;
-  width: min(640px, 95vw);
+  width: min(900px, 95vw);
+  min-width: 700px;
   max-height: 80vh;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  margin: auto;
 }
 
 .config-detail-dialog[open] {
@@ -450,7 +452,7 @@ html {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: var(--text);
   margin: 0 0 6px;
 }
 
@@ -490,6 +492,36 @@ html {
   color: var(--host-authoring);
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.copy-btn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  vertical-align: middle;
+  line-height: 1.6;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.copy-btn:hover {
+  color: var(--text);
+  border-color: var(--text-secondary);
+  background: var(--bg);
+}
+
+.copy-btn.copied {
+  color: var(--host-delivery);
+  border-color: var(--host-delivery);
 }
 
 .detail-json {
