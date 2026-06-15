@@ -28,6 +28,7 @@ const s = {
   rawMap: new Map(),
   typeRowsData: [],
   contentTypeRowsData: [],
+  codeSourceTypeRowsData: [],
   statsData: {},
   // chip (boolean presence) filters
   chipFilters: {
@@ -38,6 +39,7 @@ const s = {
   currentPage: 1,
   cdnTypeFilter: null,
   contentTypeFilter: null,
+  codeSourceTypeFilter: null,
   resolvedView: false,
 };
 
@@ -57,6 +59,7 @@ const els = {
   statsChips: document.getElementById('statsChips'),
   typeBody: document.getElementById('typeBody'),
   contentTypeBody: document.getElementById('contentTypeBody'),
+  codeSourceTypeBody: document.getElementById('codeSourceTypeBody'),
   pagination: document.getElementById('pagination'),
   pageInfo: document.getElementById('pageInfo'),
   prevBtn: document.getElementById('prevBtn'),
@@ -161,6 +164,10 @@ function matchesFacets(row) {
   if (s.contentTypeFilter) {
     const want = s.contentTypeFilter === '(none)' ? '' : s.contentTypeFilter;
     if (row.content_source_type !== want) { return false; }
+  }
+  if (s.codeSourceTypeFilter) {
+    const want = s.codeSourceTypeFilter === '(none)' ? '' : s.codeSourceTypeFilter;
+    if (row.code_source_type !== want) { return false; }
   }
   return true;
 }
@@ -388,20 +395,23 @@ async function loadData(refresh = false) {
     const compareSource = s.resolvedView ? 'site_configs FINAL' : 'site_configs_resolved';
     const params = { database: DATABASE, source };
     const compareParams = { database: DATABASE, source: compareSource };
-    const [sqlStats, sqlByType, sqlByContentType, sqlList, sqlCompare] = await Promise.all([
+    // eslint-disable-next-line max-len
+    const [sqlStats, sqlByType, sqlByContentType, sqlByCodeSourceType, sqlList, sqlCompare] = await Promise.all([
       loadSql('configs-stats', params),
       loadSql('configs-by-type', params),
       loadSql('configs-by-content-type', params),
+      loadSql('configs-by-code-source-type', params),
       loadSql('configs-list', params),
       loadSql('configs-resolved-list', compareParams),
     ]);
 
     const start = performance.now();
     // eslint-disable-next-line max-len
-    const [statsResult, typeResult, contentTypeResult, listResult, compareResult] = await Promise.all([
+    const [statsResult, typeResult, contentTypeResult, codeSourceTypeResult, listResult, compareResult] = await Promise.all([
       query(sqlStats, { cacheTtl: 300 }),
       query(sqlByType, { cacheTtl: 300 }),
       query(sqlByContentType, { cacheTtl: 300 }),
+      query(sqlByCodeSourceType, { cacheTtl: 300 }),
       query(sqlList, { cacheTtl: 300 }),
       query(sqlCompare, { cacheTtl: 300 }),
     ]);
@@ -420,6 +430,8 @@ async function loadData(refresh = false) {
     renderFacetBreakdown(els.typeBody, s.typeRowsData, s.cdnTypeFilter);
     s.contentTypeRowsData = contentTypeResult.data || [];
     renderFacetBreakdown(els.contentTypeBody, s.contentTypeRowsData, s.contentTypeFilter);
+    s.codeSourceTypeRowsData = codeSourceTypeResult.data || [];
+    renderFacetBreakdown(els.codeSourceTypeBody, s.codeSourceTypeRowsData, s.codeSourceTypeFilter);
     els.statsSection.style.display = '';
     els.loadingState.style.display = 'none';
     els.tableContainer.style.display = '';
@@ -506,6 +518,16 @@ document.getElementById('contentTypeTable').addEventListener('click', (e) => {
   s.contentTypeFilter = s.contentTypeFilter === tr.dataset.type ? null : tr.dataset.type;
   s.currentPage = 1;
   renderFacetBreakdown(els.contentTypeBody, s.contentTypeRowsData, s.contentTypeFilter);
+  renderTable();
+});
+
+// Code source type facet — click to filter, click again to clear
+document.getElementById('codeSourceTypeTable').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr.type-row');
+  if (!tr) { return; }
+  s.codeSourceTypeFilter = s.codeSourceTypeFilter === tr.dataset.type ? null : tr.dataset.type;
+  s.currentPage = 1;
+  renderFacetBreakdown(els.codeSourceTypeBody, s.codeSourceTypeRowsData, s.codeSourceTypeFilter);
   renderTable();
 });
 

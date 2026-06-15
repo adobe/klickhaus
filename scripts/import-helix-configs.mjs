@@ -89,6 +89,18 @@ function resolveContentType(url, fallback) {
   return fallback;
 }
 
+function resolveCodeSourceType(codeSource) {
+  const url = str(codeSource.url);
+  if (!url) { return str(codeSource.type); }
+  try {
+    const { hostname } = new URL(url);
+    if (hostname === 'github.com' || hostname === 'www.github.com') { return 'github'; }
+    return 'byogit';
+  } catch {
+    return str(codeSource.type);
+  }
+}
+
 function siteRow(org, site, data) {
   const code = data.code || {};
   const codeSource = code.source || {};
@@ -107,7 +119,7 @@ function siteRow(org, site, data) {
     last_modified: ts(data.lastModified),
     code_owner: str(code.owner),
     code_repo: str(code.repo),
-    code_source_type: str(codeSource.url) === 'https://cm-repo.adobe.io/api' ? 'byogit' : str(codeSource.type),
+    code_source_type: resolveCodeSourceType(codeSource),
     code_source_url: str(codeSource.url),
     content_bus_id: str(content.contentBusId),
     content_source_type: resolveContentType(contentSourceUrl, str(contentSource.type)),
@@ -140,7 +152,7 @@ function profileRow(org, profile, data) {
     last_modified: ts(data.lastModified),
     code_owner: str(code.owner),
     code_repo: str(code.repo),
-    code_source_type: str(codeSource.url) === 'https://cm-repo.adobe.io/api' ? 'byogit' : str(codeSource.type),
+    code_source_type: resolveCodeSourceType(codeSource),
     code_source_url: str(codeSource.url),
     content_bus_id: str(content.contentBusId),
     content_source_type: resolveContentType(contentSourceUrl, str(contentSource.type)),
