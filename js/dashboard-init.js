@@ -12,6 +12,7 @@
 import {
   state, togglePinnedColumn, togglePinnedFacet, toggleHiddenFacet, setOnFacetOrderChange,
 } from './state.js';
+import { initTheme } from './theme.js';
 import { setForceRefresh } from './api.js';
 import {
   setElements, handleLogin, handleLogout, showDashboard, loadStoredCredentials,
@@ -384,6 +385,7 @@ export function initDashboard(config = {}) {
 
     populateTimeRangeSelect(elements.timeRangeSelect);
     populateTopNSelect(elements.topNSelect);
+    initTheme();
 
     initFacetObservers();
     initFacetViewportGate();

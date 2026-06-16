@@ -121,6 +121,34 @@ const VIEW_META = {
 // Pagination state
 const pagination = new PaginationState();
 
+// IntersectionObserver for infinite scroll sentinel
+let infiniteScrollObserver = null;
+
+function setupInfiniteScrollObserver(container) {
+  if (infiniteScrollObserver) {
+    infiniteScrollObserver.disconnect();
+    infiniteScrollObserver = null;
+  }
+
+  const prev = container.querySelector('.infinite-scroll-sentinel');
+  if (prev) { prev.remove(); }
+
+  const sentinel = document.createElement('div');
+  sentinel.className = 'infinite-scroll-sentinel';
+  container.appendChild(sentinel);
+
+  // eslint-disable-next-line no-use-before-define
+  infiniteScrollObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        loadMoreLogs(); // eslint-disable-line no-use-before-define
+      }
+    }
+  }, { rootMargin: '200px' });
+
+  infiniteScrollObserver.observe(sentinel);
+}
+
 // Show brief "Copied!" feedback
 function showCopyFeedback() {
   let feedback = document.getElementById('copy-feedback');
@@ -460,6 +488,7 @@ export function renderLogsTable(data) {
 
   updatePinnedOffsets(container, pinned);
   attachColumnResize(container, () => updatePinnedOffsets(container, state.pinnedColumns));
+  setupInfiniteScrollObserver(container);
 }
 
 async function loadMoreLogs() {
@@ -501,28 +530,10 @@ async function loadMoreLogs() {
   }
 }
 
-function handleLogsScroll() {
-  // Only handle scroll when logs view is visible
-  if (state.viewMode === 'filters') { return; }
-
-  const { scrollHeight } = document.documentElement;
-  const scrollTop = window.scrollY;
-  const clientHeight = window.innerHeight;
-
-  // Load more when scrolled to last 50%
-  const scrollPercent = (scrollTop + clientHeight) / scrollHeight;
-  if (pagination.shouldTriggerLoad(scrollPercent, state.logsLoading)) {
-    loadMoreLogs();
-  }
-}
-
 export function setLogsElements(view, filtersViewEl, contentAreaEl) {
   logsView = view;
   filtersView = filtersViewEl;
   contentArea = contentAreaEl;
-
-  // Set up scroll listener for infinite scroll on window
-  window.addEventListener('scroll', handleLogsScroll);
 
   // Set up click handler for copying row data
   setupLogRowClickHandler();

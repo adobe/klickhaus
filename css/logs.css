@@ -125,7 +125,7 @@ body.col-resizing * {
 }
 
 .logs-table td {
-  padding: 8px 12px;
+  padding: 4px 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
   max-width: 300px;

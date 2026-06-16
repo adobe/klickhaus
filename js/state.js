@@ -30,7 +30,7 @@ export const state = {
   logsData: null,
   logsLoading: false,
   logsReady: false,
-  viewMode: storage.getItem('viewMode') || 'filters', // 'filters' | 'logs' | 'split'
+  viewMode: 'filters', // 'filters' | 'logs' | 'split' — loaded per-dashboard by loadViewMode()
   pinnedColumns: JSON.parse(storage.getItem('pinnedColumns') || '[]'),
   logColumnWidths: JSON.parse(storage.getItem('logColumnWidths') || '{}'),
   hiddenControls: [], // ['timeRange', 'topN', 'host', 'refresh', 'logout', 'logs']
@@ -55,8 +55,16 @@ export const state = {
   hiddenLogColumns: [], // User-hidden columns (per-dashboard, localStorage)
 };
 
+function getViewModeKey() {
+  return state.title ? `viewMode_${state.title}` : 'viewMode';
+}
+
+export function loadViewMode() {
+  state.viewMode = storage.getItem(getViewModeKey()) || 'filters';
+}
+
 export function saveViewMode(mode) {
-  storage.setItem('viewMode', mode);
+  storage.setItem(getViewModeKey(), mode);
 }
 
 // Callback for re-rendering logs table when pinned columns change

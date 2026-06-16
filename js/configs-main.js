@@ -9,6 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+import { initTheme } from './theme.js';
 import { state } from './state.js';
 import { query, setForceRefresh } from './api.js';
 import { DATABASE } from './config.js';
@@ -599,6 +600,8 @@ document.addEventListener('click', (e) => {
     moreMenu.close();
   }
 });
+
+initTheme();
 
 document.getElementById('refreshBtn').addEventListener('click', () => {
   moreMenu.close();

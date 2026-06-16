@@ -9,7 +9,9 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { state, loadFacetPrefs, loadLogColumnPrefs } from './state.js';
+import {
+  state, loadFacetPrefs, loadLogColumnPrefs, loadViewMode,
+} from './state.js';
 import {
   queryTimestamp, setQueryTimestamp, customTimeRange, setCustomTimeRange, clearCustomTimeRange,
 } from './time.js';
@@ -196,6 +198,7 @@ export function loadStateFromURL() {
   const params = new URLSearchParams(window.location.search);
 
   loadBasicState(params);
+  if (!params.has('view')) { loadViewMode(); }
   loadTimeState(params);
   loadFiltersState(params);
 

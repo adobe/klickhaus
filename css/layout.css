@@ -42,7 +42,7 @@ body.header-fixed main {
 }
 
 .header-left {
-  flex: 1;
+  flex: 3;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -53,7 +53,7 @@ body.header-fixed main {
 }
 
 .header-right {
-  flex: 1;
+  flex: 7;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -138,6 +138,7 @@ header h1 {
     font-size: 11px;
     padding: 2px 6px;
   }
+
 
   /* Consistent button height in header */
   header .btn,
