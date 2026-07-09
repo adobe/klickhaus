@@ -78,6 +78,26 @@ describe('formatLogCell', () => {
     assert.strictEqual(displayValue, '42');
   });
 
+  it('joins da_worker_logs logs[] entries with a pipe instead of JSON-stringifying the array', () => {
+    const { displayValue } = formatLogCell('logs', ['[worker] first line', '[worker] second line']);
+    assert.strictEqual(displayValue, '[worker] first line | [worker] second line');
+  });
+
+  it('joins da_worker_logs exceptions[] entries with a pipe as well', () => {
+    const { displayValue } = formatLogCell('exceptions', ['TypeError: x is not a function']);
+    assert.strictEqual(displayValue, 'TypeError: x is not a function');
+  });
+
+  it('renders an empty logs[] array as an empty cell, not "[]"', () => {
+    const { displayValue } = formatLogCell('logs', []);
+    assert.strictEqual(displayValue, '');
+  });
+
+  it('still JSON-stringifies non-multiline array columns like lambda_logs urls[]', () => {
+    const { displayValue } = formatLogCell('urls', ['https://a.example.com', 'https://b.example.com']);
+    assert.strictEqual(displayValue, '["https://a.example.com","https://b.example.com"]');
+  });
+
   it('returns color indicator for values with color rules', () => {
     const { colorIndicator } = formatLogCell('response.status', '500');
     assert.include(colorIndicator, 'log-color');

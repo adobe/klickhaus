@@ -20,11 +20,12 @@ import { escapeHtml } from './utils.js';
 import { formatBytes } from './format.js';
 import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
-import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS } from './columns.js';
+import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, MULTILINE_ARRAY_COLUMNS } from './columns.js';
 import { loadSql } from './sql-loader.js';
 import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
 import { attachColumnResize } from './column-resize.js';
 import { PAGE_SIZE, PaginationState } from './pagination.js';
+import { shouldShowResolveButton, buildResolveButtonHtml, initRayIdLookup } from './ray-id-lookup.js';
 
 /**
  * Build ordered log column list from available columns.
@@ -194,6 +195,25 @@ function groupColumnsByPrefix(columns) {
   return groups;
 }
 
+function isEmptyMultilineArray(col, value) {
+  return MULTILINE_ARRAY_COLUMNS.has(col) && Array.isArray(value) && value.length === 0;
+}
+
+function formatStatusValue(value) {
+  const status = parseInt(value, 10);
+  let className = 'status-ok';
+  if (status >= 500) {
+    className = 'status-5xx';
+  } else if (status >= 400) {
+    className = 'status-4xx';
+  }
+  return { displayValue: String(status), className };
+}
+
+function joinMultilineArray(value) {
+  return value.map((v) => (typeof v === 'string' ? v : JSON.stringify(v))).join('\n');
+}
+
 /**
  * Format a value for display in the detail modal.
  * @param {string} col
@@ -201,28 +221,25 @@ function groupColumnsByPrefix(columns) {
  * @returns {{ html: string, className: string }}
  */
 function formatDetailValue(col, value) {
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || value === '' || isEmptyMultilineArray(col, value)) {
     return { html: '(empty)', className: 'empty-value' };
   }
 
   let className = '';
   let displayValue = '';
+  let isMultiline = false;
 
   if (col === 'timestamp') {
-    const date = new Date(value);
-    displayValue = date.toLocaleString();
+    displayValue = new Date(value).toLocaleString();
   } else if (col === 'response.status') {
-    const status = parseInt(value, 10);
-    displayValue = String(status);
-    if (status >= 500) {
-      className = 'status-5xx';
-    } else if (status >= 400) {
-      className = 'status-4xx';
-    } else {
-      className = 'status-ok';
-    }
+    ({ displayValue, className } = formatStatusValue(value));
   } else if (col === 'response.body_size') {
     displayValue = formatBytes(parseInt(value, 10));
+  } else if (MULTILINE_ARRAY_COLUMNS.has(col) && Array.isArray(value)) {
+    // One entry per line (logs/exceptions on da_worker_logs) rather than a
+    // single JSON-stringified array on one line.
+    displayValue = joinMultilineArray(value);
+    isMultiline = true;
   } else if (typeof value === 'object') {
     displayValue = JSON.stringify(value, null, 2);
   } else {
@@ -232,7 +249,10 @@ function formatDetailValue(col, value) {
   const color = getColorForColumn(`\`${col}\``, value);
   const colorIndicator = color ? `<span class="log-color" style="background:${color}"></span>` : '';
 
-  return { html: colorIndicator + escapeHtml(displayValue), className };
+  const escaped = escapeHtml(displayValue);
+  const valueHtml = isMultiline ? escaped.replace(/\n/g, '<br>') : escaped;
+
+  return { html: colorIndicator + valueHtml, className };
 }
 
 /**
@@ -274,9 +294,12 @@ function renderLogDetailContent(row) {
         const value = row[col];
         const { html: valueHtml, className } = formatDetailValue(col, value);
         const displayCol = col.includes('.') ? col.split('.').slice(1).join('.') : col;
-        const filterBtn = (col === 'request_id' && value)
-          ? ` <button type="button" class="detail-filter-btn" data-action="search-by-request-id" data-value="${escapeHtml(String(value))}" title="Search by this request ID">search</button>`
-          : '';
+        let filterBtn = '';
+        if (col === 'request_id' && value) {
+          filterBtn = ` <button type="button" class="detail-filter-btn" data-action="search-by-request-id" data-value="${escapeHtml(String(value))}" title="Search by this request ID">search</button>`;
+        } else if (shouldShowResolveButton(col, value)) {
+          filterBtn = buildResolveButtonHtml(String(value));
+        }
         html += `<tr>
         <th title="${escapeHtml(col)}">${escapeHtml(displayCol)}</th>
         <td class="${className}">${valueHtml}${filterBtn}</td>
@@ -342,6 +365,8 @@ export function openLogDetailModal(rowIdx) {
       }
       closeLogDetailModal();
     });
+
+    initRayIdLookup(logDetailModal);
   }
 
   renderLogDetailContent(row);

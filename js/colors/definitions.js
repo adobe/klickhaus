@@ -339,6 +339,18 @@ export const colorRules = {
     },
   },
 
+  // DA worker logs dashboard facets
+  workerOutcome: {
+    patterns: ['`outcome`'],
+    getColor: (value) => {
+      if (!value) { return ''; }
+      const v = value.toUpperCase();
+      if (v === 'EXCEPTION' || v === 'EXCEEDED') { return 'var(--status-server-error)'; }
+      if (v === 'CANCELED') { return 'var(--status-client-error)'; }
+      return 'var(--status-ok)';
+    },
+  },
+
   lambdaAdminMethod: {
     patterns: ['admin.method', 'message_json.admin'],
     getColor: (value) => {

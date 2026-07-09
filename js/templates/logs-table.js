@@ -12,7 +12,7 @@
 import { escapeHtml } from '../utils.js';
 import { formatBytes } from '../format.js';
 import { getColorForColumn } from '../colors/index.js';
-import { LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET } from '../columns.js';
+import { LOG_COLUMN_SHORT_LABELS, LOG_COLUMN_TO_FACET, MULTILINE_ARRAY_COLUMNS } from '../columns.js';
 
 /**
  * Format timestamp - short format on mobile.
@@ -39,8 +39,13 @@ function formatStatusCell(value) {
 /**
  * Format generic value
  */
-function formatGenericValue(value) {
+function formatGenericValue(col, value) {
   if (value === null || value === undefined || value === '') { return ''; }
+  if (MULTILINE_ARRAY_COLUMNS.has(col) && Array.isArray(value)) {
+    // Single-line preview for the compact logs table (full entries, one per line,
+    // are shown in the log detail modal instead) — no JSON array brackets/quotes.
+    return value.map((v) => (typeof v === 'string' ? v : JSON.stringify(v))).join(' | ');
+  }
   if (typeof value === 'object') { return JSON.stringify(value); }
   return String(value);
 }
@@ -65,7 +70,7 @@ export function formatLogCell(col, value) {
     displayValue = value || '';
     cellClass = 'method';
   } else {
-    displayValue = formatGenericValue(value);
+    displayValue = formatGenericValue(col, value);
   }
 
   const color = value ? getColorForColumn(`\`${col}\``, value) : '';

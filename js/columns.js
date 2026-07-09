@@ -161,6 +161,13 @@ export const COLUMN_DEFS = {
 };
 
 /**
+ * da_worker_logs Array(String) columns that read as one log/exception entry per line,
+ * rather than lambda_logs' urls/paths/hostnames/emails/ips/refs (kept as JSON arrays).
+ * @type {Set<string>}
+ */
+export const MULTILINE_ARRAY_COLUMNS = new Set(['logs', 'exceptions']);
+
+/**
  * Log columns in preferred display order (also used for color-coding priority).
  * @type {string[]}
  */
@@ -220,4 +227,11 @@ export const LOG_COLUMN_SHORT_LABELS = {
   app_name: 'App',
   log_group: 'Log Group',
   log_stream: 'Log Stream',
+  // DA worker log column labels
+  script_name: 'Worker',
+  ray_id: 'Ray ID',
+  cpu_ms: 'CPU ms',
+  wall_ms: 'Wall ms',
+  script_version: 'Version',
+  outcome: 'Outcome',
 };

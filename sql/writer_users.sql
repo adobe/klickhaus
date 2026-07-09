@@ -34,6 +34,8 @@ GRANT INSERT, ALTER DELETE ON helix_logs_production.backend         TO logpush_w
 GRANT INSERT, ALTER DELETE ON helix_logs_production.delivery        TO logpush_writer;
 GRANT INSERT             ON helix_logs_production.delivery_errors TO logpush_writer;
 GRANT SELECT, INSERT     ON helix_logs_production.da              TO logpush_writer;
+-- da_worker_logs is a plain MergeTree with no chained MV reading it, so INSERT is enough:
+GRANT INSERT             ON helix_logs_production.da_worker_logs  TO logpush_writer;
 GRANT INSERT             ON helix_logs_production.asn_mapping     TO logpush_writer;
 
 -- delivery: INSERT plus ALTER DELETE for retention; SELECT on the specific
