@@ -365,6 +365,33 @@
   margin-bottom: 12px;
 }
 
+/* Ray ID resolution result (nested inside .log-detail-table, so widths/padding
+   need to be reset rather than inherited from the outer key/value layout). */
+.ray-id-result-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.ray-id-result-table th,
+.ray-id-result-table td {
+  width: auto;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.ray-id-result-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ray-id-result-table tr:last-child td {
+  border-bottom: none;
+}
+
 .detail-filter-btn {
   all: unset;
   cursor: pointer;

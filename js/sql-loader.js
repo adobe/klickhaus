@@ -64,6 +64,7 @@ const ALL_TEMPLATES = [
   'time-series-backend',
   'time-series-da-workers',
   'ray-id-lookup',
+  'ray-id-lookup-worker',
   'logs',
   'logs-more',
   'breakdown',

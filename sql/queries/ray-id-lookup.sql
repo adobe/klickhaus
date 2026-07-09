@@ -4,8 +4,9 @@ SELECT
   `request.url`,
   `request.method`,
   `response.status`,
-  `cdn.cache_status`,
-  `cdn.script_name`
+  `cdn.script_name`,
+  `cdn.time_elapsed_msec`,
+  `response.headers.x_error`
 FROM {{database}}.da
 WHERE ray_id = '{{rayId}}'
 ORDER BY timestamp

@@ -23,7 +23,7 @@ function makeFetchMock({
 } = {}) {
   return async (url) => {
     if (url.endsWith('.sql')) {
-      return { ok: true, status: 200, text: async () => "SELECT * FROM da WHERE ray_id = '{{rayId}}'" };
+      return { ok: true, status: 200, text: async () => "SELECT * FROM t WHERE ray_id = '{{rayId}}'" };
     }
     if (!ok) {
       return { ok: false, status, text: async () => errorText };
@@ -36,21 +36,51 @@ function waitForMicrotasks() {
   return new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
+function withTableName(tableName, fn) {
+  const saved = state.tableName;
+  state.tableName = tableName;
+  try {
+    fn();
+  } finally {
+    state.tableName = saved;
+  }
+}
+
 describe('shouldShowResolveButton', () => {
-  it('shows the button for a real ray_id value', () => {
-    assert.isTrue(shouldShowResolveButton('ray_id', 'a1495b1e6d10c17f'));
+  it('shows the button on the da_worker_logs dashboard for a real ray_id value', () => {
+    withTableName('da_worker_logs', () => {
+      assert.isTrue(shouldShowResolveButton('ray_id', 'a1495b1e6d10c17f'));
+    });
+  });
+
+  it('shows the button on the da dashboard for a real ray_id value', () => {
+    withTableName('da', () => {
+      assert.isTrue(shouldShowResolveButton('ray_id', 'a1495b1e6d10c17f'));
+    });
+  });
+
+  it('hides the button on dashboards with no ray_id-joinable counterpart', () => {
+    withTableName('delivery', () => {
+      assert.isFalse(shouldShowResolveButton('ray_id', 'a1495b1e6d10c17f'));
+    });
   });
 
   it('hides the button for the internal service-binding sentinel "0"', () => {
-    assert.isFalse(shouldShowResolveButton('ray_id', '0'));
+    withTableName('da_worker_logs', () => {
+      assert.isFalse(shouldShowResolveButton('ray_id', '0'));
+    });
   });
 
   it('hides the button for an empty value', () => {
-    assert.isFalse(shouldShowResolveButton('ray_id', ''));
+    withTableName('da_worker_logs', () => {
+      assert.isFalse(shouldShowResolveButton('ray_id', ''));
+    });
   });
 
   it('hides the button for any other column', () => {
-    assert.isFalse(shouldShowResolveButton('request_id', 'a1495b1e6d10c17f'));
+    withTableName('da_worker_logs', () => {
+      assert.isFalse(shouldShowResolveButton('request_id', 'a1495b1e6d10c17f'));
+    });
   });
 });
 
@@ -65,38 +95,99 @@ describe('buildResolveButtonHtml', () => {
     const html = buildResolveButtonHtml('"><script>');
     assert.notInclude(html, '<script>');
   });
-});
 
-describe('renderRayIdResultHtml', () => {
-  it('shows an empty-state message when no rows match', () => {
-    const html = renderRayIdResultHtml([]);
-    assert.include(html, 'No matching CDN access log found');
+  it('points the tooltip at the da access log from the da_worker_logs dashboard', () => {
+    withTableName('da_worker_logs', () => {
+      assert.include(buildResolveButtonHtml('abc'), 'CDN access log (da)');
+    });
   });
 
-  it('renders the matched access log fields for a single row', () => {
-    const html = renderRayIdResultHtml([{
-      timestamp: '2026-07-08T12:00:00.000Z',
-      'request.method': 'GET',
-      'request.host': 'admin.da.live',
-      'request.url': '/source/adobecom/da-playground/x.html',
-      'response.status': 200,
-      'cdn.cache_status': 'MISS',
-      'cdn.script_name': 'da-admin',
-    }]);
-    assert.include(html, 'Matched CDN access log (da)');
-    assert.include(html, 'admin.da.live');
-    assert.include(html, '/source/adobecom/da-playground/x.html');
-    assert.include(html, '200');
-    assert.include(html, 'da-admin');
+  it('points the tooltip at the worker log from the da dashboard', () => {
+    withTableName('da', () => {
+      assert.include(buildResolveButtonHtml('abc'), 'worker log (da_worker_logs)');
+    });
+  });
+});
+
+describe('renderRayIdResultHtml - da_worker_logs -> da', () => {
+  it('shows an empty-state message when no rows match', () => {
+    withTableName('da_worker_logs', () => {
+      assert.include(renderRayIdResultHtml([]), 'No matching CDN access log (da) found');
+    });
+  });
+
+  it('renders only the configured access-log fields for a single row', () => {
+    withTableName('da_worker_logs', () => {
+      const html = renderRayIdResultHtml([{
+        timestamp: '2026-07-08T12:00:00.000Z',
+        'request.method': 'GET',
+        'request.host': 'admin.da.live',
+        'request.url': '/source/adobecom/da-playground/x.html',
+        'response.status': 200,
+        'cdn.cache_status': 'MISS',
+        'cdn.script_name': 'da-admin',
+        'cdn.time_elapsed_msec': 42,
+        'response.headers.x_error': '',
+      }]);
+      assert.include(html, 'Matched CDN access log (da)');
+      assert.include(html, '<th>Time</th>');
+      assert.include(html, '<th>Host</th>');
+      assert.include(html, '<th>URL</th>');
+      assert.include(html, '<th>Elapsed (ms)</th>');
+      assert.include(html, '<th>Error</th>');
+      assert.include(html, 'admin.da.live');
+      assert.include(html, '/source/adobecom/da-playground/x.html');
+      assert.include(html, '200');
+      assert.include(html, 'da-admin');
+      assert.include(html, '42');
+      // cdn.cache_status was deliberately dropped from the field list
+      assert.notInclude(html, 'MISS');
+    });
   });
 
   it('renders one row per match when multiple rows are returned', () => {
-    const html = renderRayIdResultHtml([
-      { 'request.host': 'admin.da.live', 'request.url': '/a' },
-      { 'request.host': 'admin.da.live', 'request.url': '/b' },
-    ]);
-    assert.include(html, '/a');
-    assert.include(html, '/b');
+    withTableName('da_worker_logs', () => {
+      const html = renderRayIdResultHtml([
+        { 'request.host': 'admin.da.live', 'request.url': '/a' },
+        { 'request.host': 'admin.da.live', 'request.url': '/b' },
+      ]);
+      assert.include(html, '/a');
+      assert.include(html, '/b');
+    });
+  });
+});
+
+describe('renderRayIdResultHtml - da -> da_worker_logs', () => {
+  it('shows an empty-state message when no rows match', () => {
+    withTableName('da', () => {
+      assert.include(renderRayIdResultHtml([]), 'No matching worker log (da_worker_logs) found');
+    });
+  });
+
+  it('renders only the configured worker-log fields, joining logs[]/exceptions[] with a pipe', () => {
+    withTableName('da', () => {
+      const html = renderRayIdResultHtml([{
+        timestamp: '2026-07-08T12:00:00.000Z',
+        script_name: 'da-admin',
+        outcome: 'exception',
+        'response.status': 500,
+        cpu_ms: 12,
+        wall_ms: 34,
+        logs: ['fetching resource from admin', 'https://x'],
+        exceptions: ['TypeError: x is not a function'],
+      }]);
+      assert.include(html, 'Matched worker log (da_worker_logs)');
+      assert.include(html, '<th>Time</th>');
+      assert.include(html, '<th>Worker</th>');
+      assert.include(html, '<th>Outcome</th>');
+      assert.include(html, '<th>CPU (ms)</th>');
+      assert.include(html, '<th>Logs</th>');
+      assert.include(html, '<th>Exceptions</th>');
+      assert.include(html, 'da-admin');
+      assert.include(html, 'exception');
+      assert.include(html, 'fetching resource from admin | https://x');
+      assert.include(html, 'TypeError: x is not a function');
+    });
   });
 });
 
@@ -105,12 +196,15 @@ describe('initRayIdLookup', () => {
   let table;
   let originalFetch;
   let savedCredentials;
+  let savedTableName;
 
   beforeEach(() => {
     modal = document.createElement('div');
     document.body.appendChild(modal);
     table = document.createElement('table');
     table.id = 'logDetailTable';
+    savedTableName = state.tableName;
+    state.tableName = 'da_worker_logs';
     table.innerHTML = `<tbody><tr><th>ray_id</th><td>abc123${buildResolveButtonHtml('abc123')}</td></tr></tbody>`;
     modal.appendChild(table);
     initRayIdLookup(modal);
@@ -123,6 +217,7 @@ describe('initRayIdLookup', () => {
   afterEach(() => {
     window.fetch = originalFetch;
     state.credentials = savedCredentials;
+    state.tableName = savedTableName;
     modal.remove();
   });
 
@@ -142,7 +237,7 @@ describe('initRayIdLookup', () => {
     table.querySelector('[data-action="resolve-ray-id"]').click();
     await waitForMicrotasks();
     await waitForMicrotasks();
-    assert.include(table.textContent, 'No matching CDN access log found');
+    assert.include(table.textContent, 'No matching CDN access log');
   });
 
   it('shows a lookup-failed message when the query errors', async () => {
@@ -157,5 +252,16 @@ describe('initRayIdLookup', () => {
     table.click();
     await waitForMicrotasks();
     assert.isNull(document.getElementById('rayIdResolveResult'));
+  });
+
+  it('resolves the other direction (da -> da_worker_logs) when on the da dashboard', async () => {
+    state.tableName = 'da';
+    table.innerHTML = `<tbody><tr><th>ray_id</th><td>abc123${buildResolveButtonHtml('abc123')}</td></tr></tbody>`;
+    window.fetch = makeFetchMock({ rows: [{ script_name: 'da-admin', outcome: 'ok' }] });
+    table.querySelector('[data-action="resolve-ray-id"]').click();
+    await waitForMicrotasks();
+    await waitForMicrotasks();
+    assert.include(table.textContent, 'Matched worker log');
+    assert.include(table.textContent, 'da-admin');
   });
 });
