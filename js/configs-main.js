@@ -152,9 +152,17 @@ function renderFacetBreakdown(tbodyEl, data, activeFilter) {
 
 function matchesText(row, filterText) {
   if (!filterText) { return true; }
+  const slashIdx = filterText.indexOf('/');
+  if (slashIdx !== -1) {
+    const orgPart = filterText.slice(0, slashIdx).trim();
+    const sitePart = filterText.slice(slashIdx + 1).trim();
+    return row.org.toLowerCase().includes(orgPart)
+      && row.site.toLowerCase().includes(sitePart);
+  }
   return row.org.toLowerCase().includes(filterText)
     || row.site.toLowerCase().includes(filterText)
-    || row.cdn_prod_host.toLowerCase().includes(filterText);
+    || row.cdn_prod_host.toLowerCase().includes(filterText)
+    || (row.content_bus_id || '').toLowerCase().includes(filterText);
 }
 
 function matchesFacets(row) {
