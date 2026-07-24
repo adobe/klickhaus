@@ -30,10 +30,11 @@ const s = {
   typeRowsData: [],
   contentTypeRowsData: [],
   codeSourceTypeRowsData: [],
+  overlayTypeRowsData: [],
   statsData: {},
   // chip (boolean presence) filters
   chipFilters: {
-    cdn_host: false, cdn_type: false, folders: false, profile: false,
+    cdn_host: false, cdn_type: false, folders: false, profile: false, overlay: false,
   },
   sortCol: 'org',
   sortAsc: true,
@@ -41,6 +42,7 @@ const s = {
   cdnTypeFilter: null,
   contentTypeFilter: null,
   codeSourceTypeFilter: null,
+  overlayTypeFilter: null,
   resolvedView: false,
 };
 
@@ -61,6 +63,7 @@ const els = {
   typeBody: document.getElementById('typeBody'),
   contentTypeBody: document.getElementById('contentTypeBody'),
   codeSourceTypeBody: document.getElementById('codeSourceTypeBody'),
+  overlayTypeBody: document.getElementById('overlayTypeBody'),
   pagination: document.getElementById('pagination'),
   pageInfo: document.getElementById('pageInfo'),
   prevBtn: document.getElementById('prevBtn'),
@@ -117,6 +120,12 @@ function renderStats(stats, total) {
       value: formatNumber(Number(stats.with_profile)),
       pct: pct(Number(stats.with_profile)),
       key: 'profile',
+    },
+    {
+      label: 'With overlay',
+      value: formatNumber(Number(stats.with_overlay)),
+      pct: pct(Number(stats.with_overlay)),
+      key: 'overlay',
     },
   ];
 
@@ -178,17 +187,23 @@ function matchesFacets(row) {
     const want = s.codeSourceTypeFilter === '(none)' ? '' : s.codeSourceTypeFilter;
     if (row.code_source_type !== want) { return false; }
   }
+  if (s.overlayTypeFilter) {
+    const want = s.overlayTypeFilter === '(none)' ? '' : s.overlayTypeFilter;
+    if ((row.content_source_overlay_type || '') !== want) { return false; }
+  }
   return true;
 }
 
 function matchesChips(row) {
   const {
     cdn_host: fCdnHost, cdn_type: fCdnType, folders: fFolders, profile: fProfile,
+    overlay: fOverlay,
   } = s.chipFilters;
   if (fCdnHost && !row.cdn_prod_host) { return false; }
   if (fCdnType && !row.cdn_prod_type) { return false; }
   if (fFolders && row.folders !== '1' && row.folders !== true) { return false; }
   if (fProfile && !row.profile) { return false; }
+  if (fOverlay && !row.content_source_overlay_url) { return false; }
   return true;
 }
 
@@ -234,6 +249,7 @@ function renderTable() {
   }).join('');
 
   const anyFilter = filterText || s.cdnTypeFilter || s.contentTypeFilter
+    || s.codeSourceTypeFilter || s.overlayTypeFilter
     || Object.values(s.chipFilters).some(Boolean);
   els.rowCount.textContent = anyFilter
     ? `${formatNumber(filtered.length)} of ${formatNumber(s.rows.length)} sites`
@@ -405,22 +421,24 @@ async function loadData(refresh = false) {
     const params = { database: DATABASE, source };
     const compareParams = { database: DATABASE, source: compareSource };
     // eslint-disable-next-line max-len
-    const [sqlStats, sqlByType, sqlByContentType, sqlByCodeSourceType, sqlList, sqlCompare] = await Promise.all([
+    const [sqlStats, sqlByType, sqlByContentType, sqlByCodeSourceType, sqlByOverlayType, sqlList, sqlCompare] = await Promise.all([
       loadSql('configs-stats', params),
       loadSql('configs-by-type', params),
       loadSql('configs-by-content-type', params),
       loadSql('configs-by-code-source-type', params),
+      loadSql('configs-by-overlay-type', params),
       loadSql('configs-list', params),
       loadSql('configs-resolved-list', compareParams),
     ]);
 
     const start = performance.now();
     // eslint-disable-next-line max-len
-    const [statsResult, typeResult, contentTypeResult, codeSourceTypeResult, listResult, compareResult] = await Promise.all([
+    const [statsResult, typeResult, contentTypeResult, codeSourceTypeResult, overlayTypeResult, listResult, compareResult] = await Promise.all([
       query(sqlStats, { cacheTtl: 300 }),
       query(sqlByType, { cacheTtl: 300 }),
       query(sqlByContentType, { cacheTtl: 300 }),
       query(sqlByCodeSourceType, { cacheTtl: 300 }),
+      query(sqlByOverlayType, { cacheTtl: 300 }),
       query(sqlList, { cacheTtl: 300 }),
       query(sqlCompare, { cacheTtl: 300 }),
     ]);
@@ -441,6 +459,8 @@ async function loadData(refresh = false) {
     renderFacetBreakdown(els.contentTypeBody, s.contentTypeRowsData, s.contentTypeFilter);
     s.codeSourceTypeRowsData = codeSourceTypeResult.data || [];
     renderFacetBreakdown(els.codeSourceTypeBody, s.codeSourceTypeRowsData, s.codeSourceTypeFilter);
+    s.overlayTypeRowsData = overlayTypeResult.data || [];
+    renderFacetBreakdown(els.overlayTypeBody, s.overlayTypeRowsData, s.overlayTypeFilter);
     els.statsSection.style.display = '';
     els.loadingState.style.display = 'none';
     els.tableContainer.style.display = '';
@@ -469,6 +489,8 @@ document.getElementById('viewToggle').addEventListener('click', (e) => {
   s.resolvedView = wantResolved;
   s.cdnTypeFilter = null;
   s.contentTypeFilter = null;
+  s.codeSourceTypeFilter = null;
+  s.overlayTypeFilter = null;
   Object.keys(s.chipFilters).forEach((k) => { s.chipFilters[k] = false; });
   s.currentPage = 1;
   updateViewToggle();
@@ -537,6 +559,16 @@ document.getElementById('codeSourceTypeTable').addEventListener('click', (e) => 
   s.codeSourceTypeFilter = s.codeSourceTypeFilter === tr.dataset.type ? null : tr.dataset.type;
   s.currentPage = 1;
   renderFacetBreakdown(els.codeSourceTypeBody, s.codeSourceTypeRowsData, s.codeSourceTypeFilter);
+  renderTable();
+});
+
+// Overlay type facet — click to filter, click again to clear
+document.getElementById('overlayTypeTable').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr.type-row');
+  if (!tr) { return; }
+  s.overlayTypeFilter = s.overlayTypeFilter === tr.dataset.type ? null : tr.dataset.type;
+  s.currentPage = 1;
+  renderFacetBreakdown(els.overlayTypeBody, s.overlayTypeRowsData, s.overlayTypeFilter);
   renderTable();
 });
 

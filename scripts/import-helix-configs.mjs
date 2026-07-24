@@ -89,6 +89,11 @@ function resolveContentType(url, fallback) {
   return fallback;
 }
 
+function resolveOverlayType(url, fallback) {
+  if (url.includes('json2html')) { return 'json2html'; }
+  return resolveContentType(url, fallback);
+}
+
 function resolveCodeSourceType(codeSource) {
   const url = str(codeSource.url);
   if (!url) { return str(codeSource.type); }
@@ -124,7 +129,7 @@ function siteRow(org, site, data) {
     content_bus_id: str(content.contentBusId),
     content_source_type: resolveContentType(contentSourceUrl, str(contentSource.type)),
     content_source_url: contentSourceUrl,
-    content_source_overlay_type: resolveContentType(contentOverlayUrl, str(contentOverlay.type)),
+    content_source_overlay_type: resolveOverlayType(contentOverlayUrl, str(contentOverlay.type)),
     content_source_overlay_url: contentOverlayUrl,
     cdn_prod_host: str(cdnProd.host),
     cdn_prod_type: str(cdnProd.type),
@@ -157,7 +162,7 @@ function profileRow(org, profile, data) {
     content_bus_id: str(content.contentBusId),
     content_source_type: resolveContentType(contentSourceUrl, str(contentSource.type)),
     content_source_url: contentSourceUrl,
-    content_source_overlay_type: resolveContentType(contentOverlayUrl, str(contentOverlay.type)),
+    content_source_overlay_type: resolveOverlayType(contentOverlayUrl, str(contentOverlay.type)),
     content_source_overlay_url: contentOverlayUrl,
     cdn_prod_host: str(cdnProd.host),
     cdn_prod_type: str(cdnProd.type),
