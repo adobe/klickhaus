@@ -106,7 +106,7 @@ function siteRow(org, site, data) {
   const codeSource = code.source || {};
   const content = data.content || {};
   const contentSource = content.source || {};
-  const contentOverlay = contentSource.overlay || {};
+  const contentOverlay = content.overlay || {};
   const cdnProd = (data.cdn && data.cdn.prod) || {};
   const contentSourceUrl = str(contentSource.url);
   const contentOverlayUrl = str(contentOverlay.url);
@@ -140,7 +140,7 @@ function profileRow(org, profile, data) {
   const codeSource = code.source || {};
   const content = data.content || {};
   const contentSource = content.source || {};
-  const contentOverlay = contentSource.overlay || {};
+  const contentOverlay = content.overlay || {};
   const cdnProd = (data.cdn && data.cdn.prod) || {};
   const contentSourceUrl = str(contentSource.url);
   const contentOverlayUrl = str(contentOverlay.url);
