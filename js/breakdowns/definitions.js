@@ -130,6 +130,7 @@ export const allBreakdowns = [
     id: 'breakdown-rso', col: COLUMN_DEFS.rso.facetCol, extraFilter: "AND `helix.rso` != ''",
   },
   { id: 'breakdown-cdn-version', col: '`cdn.version`', extraFilter: "AND `cdn.version` != ''" },
+  { id: 'breakdown-restarts', col: COLUMN_DEFS.restarts.facetCol },
   { id: 'breakdown-helix-route', col: '`helix.route`', extraFilter: "AND `helix.route` != ''" },
   { id: 'breakdown-severity', col: COLUMN_DEFS.severity.facetCol, extraFilter: "AND `response.headers.x_severity` != ''" },
   { id: 'breakdown-helix-topic', col: '`helix.topic`', extraFilter: "AND `helix.topic` != ''" },

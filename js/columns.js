@@ -33,6 +33,13 @@ export const COLUMN_DEFS = {
     label: 'Method',
     shortLabel: 'method',
   },
+  restarts: {
+    logKey: 'request.restarts',
+    facetCol: 'toString(`request.restarts`)',
+    label: 'Restarts',
+    shortLabel: 'restarts',
+    filterTransform: (value) => String(value),
+  },
   host: {
     logKey: 'request.host',
     facetCol: '`request.host`',

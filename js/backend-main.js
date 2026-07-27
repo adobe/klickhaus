@@ -25,6 +25,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-helix-owner',
   'breakdown-helix-repo',
   'breakdown-helix-path',
+  'breakdown-restarts',
 ];
 
 initDashboard({
