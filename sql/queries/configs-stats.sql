@@ -3,5 +3,6 @@ SELECT
   countIf(cdn_prod_host != '')   AS with_cdn_host,
   countIf(cdn_prod_type != '')   AS with_cdn_type,
   countIf(folders)               AS with_folders,
-  countIf(profile != '')         AS with_profile
+  countIf(profile != '')         AS with_profile,
+  countIf(content_source_overlay_url != '') AS with_overlay
 FROM {{database}}.{{source}}
