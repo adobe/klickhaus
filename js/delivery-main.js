@@ -22,6 +22,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-location',
   'breakdown-paths',
   'breakdown-referers',
+  'breakdown-restarts',
   'breakdown-surrogate-key',
   'breakdown-time-elapsed',
 ];
