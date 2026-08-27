@@ -26,6 +26,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-helix-repo',
   'breakdown-helix-path',
   'breakdown-restarts',
+  'breakdown-body-size',
 ];
 
 initDashboard({

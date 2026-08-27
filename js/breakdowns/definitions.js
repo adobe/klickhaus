@@ -112,6 +112,9 @@ export const allBreakdowns = [
     id: 'breakdown-content-length', col: contentLengthBuckets, rawCol: '`response.headers.content_length`', orderBy: 'min(`response.headers.content_length`)', modeToggle: 'contentTypeMode', getExpectedLabels: getContentLengthLabels,
   },
   {
+    id: 'breakdown-body-size', col: (topN, colOverride) => contentLengthBuckets(topN, colOverride || '`response.body_size`'), rawCol: '`response.body_size`', orderBy: 'min(`response.body_size`)', modeToggle: 'contentTypeMode', getExpectedLabels: getContentLengthLabels,
+  },
+  {
     id: 'breakdown-location', col: COLUMN_DEFS.location.facetCol, facetName: 'location', extraFilter: "AND `response.headers.location` != ''", highCardinality: true,
   },
   {
