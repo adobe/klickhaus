@@ -13,6 +13,7 @@ import { initDashboard } from './dashboard-init.js';
 
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-accept-encoding',
+  'breakdown-body-size',
   'breakdown-cdn-version',
   'breakdown-content-encoding',
   'breakdown-content-length',
