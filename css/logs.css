@@ -19,6 +19,44 @@
   padding: 16px 0 24px 0;
 }
 
+/* Logs toolbar (export controls) */
+.logs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.logs-toolbar-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.logs-toolbar-btn {
+  padding: 5px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.logs-toolbar-btn:hover {
+  background: var(--bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+@media (max-width: 600px) {
+  .logs-toolbar {
+    padding: 0 12px;
+  }
+}
+
 .logs-table-container {
   background: var(--card-bg);
   border-radius: 12px;
