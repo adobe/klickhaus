@@ -239,6 +239,11 @@
 
       <!-- Logs View -->
       <div id="logsView">
+        <div class="logs-toolbar">
+          <span class="logs-toolbar-label">Export loaded rows:</span>
+          <button type="button" class="logs-toolbar-btn" data-action="export-logs-csv" title="Download the loaded log rows as CSV">CSV</button>
+          <button type="button" class="logs-toolbar-btn" data-action="export-logs-json" title="Download the loaded log rows as JSON">JSON</button>
+        </div>
         <div class="logs-table-container">
           <div class="logs-loading"><div class="spinner"></div>Loading logs...</div>
         </div>

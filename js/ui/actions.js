@@ -106,6 +106,8 @@ export function initActionHandlers(handlers) {
       'close-dialog': () => handlers.closeDialog?.(target),
       'copy-facet-tsv': () => handlers.copyFacetTsv?.(target.dataset.facet || ''),
       'clear-owner-repo-filter': () => handlers.clearOwnerRepoFilter?.(),
+      'export-logs-csv': () => handlers.exportLogs?.('csv'),
+      'export-logs-json': () => handlers.exportLogs?.('json'),
     };
 
     if (simpleActions[action]) {
