@@ -130,7 +130,7 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `delivery`, `delivery_errors`, `admin`, `backend`, `da`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
+New users get SELECT access to `delivery`, `delivery_errors`, `delivery_archive`, `admin`, `backend`, `da`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
 
 - `enable_parallel_replicas = 1` — queries are distributed across all replicas
 - `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
@@ -191,6 +191,7 @@ AWS Lambda ──► helix-clickhouse-feeder ───────────�
 |-------|----------|-----------------|-------|
 | `delivery` | Edge CDN requests (`cdn.is_edge = true`) from Fastly + Cloudflare | Yes (sampling rate) | Primary delivery analytics table |
 | `delivery_errors` | Same schema as `delivery` but `response.status >= 500` only | No (always fully inserted) | Never sampled |
+| `delivery_archive` | 18-month, PII-scrubbed mirror of `delivery` (identical schema) | Yes (own fixed rate) | Long-retention archive. Built at ingest time from the **full unsampled** delivery rows: 5xx kept 1:1 (`weight=1`), everything else sampled 1:10000 (`weight=10000`). PII fields (`client.ip`, `cdn.originating_ip`, `x_forwarded_for`, `true_client_ip`, `cf_connecting_ip`, `request.qs`, `referer`, `cdn.url` query string) are emptied; `user_agent`/geo/`x_abuse_info` kept. `TTL 18 months`. No `cdn_facet_minutes` facet table — breakdowns always query the raw table |
 | `admin` | Fastly admin service logs | No | `admin.hlx.page` and `api.aem.live` |
 | `backend` | Fastly + Cloudflare backend/subrequest logs | Yes (sampling rate) | `subsystem` column holds Fastly service ID or Cloudflare zone |
 | `da` | Cloudflare requests for Document Authoring (`*.da.live`, `docs.da.live`) | Yes (sampling rate) | DA-specific columns: `cdn.script_name` (Worker), `cdn.request_source`. No `source`/`byo_cdn`/`helix.*` |

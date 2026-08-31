@@ -80,6 +80,8 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.additionalWhereClause] - Extra SQL WHERE clause for all queries
  * @param {string[]} [config.defaultHiddenFacets] - Facet IDs to hide by default
  * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
+ * @param {string[]} [config.timeRangeOrder] - Per-view time-range presets (e.g. archive months)
+ * @param {string} [config.defaultTimeRange] - Initial range when no `t` URL param is present
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -324,6 +326,7 @@ export function initDashboard(config = {}) {
     if (config.tableName) { state.tableName = config.tableName; }
     if (config.logsTableName !== undefined) { state.logsTableName = config.logsTableName; }
     if (config.weightColumn !== undefined) { state.weightColumn = config.weightColumn; }
+    if (config.timeRangeOrder) { state.timeRangeOrder = config.timeRangeOrder; }
     if (config.timeSeriesTemplate) { state.timeSeriesTemplate = config.timeSeriesTemplate; }
     if (config.aggregations) { state.aggregations = config.aggregations; }
     if (config.defaultTimeRange && !initialParams.has('t')) {
