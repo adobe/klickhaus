@@ -33,6 +33,10 @@ GRANT INSERT, ALTER DELETE ON helix_logs_production.admin           TO logpush_w
 GRANT INSERT, ALTER DELETE ON helix_logs_production.backend         TO logpush_writer;
 GRANT INSERT, ALTER DELETE ON helix_logs_production.delivery        TO logpush_writer;
 GRANT INSERT             ON helix_logs_production.delivery_errors TO logpush_writer;
+-- delivery_archive: 18-month PII-scrubbed mirror of delivery, populated directly
+-- by the ingestor from the full unsampled rows. No chained MV reads it, and
+-- retention is TTL-based, so INSERT alone is enough (no SELECT, no ALTER DELETE):
+GRANT INSERT             ON helix_logs_production.delivery_archive TO logpush_writer;
 GRANT SELECT, INSERT     ON helix_logs_production.da              TO logpush_writer;
 -- da_worker_logs is a plain MergeTree with no chained MV reading it, so INSERT is enough:
 GRANT INSERT             ON helix_logs_production.da_worker_logs  TO logpush_writer;

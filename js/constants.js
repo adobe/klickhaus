@@ -90,10 +90,68 @@ export const TIME_RANGES = {
     periodMs: 14 * 24 * 60 * 60 * 1000,
     cacheTtl: 1800,
   },
+  // Month-scale ranges — only offered by long-retention views (e.g. delivery_archive,
+  // 18-month TTL). Not in TIME_RANGE_ORDER, so the 2-week-TTL views never show them.
+  // Steps use HOUR/DAY units because parseIntervalToMs() (js/time.js) understands those
+  // but not MONTH; periodMs uses approximate month lengths for the rolling window bound.
+  '1mo': {
+    label: 'Last month',
+    shortLabel: '1mo',
+    interval: 'INTERVAL 1 MONTH',
+    bucket: 'toStartOfInterval(timestamp, INTERVAL 4 HOUR)',
+    step: 'INTERVAL 4 HOUR',
+    periodMs: 30 * 24 * 60 * 60 * 1000,
+    cacheTtl: 3600,
+  },
+  '3mo': {
+    label: 'Last 3 months',
+    shortLabel: '3mo',
+    interval: 'INTERVAL 3 MONTH',
+    bucket: 'toStartOfInterval(timestamp, INTERVAL 12 HOUR)',
+    step: 'INTERVAL 12 HOUR',
+    periodMs: 90 * 24 * 60 * 60 * 1000,
+    cacheTtl: 3600,
+  },
+  '6mo': {
+    label: 'Last 6 months',
+    shortLabel: '6mo',
+    interval: 'INTERVAL 6 MONTH',
+    bucket: 'toStartOfDay(timestamp)',
+    step: 'INTERVAL 1 DAY',
+    periodMs: 180 * 24 * 60 * 60 * 1000,
+    cacheTtl: 3600,
+  },
+  '12mo': {
+    label: 'Last 12 months',
+    shortLabel: '12mo',
+    interval: 'INTERVAL 12 MONTH',
+    bucket: 'toStartOfInterval(timestamp, INTERVAL 2 DAY)',
+    step: 'INTERVAL 2 DAY',
+    periodMs: 365 * 24 * 60 * 60 * 1000,
+    cacheTtl: 3600,
+  },
+  '18mo': {
+    label: 'Last 18 months',
+    shortLabel: '18mo',
+    interval: 'INTERVAL 18 MONTH',
+    bucket: 'toStartOfInterval(timestamp, INTERVAL 3 DAY)',
+    step: 'INTERVAL 3 DAY',
+    periodMs: 548 * 24 * 60 * 60 * 1000,
+    cacheTtl: 3600,
+  },
 };
 
 /** @type {string} */
 export const DEFAULT_TIME_RANGE = '7d';
+
+/**
+ * Time-range set for long-retention archive views (delivery_archive, 18-month TTL).
+ * @type {string[]}
+ */
+export const ARCHIVE_TIME_RANGE_ORDER = ['1mo', '3mo', '6mo', '12mo', '18mo'];
+
+/** @type {string} */
+export const ARCHIVE_DEFAULT_TIME_RANGE = '1mo';
 
 /** @type {number[]} */
 export const TOP_N_OPTIONS = [5, 10, 20, 50, 100];

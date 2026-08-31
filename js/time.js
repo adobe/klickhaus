@@ -205,6 +205,13 @@ export function formatHumanReadableDurationMs(durationMs) {
   return `${s}s`;
 }
 
+// The active time-range preset list for this view. Long-retention views (e.g.
+// delivery_archive) override it via config.timeRangeOrder; everything else uses
+// the default 14-day-capped TIME_RANGE_ORDER.
+export function getTimeRangeOrder() {
+  return state.timeRangeOrder?.length ? state.timeRangeOrder : TIME_RANGE_ORDER;
+}
+
 export function getTable() {
   return state.tableName || 'delivery';
 }
@@ -342,7 +349,12 @@ export function getFacetTimeFilter() {
 // Zoom out to next larger predefined period, centered on current midpoint
 export function zoomOut() {
   const now = new Date();
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  // Retention horizon = the largest preset range this view offers (14d for the
+  // default views, 18mo for the archive). Data older than this is gone (TTL).
+  const order = getTimeRangeOrder();
+  const periods = order.map((key) => ({ key, ms: TIME_RANGES[key].periodMs }));
+  const retentionMs = Math.max(...periods.map((p) => p.ms));
+  const retentionAgo = new Date(now.getTime() - retentionMs);
 
   // Calculate current midpoint
   let midpoint;
@@ -357,12 +369,11 @@ export function zoomOut() {
 
   // Determine current duration and next larger period
   const currentDurationMs = getPeriodMs();
-  const periods = TIME_RANGE_ORDER.map((key) => ({ key, ms: TIME_RANGES[key].periodMs }));
 
   // Find next larger period
   const nextPeriod = periods.find((p) => p.ms > currentDurationMs);
   if (!nextPeriod) {
-    // Already at 7d, can't zoom out further
+    // Already at the largest preset, can't zoom out further
     return null;
   }
 
@@ -376,10 +387,10 @@ export function zoomOut() {
     newStart = new Date(now.getTime() - nextPeriod.ms);
   }
 
-  // Apply constraints: can't exceed 2-week retention
-  if (newStart < twoWeeksAgo) {
-    newStart = twoWeeksAgo;
-    newEnd = new Date(twoWeeksAgo.getTime() + nextPeriod.ms);
+  // Apply constraints: can't exceed the view's retention horizon
+  if (newStart < retentionAgo) {
+    newStart = retentionAgo;
+    newEnd = new Date(retentionAgo.getTime() + nextPeriod.ms);
     // But still can't go into future
     if (newEnd > now) {
       newEnd = now;

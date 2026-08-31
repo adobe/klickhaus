@@ -9,9 +9,9 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import { TIME_RANGES, TIME_RANGE_ORDER, TOP_N_OPTIONS } from '../constants.js';
+import { TIME_RANGES, TOP_N_OPTIONS } from '../constants.js';
 import { state } from '../state.js';
-import { customTimeRange, formatHumanReadableDurationMs } from '../time.js';
+import { customTimeRange, formatHumanReadableDurationMs, getTimeRangeOrder } from '../time.js';
 
 const CUSTOM_TIME_RANGE_VALUE = 'custom';
 
@@ -31,7 +31,7 @@ export function populateTimeRangeSelect(selectEl) {
   customOption.textContent = 'Custom';
   select.appendChild(customOption);
 
-  TIME_RANGE_ORDER.forEach((key) => {
+  getTimeRangeOrder().forEach((key) => {
     const option = document.createElement('option');
     option.value = key;
     option.textContent = TIME_RANGES[key].label;
@@ -64,7 +64,7 @@ export function updateTimeRangeLabels(select) {
   if (!select) { return; }
 
   const isMobile = window.innerWidth < 600;
-  TIME_RANGE_ORDER.forEach((key) => {
+  getTimeRangeOrder().forEach((key) => {
     const option = select.querySelector(`option[value="${key}"]`);
     if (!option) { return; }
     option.textContent = isMobile ? TIME_RANGES[key].shortLabel : TIME_RANGES[key].label;
