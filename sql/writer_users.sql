@@ -31,6 +31,9 @@
 -- Final tables (INSERT for the ingestion MVs, ALTER DELETE for retention jobs):
 GRANT INSERT, ALTER DELETE ON helix_logs_production.admin           TO logpush_writer;
 GRANT INSERT, ALTER DELETE ON helix_logs_production.backend         TO logpush_writer;
+-- misc_services: subsystem-keyed CDN logs with no helix.* routing metadata; plain
+-- MergeTree, no chained MV reads it, so INSERT (+ ALTER DELETE for retention) suffices:
+GRANT INSERT, ALTER DELETE ON helix_logs_production.misc_services   TO logpush_writer;
 GRANT INSERT, ALTER DELETE ON helix_logs_production.delivery        TO logpush_writer;
 GRANT INSERT             ON helix_logs_production.delivery_errors TO logpush_writer;
 -- delivery_archive: 18-month PII-scrubbed mirror of delivery, populated directly
