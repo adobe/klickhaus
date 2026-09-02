@@ -160,6 +160,12 @@ export const COLUMN_DEFS = {
     facetCol: '`subsystem`',
     label: 'Subsystem',
   },
+  domain: {
+    logKey: 'cdn.domain',
+    facetCol: '`cdn.domain`',
+    label: 'Domain',
+    shortLabel: 'domain',
+  },
   rso: {
     logKey: 'helix.rso',
     facetCol: '`helix.rso`',

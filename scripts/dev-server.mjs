@@ -47,8 +47,8 @@ console.log(`Starting dev server on port ${port}...`);
 liveServer.start({
   port,
   root: '.',
-  ignore: 'scripts,.github,.claude,hars,node_modules',
-  ignorePattern: /\.md$|package.*\.json$|screenshot\.png$|\.playwright-cli/,
+  ignore: 'scripts,.github,.claude,hars,node_modules,.playwright-mcp,coverage',
+  ignorePattern: /\.md$|package.*\.json$|\.png$|\.playwright-cli|\.playwright-mcp/,
   open: noReload ? false : '/',
   watch: noReload ? [] : undefined,
 });
