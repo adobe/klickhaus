@@ -13,9 +13,9 @@ import { initDashboard } from './dashboard-init.js';
 import { miscBreakdowns } from './breakdowns/definitions-misc.js';
 
 const DEFAULT_HIDDEN_FACETS = [
+  'breakdown-content-types',
   'breakdown-forwarded-hosts',
   'breakdown-referers',
-  'breakdown-user-agents',
   'breakdown-ips',
   'breakdown-asn',
   'breakdown-accept-encoding',
