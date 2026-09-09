@@ -1,0 +1,15 @@
+{
+  "name": "support-access-grant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mints time-boxed, tenant-scoped ClickHouse credentials once a site admin has consented via their site config",
+  "scripts": {
+    "test": "node --test 'test/*.test.js'",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.30.0"
+  }
+}
