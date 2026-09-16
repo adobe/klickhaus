@@ -48,6 +48,8 @@ const FACET_COLUMNS = {
   'breakdown-time-elapsed': 'cdn.time_elapsed_msec',
   'breakdown-subsystem': 'subsystem',
   'breakdown-rso': 'helix.rso',
+  'breakdown-helix-org': 'helix.org',
+  'breakdown-helix-site': 'helix.site',
 };
 
 // Aliases for facets (beyond the h3 title)
