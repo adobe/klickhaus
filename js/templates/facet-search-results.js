@@ -14,7 +14,8 @@ import { formatNumber } from '../format.js';
 
 /**
  * Render facet search results list HTML.
- * @param {Array<{dim: string, cnt: number}>} results - Search results
+ * @param {Array<{dim: string, cnt: number, contains?: boolean}>} results - Search results;
+ *   `contains` rows represent a substring filter on the typed pattern
  * @param {number} selectedIndex - Currently selected index
  * @returns {string} HTML string
  */
@@ -22,9 +23,13 @@ export function renderFacetSearchResultsHtml(results, selectedIndex) {
   return results.map((row, i) => {
     const dim = row.dim || '(empty)';
     const selectedClass = i === selectedIndex ? ' selected' : '';
+    const containsClass = row.contains ? ' contains' : '';
+    const label = row.contains
+      ? `<span class="facet-search-contains-label">contains</span> ${escapeHtml(dim)}`
+      : escapeHtml(dim);
     return `
-      <div class="facet-search-item${selectedClass}" data-index="${i}" role="option" aria-selected="${i === selectedIndex}">
-        <span class="facet-search-value" title="${escapeHtml(dim)}">${escapeHtml(dim)}</span>
+      <div class="facet-search-item${selectedClass}${containsClass}" data-index="${i}" role="option" aria-selected="${i === selectedIndex}">
+        <span class="facet-search-value" title="${escapeHtml(dim)}">${label}</span>
         <span class="facet-search-count">${formatNumber(row.cnt)}</span>
         <span class="facet-search-actions">
           <button class="facet-search-btn filter" data-index="${i}" data-exclude="false">Filter</button>

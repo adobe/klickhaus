@@ -159,6 +159,48 @@ describe('renderBreakdownTable', () => {
     }
   });
 
+  it('renders a header search button only for substringFilter facets', () => {
+    const data = [{
+      dim: 'example.com', cnt: 10, cnt_ok: 10, cnt_4xx: 0, cnt_5xx: 0,
+    }];
+    const render = () => renderBreakdownTable(
+      cardId,
+      data,
+      { cnt: 10 },
+      '`request.host`',
+      null,
+      null,
+      null,
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+    );
+    try {
+      state.breakdowns = [{ id: cardId, col: '`request.host`' }];
+      render();
+      assert.isNull(card.querySelector('.facet-header-search-btn'));
+
+      state.breakdowns = [{ id: cardId, col: '`request.host`', substringFilter: true }];
+      render();
+      const btn = card.querySelector('.facet-header-search-btn');
+      assert.isNotNull(btn);
+      assert.strictEqual(btn.dataset.action, 'open-facet-search');
+      assert.strictEqual(btn.dataset.col, '`request.host`');
+      assert.strictEqual(btn.dataset.filterCol, '`request.host`');
+      assert.strictEqual(btn.dataset.facetId, cardId);
+    } finally {
+      state.breakdowns = null;
+    }
+  });
+
   it('renders empty state when data length is 0', () => {
     renderBreakdownTable(
       cardId,

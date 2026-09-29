@@ -263,7 +263,7 @@ function openFacetSearchForCurrentFacet() {
   if (!facet) { return; }
 
   // Find the search link which contains all the needed data attributes
-  const searchLink = facet.querySelector('.facet-search-link[data-action="open-facet-search"]');
+  const searchLink = facet.querySelector('[data-action="open-facet-search"]');
   if (searchLink) {
     openFacetSearch(
       searchLink.dataset.col || '',

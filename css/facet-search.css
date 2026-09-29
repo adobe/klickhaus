@@ -176,3 +176,12 @@
   border-color: var(--error);
   color: white;
 }
+
+.facet-search-item.contains {
+  border-bottom: 1px solid var(--border);
+}
+
+.facet-search-contains-label {
+  color: var(--text-secondary);
+  font-style: italic;
+}

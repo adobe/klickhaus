@@ -10,6 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { initDashboard } from './dashboard-init.js';
+import { allBreakdowns, withSubstringFilters } from './breakdowns/definitions.js';
 
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-subsystem',
@@ -33,6 +34,7 @@ initDashboard({
   title: 'Backend',
   tableName: 'backend',
   weightColumn: 'weight',
+  breakdowns: withSubstringFilters(allBreakdowns),
   timeSeriesTemplate: 'time-series-backend',
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
   hostFilterColumn: 'request.url',

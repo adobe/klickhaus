@@ -159,3 +159,32 @@ export const allBreakdowns = [
     id: 'breakdown-delivery-ratelimit-rate', col: (topN, colOverride) => ratelimitRateBuckets(topN, colOverride || 'toFloat64OrZero(`response.headers.x_rate_limited_rate`)'), rawCol: 'toFloat64OrZero(`response.headers.x_rate_limited_rate`)', orderBy: 'min(toFloat64OrZero(`response.headers.x_rate_limited_rate`))', extraFilter: "AND `response.headers.x_rate_limited_rate` != ''", getExpectedLabels: getRatelimitRateLabels,
   },
 ];
+
+// Facets offering a "contains" (LIKE '%…%') filter via the facet search popover.
+// Errors searches the raw x_error (filterCol), not the grouped display value.
+const SUBSTRING_FILTER_FACETS = new Set([
+  'breakdown-hosts',
+  'breakdown-forwarded-hosts',
+  'breakdown-user-agents',
+  'breakdown-helix-site',
+  'breakdown-helix-org',
+  'breakdown-errors',
+  'breakdown-content-types',
+  'breakdown-paths',
+  'breakdown-surrogate-key',
+]);
+
+/**
+ * Enable substring ("contains") filtering on the supported facets.
+ * @param {Array<Object>} breakdowns
+ * @returns {Array<Object>} new breakdown list (inputs are not mutated)
+ */
+export function withSubstringFilters(breakdowns) {
+  return breakdowns.map((b) => {
+    if (SUBSTRING_FILTER_FACETS.has(b.id)) { return { ...b, substringFilter: true }; }
+    // ASN filters on the numeric `client.asn`, which LIKE can't search; search the
+    // "<number> <name>" display value instead.
+    if (b.id === 'breakdown-asn') { return { ...b, substringFilter: true, searchCol: b.col }; }
+    return b;
+  });
+}

@@ -89,6 +89,19 @@ function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, sum
 }
 
 /**
+ * Substring-filterable facets get an always-available search button, since the
+ * "(other/search)" row only appears when there are more values than topN.
+ */
+function buildHeaderSearchButton(id, col, filterCol, title) {
+  const breakdownDef = state.breakdowns?.find((b) => b.id === id);
+  if (!breakdownDef?.substringFilter) { return ''; }
+  return '<button class="copy-facet-btn facet-header-search-btn" data-action="open-facet-search" '
+    + `data-col="${escapeHtml(col)}" data-facet-id="${escapeHtml(id)}" `
+    + `data-filter-col="${escapeHtml(filterCol || col)}" data-title="${escapeHtml(title)}" `
+    + 'title="Search values or filter by substring">search</button>';
+}
+
+/**
  * Store facet data on card element for copy functionality
  */
 function storeFacetData(card, title, data, totals, isBytes) {
@@ -175,8 +188,10 @@ export function renderBreakdownTable(
     speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml,
   } = headerParts;
 
+  const searchBtnHtml = buildHeaderSearchButton(id, col, filterCol, title);
+
   if (data.length === 0) {
-    let html = `<h3>${speedIndicator}${title}${modeToggleHtml}${summaryHtml}`;
+    let html = `<h3>${speedIndicator}${title}${searchBtnHtml}${modeToggleHtml}${summaryHtml}`;
     if (hasFilters) {
       html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
     }
@@ -198,7 +213,7 @@ export function renderBreakdownTable(
   const realData = data.filter((d) => !isSyntheticBucket(d.dim));
   const maxCount = realData.length > 0 ? Math.max(...realData.map((d) => parseInt(d.cnt, 10))) : 1;
 
-  let html = `<h3>${speedIndicator}${title}${copyBtnHtml}${modeToggleHtml}${summaryHtml}`;
+  let html = `<h3>${speedIndicator}${title}${copyBtnHtml}${searchBtnHtml}${modeToggleHtml}${summaryHtml}`;
   if (hasFilters) {
     html += ` <button class="clear-facet-btn" data-action="clear-facet" data-col="${escapeHtml(col)}">Clear</button>`;
   }
