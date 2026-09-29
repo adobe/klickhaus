@@ -10,7 +10,9 @@
  * governing permissions and limitations under the License.
  */
 import { assert } from 'chai';
-import { formatAsn, formatForwardedHost } from './definitions.js';
+import {
+  allBreakdowns, formatAsn, formatForwardedHost, withSubstringFilters,
+} from './definitions.js';
 
 describe('formatAsn', () => {
   it('dims the ASN number prefix', () => {
@@ -49,5 +51,30 @@ describe('formatForwardedHost', () => {
     const result = formatForwardedHost('<b>host</b>, cdn.aem.live');
     assert.include(result, '&lt;b&gt;');
     assert.notInclude(result, '<b>');
+  });
+});
+
+describe('withSubstringFilters', () => {
+  const result = withSubstringFilters(allBreakdowns);
+  const byId = (id) => result.find((b) => b.id === id);
+
+  it('enables substring filtering on the supported facets', () => {
+    for (const id of ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-user-agents',
+      'breakdown-helix-site', 'breakdown-helix-org', 'breakdown-errors',
+      'breakdown-content-types', 'breakdown-paths', 'breakdown-surrogate-key']) {
+      assert.isTrue(byId(id).substringFilter, id);
+    }
+  });
+
+  it('searches ASN by its display value', () => {
+    const asn = byId('breakdown-asn');
+    assert.isTrue(asn.substringFilter);
+    assert.strictEqual(asn.searchCol, asn.col);
+  });
+
+  it('leaves other facets and the input list untouched', () => {
+    assert.isUndefined(byId('breakdown-status').substringFilter);
+    assert.isTrue(allBreakdowns.every((b) => !b.substringFilter));
+    assert.lengthOf(result, allBreakdowns.length);
   });
 });

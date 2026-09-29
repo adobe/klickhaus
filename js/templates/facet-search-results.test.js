@@ -59,6 +59,13 @@ describe('renderFacetSearchResultsHtml', () => {
     assert.include(html, '&lt;b&gt;bold&lt;/b&gt;');
   });
 
+  it('renders contains rows with a label and the raw pattern', () => {
+    const results = [{ dim: '<main--x>', cnt: 42, contains: true }];
+    const html = renderFacetSearchResultsHtml(results, 0);
+    assert.include(html, 'facet-search-item selected contains');
+    assert.include(html, '<span class="facet-search-contains-label">contains</span> &lt;main--x&gt;');
+  });
+
   it('returns empty string for empty results', () => {
     assert.strictEqual(renderFacetSearchResultsHtml([], 0), '');
   });

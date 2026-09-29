@@ -10,20 +10,17 @@
  * governing permissions and limitations under the License.
  */
 import { initDashboard } from './dashboard-init.js';
-import { ARCHIVE_TIME_RANGE_ORDER, ARCHIVE_DEFAULT_TIME_RANGE } from './constants.js';
 import { allBreakdowns, withSubstringFilters } from './breakdowns/definitions.js';
 
-// Breakdowns/filters removed from the archive view. referer and originating IP are
-// PII-scrubbed to empty in delivery_archive (always blank), and restarts is not
-// meaningful for long-range archive analysis.
-const REMOVED_FACETS = new Set([
-  'breakdown-referers',
-  'breakdown-ips', // originating IP
-  'breakdown-restarts',
-]);
+// Last-Modified response header (Nullable DateTime64), rendered at second precision;
+// missing headers map to '' so they show up (and can be filtered) as "(empty)".
+const lastModifiedBreakdown = {
+  id: 'breakdown-last-modified',
+  col: "ifNull(formatDateTime(`response.headers.last_modified`, '%F %T'), '')",
+};
 
-const archiveBreakdowns = withSubstringFilters(
-  allBreakdowns.filter((b) => !REMOVED_FACETS.has(b.id)),
+const debugBreakdowns = withSubstringFilters(allBreakdowns).flatMap(
+  (b) => (b.id === 'breakdown-push-invalidation' ? [b, lastModifiedBreakdown] : [b]),
 );
 
 const DEFAULT_HIDDEN_FACETS = [
@@ -34,23 +31,23 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-content-length',
   'breakdown-content-types',
   'breakdown-delivery-ratelimit-rate',
+  'breakdown-ips',
   'breakdown-location',
   'breakdown-paths',
-  'breakdown-surrogate-key',
+  'breakdown-referers',
+  'breakdown-restarts',
   'breakdown-time-elapsed',
 ];
 
-// delivery_archive is an 18-month, PII-scrubbed, self-sampled mirror of `delivery`
-// (identical schema). It has NO cdn_facet_minutes facet table, so breakdowns always
-// query the raw table — canUseFacetTable() gates the facet path on tableName ===
-// 'delivery', which this view is not, so it falls through automatically.
+// delivery_debug is a manually ingested, unsampled, filtered subset of `delivery`
+// (identical schema) used to investigate cache and other issues. It has no
+// cdn_facet_minutes facet table; canUseFacetTable() only routes tableName ===
+// 'delivery' to it, so breakdowns here always query the raw table.
 initDashboard({
-  title: 'Delivery Archive',
-  tableName: 'delivery_archive',
+  title: 'Delivery Debug',
+  tableName: 'delivery_debug',
   weightColumn: 'weight',
   timeSeriesTemplate: 'time-series-delivery',
-  timeRangeOrder: ARCHIVE_TIME_RANGE_ORDER,
-  defaultTimeRange: ARCHIVE_DEFAULT_TIME_RANGE,
-  breakdowns: archiveBreakdowns,
+  breakdowns: debugBreakdowns,
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

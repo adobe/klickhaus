@@ -10,6 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { initDashboard } from './dashboard-init.js';
+import { allBreakdowns, withSubstringFilters } from './breakdowns/definitions.js';
 
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-accept-encoding',
@@ -32,6 +33,7 @@ initDashboard({
   title: 'Delivery',
   tableName: 'delivery',
   weightColumn: 'weight',
+  breakdowns: withSubstringFilters(allBreakdowns),
   timeSeriesTemplate: 'time-series-delivery',
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
 });

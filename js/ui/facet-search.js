@@ -17,16 +17,34 @@ import { state } from '../state.js';
 import { loadSql } from '../sql-loader.js';
 import { getDimCountAgg } from '../query-aggregations.js';
 import { renderFacetSearchResultsHtml } from '../templates/facet-search-results.js';
+import { allBreakdowns } from '../breakdowns/definitions.js';
 
 // State
 let currentCol = null;
 let currentFilterCol = null;
+let currentSearchCol = null;
+let currentSubstringFilter = false;
+let currentPattern = '';
 let selectedIndex = -1;
 let searchResults = [];
 let debounceTimer = null;
 
 // Callbacks set by init
 let addFilterCallback = null;
+
+/**
+ * Escape a pattern for a LIKE '%...%' filter value. compileFilters() only escapes
+ * single quotes, so a literal backslash needs four (string literal + LIKE escaping).
+ * @param {string} pattern
+ * @returns {string}
+ */
+function toContainsLikeValue(pattern) {
+  const escaped = pattern
+    .replace(/\\/g, '\\\\\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
+  return `%${escaped}%`;
+}
 
 /**
  * Render search results
@@ -53,7 +71,7 @@ async function loadInitialResults() {
     const timeFilter = getTimeFilter();
     const hostFilter = getHostFilter();
     const facetFilters = getFacetFiltersExcluding(currentCol);
-    const searchCol = currentFilterCol || currentCol;
+    const searchCol = currentSearchCol;
 
     // Fetch next 20 values after the currently displayed topN
     const sql = await loadSql('facet-search-initial', {
@@ -90,6 +108,7 @@ async function loadInitialResults() {
 async function searchFacetValues(pattern) {
   const results = document.getElementById('facetSearchResults');
 
+  currentPattern = pattern;
   if (!pattern || pattern.length < 2) {
     // When cleared, reload initial results
     loadInitialResults();
@@ -110,8 +129,7 @@ async function searchFacetValues(pattern) {
       .replace(/_/g, '\\_')
       .replace(/'/g, "\\'");
 
-    // Use the filterCol for searching since it's the raw column
-    const searchCol = currentFilterCol || currentCol;
+    const searchCol = currentSearchCol;
 
     const sql = await loadSql('facet-search-pattern', {
       searchCol,
@@ -125,7 +143,17 @@ async function searchFacetValues(pattern) {
     });
 
     const result = await query(sql);
+    if (pattern !== currentPattern) { return; } // superseded by a newer search
     searchResults = result.data || [];
+    selectedIndex = -1;
+
+    // Offer a substring filter over all matching values (preselected so Enter applies it)
+    if (currentSubstringFilter && searchResults.length > 0) {
+      const totalCnt = result.totals?.cnt
+        ?? searchResults.reduce((sum, r) => sum + Number(r.cnt), 0);
+      searchResults.unshift({ dim: pattern, cnt: totalCnt, contains: true });
+      selectedIndex = 0;
+    }
 
     renderResults();
   } catch (err) {
@@ -144,6 +172,9 @@ export function closeFacetSearch() {
   dialog.close();
   currentCol = null;
   currentFilterCol = null;
+  currentSearchCol = null;
+  currentSubstringFilter = false;
+  currentPattern = '';
   selectedIndex = -1;
   searchResults = [];
 }
@@ -188,9 +219,29 @@ function applyFilter(index, exclude) {
   // Save values before closing (closeFacetSearch clears them)
   const col = currentCol;
   const filterCol = currentFilterCol;
+  const searchCol = currentSearchCol;
 
   // Close the popover
   closeFacetSearch();
+
+  if (selected.contains) {
+    addFilterCallback?.(
+      col,
+      `*${selected.dim}*`,
+      exclude,
+      searchCol,
+      toContainsLikeValue(selected.dim),
+      'LIKE',
+    );
+    return;
+  }
+
+  // Values found via the display column: let addFilter map them through the
+  // breakdown's own filterCol/filterValueFn (e.g. ASN "15169 google llc" -> 15169)
+  if (searchCol === col && filterCol && filterCol !== col) {
+    addFilterCallback?.(col, value, exclude);
+    return;
+  }
 
   // Apply filter using the display column for col parameter
   // and filterCol for the actual SQL filter
@@ -296,6 +347,11 @@ export function initFacetSearch(callbacks) {
 export function openFacetSearch(col, _, filterCol, title) {
   currentCol = col;
   currentFilterCol = filterCol;
+  const breakdowns = state.breakdowns?.length ? state.breakdowns : allBreakdowns;
+  const breakdown = breakdowns.find((b) => b.col === col);
+  currentSearchCol = breakdown?.searchCol || filterCol || col;
+  currentSubstringFilter = !!breakdown?.substringFilter;
+  currentPattern = '';
   selectedIndex = -1;
   searchResults = [];
 
