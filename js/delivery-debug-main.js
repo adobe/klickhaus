@@ -19,9 +19,23 @@ const lastModifiedBreakdown = {
   col: "ifNull(formatDateTime(`response.headers.last_modified`, '%F %T'), '')",
 };
 
-const debugBreakdowns = withSubstringFilters(allBreakdowns).flatMap(
-  (b) => (b.id === 'breakdown-push-invalidation' ? [b, lastModifiedBreakdown] : [b]),
-);
+// Content Length / Response Size show exact byte values instead of size buckets,
+// filtering on the numeric column.
+const discreteSizeBreakdown = (b, column) => ({
+  id: b.id,
+  col: `toString(${column})`,
+  filterCol: column,
+  filterValueFn: (v) => Number(v),
+  modeToggle: b.modeToggle,
+});
+
+const debugBreakdowns = withSubstringFilters(allBreakdowns).flatMap((b) => {
+  if (b.id === 'breakdown-push-invalidation') { return [b, lastModifiedBreakdown]; }
+  if (b.id === 'breakdown-content-length' || b.id === 'breakdown-body-size') {
+    return [discreteSizeBreakdown(b, b.rawCol)];
+  }
+  return [b];
+});
 
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-accept-encoding',
