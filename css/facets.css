@@ -551,6 +551,12 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   font-size: inherit;
 }
 
+.breakdown-table .dim .dim-tooltip {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
 .breakdown-table .count {
   text-align: right;
   font-weight: 500;

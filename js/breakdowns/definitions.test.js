@@ -11,7 +11,7 @@
  */
 import { assert } from 'chai';
 import {
-  allBreakdowns, formatAsn, formatForwardedHost, withSubstringFilters,
+  allBreakdowns, formatAsn, formatDatacenter, formatForwardedHost, withSubstringFilters,
 } from './definitions.js';
 
 describe('formatAsn', () => {
@@ -76,5 +76,29 @@ describe('withSubstringFilters', () => {
     assert.isUndefined(byId('breakdown-status').substringFilter);
     assert.isTrue(allBreakdowns.every((b) => !b.substringFilter));
     assert.lengthOf(result, allBreakdowns.length);
+  });
+});
+
+describe('formatDatacenter', () => {
+  it('adds the location as a hover tooltip', () => {
+    assert.strictEqual(
+      formatDatacenter('FRA'),
+      '<span class="dim-tooltip" title="Frankfurt, Germany">FRA</span>',
+    );
+  });
+
+  it('covers Fastly-only POP codes', () => {
+    assert.include(formatDatacenter('QAS'), 'title="Agra, India"');
+  });
+
+  it('returns unknown codes unchanged and escaped', () => {
+    assert.strictEqual(formatDatacenter('ZZZ'), 'ZZZ');
+    assert.strictEqual(formatDatacenter('<b>'), '&lt;b&gt;');
+    assert.strictEqual(formatDatacenter('toString'), 'toString');
+  });
+
+  it('is used by the Datacenter breakdown', () => {
+    const dc = allBreakdowns.find((b) => b.id === 'breakdown-datacenters');
+    assert.strictEqual(dc.dimFormatFn, formatDatacenter);
   });
 });

@@ -18,6 +18,16 @@ import {
   ratelimitRateBuckets, getRatelimitRateLabels,
 } from './buckets.js';
 import { COLUMN_DEFS } from '../columns.js';
+import { DATACENTER_NAMES } from '../datacenter-names.js';
+
+// Datacenter (POP) code with its location as a hover tooltip, e.g. FRA → "Frankfurt, Germany"
+export function formatDatacenter(dim) {
+  const name = Object.hasOwn(DATACENTER_NAMES, dim) ? DATACENTER_NAMES[dim] : null;
+  if (!name) {
+    return escapeHtml(dim);
+  }
+  return `<span class="dim-tooltip" title="${escapeHtml(name)}">${escapeHtml(dim)}</span>`;
+}
 
 // Format ASN as "15169 google llc" with number dimmed
 export function formatAsn(dim) {
@@ -96,7 +106,7 @@ export const allBreakdowns = [
     id: 'breakdown-methods', col: COLUMN_DEFS.method.facetCol, facetName: 'method', summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryDimCondition: "dim IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning',
   },
   {
-    id: 'breakdown-datacenters', col: '`cdn.datacenter`', facetName: 'datacenter', modeToggle: 'contentTypeMode',
+    id: 'breakdown-datacenters', col: '`cdn.datacenter`', facetName: 'datacenter', modeToggle: 'contentTypeMode', dimFormatFn: formatDatacenter,
   },
   {
     id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", facetName: 'asn', filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' ')[0], 10), dimFormatFn: formatAsn, extraFilter: 'AND `client.asn` != 0', linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage', modeToggle: 'contentTypeMode',

@@ -16,7 +16,7 @@ import {
   contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
 } from './buckets.js';
 import { COLUMN_DEFS } from '../columns.js';
-import { formatAsn, formatForwardedHost } from './definitions.js';
+import { formatAsn, formatDatacenter, formatForwardedHost } from './definitions.js';
 
 // The `da` table has no source/byo_cdn/helix.*/surrogate-key/ratelimit columns,
 // but adds cdn.script_name and cdn.request_source (Cloudflare worker subrequests).
@@ -60,7 +60,7 @@ export const daBreakdowns = [
     id: 'breakdown-methods', col: COLUMN_DEFS.method.facetCol, summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryDimCondition: "dim IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning',
   },
   {
-    id: 'breakdown-datacenters', col: '`cdn.datacenter`', modeToggle: 'contentTypeMode',
+    id: 'breakdown-datacenters', col: '`cdn.datacenter`', modeToggle: 'contentTypeMode', dimFormatFn: formatDatacenter,
   },
   {
     id: 'breakdown-asn', col: "concat(toString(`client.asn`), ' ', dictGet('helix_logs_production.asn_dict', 'name', `client.asn`))", filterCol: '`client.asn`', filterValueFn: (v) => parseInt(v.split(' ')[0], 10), dimFormatFn: formatAsn, extraFilter: 'AND `client.asn` != 0', linkPrefix: 'https://mxtoolbox.com/SuperTool.aspx?action=asn%3aAS', linkSuffix: '&run=toolpage', modeToggle: 'contentTypeMode',
