@@ -138,6 +138,14 @@ New users get SELECT access to `delivery`, `delivery_errors`, `delivery_archive`
 
 Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`) are managed manually, outside `add-user.mjs`. Their canonical grants live in [`sql/writer_users.sql`](sql/writer_users.sql) — diff with `SHOW GRANTS FOR <user>` before applying. They get only the memory limit (no parallel replicas for inserts). Note: chained materialized views run in the inserter's security context, so a writer needs `SELECT` on every table any downstream MV reads, not just `INSERT` on the staging table.
 
+## Datacenter Names
+
+The Datacenter facet shows each POP code's location on hover (e.g. `FRA` → "Frankfurt, Germany"). The lookup in `js/datacenter-names.js` is generated from Cloudflare's and Fastly's public PoP lists, plus OurAirports for countries. Regenerate it when new POP codes show up without a tooltip:
+
+```bash
+node scripts/generate-datacenter-names.mjs
+```
+
 ## Data Pipeline Architecture
 
 CDN logs from Cloudflare and Fastly are shipped to a GCS bucket (`gs://helix-logs`, GCP project `helix-225321`, region `us-west1`). A Cloud Run service ([helix-gcs2clickhouse-ingestor](https://github.com/adobe/helix-gcs2clickhouse-ingestor)) is triggered by Pub/Sub on each new GCS object and inserts rows into ClickHouse.

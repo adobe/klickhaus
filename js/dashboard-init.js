@@ -59,6 +59,7 @@ import {
 } from './keyboard.js';
 import { initFacetPalette } from './facet-palette.js';
 import { initFacetSearch, openFacetSearch } from './ui/facet-search.js';
+import { initHoverTooltips } from './ui/hover-tooltip.js';
 import { copyFacetAsTsv } from './copy-facet.js';
 import { exportLogs } from './export-logs.js';
 import { invalidateInvestigationCache } from './anomaly-investigation.js';
@@ -397,6 +398,7 @@ export function initDashboard(config = {}) {
 
     initKeyboardNavigation({ toggleFacetMode, reloadDashboard: loadDashboard });
     initFacetPalette();
+    initHoverTooltips();
     initFacetSearch({ addFilter, loadDashboard });
     initScrollTracking();
 
