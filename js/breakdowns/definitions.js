@@ -26,7 +26,7 @@ export function formatDatacenter(dim) {
   if (!name) {
     return escapeHtml(dim);
   }
-  return `<span class="dim-tooltip" title="${escapeHtml(name)}">${escapeHtml(dim)}</span>`;
+  return `<span class="dim-tooltip" data-tooltip="${escapeHtml(name)}">${escapeHtml(dim)}</span>`;
 }
 
 // Format ASN as "15169 google llc" with number dimmed

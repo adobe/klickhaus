@@ -83,12 +83,12 @@ describe('formatDatacenter', () => {
   it('adds the location as a hover tooltip', () => {
     assert.strictEqual(
       formatDatacenter('FRA'),
-      '<span class="dim-tooltip" title="Frankfurt, Germany">FRA</span>',
+      '<span class="dim-tooltip" data-tooltip="Frankfurt, Germany">FRA</span>',
     );
   });
 
   it('covers Fastly-only POP codes', () => {
-    assert.include(formatDatacenter('QAS'), 'title="Agra, India"');
+    assert.include(formatDatacenter('QAS'), 'data-tooltip="Agra, India"');
   });
 
   it('returns unknown codes unchanged and escaped', () => {

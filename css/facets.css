@@ -557,6 +557,25 @@ body[data-topn="100"] .breakdown-card:not(.facet-hidden) { min-height: 2164px; }
   cursor: help;
 }
 
+.hover-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 320px;
+  padding: 4px 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hover-tooltip[hidden] {
+  display: none;
+}
+
 .breakdown-table .count {
   text-align: right;
   font-weight: 500;
