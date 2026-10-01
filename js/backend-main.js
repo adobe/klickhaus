@@ -12,6 +12,16 @@
 import { initDashboard } from './dashboard-init.js';
 import { allBreakdowns, withSubstringFilters } from './breakdowns/definitions.js';
 
+// backend stores surrogate keys in `response.headers.surrogate_key`
+// (delivery uses `response.headers.x_surrogate_key`).
+const BACKEND_SURROGATE_KEY_COL = '`response.headers.surrogate_key`';
+
+const backendBreakdowns = withSubstringFilters(allBreakdowns).map((b) => (
+  b.id === 'breakdown-surrogate-key'
+    ? { ...b, col: BACKEND_SURROGATE_KEY_COL, extraFilter: `AND ${BACKEND_SURROGATE_KEY_COL} != ''` }
+    : b
+));
+
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-subsystem',
   'breakdown-forwarded-hosts',
@@ -34,7 +44,7 @@ initDashboard({
   title: 'Backend',
   tableName: 'backend',
   weightColumn: 'weight',
-  breakdowns: withSubstringFilters(allBreakdowns),
+  breakdowns: backendBreakdowns,
   timeSeriesTemplate: 'time-series-backend',
   defaultHiddenFacets: DEFAULT_HIDDEN_FACETS,
   hostFilterColumn: 'request.url',
