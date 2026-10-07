@@ -25,7 +25,7 @@ export function renderFilterTag({
   label, exclude, index, colorIndicator, title,
 }) {
   const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-  return `<span class="filter-tag ${exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${index}"${titleAttr}>${colorIndicator}${escapeHtml(label)}</span>`;
+  return `<span class="filter-tag ${exclude ? 'exclude' : ''}" data-action="remove-filter" data-index="${index}"${titleAttr}>${colorIndicator}<span class="filter-tag-label">${escapeHtml(label)}</span></span>`;
 }
 
 /**

@@ -19,6 +19,18 @@ const lastModifiedBreakdown = {
   col: "ifNull(formatDateTime(`response.headers.last_modified`, '%F %T'), '')",
 };
 
+const etagBreakdown = {
+  id: 'breakdown-etag',
+  col: '`response.headers.etag`',
+};
+
+// The cache node (individual cache server) within a datacenter.
+const cacheNodeBreakdown = {
+  id: 'breakdown-cache-node',
+  col: '`cdn.hostname`',
+  substringFilter: true,
+};
+
 // Content Length / Response Size show exact byte values instead of size buckets,
 // filtering on the numeric column.
 const discreteSizeBreakdown = (b, column) => ({
@@ -30,7 +42,10 @@ const discreteSizeBreakdown = (b, column) => ({
 });
 
 const debugBreakdowns = withSubstringFilters(allBreakdowns).flatMap((b) => {
-  if (b.id === 'breakdown-push-invalidation') { return [b, lastModifiedBreakdown]; }
+  if (b.id === 'breakdown-datacenters') { return [b, cacheNodeBreakdown]; }
+  if (b.id === 'breakdown-push-invalidation') {
+    return [b, lastModifiedBreakdown, etagBreakdown];
+  }
   if (b.id === 'breakdown-content-length' || b.id === 'breakdown-body-size') {
     return [discreteSizeBreakdown(b, b.rawCol)];
   }
