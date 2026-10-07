@@ -245,6 +245,40 @@ header select option {
   flex-shrink: 0;
 }
 
+.filter-tag-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Full list of active filters, shown on hover when the header clips them */
+.active-filters-popover {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: min(640px, calc(100vw - 48px));
+  padding: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.active-filters-popover[hidden] {
+  display: none;
+}
+
+.active-filters-popover .filter-tag {
+  max-width: 100%;
+}
+
+.active-filters-popover .filter-tag-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* Main Content */
 main {
   padding: 0 24px 24px 24px;

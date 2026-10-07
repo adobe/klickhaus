@@ -13,6 +13,7 @@ import { state } from './state.js';
 import { getColorIndicatorHtml } from './colors/index.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
 import { renderFilterTags } from './templates/filter-tags.js';
+import { updateFilterOverflow } from './ui/filter-overflow.js';
 import { escapeHtml } from './utils.js';
 
 // Callbacks set by main.js to avoid circular dependencies
@@ -66,11 +67,12 @@ export function renderActiveFilters() {
   if (state.filters.length === 0 && !hasOwnerRepo) {
     container.innerHTML = '';
     updateHeaderFixed();
+    updateFilterOverflow(container);
     return;
   }
   let html = '';
   if (hasOwnerRepo) {
-    html += `<span class="filter-tag" data-action="clear-owner-repo-filter">${escapeHtml(state.ownerRepoFilter)}</span>`;
+    html += `<span class="filter-tag" data-action="clear-owner-repo-filter"><span class="filter-tag-label">${escapeHtml(state.ownerRepoFilter)}</span></span>`;
   }
   const filterData = state.filters.map((f) => {
     const facetTitle = getFacetTitle(f.col) || 'Empty';
@@ -88,6 +90,7 @@ export function renderActiveFilters() {
   html += renderFilterTags(filterData);
   container.innerHTML = html;
   updateHeaderFixed();
+  updateFilterOverflow(container);
 }
 
 export function clearOwnerRepoFilter() {
