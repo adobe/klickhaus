@@ -22,8 +22,13 @@ describe('escapeHtml', () => {
   });
 
   it('escapes quotes', () => {
-    const result = escapeHtml('"hello"');
-    assert.ok(result.includes('&quot;') || result.includes('"'));
+    assert.strictEqual(escapeHtml('W/"abc" it\'s'), 'W/&quot;abc&quot; it&#39;s');
+  });
+
+  it('round-trips quoted values through an HTML attribute', () => {
+    const div = document.createElement('div');
+    div.innerHTML = `<span data-value="${escapeHtml('W/"abc"')}"></span>`;
+    assert.strictEqual(div.firstChild.dataset.value, 'W/"abc"');
   });
 
   it('returns empty string for empty input', () => {

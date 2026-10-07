@@ -9,10 +9,13 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+const HTML_ESCAPES = {
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+};
+
+// Safe for both text content and quoted attribute values.
 export function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
 const ALLOWED_URL_PROTOCOLS = new Set(['http:', 'https:']);
