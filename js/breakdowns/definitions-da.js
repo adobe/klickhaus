@@ -54,7 +54,7 @@ export const daBreakdowns = [
     id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryDimCondition: "NOT dim LIKE 'Mozilla/%' OR dim LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,
   },
   {
-    id: 'breakdown-ips', col: COLUMN_DEFS.originatingIp.facetCol, linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: '`cdn.originating_ip` LIKE \'%:%\'', summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
+    id: 'breakdown-ips', col: COLUMN_DEFS.originatingIp.facetCol, linkPrefix: 'https://ipinfo.io/', summaryCountIf: '`cdn.originating_ip` LIKE \'%:%\'', summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
   },
   {
     id: 'breakdown-methods', col: COLUMN_DEFS.method.facetCol, summaryCountIf: "`request.method` IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryDimCondition: "dim IN ('POST', 'PUT', 'PATCH', 'DELETE')", summaryLabel: 'writes', summaryColor: 'warning',
