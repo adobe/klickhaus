@@ -91,7 +91,7 @@ export const allBreakdowns = [
     id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, facetName: 'user_agent', dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryDimCondition: "NOT dim LIKE 'Mozilla/%' OR dim LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,
   },
   {
-    id: 'breakdown-ips', col: COLUMN_DEFS.originatingIp.facetCol, facetName: 'originating_ip', linkPrefix: 'https://centralops.net/co/DomainDossier?dom_whois=1&net_whois=1&addr=', summaryCountIf: '`cdn.originating_ip` LIKE \'%:%\'', summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
+    id: 'breakdown-ips', col: COLUMN_DEFS.originatingIp.facetCol, facetName: 'originating_ip', linkPrefix: 'https://ipinfo.io/', summaryCountIf: '`cdn.originating_ip` LIKE \'%:%\'', summaryDimCondition: "dim LIKE '%:%'", summaryLabel: 'IPv6', highCardinality: true,
   },
   {
     id: 'breakdown-request-type', col: COLUMN_DEFS.requestType.facetCol, facetName: 'request_type', extraFilter: "AND `helix.request_type` != ''", modeToggle: 'contentTypeMode',
