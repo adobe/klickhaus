@@ -1,0 +1,21 @@
+name = "support-access-grant"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# Account: Helix-Dev (852dfa4ae1b0d579df29be65b986c101)
+
+[vars]
+CLICKHOUSE_URL = "https://s2p5b8wmt5.eastus2.azure.clickhouse.cloud:8443/"
+CLICKHOUSE_HOST = "s2p5b8wmt5.eastus2.azure.clickhouse.cloud"
+CLICKHOUSE_DATABASE = "tenant_poc"
+TENANT_ROLE = "tenant_selfserve"
+DASHBOARD_URL = "https://klickhaus.aemstatus.net/delivery.html"
+ALLOWED_ORIGINS = "https://tools.aem.live"
+CHALLENGE_TTL_SECONDS = "1800"
+GRANT_TTL_HOURS = "72"
+
+# Secrets, set with `wrangler secret put <NAME>` and never in this file:
+#   CHALLENGE_SECRET     random 32+ bytes, signs challenge nonces
+#   CLICKHOUSE_USER      tenant_minter
+#   CLICKHOUSE_PASSWORD  tenant_minter password (see sql/tenant_minter_user.sql)
