@@ -50,6 +50,7 @@ const FACET_COLUMNS = {
   'breakdown-cache-node': 'cdn.hostname',
   'breakdown-subsystem': 'subsystem',
   'breakdown-rso': 'helix.rso',
+  'breakdown-contentbus-id': 'helix.contentbus_id',
   'breakdown-helix-org': 'helix.org',
   'breakdown-helix-site': 'helix.site',
 };
@@ -85,6 +86,7 @@ const FACET_ALIASES = {
   'breakdown-cache-node': ['cache node', 'cache server', 'hostname', 'node', 'server'],
   'breakdown-subsystem': ['subsystem', 'service', 'backend service'],
   'breakdown-rso': ['rso'],
+  'breakdown-contentbus-id': ['contentbus', 'content bus', 'cbid'],
   'breakdown-time-elapsed': ['time', 'duration', 'latency', 'ttfb'],
 };
 

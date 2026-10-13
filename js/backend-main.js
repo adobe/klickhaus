@@ -16,11 +16,20 @@ import { allBreakdowns, withSubstringFilters } from './breakdowns/definitions.js
 // (delivery uses `response.headers.x_surrogate_key`).
 const BACKEND_SURROGATE_KEY_COL = '`response.headers.surrogate_key`';
 
-const backendBreakdowns = withSubstringFilters(allBreakdowns).map((b) => (
-  b.id === 'breakdown-surrogate-key'
-    ? { ...b, col: BACKEND_SURROGATE_KEY_COL, extraFilter: `AND ${BACKEND_SURROGATE_KEY_COL} != ''` }
-    : b
-));
+const contentbusIdBreakdown = {
+  id: 'breakdown-contentbus-id',
+  col: '`helix.contentbus_id`',
+  extraFilter: "AND `helix.contentbus_id` != ''",
+  highCardinality: true,
+};
+
+const backendBreakdowns = withSubstringFilters(allBreakdowns).flatMap((b) => {
+  if (b.id === 'breakdown-surrogate-key') {
+    return [{ ...b, col: BACKEND_SURROGATE_KEY_COL, extraFilter: `AND ${BACKEND_SURROGATE_KEY_COL} != ''` }];
+  }
+  if (b.id === 'breakdown-helix-path') { return [b, contentbusIdBreakdown]; }
+  return [b];
+});
 
 const DEFAULT_HIDDEN_FACETS = [
   'breakdown-subsystem',
@@ -36,6 +45,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-helix-owner',
   'breakdown-helix-repo',
   'breakdown-helix-path',
+  'breakdown-contentbus-id',
   'breakdown-restarts',
   'breakdown-body-size',
 ];
