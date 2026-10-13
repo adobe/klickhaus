@@ -294,9 +294,16 @@
   gap: 6px;
 }
 
-.breakdown-card.facet-hidden:hover {
-  opacity: 0.8;
+.breakdown-card.facet-hidden:hover,
+.breakdown-card.facet-hidden:focus-within {
+  opacity: 1;
   border-style: solid;
+  border-color: var(--text-secondary);
+}
+
+.breakdown-card.facet-hidden:hover h3,
+.breakdown-card.facet-hidden:focus-within h3 {
+  color: var(--text);
 }
 
 /* Hide content in hidden facets */
