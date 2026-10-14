@@ -181,6 +181,7 @@ const SUBSTRING_FILTER_FACETS = new Set([
   'breakdown-errors',
   'breakdown-content-types',
   'breakdown-paths',
+  'breakdown-referers',
   'breakdown-surrogate-key',
 ]);
 
