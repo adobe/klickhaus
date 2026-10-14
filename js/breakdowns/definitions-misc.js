@@ -43,4 +43,8 @@ const domainBreakdown = {
 // Keep Domain next to Subsystem — the two service-identifying facets.
 export const miscBreakdowns = allBreakdowns
   .filter((b) => !UNSUPPORTED_FACETS.has(b.id))
-  .flatMap((b) => (b.id === 'breakdown-subsystem' ? [b, domainBreakdown] : [b]));
+  .flatMap((b) => {
+    if (b.id === 'breakdown-subsystem') { return [b, domainBreakdown]; }
+    if (b.id === 'breakdown-referers') { return [{ ...b, substringFilter: true }]; }
+    return [b];
+  });

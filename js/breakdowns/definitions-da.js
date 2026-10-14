@@ -48,7 +48,7 @@ export const daBreakdowns = [
     id: 'breakdown-paths', col: COLUMN_DEFS.url.facetCol, linkFn: pathLink, modeToggle: 'contentTypeMode', highCardinality: true,
   },
   {
-    id: 'breakdown-referers', col: COLUMN_DEFS.referer.facetCol, linkFn: refererLink, dimPrefixes: ['https://', 'http://'], highCardinality: true,
+    id: 'breakdown-referers', col: COLUMN_DEFS.referer.facetCol, linkFn: refererLink, dimPrefixes: ['https://', 'http://'], highCardinality: true, substringFilter: true,
   },
   {
     id: 'breakdown-user-agents', col: COLUMN_DEFS.userAgent.facetCol, dimPrefixes: ['Mozilla/5.0 '], summaryCountIf: "NOT `request.headers.user_agent` LIKE 'Mozilla/%' OR `request.headers.user_agent` LIKE '%+http%'", summaryDimCondition: "NOT dim LIKE 'Mozilla/%' OR dim LIKE '%+http%'", summaryLabel: 'bot rate', summaryColor: 'warning', highCardinality: true,

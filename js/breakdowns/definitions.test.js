@@ -61,7 +61,7 @@ describe('withSubstringFilters', () => {
   it('enables substring filtering on the supported facets', () => {
     for (const id of ['breakdown-hosts', 'breakdown-forwarded-hosts', 'breakdown-user-agents',
       'breakdown-helix-site', 'breakdown-helix-org', 'breakdown-errors',
-      'breakdown-content-types', 'breakdown-paths', 'breakdown-surrogate-key']) {
+      'breakdown-content-types', 'breakdown-paths', 'breakdown-referers', 'breakdown-surrogate-key']) {
       assert.isTrue(byId(id).substringFilter, id);
     }
   });
