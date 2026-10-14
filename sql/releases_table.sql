@@ -1,5 +1,5 @@
 -- Table for storing AEM release feed data
--- Source: https://aem-release-feed.david8603.workers.dev/
+-- Source: https://aem-release-feed.adobeaem.workers.dev/ (adobe-rnd/aem-release-feed)
 -- Ingested by GitHub Action every 5 minutes
 -- Created: 2026-01-19
 
