@@ -25,6 +25,7 @@
  * @property {(el: HTMLElement) => void} closeDialog
  * @property {Function} openFacetSearch - (col, facetId, filterCol, title)
  * @property {(facetId: string) => Promise<void>} copyFacetTsv
+ * @property {(action: 'copy'|'download', anchor: HTMLElement) => void} openExportMenu
  */
 
 /**
@@ -106,8 +107,8 @@ export function initActionHandlers(handlers) {
       'close-dialog': () => handlers.closeDialog?.(target),
       'copy-facet-tsv': () => handlers.copyFacetTsv?.(target.dataset.facet || ''),
       'clear-owner-repo-filter': () => handlers.clearOwnerRepoFilter?.(),
-      'export-logs-csv': () => handlers.exportLogs?.('csv'),
-      'export-logs-json': () => handlers.exportLogs?.('json'),
+      'logs-copy-menu': () => handlers.openExportMenu?.('copy', target),
+      'logs-download-menu': () => handlers.openExportMenu?.('download', target),
     };
 
     if (simpleActions[action]) {

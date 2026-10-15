@@ -78,6 +78,32 @@ export function rowsToCsv(rows) {
 }
 
 /**
+ * Format a single value for a TSV cell. Tabs and line breaks are replaced by
+ * spaces so every row stays on one line when pasted into a spreadsheet.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function tsvCell(value) {
+  if (value === null || value === undefined) { return ''; }
+  const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return str.replace(/[\t\r\n]+/g, ' ');
+}
+
+/**
+ * Serialize log rows (flat dot-notation objects) to TSV text with a header row.
+ * @param {Object[]} rows
+ * @returns {string}
+ */
+export function rowsToTsv(rows) {
+  const columns = orderExportColumns(Object.keys(rows[0]));
+  const lines = [columns.map(tsvCell).join('\t')];
+  for (const row of rows) {
+    lines.push(columns.map((col) => tsvCell(row[col])).join('\t'));
+  }
+  return lines.join('\n');
+}
+
+/**
  * Convert a flat dot-notation row into a nested object, skipping empty values.
  * Matches the shape produced by the single-row "copy as JSON" action.
  * @param {Object} row
@@ -138,22 +164,132 @@ function buildFilename(extension) {
 }
 
 /**
- * Export the currently loaded log rows (state.logsData) as CSV or JSON.
- * @param {'csv'|'json'} format
+ * Supported export formats, in menu order. TSV comes first: it pastes straight
+ * into spreadsheet columns.
  */
-export function exportLogs(format) {
+const FORMATS = {
+  tsv: { serialize: (rows) => rowsToTsv(rows), mimeType: 'text/tab-separated-values' },
+  csv: { serialize: (rows) => rowsToCsv(rows), mimeType: 'text/csv' },
+  json: { serialize: (rows) => rowsToJson(rows), mimeType: 'application/json' },
+};
+
+/**
+ * Serialize the loaded log rows, or report that there is nothing to export.
+ * @param {'tsv'|'csv'|'json'} format
+ * @returns {string|null}
+ */
+function serializeLoadedRows(format) {
   const rows = state.logsData;
   if (!rows || rows.length === 0) {
     showExportFeedback('No logs to export — open the Logs view first');
-    return;
+    return null;
   }
+  return FORMATS[format].serialize(rows);
+}
 
-  if (format === 'json') {
-    downloadFile(buildFilename('json'), rowsToJson(rows), 'application/json');
-  } else {
-    downloadFile(buildFilename('csv'), rowsToCsv(rows), 'text/csv');
+function rowCountLabel() {
+  const n = state.logsData.length;
+  return `${n.toLocaleString()} row${n === 1 ? '' : 's'}`;
+}
+
+/**
+ * Download the currently loaded log rows (state.logsData) as TSV, CSV or JSON.
+ * @param {'tsv'|'csv'|'json'} format
+ */
+export function exportLogs(format) {
+  const content = serializeLoadedRows(format);
+  if (content === null) { return; }
+  downloadFile(buildFilename(format), content, FORMATS[format].mimeType);
+  showExportFeedback(`Exported ${rowCountLabel()} as ${format.toUpperCase()}`);
+}
+
+/**
+ * Copy the currently loaded log rows to the clipboard as TSV, CSV or JSON.
+ * @param {'tsv'|'csv'|'json'} format
+ * @returns {Promise<void>}
+ */
+export async function copyLogs(format) {
+  const content = serializeLoadedRows(format);
+  if (content === null) { return; }
+  try {
+    await navigator.clipboard.writeText(content);
+    showExportFeedback(`Copied ${rowCountLabel()} as ${format.toUpperCase()}`);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to copy logs:', err);
+    showExportFeedback('Copy failed — try Download instead');
   }
+}
 
-  const count = rows.length.toLocaleString();
-  showExportFeedback(`Exported ${count} row${rows.length === 1 ? '' : 's'} as ${format.toUpperCase()}`);
+let exportMenu = null;
+let exportMenuListeners = null;
+
+export function closeExportMenu() {
+  if (!exportMenu) { return; }
+  exportMenu.anchor.setAttribute('aria-expanded', 'false');
+  exportMenu.remove();
+  exportMenu = null;
+  exportMenuListeners.abort();
+  exportMenuListeners = null;
+}
+
+function listenForMenuDismiss() {
+  exportMenuListeners = new AbortController();
+  const { signal } = exportMenuListeners;
+  document.addEventListener('mousedown', (event) => {
+    if (!exportMenu.contains(event.target) && !exportMenu.anchor.contains(event.target)) {
+      closeExportMenu();
+    }
+  }, { capture: true, signal });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') { return; }
+    event.stopPropagation();
+    const { anchor } = exportMenu;
+    closeExportMenu();
+    anchor.focus();
+  }, { capture: true, signal });
+}
+
+function menuItem(label, onSelect) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'menu-item';
+  item.setAttribute('role', 'menuitem');
+  item.textContent = label;
+  item.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeExportMenu();
+    onSelect();
+  });
+  return item;
+}
+
+/**
+ * Toggle a format menu (TSV / CSV / JSON) below the Copy or Download button.
+ * @param {'copy'|'download'} action
+ * @param {HTMLElement} anchor - the clicked toolbar button
+ */
+export function openExportMenu(action, anchor) {
+  const wasOpenForAnchor = exportMenu?.anchor === anchor;
+  closeExportMenu();
+  if (wasOpenForAnchor) { return; }
+
+  const run = action === 'copy' ? copyLogs : exportLogs;
+  exportMenu = document.createElement('div');
+  exportMenu.className = 'logs-export-menu';
+  exportMenu.setAttribute('role', 'menu');
+  exportMenu.setAttribute('aria-label', action === 'copy' ? 'Copy as' : 'Download as');
+  exportMenu.anchor = anchor;
+  exportMenu.append(...Object.keys(FORMATS).map(
+    (format) => menuItem(format.toUpperCase(), () => run(format)),
+  ));
+  document.body.appendChild(exportMenu);
+  anchor.setAttribute('aria-expanded', 'true');
+
+  const rect = anchor.getBoundingClientRect();
+  exportMenu.style.top = `${rect.bottom + 4}px`;
+  exportMenu.style.right = `${document.documentElement.clientWidth - rect.right}px`;
+
+  listenForMenuDismiss();
+  exportMenu.querySelector('.menu-item').focus();
 }
