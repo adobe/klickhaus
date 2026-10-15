@@ -25,11 +25,8 @@ export function setFilterCallbacks(saveUrl, loadDash) {
   loadDashboard = loadDash;
 }
 
-const OWNER_COL = '`helix.owner`';
-const REPO_COL = '`helix.repo`';
-
 // Set by dashboard-init when ownerRepoFilter input is present (admin/da dashboards).
-// Called with the new filter value whenever it changes via breakdown click.
+// Called with the new filter value whenever it is cleared via the filter tag or Clear all.
 let onOwnerRepoFilterChange = null;
 
 export function setOnOwnerRepoFilterChange(cb) {
@@ -167,27 +164,8 @@ function updateRowFilterStyling(col, value) {
   });
 }
 
-function clearOwnerRepoFilterIfOwnerOrRepo(col) {
-  if (!onOwnerRepoFilterChange) { return; }
-  if (col !== OWNER_COL && col !== REPO_COL) { return; }
-  if (col === REPO_COL) {
-    // Keep the owner part — only drop the /repo portion
-    const slashIdx = state.ownerRepoFilter.indexOf('/');
-    if (slashIdx !== -1) {
-      state.ownerRepoFilter = state.ownerRepoFilter.substring(0, slashIdx);
-      state.ownerRepoFilterExact = false;
-      onOwnerRepoFilterChange(state.ownerRepoFilter);
-      return;
-    }
-  }
-  state.ownerRepoFilter = '';
-  state.ownerRepoFilterExact = false;
-  onOwnerRepoFilterChange('');
-}
-
 export function clearFiltersForColumn(col) {
   state.filters = state.filters.filter((f) => f.col !== col);
-  clearOwnerRepoFilterIfOwnerOrRepo(col);
   renderActiveFilters();
   if (saveStateToURL) { saveStateToURL(); }
   if (loadDashboard) { loadDashboard(); }
@@ -206,32 +184,7 @@ export function clearAllFilters() {
   if (loadDashboard) { loadDashboard(); }
 }
 
-function buildOwnerRepoValue(col, value) {
-  const current = state.ownerRepoFilter || '';
-  const slashIdx = current.indexOf('/');
-  const currentOwner = slashIdx !== -1 ? current.substring(0, slashIdx) : current;
-  if (col === OWNER_COL) { return value; }
-  return currentOwner ? `${currentOwner}/${value}` : value;
-}
-
-function routeToOwnerRepoFilter(col, value, exclude, skipReload) {
-  if (exclude || !onOwnerRepoFilterChange) { return false; }
-  if (col !== OWNER_COL && col !== REPO_COL) { return false; }
-  state.ownerRepoFilter = buildOwnerRepoValue(col, value);
-  state.ownerRepoFilterExact = state.ownerRepoFilter.includes('/');
-  state.filters = state.filters.filter((f) => f.col !== OWNER_COL && f.col !== REPO_COL);
-  onOwnerRepoFilterChange(state.ownerRepoFilter);
-  renderActiveFilters();
-  if (!skipReload) {
-    if (saveStateToURL) { saveStateToURL(); }
-    if (loadDashboard) { loadDashboard(); }
-  }
-  return true;
-}
-
 export function addFilter(col, value, exclude, filterCol, filterValue, filterOp, skipReload) {
-  if (routeToOwnerRepoFilter(col, value, exclude, skipReload)) { return; }
-
   // Remove existing filter for same col+value
   state.filters = state.filters.filter((f) => !(f.col === col && f.value === value));
 
@@ -267,9 +220,7 @@ export function addFilter(col, value, exclude, filterCol, filterValue, filterOp,
 }
 
 export function removeFilter(index) {
-  const removed = state.filters[index];
   state.filters.splice(index, 1);
-  if (removed) { clearOwnerRepoFilterIfOwnerOrRepo(removed.col); }
   renderActiveFilters();
   if (saveStateToURL) { saveStateToURL(); }
   if (loadDashboard) { loadDashboard(); }
@@ -277,7 +228,6 @@ export function removeFilter(index) {
 
 export function removeFilterByValue(col, value, skipReload) {
   state.filters = state.filters.filter((f) => !(f.col === col && f.value === value));
-  clearOwnerRepoFilterIfOwnerOrRepo(col);
   renderActiveFilters();
   updateRowFilterStyling(col, value);
   if (!skipReload) {
