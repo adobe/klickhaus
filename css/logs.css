@@ -57,6 +57,22 @@
   }
 }
 
+.logs-export-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 120px;
+  padding: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.logs-export-menu .menu-item:focus-visible {
+  outline: none;
+  background: var(--bg);
+}
+
 .logs-table-container {
   background: var(--card-bg);
   border-radius: 12px;
