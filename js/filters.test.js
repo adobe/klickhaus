@@ -22,6 +22,7 @@ import {
   addFilter,
   removeFilter,
   removeFilterByValue,
+  setOnOwnerRepoFilterChange,
 } from './filters.js';
 
 let saveUrlCalls = 0;
@@ -302,6 +303,46 @@ describe('clearAllFilters', () => {
 });
 
 describe('addFilter', () => {
+  describe('owner/repo columns with owner/repo filter input', () => {
+    let inputValues;
+
+    beforeEach(() => {
+      inputValues = [];
+      state.ownerRepoFilter = '';
+      state.ownerRepoFilterExact = false;
+      setOnOwnerRepoFilterChange((v) => { inputValues.push(v); });
+    });
+
+    afterEach(() => {
+      setOnOwnerRepoFilterChange(null);
+      state.ownerRepoFilter = '';
+      state.ownerRepoFilterExact = false;
+    });
+
+    it('adds an exact repo column filter without touching the owner/repo input', () => {
+      addFilter('`helix.repo`', 'aem-boilerplate', false);
+      assert.deepInclude(state.filters[0], { col: '`helix.repo`', value: 'aem-boilerplate', exclude: false });
+      assert.strictEqual(state.ownerRepoFilter, '');
+      assert.deepEqual(inputValues, []);
+    });
+
+    it('adds an exact owner column filter without touching the owner/repo input', () => {
+      addFilter('`helix.owner`', 'adobe', false);
+      assert.deepInclude(state.filters[0], { col: '`helix.owner`', value: 'adobe', exclude: false });
+      assert.strictEqual(state.ownerRepoFilter, '');
+      assert.deepEqual(inputValues, []);
+    });
+
+    it('keeps owner and repo filters independent', () => {
+      addFilter('`helix.owner`', 'adobe', false);
+      addFilter('`helix.repo`', 'helix-website', false);
+      assert.lengthOf(state.filters, 2);
+      removeFilterByValue('`helix.repo`', 'helix-website');
+      assert.lengthOf(state.filters, 1);
+      assert.strictEqual(state.filters[0].col, '`helix.owner`');
+    });
+  });
+
   it('adds a basic include filter', () => {
     addFilter('`source`', 'fastly', false);
     assert.lengthOf(state.filters, 1);

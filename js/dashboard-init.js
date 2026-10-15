@@ -342,22 +342,6 @@ export function initDashboard(config = {}) {
     applySearchConfig();
   }
 
-  // Migrate helix.owner/helix.repo column filters loaded from URL into ownerRepoFilter input
-  function migrateOwnerRepoColumnFilters(input) {
-    const ownerF = state.filters.find((f) => f.col === '`helix.owner`' && !f.exclude);
-    const repoF = state.filters.find((f) => f.col === '`helix.repo`' && !f.exclude);
-    if (!ownerF && !repoF) { return; }
-    const owner = ownerF ? ownerF.value : '';
-    const repo = repoF ? repoF.value : '';
-    const migrated = (owner && repo) ? `${owner}/${repo}` : owner || repo;
-    state.ownerRepoFilter = migrated;
-    state.filters = state.filters.filter(
-      (f) => f.col !== '`helix.owner`' && f.col !== '`helix.repo`',
-    );
-    // eslint-disable-next-line no-param-reassign
-    input.value = migrated;
-  }
-
   // Initialize
   async function init() {
     // Set title before loadStateFromURL → loadFacetPrefs() so the storage key matches
@@ -380,12 +364,11 @@ export function initDashboard(config = {}) {
     applyConfig(initialParams);
     applyDefaultHiddenFacets();
 
-    // When this dashboard uses the ownerRepoFilter input, sync breakdown clicks to it
+    // Keep the ownerRepoFilter input in sync when the filter is cleared via filter tags
     if (elements.ownerRepoFilterInput) {
       setOnOwnerRepoFilterChange((value) => {
         elements.ownerRepoFilterInput.value = value;
       });
-      migrateOwnerRepoColumnFilters(elements.ownerRepoFilterInput);
     }
 
     populateTimeRangeSelect(elements.timeRangeSelect);
@@ -503,9 +486,6 @@ export function initDashboard(config = {}) {
       if (value === state.ownerRepoFilter && exact === state.ownerRepoFilterExact) { return; }
       state.ownerRepoFilter = value;
       state.ownerRepoFilterExact = exact;
-      state.filters = state.filters.filter(
-        (f) => f.col !== '`helix.owner`' && f.col !== '`helix.repo`',
-      );
       renderActiveFilters();
       saveStateToURL();
       loadDashboard();

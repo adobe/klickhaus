@@ -20,21 +20,19 @@ import { buildBreakdownRow, buildOtherRow } from '../templates/breakdown-table.j
 const OWNER_COL = '`helix.owner`';
 const REPO_COL = '`helix.repo`';
 
-// Get filters for a specific column, including a synthetic entry from ownerRepoFilter
+// Get filters for a specific column, including a synthetic entry when ownerRepoFilter
+// is an exact owner/repo match (substring searches don't highlight any row)
 export function getFiltersForColumn(col) {
   const fromState = state.filters.filter((f) => f.col === col);
-  if (!state.ownerRepoFilter || (col !== OWNER_COL && col !== REPO_COL)) { return fromState; }
+  if (!state.ownerRepoFilter || !state.ownerRepoFilterExact) { return fromState; }
+  if (col !== OWNER_COL && col !== REPO_COL) { return fromState; }
   const slashIdx = state.ownerRepoFilter.indexOf('/');
-  let value;
-  if (col === OWNER_COL) {
-    value = slashIdx !== -1 ? state.ownerRepoFilter.substring(0, slashIdx) : state.ownerRepoFilter;
-  } else {
-    value = slashIdx !== -1 ? state.ownerRepoFilter.substring(slashIdx + 1) : null;
-  }
+  if (slashIdx === -1) { return fromState; }
+  const value = col === OWNER_COL
+    ? state.ownerRepoFilter.substring(0, slashIdx)
+    : state.ownerRepoFilter.substring(slashIdx + 1);
   if (!value || fromState.some((f) => f.value === value)) { return fromState; }
-  return [...fromState, {
-    col, value, exclude: false, matchAny: true,
-  }];
+  return [...fromState, { col, value, exclude: false }];
 }
 
 // Get next topN value for "show more" functionality

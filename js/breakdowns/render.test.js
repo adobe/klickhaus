@@ -47,6 +47,33 @@ describe('getFiltersForColumn', () => {
     state.filters = [{ col: '`request.method`', value: 'GET', exclude: false }];
     assert.deepEqual(getFiltersForColumn('`request.host`'), []);
   });
+
+  describe('with owner/repo filter input', () => {
+    afterEach(() => {
+      state.ownerRepoFilter = '';
+      state.ownerRepoFilterExact = false;
+    });
+
+    it('does not highlight rows for a substring owner/repo search', () => {
+      state.filters = [];
+      state.ownerRepoFilter = 'adobe';
+      state.ownerRepoFilterExact = false;
+      assert.deepEqual(getFiltersForColumn('`helix.owner`'), []);
+      assert.deepEqual(getFiltersForColumn('`helix.repo`'), []);
+    });
+
+    it('highlights the exact owner and repo for an exact owner/repo selection', () => {
+      state.filters = [];
+      state.ownerRepoFilter = 'adobe/helix-website';
+      state.ownerRepoFilterExact = true;
+      assert.deepEqual(getFiltersForColumn('`helix.owner`'), [
+        { col: '`helix.owner`', value: 'adobe', exclude: false },
+      ]);
+      assert.deepEqual(getFiltersForColumn('`helix.repo`'), [
+        { col: '`helix.repo`', value: 'helix-website', exclude: false },
+      ]);
+    });
+  });
 });
 
 describe('getNextTopN', () => {
