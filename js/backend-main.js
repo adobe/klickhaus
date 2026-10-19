@@ -46,6 +46,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-helix-repo',
   'breakdown-helix-path',
   'breakdown-contentbus-id',
+  'breakdown-surrogate-key',
   'breakdown-restarts',
   'breakdown-body-size',
 ];
