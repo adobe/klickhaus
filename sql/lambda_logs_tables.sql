@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.lambda_logs
 )
 ENGINE = MergeTree
 ORDER BY (timestamp, function_name)
-TTL toDateTime(timestamp) + INTERVAL 2 WEEK;
+TTL toDateTime(timestamp) + INTERVAL 1 WEEK;
 
 -- Materialized view: parses JSON + extracts entities from message text.
 -- Plain text messages and Python-style dicts (single quotes) get an empty JSON object.
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.lambda_facet_minutes
 ENGINE = SummingMergeTree
 PARTITION BY toDate(minute)
 ORDER BY (facet, minute, dim)
-TTL minute + toIntervalDay(14);
+TTL minute + toIntervalDay(7);
 
 -- Materialized view: ARRAY JOINs each lambda_logs row into 7 facet entries
 -- (level, function_name, function_version, app_name, subsystem, log_group, admin_method)
