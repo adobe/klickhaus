@@ -40,11 +40,18 @@ const domainBreakdown = {
   id: 'breakdown-domain', col: COLUMN_DEFS.domain.facetCol, extraFilter: "AND `cdn.domain` != ''",
 };
 
+// misc_services stores surrogate keys in `response.headers.surrogate_key`
+// (delivery uses `response.headers.x_surrogate_key`).
+const MISC_SURROGATE_KEY_COL = '`response.headers.surrogate_key`';
+
 // Keep Domain next to Subsystem — the two service-identifying facets.
 export const miscBreakdowns = allBreakdowns
   .filter((b) => !UNSUPPORTED_FACETS.has(b.id))
   .flatMap((b) => {
     if (b.id === 'breakdown-subsystem') { return [b, domainBreakdown]; }
     if (b.id === 'breakdown-referers') { return [{ ...b, substringFilter: true }]; }
+    if (b.id === 'breakdown-surrogate-key') {
+      return [{ ...b, col: MISC_SURROGATE_KEY_COL, extraFilter: `AND ${MISC_SURROGATE_KEY_COL} != ''` }];
+    }
     return [b];
   });
