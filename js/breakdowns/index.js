@@ -280,6 +280,29 @@ function prepareBreakdownCard(card, b) {
   return true;
 }
 
+function buildTwoLevelBreakdownSql(b, params, aggs) {
+  const bucketExpr = b.preGroupCol ? b.facetDimCol.replace(/\bdim\b/g, 'val') : b.col(state.topN, 'val');
+  const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, '');
+  const outerSummary = b.summaryCountIf ? ',\n  sum(summary_cnt) as summary_cnt' : '';
+
+  return loadSql('breakdown-bucketed', {
+    bucketExpr,
+    rawCol: b.preGroupCol || b.rawCol,
+    ...aggs,
+    innerSummaryCol: innerSummary,
+    outerSummaryCol: outerSummary,
+    database: DATABASE,
+    table: getTable(),
+    timeFilter: params.timeFilter,
+    hostFilter: params.hostFilter,
+    facetFilters: params.facetFilters,
+    extra: params.extra,
+    additionalWhereClause: state.additionalWhereClause || '',
+    orderBy: b.preGroupCol ? b.orderBy || 'cnt DESC' : 'min(val)',
+    topN: String(state.topN),
+  });
+}
+
 async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const baseCol = typeof b.col === 'function' ? b.col(state.topN) : b.col;
 
@@ -322,30 +345,9 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
   const params = buildBreakdownQueryParams(b, baseCol, timeFilter, hostFilter);
   const aggs = buildStatusAggregations(params.isBytes, '');
 
-  // Two-level query for bucket facets with rawCol (hits raw-value projection)
-  if (b.rawCol && typeof b.col === 'function') {
-    const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, '');
-    const outerSummary = b.summaryCountIf
-      ? ',\n  sum(summary_cnt) as summary_cnt'
-      : '';
-
-    const sql = await loadSql('breakdown-bucketed', {
-      bucketExpr,
-      rawCol: b.rawCol,
-      ...aggs,
-      innerSummaryCol: innerSummary,
-      outerSummaryCol: outerSummary,
-      database: DATABASE,
-      table: getTable(),
-      timeFilter,
-      hostFilter,
-      facetFilters: params.facetFilters,
-      extra: params.extra,
-      additionalWhereClause: state.additionalWhereClause || '',
-      topN: String(state.topN),
-    });
-
+  // Normalize grouped errors after path aggregation, not for every source row.
+  if (b.preGroupCol || (b.rawCol && typeof b.col === 'function')) {
+    const sql = await buildTwoLevelBreakdownSql(b, params, aggs);
     return { sql, params, aggs };
   }
 
@@ -629,29 +631,8 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes) {
   const params = buildPreviewQueryParams(b, baseCol, timeFilter, hostFilter);
   const aggs = buildStatusAggregations(params.isBytes, '');
 
-  if (b.rawCol && typeof b.col === 'function') {
-    const bucketExpr = b.col(state.topN, 'val');
-    const innerSummary = buildSummaryCountBucketInnerFragment(b.summaryCountIf, '');
-    const outerSummary = b.summaryCountIf
-      ? ',\n  sum(summary_cnt) as summary_cnt'
-      : '';
-
-    const sql = await loadSql('breakdown-bucketed', {
-      bucketExpr,
-      rawCol: b.rawCol,
-      ...aggs,
-      innerSummaryCol: innerSummary,
-      outerSummaryCol: outerSummary,
-      database: DATABASE,
-      table: getTable(),
-      timeFilter,
-      hostFilter,
-      facetFilters: params.facetFilters,
-      extra: params.extra,
-      additionalWhereClause: state.additionalWhereClause || '',
-      topN: String(state.topN),
-    });
-
+  if (b.preGroupCol || (b.rawCol && typeof b.col === 'function')) {
+    const sql = await buildTwoLevelBreakdownSql(b, params, aggs);
     return { sql, params, aggs };
   }
 

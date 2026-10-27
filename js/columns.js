@@ -18,6 +18,8 @@
  * @property {(value: unknown) => string} [filterTransform] - Optional filter value transform.
  */
 
+export const ERROR_PATH_GROUP_COL = "REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...')";
+
 /** @type {Record<string, ColumnDefinition>} */
 export const COLUMN_DEFS = {
   status: {
@@ -96,7 +98,7 @@ export const COLUMN_DEFS = {
   },
   errorGrouped: {
     logKey: 'response.headers.x_error',
-    facetCol: "REGEXP_REPLACE(REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...'), '^Too Many Requests: [0-9]+ rps$', 'Too Many Requests: ... rps')",
+    facetCol: `REGEXP_REPLACE(${ERROR_PATH_GROUP_COL}, '^Too Many Requests: [0-9]+ rps$', 'Too Many Requests: ... rps')`,
     label: 'Error (grouped)',
   },
   severity: {

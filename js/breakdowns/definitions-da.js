@@ -15,7 +15,7 @@ import {
 import {
   contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
 } from './buckets.js';
-import { COLUMN_DEFS } from '../columns.js';
+import { COLUMN_DEFS, ERROR_PATH_GROUP_COL } from '../columns.js';
 import { formatAsn, formatDatacenter, formatForwardedHost } from './definitions.js';
 
 // The `da` table has no source/byo_cdn/helix.*/surrogate-key/ratelimit columns,
@@ -39,6 +39,8 @@ export const daBreakdowns = [
   {
     id: 'breakdown-errors',
     col: COLUMN_DEFS.errorGrouped.facetCol,
+    preGroupCol: ERROR_PATH_GROUP_COL,
+    facetDimCol: COLUMN_DEFS.errorGrouped.facetCol.replace(ERROR_PATH_GROUP_COL, 'dim'),
     filterCol: '`response.headers.x_error`',
     filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%').replace(/^Too Many Requests: \.\.\. rps$/, 'Too Many Requests: % rps'),
     filterOp: 'LIKE',

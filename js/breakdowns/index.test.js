@@ -38,7 +38,7 @@ const BREAKDOWN_SQL_TEMPLATE = 'SELECT\n  {{col}} as dim,\n  {{aggTotal}} as cnt
 
 const FACET_SQL_TEMPLATE = 'SELECT\n  dim,\n  sum(cnt) as cnt,\n  sum(cnt_ok) as cnt_ok,\n  sum(cnt_4xx) as cnt_4xx,\n  sum(cnt_5xx) as cnt_5xx{{summaryCol}}\nFROM (\n  SELECT {{dimCol}} as dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}\n  FROM {{database}}.cdn_facet_minutes\n  WHERE facet = \'{{facetName}}\'\n    AND minute >= toDateTime(\'{{startTime}}\')\n    AND minute <= toDateTime(\'{{endTime}}\')\n    {{dimFilter}}\n)\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
-const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total) as cnt,\n  sum(agg_ok) as cnt_ok,\n  sum(agg_4xx) as cnt_4xx,\n  sum(agg_5xx) as cnt_5xx{{outerSummaryCol}}\nFROM (\n  SELECT\n    {{rawCol}} as val,\n    {{aggTotal}} as agg_total,\n    {{aggOk}} as agg_ok,\n    {{agg4xx}} as agg_4xx,\n    {{agg5xx}} as agg_5xx{{innerSummaryCol}}\n  FROM {{database}}.{{table}}\n  WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\n  GROUP BY val\n)\nGROUP BY dim WITH TOTALS\nORDER BY min(val)\nLIMIT {{topN}}\n';
+const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total) as cnt,\n  sum(agg_ok) as cnt_ok,\n  sum(agg_4xx) as cnt_4xx,\n  sum(agg_5xx) as cnt_5xx{{outerSummaryCol}}\nFROM (\n  SELECT\n    {{rawCol}} as val,\n    {{aggTotal}} as agg_total,\n    {{aggOk}} as agg_ok,\n    {{agg4xx}} as agg_4xx,\n    {{agg5xx}} as agg_5xx{{innerSummaryCol}}\n  FROM {{database}}.{{table}}\n  WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\n  GROUP BY val\n)\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
 // Create a mock fetch that returns SQL templates and ClickHouse query results.
 function createMockFetch(queryResponse = {
@@ -468,6 +468,7 @@ describe('loadBreakdown (facet table path)', () => {
     assert.include(query, 'cdn_facet_minutes');
     assert.include(query, `SELECT ${b.facetDimCol} as dim`);
     assert.include(query, '^Too Many Requests: [0-9]+ rps$');
+    assert.notInclude(query, '/[a-zA-Z0-9/_.-]+');
     assert.include(query, 'GROUP BY dim WITH TOTALS');
     assert.notInclude(query, '{{');
   });
@@ -483,7 +484,13 @@ describe('loadBreakdown (facet table path)', () => {
       await loadBreakdown(b, '1=1', '', ctx);
 
       const query = calls.find((c) => c.options?.method === 'POST').options.body;
-      assert.include(query, `${b.col} as dim`);
+      assert.include(query, `${b.preGroupCol} as val`);
+      assert.include(query, `${b.facetDimCol.replace(/\bdim\b/g, 'val')} as dim`);
+      assert.notInclude(query, b.col);
+      assert.include(query, 'GROUP BY val');
+      assert.include(query, 'GROUP BY dim WITH TOTALS');
+      assert.include(query, 'ORDER BY cnt DESC');
+      assert.notInclude(query, '{{');
       assert.notInclude(query, 'cdn_facet_minutes');
     });
   }
@@ -501,6 +508,45 @@ describe('loadBreakdown (facet table path)', () => {
       const query = calls.find((c) => c.options?.method === 'POST').options.body;
       assert.include(query, 'cdn_facet_minutes');
       assert.include(query, `SELECT ${b.facetDimCol} as dim`);
+    } finally {
+      state.hiddenFacets = [facetId];
+      await revertPreviewBreakdowns();
+    }
+  });
+
+  it('normalizes raw preview errors after aggregation while excluding their own filter', async () => {
+    const value = '[pipeline: html] Worker: x-error: failed to load /... from content-bus: 404';
+    const { fetch: mockFetch, calls } = createMockFetch({
+      data: [{
+        dim: value, cnt: '10', cnt_ok: '0', cnt_4xx: '10', cnt_5xx: '0',
+      }],
+      totals: {
+        cnt: '10', cnt_ok: '0', cnt_4xx: '10', cnt_5xx: '0',
+      },
+    });
+    window.fetch = mockFetch;
+    const b = { ...allBreakdowns.find((item) => item.id === 'breakdown-errors'), id: facetId };
+    state.breakdowns = [b];
+    state.filters = [
+      {
+        col: b.col, value, filterCol: b.filterCol, filterValue: b.filterValueFn(value), filterOp: 'LIKE',
+      },
+      { col: '`source`', value: 'fastly' },
+    ];
+    try {
+      await loadPreviewBreakdowns(
+        new Date('2025-06-01T11:00:00Z'),
+        new Date('2025-06-01T12:00:00Z'),
+      );
+      const queries = calls.filter((c) => c.options?.method === 'POST');
+      assert.lengthOf(queries, 1);
+      const query = queries[0].options.body;
+      assert.include(query, `${b.preGroupCol} as val`);
+      assert.include(query, `${b.facetDimCol.replace(/\bdim\b/g, 'val')} as dim`);
+      assert.include(query, "AND `source` = 'fastly'");
+      assert.notInclude(query, '`response.headers.x_error` LIKE');
+      assert.notInclude(query, b.col);
+      assert.include(query, 'ORDER BY cnt DESC');
     } finally {
       state.hiddenFacets = [facetId];
       await revertPreviewBreakdowns();
@@ -827,11 +873,12 @@ describe('loadBreakdown (bucketed facets)', () => {
     const ctx = startRequestContext('facets');
     await loadBreakdown(b, '1=1', '', ctx);
 
-    const sqlCalls = calls.filter((c) => c.url.endsWith('.sql'));
-    assert.ok(
-      sqlCalls.some((c) => c.url.includes('breakdown-bucketed.sql')),
-      'should use bucketed template',
-    );
+    const query = calls.find((c) => c.options?.method === 'POST').options.body;
+    assert.include(query, `${b.col(state.topN, 'val')} as dim`);
+    assert.include(query, `${b.rawCol} as val`);
+    assert.include(query, 'GROUP BY val');
+    assert.include(query, 'ORDER BY min(val)');
+    assert.notInclude(query, '{{');
 
     assert.isFalse(card.classList.contains('updating'));
   });

@@ -16,5 +16,5 @@ FROM (
   GROUP BY val
 )
 GROUP BY dim WITH TOTALS
-ORDER BY min(val)
+ORDER BY {{orderBy}}
 LIMIT {{topN}}

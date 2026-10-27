@@ -17,7 +17,7 @@ import {
   contentLengthBuckets, timeElapsedBuckets, getContentLengthLabels, getTimeElapsedLabels,
   ratelimitRateBuckets, getRatelimitRateLabels,
 } from './buckets.js';
-import { COLUMN_DEFS } from '../columns.js';
+import { COLUMN_DEFS, ERROR_PATH_GROUP_COL } from '../columns.js';
 import { DATACENTER_NAMES } from '../datacenter-names.js';
 
 // Datacenter (POP) code with its location as a hover tooltip, e.g. FRA → "Frankfurt, Germany"
@@ -74,7 +74,8 @@ export const allBreakdowns = [
     id: 'breakdown-errors',
     col: COLUMN_DEFS.errorGrouped.facetCol,
     facetName: 'x_error_grouped',
-    facetDimCol: COLUMN_DEFS.errorGrouped.facetCol.replace('`response.headers.x_error`', 'dim'),
+    preGroupCol: ERROR_PATH_GROUP_COL,
+    facetDimCol: COLUMN_DEFS.errorGrouped.facetCol.replace(ERROR_PATH_GROUP_COL, 'dim'),
     filterCol: '`response.headers.x_error`',
     filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%').replace(/^Too Many Requests: \.\.\. rps$/, 'Too Many Requests: % rps'),
     filterOp: 'LIKE',
