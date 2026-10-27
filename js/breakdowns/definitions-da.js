@@ -40,7 +40,7 @@ export const daBreakdowns = [
     id: 'breakdown-errors',
     col: COLUMN_DEFS.errorGrouped.facetCol,
     filterCol: '`response.headers.x_error`',
-    filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%'),
+    filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%').replace(/^Too Many Requests: \.\.\. rps$/, 'Too Many Requests: % rps'),
     filterOp: 'LIKE',
     extraFilter: "AND `response.headers.x_error` != ''",
   },

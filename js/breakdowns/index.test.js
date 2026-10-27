@@ -36,7 +36,7 @@ import { setQueryTimestamp } from '../time.js';
 // SQL templates used by loadBreakdown
 const BREAKDOWN_SQL_TEMPLATE = 'SELECT\n  {{col}} as dim,\n  {{aggTotal}} as cnt,\n  {{aggOk}} as cnt_ok,\n  {{agg4xx}} as cnt_4xx,\n  {{agg5xx}} as cnt_5xx{{summaryCol}}\nFROM {{database}}.{{table}}\nWHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
-const FACET_SQL_TEMPLATE = 'SELECT\n  dim,\n  sum(cnt) as cnt,\n  sum(cnt_ok) as cnt_ok,\n  sum(cnt_4xx) as cnt_4xx,\n  sum(cnt_5xx) as cnt_5xx{{summaryCol}}\nFROM (\n  SELECT dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}\n  FROM {{database}}.cdn_facet_minutes\n  WHERE facet = \'{{facetName}}\'\n    AND minute >= toDateTime(\'{{startTime}}\')\n    AND minute <= toDateTime(\'{{endTime}}\')\n    {{dimFilter}}\n)\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
+const FACET_SQL_TEMPLATE = 'SELECT\n  dim,\n  sum(cnt) as cnt,\n  sum(cnt_ok) as cnt_ok,\n  sum(cnt_4xx) as cnt_4xx,\n  sum(cnt_5xx) as cnt_5xx{{summaryCol}}\nFROM (\n  SELECT {{dimCol}} as dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}\n  FROM {{database}}.cdn_facet_minutes\n  WHERE facet = \'{{facetName}}\'\n    AND minute >= toDateTime(\'{{startTime}}\')\n    AND minute <= toDateTime(\'{{endTime}}\')\n    {{dimFilter}}\n)\nGROUP BY dim WITH TOTALS\nORDER BY {{orderBy}}\nLIMIT {{topN}}\n';
 
 const BUCKETED_SQL_TEMPLATE = 'SELECT\n  {{bucketExpr}} as dim,\n  sum(agg_total) as cnt,\n  sum(agg_ok) as cnt_ok,\n  sum(agg_4xx) as cnt_4xx,\n  sum(agg_5xx) as cnt_5xx{{outerSummaryCol}}\nFROM (\n  SELECT\n    {{rawCol}} as val,\n    {{aggTotal}} as agg_total,\n    {{aggOk}} as agg_ok,\n    {{agg4xx}} as agg_4xx,\n    {{agg5xx}} as agg_5xx{{innerSummaryCol}}\n  FROM {{database}}.{{table}}\n  WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}} {{extra}} {{additionalWhereClause}}\n  GROUP BY val\n)\nGROUP BY dim WITH TOTALS\nORDER BY min(val)\nLIMIT {{topN}}\n';
 
@@ -455,6 +455,56 @@ describe('loadBreakdown (facet table path)', () => {
 
     assert.ok(facetTimings[facetId] !== undefined, 'should record timing');
     assert.isAbove(facetTimings[facetId], -1, 'timing should be a number');
+  });
+
+  it('groups request rates before aggregating and limiting pre-aggregated errors', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    const b = { ...allBreakdowns.find((item) => item.id === 'breakdown-errors'), id: facetId };
+    const ctx = startRequestContext('facets');
+    await loadBreakdown(b, '1=1', '', ctx);
+
+    const query = calls.find((c) => c.options?.method === 'POST').options.body;
+    assert.include(query, 'cdn_facet_minutes');
+    assert.include(query, `SELECT ${b.facetDimCol} as dim`);
+    assert.include(query, '^Too Many Requests: [0-9]+ rps$');
+    assert.include(query, 'GROUP BY dim WITH TOTALS');
+    assert.notInclude(query, '{{');
+  });
+
+  for (const table of ['delivery', 'delivery_errors', 'delivery_archive', 'delivery_debug']) {
+    it(`groups request rates when querying raw ${table} rows`, async () => {
+      const { fetch: mockFetch, calls } = createMockFetch();
+      window.fetch = mockFetch;
+      const b = { ...allBreakdowns.find((item) => item.id === 'breakdown-errors'), id: facetId };
+      state.tableName = table;
+      state.hostFilter = 'example.com';
+      const ctx = startRequestContext('facets');
+      await loadBreakdown(b, '1=1', '', ctx);
+
+      const query = calls.find((c) => c.options?.method === 'POST').options.body;
+      assert.include(query, `${b.col} as dim`);
+      assert.notInclude(query, 'cdn_facet_minutes');
+    });
+  }
+
+  it('groups request rates in facet-table time-selection previews', async () => {
+    const { fetch: mockFetch, calls } = createMockFetch();
+    window.fetch = mockFetch;
+    const b = { ...allBreakdowns.find((item) => item.id === 'breakdown-errors'), id: facetId };
+    state.breakdowns = [b];
+    try {
+      await loadPreviewBreakdowns(
+        new Date('2025-06-01T11:00:00Z'),
+        new Date('2025-06-01T12:00:00Z'),
+      );
+      const query = calls.find((c) => c.options?.method === 'POST').options.body;
+      assert.include(query, 'cdn_facet_minutes');
+      assert.include(query, `SELECT ${b.facetDimCol} as dim`);
+    } finally {
+      state.hiddenFacets = [facetId];
+      await revertPreviewBreakdowns();
+    }
   });
 
   it('renders summary ratio when summaryDimCondition is set', async () => {

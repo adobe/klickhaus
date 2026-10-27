@@ -96,7 +96,7 @@ export const COLUMN_DEFS = {
   },
   errorGrouped: {
     logKey: 'response.headers.x_error',
-    facetCol: "REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...')",
+    facetCol: "REGEXP_REPLACE(REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...'), '^Too Many Requests: [0-9]+ rps$', 'Too Many Requests: ... rps')",
     label: 'Error (grouped)',
   },
   severity: {

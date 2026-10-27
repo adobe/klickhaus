@@ -74,9 +74,9 @@ export const allBreakdowns = [
     id: 'breakdown-errors',
     col: COLUMN_DEFS.errorGrouped.facetCol,
     facetName: 'x_error_grouped',
+    facetDimCol: COLUMN_DEFS.errorGrouped.facetCol.replace('`response.headers.x_error`', 'dim'),
     filterCol: '`response.headers.x_error`',
-    // Convert grouped display value to LIKE pattern (replace /... with %)
-    filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%'),
+    filterValueFn: (v) => v.replace(/\/\.\.\./g, '/%').replace(/^Too Many Requests: \.\.\. rps$/, 'Too Many Requests: % rps'),
     filterOp: 'LIKE',
     extraFilter: "AND `response.headers.x_error` != ''",
   },

@@ -292,6 +292,7 @@ async function buildBreakdownSql(b, timeFilter, hostFilter) {
     const sql = await loadSql(facetSqlName, {
       database: DATABASE,
       facetName: b.facetName,
+      dimCol: b.facetDimCol || 'dim',
       startTime,
       endTime,
       dimFilter,
@@ -598,6 +599,7 @@ async function buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes) {
     const sql = await loadSql(facetSqlName, {
       database: DATABASE,
       facetName: b.facetName,
+      dimCol: b.facetDimCol || 'dim',
       startTime,
       endTime,
       dimFilter,

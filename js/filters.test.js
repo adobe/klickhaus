@@ -11,6 +11,7 @@
  */
 import { assert } from 'chai';
 import { state } from './state.js';
+import { COLUMN_DEFS } from './columns.js';
 import {
   setFilterCallbacks,
   updateHeaderFixed,
@@ -441,13 +442,21 @@ describe('addFilter', () => {
     state.breakdowns = null;
     // allBreakdowns has x_error_grouped with filterCol/filterValueFn/filterOp
     // The col in allBreakdowns is the REGEXP_REPLACE expression from COLUMN_DEFS
-    const errorCol = "REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...')";
+    const errorCol = COLUMN_DEFS.errorGrouped.facetCol;
     addFilter(errorCol, 'some/.../error', false);
     const f = state.filters[0];
     assert.strictEqual(f.filterCol, '`response.headers.x_error`');
     assert.strictEqual(f.filterOp, 'LIKE');
     // filterValueFn replaces /... with /%
     assert.strictEqual(f.filterValue, 'some/%/error');
+  });
+
+  it('filters all request rates when selecting a grouped rate-limit error', () => {
+    addFilter(COLUMN_DEFS.errorGrouped.facetCol, 'Too Many Requests: ... rps', false);
+    const f = state.filters[0];
+    assert.strictEqual(f.filterCol, '`response.headers.x_error`');
+    assert.strictEqual(f.filterOp, 'LIKE');
+    assert.strictEqual(f.filterValue, 'Too Many Requests: % rps');
   });
 });
 

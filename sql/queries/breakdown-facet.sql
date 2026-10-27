@@ -5,7 +5,7 @@ SELECT
   sum(cnt_4xx) as cnt_4xx,
   sum(cnt_5xx) as cnt_5xx{{summaryCol}}
 FROM (
-  SELECT dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}
+  SELECT {{dimCol}} as dim, cnt, cnt_ok, cnt_4xx, cnt_5xx{{innerSummaryCol}}
   FROM {{database}}.cdn_facet_minutes
   WHERE facet = '{{facetName}}'
     AND minute >= toDateTime('{{startTime}}')
