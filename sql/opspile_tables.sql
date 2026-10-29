@@ -24,16 +24,16 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.opspile_messages_raw
     logical_thread         String,                        -- re-threaded group's first thread, '' if none
     message_id             String,
     is_root                UInt8,
-    `channel.key`          String,
+    `channel.key`          String,                        -- source:tenant:channel_id
     `channel.name`         String,
     `channel.kind`         LowCardinality(String),        -- channel | alert
-    team                   LowCardinality(String),        -- the team the channel is filed under
-    teams                  Array(LowCardinality(String)), -- filed + shared (channel_teams)
+    team                   LowCardinality(String),        -- slug of the team the channel is filed under
+    teams                  Array(LowCardinality(String)), -- team slugs: filed + shared (channel_teams)
     `org.slug`             LowCardinality(String),
     `org.name`             String,
-    `org.type`             LowCardinality(String),        -- customer | partner | vendor
-    `author.kind`          LowCardinality(String),        -- person | bot | system
-    `author.relation`      LowCardinality(String),        -- adobe | partner | customer | bot
+    `org.type`             LowCardinality(String),        -- customer | partner | vendor | internal
+    `author.kind`          LowCardinality(String),        -- person | bot | system (platform notices)
+    `author.relation`      LowCardinality(String),        -- adobe | partner | customer | bot (also for system)
     `author.name`          String,
     `author.domain`        LowCardinality(String),
     `author.ops_teams`     Array(LowCardinality(String)),
@@ -45,8 +45,10 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.opspile_messages_raw
     `thread.root_at`       DateTime64(3),
     `thread.messages`      UInt32,
     `thread.resolved`      UInt8,                         -- resolved by staff, or Clef resolved_p >= 0.5
+    `thread.waiting_on`    LowCardinality(String),        -- inbox waiting_on: us | customer | vendor | nobody | ''
+                                                          -- (overrides Clef's next_actor when Adobe posted last)
     `label.next_actor`     LowCardinality(String),        -- us | customer | vendor | nobody | ''
-    `label.kind`           LowCardinality(String),        -- incident | security | question | request | alert | other
+    `label.kind`           LowCardinality(String),        -- incident | security | access | question | request | alert | other
     `label.urgency`        Float32,                       -- 0..3
     `label.urgency_level`  LowCardinality(String),        -- low | normal | high | critical
     `label.resolved_p`     Float32,

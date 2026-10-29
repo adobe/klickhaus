@@ -120,6 +120,10 @@ GRANT SELECT(query, query_id, user) ON system.processes TO config_writer;
 --
 -- See sql/opspile_tables.sql. ReplacingMergeTree, no MV reads it, so INSERT on
 -- the raw table is all it needs (no SELECT, no access to the opspile_messages view).
+--
+-- The exporter sets async_insert, wait_for_async_insert and date_time_input_format
+-- per query (URL parameters). That needs a non-readonly user: do not add `readonly`
+-- or a settings profile with constraints on those settings to this user.
 -- ============================================================================
 
 -- CREATE USER opspile_writer IDENTIFIED BY '<password>' SETTINGS max_memory_usage = 4000000000;
