@@ -11,7 +11,9 @@
  */
 import { initDashboard } from './dashboard-init.js';
 import { OPSPILE_TIME_RANGE_ORDER, OPSPILE_DEFAULT_TIME_RANGE } from './constants.js';
-import { opspileBreakdowns, OPSPILE_AGGREGATIONS } from './breakdowns/definitions-opspile.js';
+import {
+  opspileBreakdowns, OPSPILE_AGGREGATIONS, THREAD_KEY_RE,
+} from './breakdowns/definitions-opspile.js';
 
 const LOG_COLUMN_ORDER = [
   'timestamp',
@@ -41,10 +43,6 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-thread',
 ];
 
-// Thread keys look like `<platform>:<tenant>:…:<root id>`; anything else in the search
-// box is a substring match on the thread title.
-const THREAD_KEY_RE = /^(slack|teams|discord):\S+$/;
-
 // opspile_messages is a FINAL view over a tiny ReplacingMergeTree, so there is no
 // facet-minutes table: canUseFacetTable() only routes delivery and lambda_logs there.
 initDashboard({
@@ -52,6 +50,7 @@ initDashboard({
   tableName: 'opspile_messages',
   timeSeriesTemplate: 'time-series-opspile',
   aggregations: OPSPILE_AGGREGATIONS,
+  chartCategoryLabels: { green: 'green', yellow: 'yellow', red: 'red' },
   timeRangeOrder: OPSPILE_TIME_RANGE_ORDER,
   defaultTimeRange: OPSPILE_DEFAULT_TIME_RANGE,
   hostFilterColumn: 'org.slug',

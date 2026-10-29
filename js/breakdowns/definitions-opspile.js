@@ -31,7 +31,16 @@ export const OPSPILE_AGGREGATIONS = {
 };
 
 /**
+ * Thread keys look like `<platform>:<tenant>:…:<root id>`, built from platform ids only
+ * (Teams channel ids look like 19:abc@thread.tacv2). The search box matches such input
+ * exactly against `thread`; anything else is a substring match on the thread title.
+ */
+export const THREAD_KEY_RE = /^(slack|teams|discord):[A-Za-z0-9_.@:-]+$/;
+
+/**
  * Facet over an Array(String) column: one row per element, filtered with has().
+ * searchCol is the same arrayJoin() expression, so facet search queries elements (not
+ * the array) and a picked value goes through the breakdown's HAS lookup in addFilter.
  * @param {string} id
  * @param {string} column - bare column name
  * @param {Object} [extra]
@@ -40,6 +49,7 @@ function arrayFacet(id, column, extra = {}) {
   return {
     id,
     col: `arrayJoin(\`${column}\`)`,
+    searchCol: `arrayJoin(\`${column}\`)`,
     filterCol: `\`${column}\``,
     filterOp: 'HAS',
     ...extra,

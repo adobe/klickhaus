@@ -38,7 +38,7 @@ import {
   setLastChartData, getLastChartData, getDataAtTime, addAnomalyBounds, resetAnomalyBounds,
   setDetectedSteps, getDetectedSteps, setShipPositions, getShipPositions, setPendingSelection,
   getPendingSelection, getAnomalyAtX, getTimeAtX, getXAtTime, formatScrubberTime, formatDuration,
-  zoomToAnomalyByRank, getShipNearX, hexToRgba, parseUTC,
+  zoomToAnomalyByRank, getShipNearX, hexToRgba, parseUTC, getChartCategoryLabel,
 } from './chart-state.js';
 import { setupTwoFingerTouchSelection } from './chart-touch-selection.js';
 
@@ -523,12 +523,7 @@ export function setupChartNavigation(callback) {
     const step = detectedSteps.find((s) => s.rank === anomaly.rank);
     const duration = formatDuration(anomaly.startTime, anomaly.endTime);
     const typeLabel = step?.type === 'spike' ? 'Spike' : 'Dip';
-    let categoryLabel = '2xx';
-    if (step?.category === 'red') {
-      categoryLabel = '5xx';
-    } else if (step?.category === 'yellow') {
-      categoryLabel = '4xx';
-    }
+    const categoryLabel = getChartCategoryLabel(step?.category);
 
     let magnitudeLabel;
     if (step?.magnitude >= 1) {

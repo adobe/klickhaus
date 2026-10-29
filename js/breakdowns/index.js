@@ -10,6 +10,7 @@
  * governing permissions and limitations under the License.
  */
 import { DATABASE } from '../config.js';
+import { escapeSqlString } from '../utils.js';
 import { state } from '../state.js';
 import { query, getQueryErrorDetails, isAbortError } from '../api.js';
 import {
@@ -186,9 +187,10 @@ async function appendMissingFilteredValues(data, b, col, aggs, queryParams, requ
     return data;
   }
 
-  const searchCol = b.filterCol || col;
+  // HAS facets filter on the array column; look the values up per element instead.
+  const searchCol = b.filterOp === 'HAS' ? col : (b.filterCol || col);
   const valuesList = missingFilterValues
-    .map((v) => `'${v.replace(/'/g, "''")}'`)
+    .map((v) => `'${escapeSqlString(v)}'`)
     .join(', ');
 
   const missingValuesSql = await loadSql('breakdown-missing', {

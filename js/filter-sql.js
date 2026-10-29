@@ -13,6 +13,7 @@ import { state } from './state.js';
 import { allBreakdowns } from './breakdowns/definitions.js';
 import { COLUMN_DEFS } from './columns.js';
 import { TOP_N_OPTIONS } from './constants.js';
+import { escapeSqlString } from './utils.js';
 
 /**
  * @typedef {Object} Filter
@@ -155,7 +156,7 @@ export function compileFilters(filters) {
       const includeParts = includes.map((entry) => {
         const { value, op } = entry;
         const isNumeric = typeof value === 'number';
-        const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
+        const escaped = isNumeric ? value : escapeSqlString(value);
         const comparison = isNumeric ? escaped : `'${escaped}'`;
         if (op === 'HAS') {
           return `has(${sqlCol}, ${comparison})`;
@@ -169,7 +170,7 @@ export function compileFilters(filters) {
       const excludeParts = excludes.map((entry) => {
         const { value, op } = entry;
         const isNumeric = typeof value === 'number';
-        const escaped = isNumeric ? value : String(value).replace(/'/g, "\\'");
+        const escaped = isNumeric ? value : escapeSqlString(value);
         const comparison = isNumeric ? escaped : `'${escaped}'`;
         if (op === 'HAS') {
           return `NOT has(${sqlCol}, ${comparison})`;

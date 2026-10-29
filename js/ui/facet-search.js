@@ -33,14 +33,14 @@ let debounceTimer = null;
 let addFilterCallback = null;
 
 /**
- * Escape a pattern for a LIKE '%...%' filter value. compileFilters() only escapes
- * single quotes, so a literal backslash needs four (string literal + LIKE escaping).
+ * Escape a pattern for a LIKE '%...%' filter value. compileFilters() escapes the
+ * string literal (backslashes and quotes), so only LIKE's own escaping happens here.
  * @param {string} pattern
  * @returns {string}
  */
 function toContainsLikeValue(pattern) {
   const escaped = pattern
-    .replace(/\\/g, '\\\\\\\\')
+    .replace(/\\/g, '\\\\')
     .replace(/%/g, '\\%')
     .replace(/_/g, '\\_');
   return `%${escaped}%`;

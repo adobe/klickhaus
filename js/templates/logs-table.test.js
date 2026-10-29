@@ -294,3 +294,13 @@ describe('buildLogCellHtml row-link column', () => {
     assert.isNull(toExternalUrl(42));
   });
 });
+
+describe('buildLogCellHtml opspile resolved flag', () => {
+  it('makes thread.resolved = 0 a clickable "open" filter', () => {
+    const html = buildLogCellHtml({
+      col: 'thread.resolved', value: 0, pinned: [], pinnedOffsets: {}, widths: {},
+    });
+    assert.include(html, 'data-action="add-filter"');
+    assert.include(html, 'data-value="open"');
+  });
+});

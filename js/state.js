@@ -47,6 +47,7 @@ export const state = {
   timeSeriesTemplate: 'time-series', // SQL template name for chart (e.g. time-series-lambda)
   weightColumn: null, // When set (e.g. 'weight'), counts use sum(weight) / sumIf(weight, ...)
   aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
+  chartCategoryLabels: null, // Optional { green, yellow, red } band labels (default 2xx/4xx/5xx)
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
   searchFilter: '', // Free-text search routed to requestIdColumn (UUID input) or messageColumn
   requestIdColumn: null, // Column to exact-match when input is a UUID (e.g. request_id)

@@ -73,7 +73,7 @@ export function formatLogCell(col, value) {
     displayValue = formatGenericValue(col, value);
   }
 
-  const color = value ? getColorForColumn(`\`${col}\``, value) : '';
+  const color = value || value === 0 ? getColorForColumn(`\`${col}\``, value) : '';
   const colorIndicator = color ? `<span class="log-color" style="background:${color}"></span>` : '';
 
   return { displayValue, cellClass, colorIndicator };

@@ -427,9 +427,12 @@ export const colorRules = {
 
   opsResolved: {
     patterns: ['`thread.resolved`'],
+    allowZero: true,
     getColor: (value) => {
       if (value === 'resolved' || Number(value) === 1) { return 'var(--status-ok)'; }
-      if (value === 'open') { return 'var(--status-client-error)'; }
+      // 0 is open; it must get a colour too (allowZero), because log cells are only
+      // clickable (filter on this value) when they have one.
+      if (value === 'open' || Number(value) === 0) { return 'var(--status-client-error)'; }
       return '';
     },
   },

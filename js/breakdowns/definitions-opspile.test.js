@@ -11,7 +11,7 @@
  */
 import { assert } from 'chai';
 import {
-  opspileBreakdowns, OPSPILE_AGGREGATIONS, OPSPILE_RED, OPSPILE_YELLOW,
+  opspileBreakdowns, OPSPILE_AGGREGATIONS, OPSPILE_RED, OPSPILE_YELLOW, THREAD_KEY_RE,
 } from './definitions-opspile.js';
 import { state } from '../state.js';
 import { loadStateFromURL } from '../url-state.js';
@@ -77,6 +77,27 @@ describe('opspileBreakdowns', () => {
     assert.ok(link, 'Open in opspile button');
     assert.strictEqual(link.getAttribute('target'), '_blank');
     assert.include(link.getAttribute('rel'), 'noopener');
+  });
+});
+
+describe('THREAD_KEY_RE', () => {
+  it('matches real thread keys from every platform', () => {
+    [
+      'slack:T0000:C0001:1793251847.000100',
+      'discord:123456789:987654321:111222333',
+      'teams:tenant-1:team-1:19:c@thread.tacv2:1792584000000',
+    ].forEach((key) => assert.isTrue(THREAD_KEY_RE.test(key), key));
+  });
+
+  it('rejects anything that could carry SQL', () => {
+    [
+      "slack:\\'OR(1=1)--",
+      "slack:x'",
+      'slack:a\\b',
+      'slack:a b',
+      'slack:',
+      'outage',
+    ].forEach((input) => assert.isFalse(THREAD_KEY_RE.test(input), input));
   });
 });
 
@@ -184,6 +205,14 @@ describe('opspile deep links (the Stats link from opspile)', () => {
     assert.strictEqual(
       compileFilters(state.filters).sql,
       "AND `org.slug` = 'example-org' AND has(`teams`, 'example-team')",
+    );
+  });
+
+  it("escapes a backslash-quote (\\') value so it cannot close the string", () => {
+    open([{ col: '`org.slug`', value: "x\\' OR 1=1 --", exclude: false }]);
+    assert.strictEqual(
+      compileFilters(state.filters).sql,
+      "AND `org.slug` = 'x\\\\\\' OR 1=1 --'",
     );
   });
 

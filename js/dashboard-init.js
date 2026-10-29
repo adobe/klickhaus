@@ -313,7 +313,7 @@ export function initDashboard(config = {}) {
     }
   }
 
-  function applySearchConfig() {
+  function applySearchAndDisplayConfig() {
     if (config.requestIdColumn !== undefined) {
       state.requestIdColumn = config.requestIdColumn;
     }
@@ -324,6 +324,7 @@ export function initDashboard(config = {}) {
       state.messageColumn = config.messageColumn;
     }
     if (config.rowLinkColumn !== undefined) { state.rowLinkColumn = config.rowLinkColumn; }
+    if (config.chartCategoryLabels) { state.chartCategoryLabels = config.chartCategoryLabels; }
   }
 
   function applyConfig(initialParams) {
@@ -347,7 +348,7 @@ export function initDashboard(config = {}) {
       clearAllowedColumnsCache();
     }
     if (config.logColumnOrder) { state.logColumnOrder = config.logColumnOrder; }
-    applySearchConfig();
+    applySearchAndDisplayConfig();
   }
 
   // Initialize

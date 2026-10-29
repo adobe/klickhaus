@@ -123,6 +123,10 @@ export function saveStateToURL(newAnomalyId = undefined) {
 function loadBasicState(params) {
   if (params.has('t') && TIME_RANGES[params.get('t')]) {
     state.timeRange = params.get('t');
+  } else {
+    // No (valid) `t` means this view's default: saveStateToURL omits it there. Needed on
+    // popstate, where applyConfig does not run again (first load: applyConfig follows).
+    state.timeRange = state.defaultTimeRange || DEFAULT_TIME_RANGE;
   }
   if (params.has('host')) { state.hostFilter = params.get('host'); }
   if (params.has('owner')) {

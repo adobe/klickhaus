@@ -56,6 +56,7 @@ export const helixMixerBreakdowns = [
   {
     id: 'breakdown-logs',
     col: 'arrayJoin(`logs`)',
+    searchCol: 'arrayJoin(`logs`)',
     filterCol: '`logs`',
     filterOp: 'HAS',
     highCardinality: true,
@@ -64,6 +65,7 @@ export const helixMixerBreakdowns = [
   {
     id: 'breakdown-exceptions',
     col: 'arrayJoin(`exceptions`)',
+    searchCol: 'arrayJoin(`exceptions`)',
     filterCol: '`exceptions`',
     filterOp: 'HAS',
     highCardinality: true,
