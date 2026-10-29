@@ -99,6 +99,11 @@ export const COLUMN_DEFS = {
     facetCol: "REGEXP_REPLACE(`response.headers.x_error`, '/[a-zA-Z0-9/_.-]+', '/...')",
     label: 'Error (grouped)',
   },
+  warning: {
+    logKey: 'response.headers.x_warning',
+    facetCol: '`response.headers.x_warning`',
+    label: 'Warning',
+  },
   severity: {
     logKey: 'response.headers.x_severity',
     facetCol: '`response.headers.x_severity`',
