@@ -27,6 +27,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-restarts',
   'breakdown-surrogate-key',
   'breakdown-time-elapsed',
+  'breakdown-warnings',
 ];
 
 initDashboard({

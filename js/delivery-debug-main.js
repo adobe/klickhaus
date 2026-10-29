@@ -66,6 +66,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-referers',
   'breakdown-restarts',
   'breakdown-time-elapsed',
+  'breakdown-warnings',
 ];
 
 // delivery_debug is a manually ingested, unsampled, filtered subset of `delivery`

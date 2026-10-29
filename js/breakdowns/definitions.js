@@ -80,6 +80,9 @@ export const allBreakdowns = [
     filterOp: 'LIKE',
     extraFilter: "AND `response.headers.x_error` != ''",
   },
+  {
+    id: 'breakdown-warnings', col: COLUMN_DEFS.warning.facetCol, extraFilter: "AND `response.headers.x_warning` != ''", highCardinality: true,
+  },
 
   {
     id: 'breakdown-paths', col: COLUMN_DEFS.url.facetCol, facetName: 'url', linkFn: pathLink, modeToggle: 'contentTypeMode', highCardinality: true,
@@ -179,6 +182,7 @@ const SUBSTRING_FILTER_FACETS = new Set([
   'breakdown-helix-site',
   'breakdown-helix-org',
   'breakdown-errors',
+  'breakdown-warnings',
   'breakdown-content-types',
   'breakdown-paths',
   'breakdown-referers',

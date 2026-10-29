@@ -26,6 +26,7 @@ const FACET_COLUMNS = {
   'breakdown-content-types': 'response.headers.content_type',
   'breakdown-status': 'response.status',
   'breakdown-errors': 'response.headers.x_error',
+  'breakdown-warnings': 'response.headers.x_warning',
 
   'breakdown-paths': 'request.url',
   'breakdown-referers': 'request.headers.referer',
@@ -63,6 +64,7 @@ const FACET_ALIASES = {
   'breakdown-content-types': ['content-type', 'mime', 'media type'],
   'breakdown-status': ['http status', 'response code', '200', '404', '500'],
   'breakdown-errors': ['error', 'x-error', 'failure'],
+  'breakdown-warnings': ['warning', 'x-warning'],
 
   'breakdown-paths': ['path', 'url', 'uri', 'endpoint'],
   'breakdown-referers': ['referer', 'referrer', 'source'],

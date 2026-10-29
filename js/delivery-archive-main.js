@@ -38,6 +38,7 @@ const DEFAULT_HIDDEN_FACETS = [
   'breakdown-paths',
   'breakdown-surrogate-key',
   'breakdown-time-elapsed',
+  'breakdown-warnings',
 ];
 
 // delivery_archive is an 18-month, PII-scrubbed, self-sampled mirror of `delivery`
