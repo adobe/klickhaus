@@ -142,6 +142,32 @@ describe('getLogsTable', () => {
   });
 });
 
+describe('getHostFilter search routing', () => {
+  afterEach(() => {
+    state.searchFilter = '';
+    state.requestIdColumn = null;
+    state.requestIdPattern = null;
+    state.messageColumn = null;
+  });
+
+  it('routes UUIDs to requestIdColumn by default', () => {
+    state.requestIdColumn = 'request_id';
+    state.messageColumn = 'message';
+    state.searchFilter = '123e4567-e89b-12d3-a456-426614174000';
+    assert.strictEqual(getHostFilter(), "AND `request_id` = '123e4567-e89b-12d3-a456-426614174000'");
+  });
+
+  it('uses requestIdPattern when set (opspile thread keys)', () => {
+    state.requestIdColumn = 'thread';
+    state.requestIdPattern = /^(slack|teams|discord):\S+$/;
+    state.messageColumn = 'thread.title';
+    state.searchFilter = 'slack:T1:C1:1.2';
+    assert.strictEqual(getHostFilter(), "AND `thread` = 'slack:T1:C1:1.2'");
+    state.searchFilter = 'outage';
+    assert.strictEqual(getHostFilter(), "AND `thread.title` LIKE '%outage%'");
+  });
+});
+
 describe('getHostFilter', () => {
   it('returns empty string when no hostFilter', () => {
     state.hostFilter = '';

@@ -278,7 +278,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function getSearchClause() {
   if (!state.searchFilter) { return ''; }
   const escaped = state.searchFilter.replace(/'/g, "\\'");
-  if (UUID_RE.test(state.searchFilter) && state.requestIdColumn) {
+  const requestIdPattern = state.requestIdPattern || UUID_RE;
+  if (state.requestIdColumn && requestIdPattern.test(state.searchFilter)) {
     return `AND \`${state.requestIdColumn}\` = '${escaped}'`;
   }
   if (state.messageColumn) {

@@ -43,15 +43,18 @@ export const state = {
   tableName: 'delivery', // Table to query (e.g. lambda_logs for Lambda dashboard)
   logsTableName: null, // Override table for logs queries (falls back to tableName)
   timeRangeOrder: null, // Optional per-view time-range preset list (falls back to TIME_RANGE_ORDER)
+  defaultTimeRange: null, // Optional per-view default range (falls back to DEFAULT_TIME_RANGE)
   timeSeriesTemplate: 'time-series', // SQL template name for chart (e.g. time-series-lambda)
   weightColumn: null, // When set (e.g. 'weight'), counts use sum(weight) / sumIf(weight, ...)
   aggregations: null, // Optional { aggTotal, aggOk, agg4xx, agg5xx } for non-CDN tables
   hostFilterColumn: null, // Optional column for header filter (e.g. function_name for lambda)
   searchFilter: '', // Free-text search routed to requestIdColumn (UUID input) or messageColumn
   requestIdColumn: null, // Column to exact-match when input is a UUID (e.g. request_id)
+  requestIdPattern: null, // Optional RegExp for requestIdColumn input (defaults to UUIDs)
   messageColumn: null, // Column to substring-match otherwise (e.g. message)
   breakdowns: null, // Optional override breakdown list (e.g. lambda facets)
   logColumnOrder: null, // Optional preferred column ordering for the logs table
+  rowLinkColumn: null, // Optional column holding an external http(s) URL per log row
   userLogColumnOrder: null, // User-customised column order (per-dashboard, localStorage)
   hiddenLogColumns: [], // User-hidden columns (per-dashboard, localStorage)
 };

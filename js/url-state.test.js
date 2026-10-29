@@ -453,6 +453,22 @@ describe('saveStateToURL', () => {
     assert.isFalse(params.has('t'));
   });
 
+  describe('with a per-view default time range (e.g. opspile, 1mo)', () => {
+    afterEach(() => { state.defaultTimeRange = null; });
+
+    it('omits the view default and keeps the global default', () => {
+      state.defaultTimeRange = '1mo';
+      state.timeRange = '1mo';
+      saveStateToURL();
+      assert.isFalse(new URLSearchParams(window.location.search).has('t'));
+
+      state.timeRange = DEFAULT_TIME_RANGE;
+      saveStateToURL();
+      // Without t=7d a reload would fall back to the view default (1mo).
+      assert.strictEqual(new URLSearchParams(window.location.search).get('t'), DEFAULT_TIME_RANGE);
+    });
+  });
+
   it('encodes host filter', () => {
     state.hostFilter = 'example.com';
     saveStateToURL();

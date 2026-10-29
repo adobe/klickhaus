@@ -50,7 +50,9 @@ export function setUrlStateElements(els) {
  * Add basic state parameters to URL params
  */
 function addBasicParams(params) {
-  if (state.timeRange !== DEFAULT_TIME_RANGE) { params.set('t', state.timeRange); }
+  // Omit `t` only at this view's own default, so a reload restores the same range.
+  const defaultTimeRange = state.defaultTimeRange || DEFAULT_TIME_RANGE;
+  if (state.timeRange !== defaultTimeRange) { params.set('t', state.timeRange); }
   if (state.hostFilter) { params.set('host', state.hostFilter); }
   if (state.ownerRepoFilter) { params.set('owner', state.ownerRepoFilter); }
   if (state.searchFilter) { params.set('q', state.searchFilter); }

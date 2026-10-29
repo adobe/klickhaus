@@ -15,7 +15,11 @@ import {
   buildLogCellHtml,
   buildLogRowHtml,
   buildLogTableHeaderHtml,
+  toExternalUrl,
 } from './logs-table.js';
+
+// Built at runtime so the no-script-url lint rule does not flag the fixture.
+const SCRIPT_URL = ['javascript', 'alert(1)'].join(':');
 
 describe('formatLogCell', () => {
   it('formats timestamp column', () => {
@@ -245,5 +249,48 @@ describe('buildLogCellHtml widths', () => {
     assert.include(html, 'width: 180px');
     assert.include(html, 'min-width: 180px');
     assert.include(html, 'max-width: 180px');
+  });
+});
+
+describe('buildLogCellHtml row-link column', () => {
+  const base = { pinned: [], pinnedOffsets: {}, widths: {} };
+  const url = 'https://ops.example.test/inbox?view=personal&t=slack:T1:C1:1.2';
+
+  it('renders the link column as a new-tab link', () => {
+    const html = buildLogCellHtml({
+      ...base, col: 'url', value: url, linkColumn: 'url',
+    });
+    const td = new DOMParser().parseFromString(`<table><tr>${html}</tr></table>`, 'text/html')
+      .querySelector('td');
+    const a = td.querySelector('a');
+    assert.ok(a);
+    assert.strictEqual(a.getAttribute('href'), url);
+    assert.strictEqual(a.getAttribute('target'), '_blank');
+    assert.strictEqual(a.getAttribute('rel'), 'noopener noreferrer');
+    assert.strictEqual(a.textContent, url);
+  });
+
+  it('leaves other columns and views without a link column as text', () => {
+    assert.notInclude(buildLogCellHtml({ ...base, col: 'url', value: url }), '<a ');
+    assert.notInclude(buildLogCellHtml({
+      ...base, col: 'thread', value: url, linkColumn: 'url',
+    }), '<a ');
+  });
+
+  it('never links non-http(s) values', () => {
+    [SCRIPT_URL, '/inbox?t=x', 'data:text/html,x', ''].forEach((value) => {
+      const html = buildLogCellHtml({
+        ...base, col: 'url', value, linkColumn: 'url',
+      });
+      assert.notInclude(html, '<a ', value);
+    });
+  });
+
+  it('toExternalUrl accepts only absolute http(s) URLs', () => {
+    assert.strictEqual(toExternalUrl('https://a.test/x'), 'https://a.test/x');
+    assert.strictEqual(toExternalUrl('HTTP://a.test'), 'http://a.test/');
+    assert.isNull(toExternalUrl(SCRIPT_URL));
+    assert.isNull(toExternalUrl('https://'));
+    assert.isNull(toExternalUrl(42));
   });
 });

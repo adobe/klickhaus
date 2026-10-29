@@ -153,6 +153,16 @@ export const ARCHIVE_TIME_RANGE_ORDER = ['1mo', '3mo', '6mo', '12mo', '18mo'];
 /** @type {string} */
 export const ARCHIVE_DEFAULT_TIME_RANGE = '1mo';
 
+/**
+ * Time-range set for the opspile view (opspile_messages, 18-month TTL): the short CDN
+ * ranges for recent activity plus the archive months.
+ * @type {string[]}
+ */
+export const OPSPILE_TIME_RANGE_ORDER = ['24h', '7d', '14d', ...ARCHIVE_TIME_RANGE_ORDER];
+
+/** @type {string} */
+export const OPSPILE_DEFAULT_TIME_RANGE = '1mo';
+
 /** @type {number[]} */
 export const TOP_N_OPTIONS = [5, 10, 20, 50, 100];
 

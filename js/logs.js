@@ -22,7 +22,7 @@ import { getColorForColumn } from './colors/index.js';
 import { getRequestContext, isRequestCurrent } from './request-context.js';
 import { LOG_COLUMN_ORDER, LOG_COLUMN_SHORT_LABELS, MULTILINE_ARRAY_COLUMNS } from './columns.js';
 import { loadSql } from './sql-loader.js';
-import { buildLogRowHtml, buildLogTableHeaderHtml } from './templates/logs-table.js';
+import { buildLogRowHtml, buildLogTableHeaderHtml, toExternalUrl } from './templates/logs-table.js';
 import { attachColumnResize } from './column-resize.js';
 import { PAGE_SIZE, PaginationState } from './pagination.js';
 import { shouldShowResolveButton, buildResolveButtonHtml, initRayIdLookup } from './ray-id-lookup.js';
@@ -316,6 +316,24 @@ function renderLogDetailContent(row) {
 /**
  * Close the log detail modal.
  */
+/**
+ * Point the modal's optional external-link button (#logDetailOpenLink, e.g. "Open in
+ * opspile") at the row's rowLinkColumn URL, or hide it when the row has none.
+ * @param {Object} row
+ */
+export function updateLogDetailOpenLink(row) {
+  const link = document.getElementById('logDetailOpenLink');
+  if (!link) { return; }
+  const href = state.rowLinkColumn ? toExternalUrl(row[state.rowLinkColumn]) : null;
+  if (href) {
+    link.href = href;
+    link.hidden = false;
+  } else {
+    link.removeAttribute('href');
+    link.hidden = true;
+  }
+}
+
 export function closeLogDetailModal() {
   if (logDetailModal) {
     logDetailModal.close();
@@ -370,6 +388,7 @@ export function openLogDetailModal(rowIdx) {
   }
 
   renderLogDetailContent(row);
+  updateLogDetailOpenLink(row);
   logDetailModal.showModal();
 }
 
@@ -462,7 +481,7 @@ function appendLogsRows(data) {
   for (let i = 0; i < data.length; i += 1) {
     const rowIdx = existingRows + i;
     html += buildLogRowHtml({
-      row: data[i], columns: fullColumns, rowIdx, pinned, widths,
+      row: data[i], columns: fullColumns, rowIdx, pinned, widths, linkColumn: state.rowLinkColumn,
     });
   }
 
@@ -504,7 +523,13 @@ export function renderLogsTable(data) {
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx += 1) {
     html += buildLogRowHtml({
-      row: data[rowIdx], columns, rowIdx, pinned, pinnedOffsets, widths,
+      row: data[rowIdx],
+      columns,
+      rowIdx,
+      pinned,
+      pinnedOffsets,
+      widths,
+      linkColumn: state.rowLinkColumn,
     });
   }
 

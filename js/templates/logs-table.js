@@ -88,8 +88,31 @@ export function formatLogCell(col, value) {
  * @param {Record<string, number>} [params.pinnedOffsets]
  * @returns {string}
  */
+/**
+ * Return the value as an absolute http(s) URL string, or null when it is not one
+ * (so a row-link column can never render a javascript: or relative href).
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+export function toExternalUrl(value) {
+  if (typeof value !== 'string' || !/^https?:\/\//i.test(value)) { return null; }
+  try {
+    return new URL(value).href;
+  } catch {
+    return null;
+  }
+}
+
+/** Cell text, wrapped in a new-tab link when linkValue is an http(s) URL. */
+function buildCellContent(escaped, linkValue) {
+  const href = linkValue ? toExternalUrl(linkValue) : null;
+  return href
+    ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escaped}</a>`
+    : escaped;
+}
+
 export function buildLogCellHtml({
-  col, value, pinned, pinnedOffsets, widths,
+  col, value, pinned, pinnedOffsets, widths, linkColumn,
 }) {
   const { displayValue, cellClass, colorIndicator } = formatLogCell(col, value);
   const isPinned = pinned.includes(col);
@@ -112,7 +135,9 @@ export function buildLogCellHtml({
     actionAttrs = ` data-action="add-filter" data-col="${escapeHtml(facetMapping.col)}" data-value="${escapeHtml(filterValue)}" data-exclude="false"`;
   }
 
-  return `<td class="${className}" style="${leftOffset}${widthStyle}" title="${escaped}"${actionAttrs}>${colorIndicator}${escaped}</td>`;
+  const content = buildCellContent(escaped, linkColumn && col === linkColumn ? value : null);
+
+  return `<td class="${className}" style="${leftOffset}${widthStyle}" title="${escaped}"${actionAttrs}>${colorIndicator}${content}</td>`;
 }
 
 /**
@@ -126,12 +151,12 @@ export function buildLogCellHtml({
  * @returns {string}
  */
 export function buildLogRowHtml({
-  row, columns, rowIdx, pinned, pinnedOffsets, widths,
+  row, columns, rowIdx, pinned, pinnedOffsets, widths, linkColumn,
 }) {
   let html = `<tr data-row-idx="${rowIdx}">`;
   for (const col of columns) {
     html += buildLogCellHtml({
-      col, value: row[col], pinned, pinnedOffsets, widths,
+      col, value: row[col], pinned, pinnedOffsets, widths, linkColumn,
     });
   }
   html += '</tr>';

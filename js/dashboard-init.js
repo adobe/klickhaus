@@ -83,6 +83,9 @@ import { startRequestContext, isRequestCurrent } from './request-context.js';
  * @param {string} [config.weightColumn] - Column for weighted sums (e.g. delivery sampling weight)
  * @param {string[]} [config.timeRangeOrder] - Per-view time-range presets (e.g. archive months)
  * @param {string} [config.defaultTimeRange] - Initial range when no `t` URL param is present
+ * @param {RegExp} [config.requestIdPattern] - Search input routed to requestIdColumn (default UUID)
+ * @param {string} [config.rowLinkColumn] - Column with an external URL per log row: rendered as a
+ *   link in the logs table, and as the #logDetailOpenLink button in the log detail modal
  */
 export function initDashboard(config = {}) {
   // DOM Elements
@@ -314,9 +317,13 @@ export function initDashboard(config = {}) {
     if (config.requestIdColumn !== undefined) {
       state.requestIdColumn = config.requestIdColumn;
     }
+    if (config.requestIdPattern !== undefined) {
+      state.requestIdPattern = config.requestIdPattern;
+    }
     if (config.messageColumn !== undefined) {
       state.messageColumn = config.messageColumn;
     }
+    if (config.rowLinkColumn !== undefined) { state.rowLinkColumn = config.rowLinkColumn; }
   }
 
   function applyConfig(initialParams) {
@@ -330,8 +337,9 @@ export function initDashboard(config = {}) {
     if (config.timeRangeOrder) { state.timeRangeOrder = config.timeRangeOrder; }
     if (config.timeSeriesTemplate) { state.timeSeriesTemplate = config.timeSeriesTemplate; }
     if (config.aggregations) { state.aggregations = config.aggregations; }
-    if (config.defaultTimeRange && !initialParams.has('t')) {
-      state.timeRange = config.defaultTimeRange;
+    if (config.defaultTimeRange) {
+      state.defaultTimeRange = config.defaultTimeRange;
+      if (!initialParams.has('t')) { state.timeRange = config.defaultTimeRange; }
     }
     if (config.hostFilterColumn !== undefined) { state.hostFilterColumn = config.hostFilterColumn; }
     if (config.breakdowns) {

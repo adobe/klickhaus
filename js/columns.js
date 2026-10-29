@@ -171,14 +171,110 @@ export const COLUMN_DEFS = {
     facetCol: '`helix.rso`',
     label: 'RSO',
   },
+  // opspile_messages (ops inbox messages; see sql/opspile_tables.sql)
+  opsUrgencyLevel: {
+    logKey: 'label.urgency_level',
+    facetCol: '`label.urgency_level`',
+    label: 'Urgency',
+    shortLabel: 'urgency',
+  },
+  opsKind: {
+    logKey: 'label.kind',
+    facetCol: '`label.kind`',
+    label: 'Kind',
+    shortLabel: 'kind',
+  },
+  opsNextActor: {
+    logKey: 'label.next_actor',
+    facetCol: '`label.next_actor`',
+    label: 'Next Actor',
+    shortLabel: 'next actor',
+  },
+  opsWaitingOn: {
+    logKey: 'thread.waiting_on',
+    facetCol: '`thread.waiting_on`',
+    label: 'Waiting On',
+    shortLabel: 'waiting on',
+  },
+  opsResolved: {
+    logKey: 'thread.resolved',
+    facetCol: "if(`thread.resolved` = 1, 'resolved', 'open')",
+    label: 'Resolved',
+    shortLabel: 'resolved',
+    filterTransform: (value) => (Number(value) ? 'resolved' : 'open'),
+  },
+  opsTeam: {
+    logKey: 'team',
+    facetCol: '`team`',
+    label: 'Team',
+    shortLabel: 'team',
+  },
+  opsOrg: {
+    logKey: 'org.slug',
+    facetCol: '`org.slug`',
+    label: 'Org',
+    shortLabel: 'org',
+  },
+  opsOrgType: {
+    logKey: 'org.type',
+    facetCol: '`org.type`',
+    label: 'Org Type',
+    shortLabel: 'org type',
+  },
+  opsChannel: {
+    logKey: 'channel.name',
+    facetCol: '`channel.name`',
+    label: 'Channel',
+    shortLabel: 'channel',
+  },
+  opsChannelKind: {
+    logKey: 'channel.kind',
+    facetCol: '`channel.kind`',
+    label: 'Channel Kind',
+    shortLabel: 'channel kind',
+  },
+  opsAuthor: {
+    logKey: 'author.name',
+    facetCol: '`author.name`',
+    label: 'Author',
+    shortLabel: 'author',
+  },
+  opsAuthorRelation: {
+    logKey: 'author.relation',
+    facetCol: '`author.relation`',
+    label: 'Author Relation',
+    shortLabel: 'relation',
+  },
+  opsAuthorDomain: {
+    logKey: 'author.domain',
+    facetCol: '`author.domain`',
+    label: 'Author Domain',
+    shortLabel: 'author domain',
+  },
+  opsTitle: {
+    logKey: 'thread.title',
+    facetCol: '`thread.title`',
+    label: 'Title',
+    shortLabel: 'title',
+  },
+  opsThread: {
+    logKey: 'thread',
+    facetCol: '`thread`',
+    label: 'Thread',
+  },
 };
 
 /**
- * da_worker_logs Array(String) columns that read as one log/exception entry per line,
- * rather than lambda_logs' urls/paths/hostnames/emails/ips/refs (kept as JSON arrays).
+ * Array(String) columns that read as one entry per line: da_worker_logs' logs/exceptions
+ * and opspile_messages' team and fact arrays (rather than lambda_logs'
+ * urls/paths/hostnames/emails/ips/refs, kept as JSON arrays).
  * @type {Set<string>}
  */
-export const MULTILINE_ARRAY_COLUMNS = new Set(['logs', 'exceptions']);
+export const MULTILINE_ARRAY_COLUMNS = new Set([
+  'logs', 'exceptions',
+  'teams', 'author.ops_teams',
+  'facts_tickets', 'facts_sites', 'facts_cves', 'facts_urls', 'facts_problems',
+]);
 
 /**
  * Log columns in preferred display order (also used for color-coding priority).
