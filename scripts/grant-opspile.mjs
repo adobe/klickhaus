@@ -21,6 +21,9 @@
  * most column-level SELECT on delivery, and *_writer names are skipped explicitly).
  *
  * The view runs with SQL SECURITY INVOKER, so readers need SELECT on the raw table too.
+ * Do not drop the raw grant: without it the view fails for every reader. The side effect
+ * is accepted: readers can also query the raw table directly and see superseded versions
+ * and _deleted tombstones (metadata only, no message text).
  *
  * Usage: node scripts/grant-opspile.mjs <admin-user> <admin-password> [-x]
  * Dry-run by default (prints the GRANT statements); pass -x to actually execute them.
@@ -30,6 +33,8 @@ const CLICKHOUSE_HOST = 's2p5b8wmt5.eastus2.azure.clickhouse.cloud';
 const CLICKHOUSE_PORT = 443;
 const DATABASE = 'helix_logs_production';
 const TABLES = ['opspile_messages', 'opspile_messages_raw'];
+// Names this script will interpolate into SQL (admin user and grantees).
+const USER_NAME_RE = /^[A-Za-z0-9_]+$/;
 
 async function runQuery(sql, adminUser, adminPassword) {
   const url = `https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`;
@@ -57,17 +62,26 @@ async function main() {
     console.error('Usage: node scripts/grant-opspile.mjs <admin-user> <admin-password> [-x]');
     process.exit(1);
   }
+  if (!USER_NAME_RE.test(adminUser)) {
+    console.error(`Invalid admin user name: ${adminUser}`);
+    process.exit(1);
+  }
 
   const listSql = `SELECT DISTINCT user_name FROM system.grants
     WHERE user_name IS NOT NULL
       AND database = '${DATABASE}' AND table = 'delivery'
       AND access_type = 'SELECT' AND column IS NULL AND NOT is_partial_revoke
       AND NOT endsWith(user_name, '_writer')
-      AND user_name != '${adminUser}'
+      AND user_name != '${adminUser}' -- validated against USER_NAME_RE above
     ORDER BY user_name
     FORMAT TSV`;
   const result = await runQuery(listSql, adminUser, adminPassword);
-  const users = result.trim().split('\n').filter(Boolean);
+  const listed = result.trim().split('\n').filter(Boolean);
+  const skipped = listed.filter((name) => !USER_NAME_RE.test(name));
+  if (skipped.length > 0) {
+    console.warn(`Skipping user name(s) with unexpected characters: ${skipped.join(', ')}`);
+  }
+  const users = listed.filter((name) => USER_NAME_RE.test(name));
 
   if (users.length === 0) {
     console.log('No reader users found.');

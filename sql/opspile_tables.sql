@@ -18,7 +18,7 @@
 
 CREATE TABLE IF NOT EXISTS helix_logs_production.opspile_messages_raw
 (
-    timestamp              DateTime64(3),                 -- the message's `at`
+    timestamp              DateTime64(3),                 -- the message's `at` (stable, see ORDER BY)
     source                 LowCardinality(String),        -- slack | teams | discord
     thread                 String,                        -- opspile thread key
     logical_thread         String,                        -- re-threaded group's first thread, '' if none
@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS helix_logs_production.opspile_messages_raw
 )
 ENGINE = ReplacingMergeTree(_version, _deleted)
 PARTITION BY toYYYYMM(timestamp)
+-- timestamp is part of the dedup key (and the partition), so it must be the message's
+-- stable `at` (the exporter sends message.at, which never changes). A row re-exported
+-- with a different timestamp would be a second row, not a replacement.
 ORDER BY (timestamp, thread, message_id)
 TTL toDateTime(timestamp) + INTERVAL 18 MONTH;
 
