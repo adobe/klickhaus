@@ -110,3 +110,18 @@ GRANT ALTER UPDATE, ALTER DELETE, OPTIMIZE, SELECT, INSERT ON helix_logs_product
 GRANT ALTER UPDATE, ALTER DELETE, OPTIMIZE, SELECT, INSERT ON helix_logs_production.site_configs    TO config_writer;
 GRANT ALTER UPDATE, ALTER DELETE, OPTIMIZE, SELECT, INSERT ON helix_logs_production.profile_configs TO config_writer;
 GRANT SELECT(query, query_id, user) ON system.processes TO config_writer;
+
+-- ============================================================================
+-- opspile_writer
+-- ----------------------------------------------------------------------------
+-- Used by:
+--   - opspile Worker (Cloudflare) exporter: INSERT INTO opspile_messages_raw
+--     FORMAT JSONEachRow (async_insert=1&wait_for_async_insert=1)
+--
+-- See sql/opspile_tables.sql. ReplacingMergeTree, no MV reads it, so INSERT on
+-- the raw table is all it needs (no SELECT, no access to the opspile_messages view).
+-- ============================================================================
+
+-- CREATE USER opspile_writer IDENTIFIED BY '<password>' SETTINGS max_memory_usage = 4000000000;
+
+GRANT INSERT ON helix_logs_production.opspile_messages_raw TO opspile_writer;
