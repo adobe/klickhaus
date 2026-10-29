@@ -1,0 +1,42 @@
+name: AI Review
+
+on:
+  pull_request:
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ai-review:
+    # TODO: pin to a release once adobe/helix-shared#1317 is merged
+    uses: adobe/helix-shared/.github/workflows/ai-review.yml@ai-review-workflow
+    secrets:
+      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    with:
+      # web-test-runner with Playwright Chromium; coverage/lcov.info goes to the reviewers
+      test: |
+        npx playwright install --with-deps chromium
+        npm test
+      test-timeout-minutes: 25
+      browsers: true
+      # The dashboard as a static site. No ClickHouse credentials are given to the review.
+      environment: |
+        nohup node_modules/.bin/live-server --port="$REVIEW_PORT" --no-browser --quiet --wait=0 \
+          --ignore=scripts,.github,hars,node_modules,coverage > "$REVIEW_ENV_DIR/server.log" 2>&1 &
+        echo "http://127.0.0.1:$REVIEW_PORT/" > "$REVIEW_ENV_DIR/url"
+        cat > "$REVIEW_ENV_DIR/notes.md" <<'NOTES'
+        The dashboard is served as a static site (live-server) from the tree. It queries
+        ClickHouse from the browser after the login form, and this review has no ClickHouse
+        credentials, so pages past the login only show data if you fake ClickHouse's answers,
+        for example with playwright-cli route <pattern> --fulfill-file <json>. The page shells,
+        the login form, layout and client-side logic can be checked as they are.
+        NOTES
+      review-prompt: >-
+        klickhaus is a static ClickHouse dashboard (no build step). `npm run lint` lints it;
+        `npm run dead-code` (knip) and `npm run cpd:ci` (jscpd) are the other CI checks.
