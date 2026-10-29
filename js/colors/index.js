@@ -27,14 +27,17 @@ for (const [ruleName, rule] of Object.entries(colorRules)) {
  * @returns {string} CSS color variable or empty string
  */
 export function getColorForColumn(col, value) {
-  if (!value) { return ''; }
+  // A numeric 0 (e.g. a UInt8 flag) is only coloured by rules that opt in with allowZero.
+  const isZero = value === 0;
+  if (!value && !isZero) { return ''; }
 
   // Synthetic buckets like (same), (empty), (other) don't get colors
-  if (isSyntheticBucket(value)) { return ''; }
+  if (!isZero && isSyntheticBucket(value)) { return ''; }
 
   // Find matching rule by checking if col includes any pattern
   for (const [pattern, rule] of patternToRule.entries()) {
     if (col.includes(pattern)) {
+      if (isZero && !rule.allowZero) { return ''; }
       const transformedValue = rule.transform ? rule.transform(value) : value;
       return rule.getColor(transformedValue);
     }

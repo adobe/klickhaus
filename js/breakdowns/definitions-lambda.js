@@ -74,6 +74,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-url',
     col: 'arrayJoin(`urls`)',
+    searchCol: 'arrayJoin(`urls`)',
     filterCol: '`urls`',
     filterOp: 'HAS',
     highCardinality: true,
@@ -81,6 +82,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-path',
     col: 'arrayJoin(`paths`)',
+    searchCol: 'arrayJoin(`paths`)',
     filterCol: '`paths`',
     filterOp: 'HAS',
     highCardinality: true,
@@ -88,6 +90,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-ip',
     col: 'arrayJoin(`ips`)',
+    searchCol: 'arrayJoin(`ips`)',
     filterCol: '`ips`',
     filterOp: 'HAS',
     highCardinality: true,
@@ -95,6 +98,7 @@ export const lambdaBreakdowns = [
   {
     id: 'breakdown-email',
     col: 'arrayJoin(`emails`)',
+    searchCol: 'arrayJoin(`emails`)',
     filterCol: '`emails`',
     filterOp: 'HAS',
     highCardinality: true,

@@ -276,6 +276,34 @@
   font-size: 18px;
 }
 
+.log-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Optional external-link button (e.g. "Open in opspile"), shown when the row has a URL */
+.log-detail-open-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background: var(--primary);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.log-detail-open-link:hover {
+  background: var(--primary-dark);
+}
+
+.log-detail-open-link[hidden] {
+  display: none;
+}
+
 .log-detail-content {
   padding: 16px 20px;
   overflow-y: auto;

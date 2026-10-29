@@ -10,7 +10,9 @@
  * governing permissions and limitations under the License.
  */
 import { assert } from 'chai';
-import { escapeHtml, isSyntheticBucket, sanitizeUrl } from './utils.js';
+import {
+  escapeHtml, escapeSqlString, isSyntheticBucket, sanitizeUrl,
+} from './utils.js';
 
 describe('escapeHtml', () => {
   it('escapes angle brackets', () => {
@@ -139,5 +141,20 @@ describe('sanitizeUrl', () => {
 
   it('handles URLs with fragments only', () => {
     assert.strictEqual(sanitizeUrl('https://example.com#top'), 'https://example.com#top');
+  });
+});
+
+describe('escapeSqlString', () => {
+  it('escapes quotes', () => {
+    assert.strictEqual(escapeSqlString("o'Brien"), "o\\'Brien");
+  });
+
+  it('escapes backslashes before quotes, so \\\' cannot close the literal', () => {
+    assert.strictEqual(escapeSqlString("\\'"), "\\\\\\'");
+    assert.strictEqual(escapeSqlString('a\\b'), 'a\\\\b');
+  });
+
+  it('stringifies non-strings', () => {
+    assert.strictEqual(escapeSqlString(42), '42');
   });
 });

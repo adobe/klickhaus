@@ -18,6 +18,17 @@ export function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
+/**
+ * Escape a value for a single-quoted ClickHouse string literal ('...'). Backslashes
+ * first, then quotes: escaping only the quote lets an input ending in a backslash
+ * (\') turn the escape into a literal backslash and close the string.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function escapeSqlString(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 const ALLOWED_URL_PROTOCOLS = new Set(['http:', 'https:']);
 
 function hasExplicitPath(urlString) {

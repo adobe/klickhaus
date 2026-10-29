@@ -50,7 +50,9 @@ export function setUrlStateElements(els) {
  * Add basic state parameters to URL params
  */
 function addBasicParams(params) {
-  if (state.timeRange !== DEFAULT_TIME_RANGE) { params.set('t', state.timeRange); }
+  // Omit `t` only at this view's own default, so a reload restores the same range.
+  const defaultTimeRange = state.defaultTimeRange || DEFAULT_TIME_RANGE;
+  if (state.timeRange !== defaultTimeRange) { params.set('t', state.timeRange); }
   if (state.hostFilter) { params.set('host', state.hostFilter); }
   if (state.ownerRepoFilter) { params.set('owner', state.ownerRepoFilter); }
   if (state.searchFilter) { params.set('q', state.searchFilter); }
@@ -121,6 +123,10 @@ export function saveStateToURL(newAnomalyId = undefined) {
 function loadBasicState(params) {
   if (params.has('t') && TIME_RANGES[params.get('t')]) {
     state.timeRange = params.get('t');
+  } else {
+    // No (valid) `t` means this view's default: saveStateToURL omits it there. Needed on
+    // popstate, where applyConfig does not run again (first load: applyConfig follows).
+    state.timeRange = state.defaultTimeRange || DEFAULT_TIME_RANGE;
   }
   if (params.has('host')) { state.hostFilter = params.get('host'); }
   if (params.has('owner')) {

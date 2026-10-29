@@ -87,6 +87,22 @@ describe('loadStateFromURL', () => {
       loadStateFromURL();
       assert.strictEqual(state.timeRange, DEFAULT_TIME_RANGE);
     });
+
+    it('resets to the default when t is absent, even after another range', () => {
+      state.timeRange = '24h';
+      setURL({});
+      loadStateFromURL();
+      assert.strictEqual(state.timeRange, DEFAULT_TIME_RANGE);
+    });
+
+    it('uses the view default (e.g. opspile 1mo) when t is absent', () => {
+      state.defaultTimeRange = '1mo';
+      state.timeRange = '7d';
+      setURL({});
+      loadStateFromURL();
+      assert.strictEqual(state.timeRange, '1mo');
+      state.defaultTimeRange = null;
+    });
   });
 
   describe('host filter', () => {
@@ -453,6 +469,22 @@ describe('saveStateToURL', () => {
     assert.isFalse(params.has('t'));
   });
 
+  describe('with a per-view default time range (e.g. opspile, 1mo)', () => {
+    afterEach(() => { state.defaultTimeRange = null; });
+
+    it('omits the view default and keeps the global default', () => {
+      state.defaultTimeRange = '1mo';
+      state.timeRange = '1mo';
+      saveStateToURL();
+      assert.isFalse(new URLSearchParams(window.location.search).has('t'));
+
+      state.timeRange = DEFAULT_TIME_RANGE;
+      saveStateToURL();
+      // Without t=7d a reload would fall back to the view default (1mo).
+      assert.strictEqual(new URLSearchParams(window.location.search).get('t'), DEFAULT_TIME_RANGE);
+    });
+  });
+
   it('encodes host filter', () => {
     state.hostFilter = 'example.com';
     saveStateToURL();
@@ -728,6 +760,59 @@ describe('callback setters', () => {
   it('setUrlStateElements accepts an object', () => {
     // Just verify it doesn't throw
     setUrlStateElements({});
+  });
+});
+
+describe('popstate', () => {
+  beforeEach(() => {
+    ['activeFilters', 'dashboardTitle'].forEach((id) => {
+      const el = document.createElement('div');
+      el.id = id;
+      el.dataset.popstateTest = '';
+      document.body.appendChild(el);
+    });
+    resetState();
+    clearCustomTimeRange();
+    setQueryTimestamp(null);
+    const timeSelect = document.createElement('select');
+    ['24h', '7d', '1mo', 'custom'].forEach((v) => {
+      const opt = document.createElement('option');
+      opt.value = v;
+      timeSelect.appendChild(opt);
+    });
+    setUrlStateElements({
+      timeRangeSelect: timeSelect,
+      topNSelect: document.createElement('select'),
+      hostFilterInput: document.createElement('input'),
+      logsView: document.createElement('div'),
+      filtersView: document.createElement('div'),
+      contentArea: document.createElement('div'),
+      viewCycleBtn: document.createElement('button'),
+      refreshBtn: document.createElement('button'),
+      logoutBtn: document.createElement('button'),
+    });
+  });
+
+  afterEach(() => {
+    document.querySelectorAll('[data-popstate-test]').forEach((el) => el.remove());
+    state.defaultTimeRange = null;
+    setOnStateRestored(null);
+    setOnBeforeRestore(null);
+    window.history.replaceState({}, '', ORIGINAL_PATH);
+  });
+
+  it('Back to the bare URL restores the view default range, not the last one', () => {
+    state.defaultTimeRange = '1mo';
+    state.timeRange = '1mo';
+    let restored = 0;
+    setOnStateRestored(() => { restored += 1; });
+    setURL({ t: '7d' });
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    assert.strictEqual(state.timeRange, '7d');
+    setURL({});
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    assert.strictEqual(state.timeRange, '1mo');
+    assert.strictEqual(restored, 2);
   });
 });
 

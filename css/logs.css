@@ -269,3 +269,15 @@ body.col-resizing * {
   opacity: 0;
   transition: opacity 0.2s;
 }
+
+/* External row-link column (e.g. opspile `url`): opens in a new tab */
+.logs-table td a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+}
+
+.logs-table td a:hover {
+  color: var(--primary);
+  text-decoration-color: currentColor;
+}

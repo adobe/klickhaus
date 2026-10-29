@@ -19,6 +19,7 @@ import {
   getTable, getLogsTable, getHostFilter,
   getFacetTimeFilter, zoomOut, formatHumanReadableDurationMs, snapSelectionToMinuteBounds,
 } from './time.js';
+import { THREAD_KEY_RE } from './breakdowns/definitions-opspile.js';
 
 beforeEach(() => {
   clearCustomTimeRange();
@@ -139,6 +140,45 @@ describe('getLogsTable', () => {
   it('returns logsTableName when set', () => {
     state.logsTableName = 'lambda_logs';
     assert.strictEqual(getLogsTable(), 'lambda_logs');
+  });
+});
+
+describe('getHostFilter search routing', () => {
+  afterEach(() => {
+    state.searchFilter = '';
+    state.requestIdColumn = null;
+    state.requestIdPattern = null;
+    state.messageColumn = null;
+  });
+
+  it('routes UUIDs to requestIdColumn by default', () => {
+    state.requestIdColumn = 'request_id';
+    state.messageColumn = 'message';
+    state.searchFilter = '123e4567-e89b-12d3-a456-426614174000';
+    assert.strictEqual(getHostFilter(), "AND `request_id` = '123e4567-e89b-12d3-a456-426614174000'");
+  });
+
+  it('escapes backslash before quote so a search cannot close the string', () => {
+    state.messageColumn = 'message';
+    state.searchFilter = "x\\' OR 1=1 --";
+    assert.strictEqual(getHostFilter(), "AND `message` LIKE '%x\\\\\\' OR 1=1 --%'");
+    state.hostFilter = "a\\'b";
+    state.hostFilterColumn = 'org.slug';
+    state.searchFilter = '';
+    assert.strictEqual(getHostFilter(), "AND `org.slug` LIKE '%a\\\\\\'b%'");
+  });
+
+  it('uses requestIdPattern when set (opspile thread keys)', () => {
+    state.requestIdColumn = 'thread';
+    state.requestIdPattern = THREAD_KEY_RE;
+    state.messageColumn = 'thread.title';
+    state.searchFilter = 'slack:T1:C1:1.2';
+    assert.strictEqual(getHostFilter(), "AND `thread` = 'slack:T1:C1:1.2'");
+    state.searchFilter = 'outage';
+    assert.strictEqual(getHostFilter(), "AND `thread.title` LIKE '%outage%'");
+    // Not a thread key (backslash/quote are outside the key alphabet): escaped title search.
+    state.searchFilter = "slack:\\'OR(1=1)--";
+    assert.strictEqual(getHostFilter(), "AND `thread.title` LIKE '%slack:\\\\\\'OR(1=1)--%'");
   });
 });
 

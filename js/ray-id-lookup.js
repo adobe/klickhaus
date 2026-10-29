@@ -12,7 +12,7 @@
 import { DATABASE } from './config.js';
 import { query } from './api.js';
 import { loadSql } from './sql-loader.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, escapeSqlString } from './utils.js';
 import { state } from './state.js';
 
 /**
@@ -140,7 +140,7 @@ function renderErrorHtml(message) {
 
 async function resolveRayId(rayId) {
   const target = getResolveTarget();
-  const escaped = rayId.replace(/'/g, "''");
+  const escaped = escapeSqlString(rayId);
   const sql = await loadSql(target.sqlTemplate, { database: DATABASE, rayId: escaped });
   const result = await query(sql);
   return result.data;

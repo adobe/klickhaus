@@ -201,3 +201,14 @@ describe('legacy color getters', () => {
     assert.strictEqual(getByoCdnColor('cloudfront'), 'var(--cdn-cloudfront)');
   });
 });
+
+describe('getColorForColumn numeric zero', () => {
+  it('colours thread.resolved = 0 as open, and 1 as resolved', () => {
+    assert.strictEqual(getColorForColumn('`thread.resolved`', 0), 'var(--status-client-error)');
+    assert.strictEqual(getColorForColumn('`thread.resolved`', 1), 'var(--status-ok)');
+  });
+
+  it('keeps 0 uncoloured for rules that do not opt in', () => {
+    assert.strictEqual(getColorForColumn('`response.status`', 0), '');
+  });
+});

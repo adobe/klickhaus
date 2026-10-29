@@ -390,4 +390,61 @@ export const colorRules = {
       return hashToLambdaColor(value);
     },
   },
+
+  // opspile dashboard facets. Severity colours match the chart:
+  // red = critical/high or incident/security, yellow = waiting on us.
+  opsUrgencyLevel: {
+    patterns: ['`label.urgency_level`'],
+    getColor: (value) => {
+      if (!value) { return ''; }
+      const v = String(value).toLowerCase();
+      if (v === 'critical' || v === 'high') { return 'var(--status-server-error)'; }
+      if (v === 'normal') { return 'var(--status-client-error)'; }
+      return 'var(--status-ok)';
+    },
+  },
+
+  opsKind: {
+    patterns: ['`label.kind`'],
+    getColor: (value) => {
+      if (!value) { return ''; }
+      const v = String(value).toLowerCase();
+      if (v === 'incident' || v === 'security') { return 'var(--status-server-error)'; }
+      return hashToLambdaColor(v);
+    },
+  },
+
+  opsNextActor: {
+    patterns: ['`thread.waiting_on`', '`label.next_actor`'],
+    getColor: (value) => {
+      if (!value) { return ''; }
+      const v = String(value).toLowerCase();
+      if (v === 'us') { return 'var(--status-client-error)'; }
+      if (v === 'nobody') { return 'var(--status-ok)'; }
+      return hashToLambdaColor(v);
+    },
+  },
+
+  opsResolved: {
+    patterns: ['`thread.resolved`'],
+    allowZero: true,
+    getColor: (value) => {
+      if (value === 'resolved' || Number(value) === 1) { return 'var(--status-ok)'; }
+      // 0 is open; it must get a colour too (allowZero), because log cells are only
+      // clickable (filter on this value) when they have one.
+      if (value === 'open' || Number(value) === 0) { return 'var(--status-client-error)'; }
+      return '';
+    },
+  },
+
+  opsCategory: {
+    patterns: [
+      '`team`', '`teams`', '`org.slug`', '`org.type`', '`channel.name`', '`channel.kind`',
+      '`author.name`', '`author.relation`', '`author.domain`', '`author.ops_teams`',
+    ],
+    getColor: (value) => {
+      if (!value) { return ''; }
+      return hashToLambdaColor(String(value));
+    },
+  },
 };

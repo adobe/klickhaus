@@ -11,6 +11,7 @@
  */
 import { state } from './state.js';
 import { TIME_RANGES, TIME_RANGE_ORDER } from './constants.js';
+import { escapeSqlString } from './utils.js';
 
 // Query timestamp for deterministic/cacheable queries
 const timeState = {
@@ -277,8 +278,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function getSearchClause() {
   if (!state.searchFilter) { return ''; }
-  const escaped = state.searchFilter.replace(/'/g, "\\'");
-  if (UUID_RE.test(state.searchFilter) && state.requestIdColumn) {
+  const escaped = escapeSqlString(state.searchFilter);
+  const requestIdPattern = state.requestIdPattern || UUID_RE;
+  if (state.requestIdColumn && requestIdPattern.test(state.searchFilter)) {
     return `AND \`${state.requestIdColumn}\` = '${escaped}'`;
   }
   if (state.messageColumn) {
@@ -290,7 +292,7 @@ function getSearchClause() {
 export function getHostFilter() {
   const clauses = [];
   if (state.hostFilter) {
-    const escaped = state.hostFilter.replace(/'/g, "\\'");
+    const escaped = escapeSqlString(state.hostFilter);
     if (state.hostFilterColumn) {
       clauses.push(`AND \`${state.hostFilterColumn}\` LIKE '%${escaped}%'`);
     } else {
@@ -300,15 +302,15 @@ export function getHostFilter() {
   if (state.ownerRepoFilter) {
     const slashIdx = state.ownerRepoFilter.indexOf('/');
     if (slashIdx !== -1) {
-      const owner = state.ownerRepoFilter.substring(0, slashIdx).replace(/'/g, "\\'");
-      const repo = state.ownerRepoFilter.substring(slashIdx + 1).replace(/'/g, "\\'");
+      const owner = escapeSqlString(state.ownerRepoFilter.substring(0, slashIdx));
+      const repo = escapeSqlString(state.ownerRepoFilter.substring(slashIdx + 1));
       if (state.ownerRepoFilterExact) {
         clauses.push(`AND \`helix.owner\` = '${owner}' AND \`helix.repo\` = '${repo}'`);
       } else {
         clauses.push(`AND \`helix.owner\` LIKE '%${owner}%' AND \`helix.repo\` LIKE '%${repo}%'`);
       }
     } else {
-      const escaped = state.ownerRepoFilter.replace(/'/g, "\\'");
+      const escaped = escapeSqlString(state.ownerRepoFilter);
       clauses.push(`AND (\`helix.owner\` LIKE '%${escaped}%' OR \`helix.repo\` LIKE '%${escaped}%')`);
     }
   }

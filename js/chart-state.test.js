@@ -46,8 +46,11 @@ import {
   zoomToAnomaly,
   zoomToAnomalyByRank,
   STATUS_RANGE_COL,
+  getChartCategoryLabel,
 } from './chart-state.js';
 import { state } from './state.js';
+import { clearAllowedColumnsCache } from './filter-sql.js';
+import { opspileBreakdowns } from './breakdowns/definitions-opspile.js';
 import {
   setQueryTimestamp, clearCustomTimeRange, setCustomTimeRange, queryTimestamp, getCustomTimeRange,
 } from './time.js';
@@ -886,5 +889,45 @@ describe('zoomToAnomaly', () => {
     assert.isTrue(result);
     assert.deepEqual(getCustomTimeRange(), { start, end });
     assert.isTrue(state.filters.some((f) => f.col === STATUS_RANGE_COL && f.value === '4xx'));
+  });
+
+  it('zoomToAnomalyByRank skips the status filter on views without a status facet', () => {
+    const saved = state.breakdowns;
+    state.breakdowns = opspileBreakdowns;
+    clearAllowedColumnsCache();
+    try {
+      const start = new Date('2025-06-15T10:00:00Z');
+      const end = new Date('2025-06-15T10:05:00Z');
+      addAnomalyBounds({
+        left: 20, right: 40, startTime: start, endTime: end, rank: 1,
+      });
+      setDetectedSteps([{
+        rank: 1, type: 'spike', category: 'red', magnitude: 3,
+      }]);
+      assert.isTrue(zoomToAnomalyByRank(1));
+      assert.deepEqual(getCustomTimeRange(), { start, end });
+      assert.lengthOf(state.filters, 0);
+    } finally {
+      state.breakdowns = saved;
+      clearAllowedColumnsCache();
+    }
+  });
+});
+
+describe('getChartCategoryLabel', () => {
+  afterEach(() => { state.chartCategoryLabels = null; });
+
+  it('defaults to HTTP status ranges', () => {
+    assert.strictEqual(getChartCategoryLabel('red'), '5xx');
+    assert.strictEqual(getChartCategoryLabel('yellow'), '4xx');
+    assert.strictEqual(getChartCategoryLabel('green'), '2xx');
+    assert.strictEqual(getChartCategoryLabel(undefined), '2xx');
+  });
+
+  it('uses the view labels when set (opspile: red/yellow/green)', () => {
+    state.chartCategoryLabels = { green: 'green', yellow: 'yellow', red: 'red' };
+    assert.strictEqual(getChartCategoryLabel('red'), 'red');
+    assert.strictEqual(getChartCategoryLabel('yellow'), 'yellow');
+    assert.strictEqual(getChartCategoryLabel('green'), 'green');
   });
 });

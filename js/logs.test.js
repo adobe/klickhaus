@@ -14,7 +14,7 @@ import { state } from './state.js';
 import {
   openLogDetailModal, closeLogDetailModal, renderLogsTable, setLogsElements, copyLogRow,
   applyViewMode, setViewMode, cycleViewMode, toggleLogsView,
-  setOnShowFiltersView, setOnShowLogsView, loadLogs,
+  setOnShowFiltersView, setOnShowLogsView, loadLogs, updateLogDetailOpenLink,
 } from './logs.js';
 
 function ensureModal() {
@@ -28,6 +28,9 @@ function ensureModal() {
   }
   return modal;
 }
+
+// Built at runtime so the no-script-url lint rule does not flag the fixture.
+const SCRIPT_URL = ['javascript', 'alert(1)'].join(':');
 
 describe('openLogDetailModal - Array(String) fields (e.g. da_worker_logs logs/exceptions)', () => {
   let savedLogsData;
@@ -455,5 +458,83 @@ describe('loadLogs', () => {
     await loadLogs();
 
     assert.include(fixture.container.textContent, 'Error loading logs');
+  });
+});
+
+describe('openLogDetailModal - row link button (opspile "Open in opspile")', () => {
+  let savedLogsData;
+  let savedRowLinkColumn;
+  let link;
+
+  beforeEach(() => {
+    const modal = ensureModal();
+    link = document.createElement('a');
+    link.id = 'logDetailOpenLink';
+    link.hidden = true;
+    modal.appendChild(link);
+    savedLogsData = state.logsData;
+    savedRowLinkColumn = state.rowLinkColumn;
+    state.rowLinkColumn = 'url';
+  });
+
+  afterEach(() => {
+    closeLogDetailModal();
+    link.remove();
+    state.logsData = savedLogsData;
+    state.rowLinkColumn = savedRowLinkColumn;
+  });
+
+  it('points the button at the row url and shows it', () => {
+    state.logsData = [{ thread: 'slack:T1:C1:1.2', url: 'https://ops.example.test/inbox?view=personal&t=slack:T1:C1:1.2' }];
+    openLogDetailModal(0);
+    assert.isFalse(link.hidden);
+    assert.strictEqual(link.getAttribute('href'), 'https://ops.example.test/inbox?view=personal&t=slack:T1:C1:1.2');
+  });
+
+  it('hides the button when the row has no usable url', () => {
+    updateLogDetailOpenLink({ url: 'https://ops.example.test/a' });
+    assert.isFalse(link.hidden);
+    updateLogDetailOpenLink({ url: SCRIPT_URL });
+    assert.isTrue(link.hidden);
+    assert.isFalse(link.hasAttribute('href'));
+    updateLogDetailOpenLink({ url: '' });
+    assert.isTrue(link.hidden);
+  });
+
+  it('hides the button on views without a row link column', () => {
+    state.rowLinkColumn = null;
+    updateLogDetailOpenLink({ url: 'https://ops.example.test/a' });
+    assert.isTrue(link.hidden);
+  });
+});
+
+describe('renderLogsTable - row link column', () => {
+  let container;
+  let savedRowLinkColumn;
+  let savedOrder;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    container.innerHTML = '<div class="logs-table-container"></div>';
+    document.body.appendChild(container);
+    setLogsElements(container, document.createElement('div'), null);
+    savedRowLinkColumn = state.rowLinkColumn;
+    savedOrder = state.logColumnOrder;
+    state.rowLinkColumn = 'url';
+    state.logColumnOrder = ['timestamp', 'url'];
+  });
+
+  afterEach(() => {
+    container.remove();
+    state.rowLinkColumn = savedRowLinkColumn;
+    state.logColumnOrder = savedOrder;
+  });
+
+  it('renders the url cell as a new-tab link', () => {
+    renderLogsTable([{ timestamp: '2026-01-01 00:00:00.000', url: 'https://ops.example.test/inbox?t=x' }]);
+    const a = container.querySelector('.logs-table tbody td a');
+    assert.ok(a);
+    assert.strictEqual(a.target, '_blank');
+    assert.strictEqual(a.getAttribute('href'), 'https://ops.example.test/inbox?t=x');
   });
 });

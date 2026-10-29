@@ -15,7 +15,9 @@
  * UI concerns (rendering, event handling) are in chart.js.
  */
 
+import { state } from './state.js';
 import { addFilter } from './filters.js';
+import { isValidFilterColumn } from './filter-sql.js';
 import {
   getPeriodMs,
   queryTimestamp,
@@ -26,6 +28,19 @@ import { saveStateToURL } from './url-state.js';
 
 // Status range column for filtering
 export const STATUS_RANGE_COL = "concat(toString(intDiv(`response.status`, 100)), 'xx')";
+
+const DEFAULT_CATEGORY_LABELS = { green: '2xx', yellow: '4xx', red: '5xx' };
+
+/**
+ * Label for a chart band (green/yellow/red) in the scrubber. HTTP status ranges by
+ * default; views with their own aggregations set state.chartCategoryLabels.
+ * @param {string} [category]
+ * @returns {string}
+ */
+export function getChartCategoryLabel(category) {
+  const labels = state.chartCategoryLabels || DEFAULT_CATEGORY_LABELS;
+  return labels[category] || labels.green;
+}
 
 // Navigation callback
 let onNavigate = null;
@@ -493,7 +508,9 @@ export function zoomToAnomalyByRank(rank) {
 
   // Get the anomaly category and add corresponding status filter
   const step = lastDetectedSteps.find((s) => s.rank === rank);
-  if (step?.category) {
+  // Only views that facet on the status range can filter by it (opspile, lambda, … would
+  // get a filter chip that compileFilters drops as an unknown column).
+  if (step?.category && isValidFilterColumn(STATUS_RANGE_COL)) {
     // Map category to status range filter values
     // red = 5xx errors, yellow = 4xx client errors, green = 2xx success
     const statusFilters = {
