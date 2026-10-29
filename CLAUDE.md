@@ -130,13 +130,13 @@ node scripts/roll-user.mjs <admin-user> <admin-password> <username>
 node scripts/drop-user.mjs <admin-user> <admin-password> <username>
 ```
 
-New users get SELECT access to `delivery`, `delivery_errors`, `delivery_archive`, `delivery_debug`, `admin`, `backend`, `misc_services`, `da`, `releases`, `oncall_shifts`, and `lambda_logs`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
+New users get SELECT access to `delivery`, `delivery_errors`, `delivery_archive`, `delivery_debug`, `admin`, `backend`, `misc_services`, `da`, `releases`, `oncall_shifts`, `lambda_logs`, `opspile_messages`, and `opspile_messages_raw`, plus dictGet access to `asn_dict`, along with the following performance/safety settings:
 
 - `enable_parallel_replicas = 1` — queries are distributed across all replicas
 - `max_parallel_replicas = 6` — use up to 6 replicas for parallel reads
 - `max_memory_usage = 4000000000` — 4 GB per-query memory limit to protect small replicas
 
-Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`) are managed manually, outside `add-user.mjs`. Their canonical grants live in [`sql/writer_users.sql`](sql/writer_users.sql) — diff with `SHOW GRANTS FOR <user>` before applying. They get only the memory limit (no parallel replicas for inserts). Note: chained materialized views run in the inserter's security context, so a writer needs `SELECT` on every table any downstream MV reads, not just `INSERT` on the staging table.
+Writer users (`logpush_writer`, `releases_writer`, `lambda_logs_writer`, `config_writer`, `opspile_writer`) are managed manually, outside `add-user.mjs`. Their canonical grants live in [`sql/writer_users.sql`](sql/writer_users.sql) — diff with `SHOW GRANTS FOR <user>` before applying. They get only the memory limit (no parallel replicas for inserts). Note: chained materialized views run in the inserter's security context, so a writer needs `SELECT` on every table any downstream MV reads, not just `INSERT` on the staging table.
 
 ## Datacenter Names
 
@@ -191,6 +191,8 @@ AWS Lambda ──► helix-clickhouse-feeder ───────────�
 
 **Lambda logs ingestion:** AWS Lambda function logs bypass the GCS pipeline entirely. [helix-clickhouse-feeder](https://github.com/adobe/helix-clickhouse-feeder) inserts rows directly into `lambda_logs_incoming`; a materialized view (`lambda_logs_ingestion`) parses JSON and extracts entity arrays into the queryable `lambda_logs` table (TTL 2 weeks). Schema defined in `sql/lambda_logs_tables.sql`.
 
+**opspile ingestion:** the [opspile](https://github.com/adobe/helix-opspile) Worker (ops inbox for Slack, Teams and Discord) also bypasses GCS: its exporter inserts one row per filed message into `opspile_messages_raw` (`FORMAT JSONEachRow`, as `opspile_writer`), re-exporting a thread whenever its messages or labels change. The table is a `ReplacingMergeTree(_version, _deleted)`; always read the deduplicated `opspile_messages` view (`FINAL`, tombstones dropped). Readers need `SELECT` on both the view and the raw table (views run as `SQL SECURITY INVOKER`); `scripts/grant-opspile.mjs` backfills that for existing users. Schema defined in `sql/opspile_tables.sql`.
+
 ## Schema Reference
 
 ### Main tables
@@ -206,6 +208,7 @@ AWS Lambda ──► helix-clickhouse-feeder ───────────�
 | `misc_services` | Miscellaneous service CDN logs keyed by `subsystem` | Yes (sampling rate) | Delivery-like schema with `subsystem` and a `cdn.domain` (LowCardinality) column, but **no** `helix.*` columns and none of the `x_ratelimit_*`/`x_severity` response headers. 2-week TTL. No `cdn_facet_minutes` facet table — breakdowns always query the raw table |
 | `da` | Cloudflare requests for Document Authoring (`*.da.live`, `docs.da.live`) | Yes (sampling rate) | DA-specific columns: `cdn.script_name` (Worker), `cdn.request_source`. No `source`/`byo_cdn`/`helix.*` |
 | `lambda_logs` | AWS Lambda function logs, ingested directly by helix-clickhouse-feeder | No | Columns: `level`, `message`, `message_json` (JSON), `request_id`, `function_name`, `app_name`, `subsystem`, `log_stream`, `log_group`, plus extracted arrays `urls`, `paths`, `hostnames`, `emails`, `ips`, `refs` |
+| `opspile_messages` | opspile ops-inbox messages (view `FINAL` over `opspile_messages_raw`), one row per message | No | Metadata and Clef classification only — **no message text**. Each row is denormalised with its thread's state at the last export: `thread`, `is_root`, `thread.title`/`root_at`/`messages`/`resolved`/`waiting_on` (inbox state; overrides Clef when Adobe posted last), `channel.*`, `team` (filed) and `teams` (filed + shared, Array), `org.slug`/`name`/`type`, `author.*` (incl. `author.ops_teams` Array), `label.next_actor`/`kind`/`urgency`/`urgency_level`/`resolved_p`/`model`, `facts_tickets`/`sites`/`cves`/`urls`/`problems` (Arrays — underscored because dotted Array columns would form a Nested structure), and `url` (opspile personal-view link). Thread-level counts: `uniq(thread)` or `is_root = 1`. `ORDER BY (timestamp, thread, message_id)`, monthly partitions, `TTL 18 months`. Tiny volume; no facet table |
 
 **Ordering**: `(timestamp, request.host)` — queries should filter on these columns first for best performance.
 
