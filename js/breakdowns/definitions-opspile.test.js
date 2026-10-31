@@ -11,7 +11,8 @@
  */
 import { assert } from 'chai';
 import {
-  opspileBreakdowns, OPSPILE_AGGREGATIONS, OPSPILE_RED, OPSPILE_YELLOW, THREAD_KEY_RE, formatMttr,
+  opspileBreakdowns, OPSPILE_AGGREGATIONS, OPSPILE_RED, OPSPILE_YELLOW, THREAD_KEY_RE,
+  formatMeanDuration,
 } from './definitions-opspile.js';
 import { state } from '../state.js';
 import { loadStateFromURL } from '../url-state.js';
@@ -222,20 +223,20 @@ describe('opspile deep links (the Stats link from opspile)', () => {
   });
 });
 
-describe('formatMttr', () => {
+describe('formatMeanDuration', () => {
   it('rounds to the minute', () => {
-    assert.strictEqual(formatMttr({ mean_s: 2856 }), '48m');
-    assert.strictEqual(formatMttr({ mean_s: 13800 }), '3h 50m');
-    assert.strictEqual(formatMttr({ mean_s: 183600 }), '2d 3h');
+    assert.strictEqual(formatMeanDuration({ mean_s: 2856 }), '48m');
+    assert.strictEqual(formatMeanDuration({ mean_s: 13800 }), '3h 50m');
+    assert.strictEqual(formatMeanDuration({ mean_s: 183600 }), '2d 3h');
   });
 
   it('never rounds down to nothing', () => {
-    assert.strictEqual(formatMttr({ mean_s: 5 }), '1m');
+    assert.strictEqual(formatMeanDuration({ mean_s: 5 }), '1m');
   });
 
   it('is empty without resolved threads', () => {
-    assert.isNull(formatMttr({ mean_s: null }));
-    assert.isNull(formatMttr(undefined));
+    assert.isNull(formatMeanDuration({ mean_s: null }));
+    assert.isNull(formatMeanDuration(undefined));
   });
 });
 
@@ -251,7 +252,7 @@ describe('opspile-mttr.sql', () => {
 
   it('belongs to the Resolved facet', () => {
     assert.strictEqual(byId('breakdown-resolved').summaryTemplate, 'opspile-mttr');
-    assert.strictEqual(byId('breakdown-resolved').summaryFormat, formatMttr);
+    assert.strictEqual(byId('breakdown-resolved').summaryFormat, formatMeanDuration);
   });
 
   it('picks entries by range and filters, and durations by the range alone', async () => {
@@ -264,5 +265,35 @@ describe('opspile-mttr.sql', () => {
     const sql = await sqlFor();
     assert.include(sql, "if(logical_thread != '', logical_thread, thread) AS entry");
     assert.include(sql, "maxIf(timestamp, `author.kind` = 'person')");
+  });
+});
+
+describe('opspile-first-response.sql', () => {
+  const sqlFor = () => loadSql('opspile-first-response', {
+    database: 'db',
+    table: 'opspile_messages',
+    timeFilter: 'TIME',
+    hostFilter: 'HOST',
+    facetFilters: 'FACETS',
+    additionalWhereClause: 'EXTRA',
+  });
+
+  it('belongs to the Waiting On facet, as its only badge', () => {
+    const facet = byId('breakdown-waiting-on');
+    assert.strictEqual(facet.summaryTemplate, 'opspile-first-response');
+    assert.strictEqual(facet.summaryFormat, formatMeanDuration);
+    assert.isUndefined(facet.summaryCountIf);
+  });
+
+  it('picks entries by range and filters, and durations by the range alone', async () => {
+    const sql = await sqlFor();
+    assert.include(sql, 'WHERE TIME HOST FACETS EXTRA');
+    assert.match(sql, /\)\nWHERE TIME\s*$/);
+  });
+
+  it('only counts humans, and only entries Adobe did not start', async () => {
+    const sql = await sqlFor();
+    assert.include(sql, "minIf(timestamp, `author.kind` = 'person' AND `author.relation` = 'adobe')");
+    assert.include(sql, "opened_by NOT IN ('', 'adobe')");
   });
 });

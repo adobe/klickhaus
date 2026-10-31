@@ -58,11 +58,12 @@ function arrayFacet(id, column, extra = {}) {
 }
 
 /**
- * Mean time to resolve for the Resolved facet's badge, to the minute (see opspile-mttr.sql).
+ * Mean duration for a facet badge, to the minute (see opspile-mttr.sql and
+ * opspile-first-response.sql).
  * @param {{mean_s: number|null}} [row]
- * @returns {string|null} null when no thread was resolved
+ * @returns {string|null} null when no thread counted
  */
-export function formatMttr(row) {
+export function formatMeanDuration(row) {
   if (!Number.isFinite(row?.mean_s)) {
     return null;
   }
@@ -93,9 +94,9 @@ export const opspileBreakdowns = [
   {
     id: 'breakdown-waiting-on',
     col: COLUMN_DEFS.opsWaitingOn.facetCol,
-    summaryCountIf: "`thread.waiting_on` = 'us'",
-    summaryLabel: 'on us',
-    summaryColor: 'warning',
+    summaryTemplate: 'opspile-first-response',
+    summaryFormat: formatMeanDuration,
+    summaryLabel: 'mean time to first response (first human message to first reply from Adobe)',
   },
   {
     id: 'breakdown-next-actor',
@@ -105,7 +106,7 @@ export const opspileBreakdowns = [
     id: 'breakdown-resolved',
     col: COLUMN_DEFS.opsResolved.facetCol,
     summaryTemplate: 'opspile-mttr',
-    summaryFormat: formatMttr,
+    summaryFormat: formatMeanDuration,
     summaryLabel: 'mean time to resolve (estimate: first report to last human message)',
   },
   {
