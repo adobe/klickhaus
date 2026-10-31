@@ -65,6 +65,7 @@ const ALL_TEMPLATES = [
   'time-series-da-workers',
   'time-series-helix-mixer',
   'time-series-opspile',
+  'opspile-mttr',
   'ray-id-lookup',
   'ray-id-lookup-worker',
   'logs',

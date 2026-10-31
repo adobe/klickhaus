@@ -11,7 +11,7 @@
  */
 import { assert } from 'chai';
 import {
-  opspileBreakdowns, OPSPILE_AGGREGATIONS, OPSPILE_RED, OPSPILE_YELLOW, THREAD_KEY_RE,
+  opspileBreakdowns, OPSPILE_AGGREGATIONS, OPSPILE_RED, OPSPILE_YELLOW, THREAD_KEY_RE, formatMttr,
 } from './definitions-opspile.js';
 import { state } from '../state.js';
 import { loadStateFromURL } from '../url-state.js';
@@ -219,5 +219,50 @@ describe('opspile deep links (the Stats link from opspile)', () => {
   it('rejects filters on columns the view does not facet', () => {
     open([{ col: '`message`', value: 'x', exclude: false }]);
     assert.lengthOf(state.filters, 0);
+  });
+});
+
+describe('formatMttr', () => {
+  it('rounds to the minute', () => {
+    assert.strictEqual(formatMttr({ mean_s: 2856 }), '48m');
+    assert.strictEqual(formatMttr({ mean_s: 13800 }), '3h 50m');
+    assert.strictEqual(formatMttr({ mean_s: 183600 }), '2d 3h');
+  });
+
+  it('never rounds down to nothing', () => {
+    assert.strictEqual(formatMttr({ mean_s: 5 }), '1m');
+  });
+
+  it('is empty without resolved threads', () => {
+    assert.isNull(formatMttr({ mean_s: null }));
+    assert.isNull(formatMttr(undefined));
+  });
+});
+
+describe('opspile-mttr.sql', () => {
+  const sqlFor = () => loadSql('opspile-mttr', {
+    database: 'db',
+    table: 'opspile_messages',
+    timeFilter: 'TIME',
+    hostFilter: 'HOST',
+    facetFilters: 'FACETS',
+    additionalWhereClause: 'EXTRA',
+  });
+
+  it('belongs to the Resolved facet', () => {
+    assert.strictEqual(byId('breakdown-resolved').summaryTemplate, 'opspile-mttr');
+    assert.strictEqual(byId('breakdown-resolved').summaryFormat, formatMttr);
+  });
+
+  it('picks entries by range and filters, and durations by the range alone', async () => {
+    const sql = await sqlFor();
+    assert.include(sql, 'WHERE TIME HOST FACETS EXTRA');
+    assert.match(sql, /\)\nWHERE TIME\s*$/);
+  });
+
+  it('counts re-threaded threads once and ends an entry at a human message', async () => {
+    const sql = await sqlFor();
+    assert.include(sql, "if(logical_thread != '', logical_thread, thread) AS entry");
+    assert.include(sql, "maxIf(timestamp, `author.kind` = 'person')");
   });
 });
