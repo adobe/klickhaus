@@ -54,7 +54,16 @@ function getSpeedClass(elapsed) {
 /**
  * Build header elements HTML for facet card
  */
-function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, summaryLabel, summaryColor) {
+function buildSummaryHtml(summaryRatio, summaryText, summaryLabel, summaryColor) {
+  const text = summaryText ?? (summaryRatio !== null ? `${formatFacetHeaderPercent(summaryRatio * 100)}%` : null);
+  if (text === null || !summaryLabel) {
+    return '';
+  }
+  const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
+  return `<span class="summary-metric${summaryColorClass}" title="${text} ${summaryLabel}">${text}</span>`;
+}
+
+function buildHeaderElements(id, elapsed, modeToggle, isBytes) {
   const speedClass = getSpeedClass(elapsed);
   const speedTitle = formatQueryTime(elapsed);
   const isPinned = state.pinnedFacets.includes(id);
@@ -72,18 +81,7 @@ function buildHeaderElements(id, elapsed, modeToggle, isBytes, summaryRatio, sum
   const copyBtnHtml = '<button class="copy-facet-btn" data-action="copy-facet-tsv" '
     + `data-facet="${escapeHtml(id)}" title="Copy data as TSV">copy</button>`;
 
-  const summaryColorClass = summaryColor ? ` summary-${summaryColor}` : '';
-  const pctStr = summaryRatio !== null
-    ? formatFacetHeaderPercent(summaryRatio * 100)
-    : '';
-  const summaryHtml = (summaryRatio !== null && summaryLabel)
-    ? `<span class="summary-metric${summaryColorClass}" `
-      + `title="${pctStr}% ${summaryLabel}">${pctStr}%</span>`
-    : '';
-
-  return {
-    speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml,
-  };
+  return { speedIndicator, modeToggleHtml, copyBtnHtml };
 }
 
 /**
@@ -161,6 +159,7 @@ export function renderBreakdownTable(
   filterCol,
   filterValueFn,
   filterOp,
+  summaryText = null,
 ) {
   const card = document.getElementById(id);
   if (!card.dataset.title) { card.dataset.title = card.querySelector('h3').textContent; }
@@ -173,18 +172,9 @@ export function renderBreakdownTable(
   const isBytes = mode === 'bytes';
   const valueFormatter = isBytes ? formatBytes : formatNumber;
 
-  const headerParts = buildHeaderElements(
-    id,
-    elapsed,
-    modeToggle,
-    isBytes,
-    summaryRatio,
-    summaryLabel,
-    summaryColor,
-  );
-  const {
-    speedIndicator, modeToggleHtml, copyBtnHtml, summaryHtml,
-  } = headerParts;
+  const headerParts = buildHeaderElements(id, elapsed, modeToggle, isBytes);
+  const { speedIndicator, modeToggleHtml, copyBtnHtml } = headerParts;
+  const summaryHtml = buildSummaryHtml(summaryRatio, summaryText, summaryLabel, summaryColor);
 
   const searchBtnHtml = buildHeaderSearchButton(id, col, filterCol, title);
 

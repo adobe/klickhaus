@@ -9,6 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+import { formatDuration } from '../chart-state.js';
 import { COLUMN_DEFS } from '../columns.js';
 
 /**
@@ -57,6 +58,19 @@ function arrayFacet(id, column, extra = {}) {
 }
 
 /**
+ * Mean duration for a facet badge, to the minute (see opspile-mttr.sql and
+ * opspile-first-response.sql).
+ * @param {{mean_s: number|null}} [row]
+ * @returns {string|null} null when no thread counted
+ */
+export function formatMeanDuration(row) {
+  if (!Number.isFinite(row?.mean_s)) {
+    return null;
+  }
+  return formatDuration(0, Math.max(1, Math.round(row.mean_s / 60)) * 60000);
+}
+
+/**
  * Breakdown (facet) definitions for the opspile_messages view (one row per ops-inbox
  * message). There is no facet-minutes table: every facet queries the view directly,
  * which is cheap because the table is tiny. Counts are messages; `is_root` splits
@@ -80,9 +94,9 @@ export const opspileBreakdowns = [
   {
     id: 'breakdown-waiting-on',
     col: COLUMN_DEFS.opsWaitingOn.facetCol,
-    summaryCountIf: "`thread.waiting_on` = 'us'",
-    summaryLabel: 'on us',
-    summaryColor: 'warning',
+    summaryTemplate: 'opspile-first-response',
+    summaryFormat: formatMeanDuration,
+    summaryLabel: 'mean time to first response (first human message to first reply from Adobe)',
   },
   {
     id: 'breakdown-next-actor',
@@ -91,6 +105,9 @@ export const opspileBreakdowns = [
   {
     id: 'breakdown-resolved',
     col: COLUMN_DEFS.opsResolved.facetCol,
+    summaryTemplate: 'opspile-mttr',
+    summaryFormat: formatMeanDuration,
+    summaryLabel: 'mean time to resolve (estimate: first report to last human message)',
   },
   {
     id: 'breakdown-team',

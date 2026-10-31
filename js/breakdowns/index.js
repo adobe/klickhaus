@@ -380,12 +380,45 @@ function getSummaryRatio(b, totals) {
   return parseInt(totals.summary_cnt, 10) / parseInt(totals.cnt, 10);
 }
 
+/**
+ * Badge text of a breakdown with a summaryTemplate: a query of its own, for values that are
+ * not a share of the facet's rows. It fails on its own too, losing the badge but not the facet.
+ * @returns {Promise<string|null>}
+ */
+async function fetchSummaryText(b, params, signal) {
+  if (!b.summaryTemplate) {
+    return null;
+  }
+  try {
+    const sql = await loadSql(b.summaryTemplate, {
+      database: DATABASE,
+      table: getTable(),
+      timeFilter: params.timeFilter,
+      hostFilter: params.hostFilter,
+      facetFilters: params.facetFilters,
+      additionalWhereClause: state.additionalWhereClause || '',
+    });
+    const result = await queryLimiter(() => query(sql, { signal }));
+    return b.summaryFormat(result.data[0]);
+  } catch (err) {
+    if (isAbortError(err)) {
+      throw err;
+    }
+    // eslint-disable-next-line no-console
+    console.error(`Summary error (${b.id}):`, err);
+    return null;
+  }
+}
+
 async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
   const { isCurrent, signal } = requestStatus;
   const built = await buildBreakdownSql(b, timeFilter, hostFilter);
   const { sql, params, aggs } = built;
   const startTime = performance.now();
-  const result = await queryLimiter(() => query(sql, { signal }));
+  const [result, summaryText] = await Promise.all([
+    queryLimiter(() => query(sql, { signal })),
+    fetchSummaryText(b, params, signal),
+  ]);
   if (!isCurrent()) {
     return null;
   }
@@ -407,6 +440,7 @@ async function fetchBreakdownData(b, timeFilter, hostFilter, requestStatus) {
     params,
     elapsed,
     summaryRatio,
+    summaryText,
   };
 }
 
@@ -490,6 +524,7 @@ export async function loadBreakdown(
       b.filterCol,
       b.filterValueFn,
       b.filterOp,
+      result.summaryText,
     );
     if (requestStatus.isCurrent()) {
       facetLoadedForSignature.set(b.id, sig);
@@ -696,7 +731,10 @@ async function loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, reque
     const built = await buildPreviewBreakdownSql(b, timeFilter, hostFilter, facetTimes);
     const { sql, params, aggs } = built;
     const startTime = performance.now();
-    const result = await queryLimiter(() => query(sql, { signal }));
+    const [result, summaryText] = await Promise.all([
+      queryLimiter(() => query(sql, { signal })),
+      fetchSummaryText(b, params, signal),
+    ]);
     if (!isCurrent()) {
       return;
     }
@@ -729,6 +767,7 @@ async function loadPreviewBreakdown(b, timeFilter, hostFilter, facetTimes, reque
       b.filterCol,
       b.filterValueFn,
       b.filterOp,
+      summaryText,
     );
 
     card.classList.add('preview');

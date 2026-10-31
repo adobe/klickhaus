@@ -490,6 +490,69 @@ describe('loadBreakdown (facet table path)', () => {
     // The summary metric should be rendered (20.0% error rate)
     assert.include(card.innerHTML, '20.0%');
   });
+
+  describe('with a summaryTemplate', () => {
+    const sqlTemplate = 'SELECT 1 WHERE {{timeFilter}} {{hostFilter}} {{facetFilters}}';
+    const b = {
+      id: facetId,
+      col: '`source`',
+      summaryTemplate: 'summary-template-test',
+      summaryFormat: (row) => row.text,
+      summaryLabel: 'mean something',
+    };
+    const facetResult = {
+      data: [{
+        dim: 'x', cnt: '1', cnt_ok: '1', cnt_4xx: '0', cnt_5xx: '0',
+      }],
+      totals: {
+        cnt: '1', cnt_ok: '1', cnt_4xx: '0', cnt_5xx: '0',
+      },
+    };
+
+    function mockSummaryFetch(onSummary) {
+      window.fetch = async (url, init) => {
+        const isSummary = String(init?.body).includes('SELECT 1 WHERE');
+        if (String(url).endsWith('.sql')) {
+          const template = String(url).includes('summary-template-test')
+            ? sqlTemplate : BREAKDOWN_SQL_TEMPLATE;
+          return { ok: true, text: async () => template };
+        }
+        if (isSummary) {
+          return onSummary(init.body);
+        }
+        return { ok: true, json: async () => ({ ...facetResult, networkTime: 1 }) };
+      };
+    }
+
+    it('shows the formatted text and queries it with the facet filters', async () => {
+      const bodies = [];
+      mockSummaryFetch((body) => {
+        bodies.push(body);
+        return { ok: true, json: async () => ({ data: [{ text: '3h 50m' }] }) };
+      });
+      await loadBreakdown(b, 'TIME_MARK', 'AND host', startRequestContext('facets'), { force: true });
+
+      const badge = card.querySelector('.summary-metric');
+      assert.strictEqual(badge.textContent, '3h 50m');
+      assert.strictEqual(badge.title, '3h 50m mean something');
+      assert.include(bodies[0], 'TIME_MARK AND host');
+    });
+
+    it('renders no badge when the formatter has nothing to show', async () => {
+      mockSummaryFetch(() => ({ ok: true, json: async () => ({ data: [{ text: null }] }) }));
+      await loadBreakdown(b, '1=1', '', startRequestContext('facets'), { force: true });
+      assert.isNull(card.querySelector('.summary-metric'));
+      assert.exists(card.querySelector('table'));
+    });
+
+    it('keeps the facet when the badge query fails', async () => {
+      mockSummaryFetch(() => ({ ok: false, status: 500, text: async () => 'boom' }));
+      await loadBreakdown(b, '1=1', '', startRequestContext('facets'), { force: true });
+      assert.isNull(card.querySelector('.summary-metric'));
+      assert.exists(card.querySelector('table'));
+      assert.notInclude(card.innerHTML, 'boom');
+    });
+  });
 });
 
 describe('loadBreakdown (lambda facet table path)', () => {
